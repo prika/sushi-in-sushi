@@ -1,0 +1,159 @@
+{
+  "navigation": {
+    "menu": "Menu",
+    "about": "Chi Siamo",
+    "locations": "Sedi",
+    "contact": "Contatti",
+    "book": "Prenota"
+  },
+  "hero": {
+    "tagline": "Fusion Food • Porto",
+    "title": "L'Arte del Sushi",
+    "subtitle": "Reinventata",
+    "description": "La tradizione giapponese incontra la creatività contemporanea in due sedi a Porto.",
+    "bookTable": "Prenota un Tavolo",
+    "viewMenu": "Vedi il Menu"
+  },
+  "menu": {
+    "sectionLabel": "Il Nostro Menu",
+    "title": "Creazioni Signature",
+    "viewAll": "Vedi Menu Completo",
+    "pieces": "pz",
+    "items": "articoli",
+    "outOfStock": "Esaurito",
+    "expandAll": "Espandi tutto",
+    "collapseAll": "Riduci tutto",
+    "back": "Indietro",
+    "book": "Prenota",
+    "order": "Ordina"
+  },
+  "about": {
+    "sectionLabel": "La Nostra Filosofia",
+    "quote": "La Fusion Food non è solo una tecnica — è una filosofia che rispetta la tradizione abbracciando l'innovazione.",
+    "paragraph1": "Dal 2018, Sushi in Sushi combina autentiche tecniche giapponesi con ingredienti locali di qualità premium. Ogni piatto è una celebrazione di sapori, texture e presentazione impeccabile.",
+    "paragraph2": "Con due sedi a Porto, portiamo l'arte del sushi più vicino a voi, mantenendo sempre il nostro impegno per l'eccellenza e la freschezza dei nostri ingredienti.",
+    "interiorAlt": "Interno del ristorante",
+    "chefAlt": "Chef che prepara il sushi"
+  },
+  "gallery": {
+    "sectionLabel": "Galleria",
+    "title": "Momenti di Sapore",
+    "images": {
+      "sushiVariety": "Sushi assortito",
+      "makiRolls": "Maki rolls",
+      "ambiance": "Atmosfera del ristorante",
+      "nigiri": "Nigiri di salmone",
+      "sashimi": "Piatto di sashimi",
+      "details": "Dettagli del ristorante"
+    }
+  },
+  "reviews": {
+    "sectionLabel": "Testimonianze",
+    "title": "Cosa Dicono i Nostri Clienti",
+    "rating": "4.6/5 basato su oltre 375 recensioni",
+    "viewAll": "Vedi tutte le recensioni su Google",
+    "reviews": {
+      "review1": {
+        "name": "Maria S.",
+        "text": "Il miglior sushi di sempre! Tutto è sempre molto fresco, saporito e preparato al momento. È il mio sushi preferito e lo consiglio ad occhi chiusi.",
+        "date": "Dicembre 2025"
+      },
+      "review2": {
+        "name": "João P.",
+        "text": "Il miglior sushi che abbia mai mangiato, la qualità del pesce crudo è incredibile! I temaki, il sashimi, i nigiri… ci tornerò sicuramente!",
+        "date": "Gennaio 2026"
+      },
+      "review3": {
+        "name": "Ana R.",
+        "text": "Abbiamo adorato il sushi. Tutto era splendidamente servito e presentato. Ottimo rapporto qualità-prezzo!",
+        "date": "Novembre 2025"
+      },
+      "review4": {
+        "name": "Carlos M.",
+        "text": "Cibo eccellente con molti pezzi e combinazioni. Servizio molto gentile e attento. Atmosfera accogliente.",
+        "date": "Ottobre 2025"
+      }
+    }
+  },
+  "locations": {
+    "sectionLabel": "Due Sedi",
+    "title": "Vieni a Trovarci",
+    "directions": "Indicazioni",
+    "whatsapp": "WhatsApp",
+    "circunvalacao": {
+      "name": "Circunvalação",
+      "address": "Estr. da Circunvalação 12468, Porto",
+      "phone": "912 348 545",
+      "hours": "12:00 - 23:00"
+    },
+    "boavista": {
+      "name": "Boavista",
+      "address": "Shopping Brasilia, R. Luís Veiga Leitão 116, 2° piano, Porto",
+      "phone": "924 667 938",
+      "hours": "12:00 - 22:00"
+    }
+  },
+  "contact": {
+    "sectionLabel": "Prenota Ora",
+    "title": "Pronto per un'esperienza",
+    "titleHighlight": "indimenticabile?",
+    "description": "Fai la tua prenotazione o ordina online per consegna e asporto.",
+    "bookRodizio": "Prenota Rodizio",
+    "orderOnline": "Ordina Online",
+    "whatsappLabel": "WhatsApp:"
+  },
+  "footer": {
+    "tagline": "Fusion Food • Porto",
+    "copyright": "© {year} Sushi in Sushi. Tutti i diritti riservati."
+  },
+  "languageSwitcher": {
+    "label": "Lingua",
+    "pt": "Português",
+    "en": "English",
+    "fr": "Français",
+    "de": "Deutsch",
+    "it": "Italiano",
+    "es": "Español"
+  },
+  "menuDescriptions": {
+    "Sopa Missô": "Zuppa con miso, funghi shimeji, carota, porro e alga wakame",
+    "Aros de Lula": "Anelli di calamaro impanati",
+    "Shimeji": "Funghi al burro con salsa teriyaki",
+    "Sunomono": "Fette di cetriolo condite con salsa su",
+    "Sunomono de Pepino": "Fette di cetriolo condite con salsa su",
+    "Ceviche de Salmão": "Ceviche di salmone con agrumi e peperoni",
+    "Tartar de Salmão": "Tartare di salmone con scorza di limone",
+    "Carpaccio de Salmão": "Fette sottili di salmone con aglio croccante",
+    "Gunkan Salmão Filadélfia": "Salmone con cream cheese",
+    "Gunkan Crispy": "Salmone con formaggio e verdure croccanti",
+    "Gunkan Tropical": "Salmone con mango e avocado",
+    "Hot de Salmão": "Roll di salmone con cream cheese",
+    "Hot Crispy Filadélfia": "Salmone con copertura croccante",
+    "Hot Lovers Filadélfia": "Paté di salmone con cream cheese",
+    "Combinado Hot": "Assortimento di salmone e gamberi",
+    "Temaki de Salmão Filadélfia": "Salmone con cream cheese",
+    "Temaki de Salmão Tropical": "Salmone con mango e avocado",
+    "Temaki Supremo Filadélfia": "Salmone e gamberi impanati",
+    "Temaki Hot": "Temaki fritto con teriyaki",
+    "Poke Salmão Clássico": "Salmone con verdure e teriyaki",
+    "Poke Salmão Filadélfia": "Variante con cream cheese",
+    "Poke Vegan": "Pomodoro, verdure e ortaggi",
+    "Poke do Chef": "Specialità dello chef",
+    "SU": "Uramaki Philadelphia salmone + Gunkan Philadelphia salmone",
+    "SHARI": "Uramaki, hossomaki, nigiri e sashimi di salmone",
+    "FISH": "Selezione mista di frutti di mare",
+    "Temaki Vegan": "Mango, cetriolo e avocado",
+    "Hot Carrot Filadélfia": "Carota con cream cheese",
+    "Hot Vegan": "Carota e cavolo",
+    "Hossomaki Vegan": "Mango, cetriolo e pomodoro",
+    "Refrigerantes": "Coca-Cola, Sprite, succhi",
+    "Cerveja": "A partire da",
+    "Cocktails": "A partire da",
+    "Rolos Primavera": "Verdure, pollo o formaggio",
+    "Balls Hot de Salmão": "Palline di riso con salmone e Philadelphia",
+    "Shimeji na Manteiga": "Funghi al burro con salsa di soia",
+    "Camarão Joe": "Gamberi impanati avvolti nel salmone",
+    "Special Salmon": "Low-carb, senza riso",
+    "Sake 12pcs + Temaki": "Novità!"
+  }
+}

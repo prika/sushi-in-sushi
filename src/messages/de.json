@@ -1,0 +1,159 @@
+{
+  "navigation": {
+    "menu": "Speisekarte",
+    "about": "Über Uns",
+    "locations": "Standorte",
+    "contact": "Kontakt",
+    "book": "Reservieren"
+  },
+  "hero": {
+    "tagline": "Fusion Food • Porto",
+    "title": "Die Kunst des Sushi",
+    "subtitle": "Neu Erfunden",
+    "description": "Japanische Tradition trifft auf zeitgenössische Kreativität an zwei Standorten in Porto.",
+    "bookTable": "Tisch Reservieren",
+    "viewMenu": "Speisekarte"
+  },
+  "menu": {
+    "sectionLabel": "Unsere Speisekarte",
+    "title": "Signature-Kreationen",
+    "viewAll": "Vollständige Speisekarte",
+    "pieces": "Stk",
+    "items": "Artikel",
+    "outOfStock": "Ausverkauft",
+    "expandAll": "Alle erweitern",
+    "collapseAll": "Alle reduzieren",
+    "back": "Zurück",
+    "book": "Reservieren",
+    "order": "Bestellen"
+  },
+  "about": {
+    "sectionLabel": "Unsere Philosophie",
+    "quote": "Fusion Food ist nicht nur eine Technik — es ist eine Philosophie, die die Tradition respektiert und gleichzeitig Innovation umarmt.",
+    "paragraph1": "Seit 2018 kombiniert Sushi in Sushi authentische japanische Techniken mit erstklassigen lokalen Zutaten. Jedes Gericht ist eine Feier von Aromen, Texturen und makelloser Präsentation.",
+    "paragraph2": "Mit zwei Standorten in Porto bringen wir die Kunst des Sushi näher zu Ihnen und halten dabei stets unser Engagement für Exzellenz und Frische unserer Zutaten aufrecht.",
+    "interiorAlt": "Restaurant-Interieur",
+    "chefAlt": "Koch bereitet Sushi zu"
+  },
+  "gallery": {
+    "sectionLabel": "Galerie",
+    "title": "Momente des Geschmacks",
+    "images": {
+      "sushiVariety": "Verschiedene Sushi",
+      "makiRolls": "Maki-Rollen",
+      "ambiance": "Restaurant-Atmosphäre",
+      "nigiri": "Lachs-Nigiri",
+      "sashimi": "Sashimi-Platte",
+      "details": "Restaurant-Details"
+    }
+  },
+  "reviews": {
+    "sectionLabel": "Kundenstimmen",
+    "title": "Was Unsere Kunden Sagen",
+    "rating": "4.6/5 basierend auf über 375 Bewertungen",
+    "viewAll": "Alle Bewertungen auf Google ansehen",
+    "reviews": {
+      "review1": {
+        "name": "Maria S.",
+        "text": "Das beste Sushi aller Zeiten! Alles ist immer sehr frisch, schmackhaft und frisch zubereitet. Es ist mein Lieblingssushi und ich empfehle es ohne zu zögern.",
+        "date": "Dezember 2025"
+      },
+      "review2": {
+        "name": "João P.",
+        "text": "Das beste Sushi, das ich je gegessen habe, die Qualität des rohen Fischs ist unglaublich! Die Temakis, die Sashimis, die Nigiris… ich komme auf jeden Fall wieder!",
+        "date": "Januar 2026"
+      },
+      "review3": {
+        "name": "Ana R.",
+        "text": "Wir haben das Sushi geliebt. Alles war wunderschön serviert und präsentiert. Ausgezeichnetes Preis-Leistungs-Verhältnis!",
+        "date": "November 2025"
+      },
+      "review4": {
+        "name": "Carlos M.",
+        "text": "Ausgezeichnetes Essen mit vielen Stücken und Kombinationen. Sehr freundlicher und aufmerksamer Service. Gemütliche Atmosphäre.",
+        "date": "Oktober 2025"
+      }
+    }
+  },
+  "locations": {
+    "sectionLabel": "Zwei Standorte",
+    "title": "Besuchen Sie Uns",
+    "directions": "Wegbeschreibung",
+    "whatsapp": "WhatsApp",
+    "circunvalacao": {
+      "name": "Circunvalação",
+      "address": "Estr. da Circunvalação 12468, Porto",
+      "phone": "912 348 545",
+      "hours": "12:00 - 23:00"
+    },
+    "boavista": {
+      "name": "Boavista",
+      "address": "Shopping Brasilia, R. Luís Veiga Leitão 116, 2. Stock, Porto",
+      "phone": "924 667 938",
+      "hours": "12:00 - 22:00"
+    }
+  },
+  "contact": {
+    "sectionLabel": "Jetzt Reservieren",
+    "title": "Bereit für ein",
+    "titleHighlight": "unvergessliches Erlebnis?",
+    "description": "Reservieren Sie oder bestellen Sie online für Lieferung und Abholung.",
+    "bookRodizio": "Rodizio Reservieren",
+    "orderOnline": "Online Bestellen",
+    "whatsappLabel": "WhatsApp:"
+  },
+  "footer": {
+    "tagline": "Fusion Food • Porto",
+    "copyright": "© {year} Sushi in Sushi. Alle Rechte vorbehalten."
+  },
+  "languageSwitcher": {
+    "label": "Sprache",
+    "pt": "Português",
+    "en": "English",
+    "fr": "Français",
+    "de": "Deutsch",
+    "it": "Italiano",
+    "es": "Español"
+  },
+  "menuDescriptions": {
+    "Sopa Missô": "Suppe mit Miso, Shimeji-Pilzen, Karotte, Lauch und Wakame-Alge",
+    "Aros de Lula": "Panierte Tintenfischringe",
+    "Shimeji": "Pilze in Butter mit Teriyaki-Sauce",
+    "Sunomono": "Gurkenscheiben mit Su-Sauce gewürzt",
+    "Sunomono de Pepino": "Gurkenscheiben mit Su-Sauce gewürzt",
+    "Ceviche de Salmão": "Lachs-Ceviche mit Zitrusfrüchten und Paprika",
+    "Tartar de Salmão": "Lachs-Tatar mit Zitronenschale",
+    "Carpaccio de Salmão": "Dünne Lachsscheiben mit knusprigem Knoblauch",
+    "Gunkan Salmão Filadélfia": "Lachs mit Frischkäse",
+    "Gunkan Crispy": "Lachs mit Käse und knusprigem Gemüse",
+    "Gunkan Tropical": "Lachs mit Mango und Avocado",
+    "Hot de Salmão": "Lachs-Roll mit Frischkäse",
+    "Hot Crispy Filadélfia": "Lachs mit knusprigem Belag",
+    "Hot Lovers Filadélfia": "Lachs-Pastete mit Frischkäse",
+    "Combinado Hot": "Lachs- und Garnelen-Auswahl",
+    "Temaki de Salmão Filadélfia": "Lachs mit Frischkäse",
+    "Temaki de Salmão Tropical": "Lachs mit Mango und Avocado",
+    "Temaki Supremo Filadélfia": "Lachs und panierte Garnelen",
+    "Temaki Hot": "Gebratener Temaki mit Teriyaki",
+    "Poke Salmão Clássico": "Lachs mit Gemüse und Teriyaki",
+    "Poke Salmão Filadélfia": "Variante mit Frischkäse",
+    "Poke Vegan": "Tomate, Gemüse und Grünzeug",
+    "Poke do Chef": "Spezialität des Küchenchefs",
+    "SU": "Lachs Philadelphia Uramaki + Lachs Philadelphia Gunkan",
+    "SHARI": "Uramaki, Hossomaki, Nigiri und Lachs-Sashimi",
+    "FISH": "Gemischte Meeresfrüchte-Auswahl",
+    "Temaki Vegan": "Mango, Gurke und Avocado",
+    "Hot Carrot Filadélfia": "Karotte mit Frischkäse",
+    "Hot Vegan": "Karotte und Kohl",
+    "Hossomaki Vegan": "Mango, Gurke und Tomate",
+    "Refrigerantes": "Coca-Cola, Sprite, Säfte",
+    "Cerveja": "Ab",
+    "Cocktails": "Ab",
+    "Rolos Primavera": "Gemüse, Hähnchen oder Käse",
+    "Balls Hot de Salmão": "Reisbällchen mit Lachs und Philadelphia",
+    "Shimeji na Manteiga": "Pilze in Butter mit Sojasauce",
+    "Camarão Joe": "Panierte Garnelen in Lachs gewickelt",
+    "Special Salmon": "Low-Carb, ohne Reis",
+    "Sake 12pcs + Temaki": "Neu!"
+  }
+}

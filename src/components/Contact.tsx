@@ -1,24 +1,28 @@
 "use client";
 
 import { CalendarDays, ShoppingBag, MessageCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { BlurFade } from "./ui/blur-fade";
 import { ShimmerButton } from "./ui/shimmer-button";
 
 export function Contact() {
+  const t = useTranslations("contact");
+  const tLocations = useTranslations("locations");
+
   return (
     <section id="contacto" className="py-24 px-6 bg-card/30">
       <div className="max-w-4xl mx-auto text-center">
         <BlurFade inView>
           <span className="text-gold text-sm font-medium tracking-[0.3em] uppercase">
-            Reserve Já
+            {t("sectionLabel")}
           </span>
           <h2 className="font-display text-4xl md:text-5xl font-semibold mt-4 mb-6">
-            Pronto para uma experiência
+            {t("title")}
             <br />
-            <span className="text-gradient">inesquecível?</span>
+            <span className="text-gradient">{t("titleHighlight")}</span>
           </h2>
           <p className="text-muted text-lg mb-12">
-            Faça a sua reserva ou encomende online para delivery e takeaway.
+            {t("description")}
           </p>
         </BlurFade>
 
@@ -31,7 +35,7 @@ export function Contact() {
             >
               <ShimmerButton>
                 <CalendarDays size={18} className="mr-2" />
-                Reservar Rodízio
+                {t("bookRodizio")}
               </ShimmerButton>
             </a>
             <a
@@ -41,7 +45,7 @@ export function Contact() {
               className="flex items-center gap-2 px-8 py-4 border border-white/20 text-white text-sm font-medium tracking-wider uppercase hover:border-gold hover:text-gold transition-all duration-300 rounded-full"
             >
               <ShoppingBag size={18} />
-              Encomendar Online
+              {t("orderOnline")}
             </a>
           </div>
         </BlurFade>
@@ -49,14 +53,14 @@ export function Contact() {
         <BlurFade delay={0.3} inView>
           <div className="flex items-center justify-center gap-2 text-muted">
             <MessageCircle size={16} className="text-gold" />
-            <span>WhatsApp:</span>
+            <span>{t("whatsappLabel")}</span>
             <a
               href="https://wa.me/351912348545"
               target="_blank"
               rel="noopener noreferrer"
               className="text-white/80 hover:text-gold transition-colors"
             >
-              Circunvalação
+              {tLocations("circunvalacao.name")}
             </a>
             <span className="text-white/20">|</span>
             <a
@@ -65,7 +69,7 @@ export function Contact() {
               rel="noopener noreferrer"
               className="text-white/80 hover:text-gold transition-colors"
             >
-              Boavista
+              {tLocations("boavista.name")}
             </a>
           </div>
         </BlurFade>

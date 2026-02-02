@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { Instagram, Facebook, MessageCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 const socialLinks = [
   {
@@ -21,14 +22,17 @@ const socialLinks = [
   },
 ];
 
-const footerLinks = [
-  { href: "#menu", label: "Menu" },
-  { href: "#sobre", label: "Sobre" },
-  { href: "#localizacoes", label: "Localizações" },
-  { href: "#contacto", label: "Contactos" },
-];
-
 export function Footer() {
+  const t = useTranslations("footer");
+  const tNav = useTranslations("navigation");
+
+  const footerLinks = [
+    { href: "#menu", label: tNav("menu") },
+    { href: "#sobre", label: tNav("about") },
+    { href: "#localizacoes", label: tNav("locations") },
+    { href: "#contacto", label: tNav("contact") },
+  ];
+
   return (
     <footer className="py-16 px-6 border-t border-white/5">
       <div className="max-w-6xl mx-auto">
@@ -42,7 +46,7 @@ export function Footer() {
             />
           </div>
           <p className="text-muted text-sm tracking-wider uppercase">
-            Fusion Food • Porto
+            {t("tagline")}
           </p>
         </div>
 
@@ -77,7 +81,7 @@ export function Footer() {
 
         {/* Copyright */}
         <p className="text-center text-muted-foreground text-sm">
-          © {new Date().getFullYear()} Sushi in Sushi. Todos os direitos reservados.
+          {t("copyright", { year: new Date().getFullYear() })}
         </p>
       </div>
     </footer>

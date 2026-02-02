@@ -1,40 +1,43 @@
 "use client";
 
 import { MapPin, Phone, Clock, Navigation, MessageCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { BlurFade } from "./ui/blur-fade";
 
-const locations = [
-  {
-    name: "Circunvalação",
-    address: "Estr. da Circunvalação 12468, Porto",
-    phone: "912 348 545",
-    whatsapp: "351912348545",
-    hours: "12h - 23h",
-    mapsUrl:
-      "https://www.google.com/maps/search/?api=1&query=Estr.+da+Circunvalação+12468+Porto",
-  },
-  {
-    name: "Boavista",
-    address: "Shopping Brasilia, R. Luís Veiga Leitão 116, 2º piso, Porto",
-    phone: "924 667 938",
-    whatsapp: "351924667938",
-    hours: "12h - 22h",
-    mapsUrl:
-      "https://www.google.com/maps/search/?api=1&query=Shopping+Brasilia+Porto",
-  },
-];
-
 export function Locations() {
+  const t = useTranslations("locations");
+
+  const locations = [
+    {
+      name: t("circunvalacao.name"),
+      address: t("circunvalacao.address"),
+      phone: t("circunvalacao.phone"),
+      whatsapp: "351912348545",
+      hours: t("circunvalacao.hours"),
+      mapsUrl:
+        "https://www.google.com/maps/search/?api=1&query=Estr.+da+Circunvalação+12468+Porto",
+    },
+    {
+      name: t("boavista.name"),
+      address: t("boavista.address"),
+      phone: t("boavista.phone"),
+      whatsapp: "351924667938",
+      hours: t("boavista.hours"),
+      mapsUrl:
+        "https://www.google.com/maps/search/?api=1&query=Shopping+Brasilia+Porto",
+    },
+  ];
+
   return (
     <section id="localizacoes" className="py-24 px-6">
       <div className="max-w-6xl mx-auto">
         <BlurFade inView>
           <div className="text-center mb-16">
             <span className="text-gold text-sm font-medium tracking-[0.3em] uppercase">
-              Duas Localizações
+              {t("sectionLabel")}
             </span>
             <h2 className="font-display text-4xl md:text-5xl font-semibold mt-4">
-              Visite-nos
+              {t("title")}
             </h2>
           </div>
         </BlurFade>
@@ -75,7 +78,7 @@ export function Locations() {
                     className="flex items-center gap-2 px-5 py-2.5 border border-white/10 text-muted text-sm font-medium tracking-wider uppercase hover:text-gold hover:border-gold/50 transition-all duration-300"
                   >
                     <Navigation size={16} />
-                    Direções
+                    {t("directions")}
                   </a>
                   <a
                     href={`https://wa.me/${location.whatsapp}`}
@@ -84,7 +87,7 @@ export function Locations() {
                     className="flex items-center gap-2 px-5 py-2.5 border border-white/10 text-muted text-sm font-medium tracking-wider uppercase hover:text-gold hover:border-gold/50 transition-all duration-300"
                   >
                     <MessageCircle size={16} />
-                    WhatsApp
+                    {t("whatsapp")}
                   </a>
                 </div>
               </div>

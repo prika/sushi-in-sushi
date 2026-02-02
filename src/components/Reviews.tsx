@@ -1,38 +1,8 @@
 "use client";
 
 import { Star, Quote } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { BlurFade } from "./ui/blur-fade";
-
-const reviews = [
-  {
-    name: "Maria S.",
-    rating: 5,
-    text: "O melhor sushi de sempre! Tudo sempre muito fresco, saboroso e feito na hora. É o meu sushi favorito e indico de olhos fechados.",
-    date: "Dezembro 2025",
-    source: "Google",
-  },
-  {
-    name: "João P.",
-    rating: 5,
-    text: "Melhor sushi que já comi, a qualidade do peixe cru é absurda! Os temakis, o sashimi, os nigiris… irei repetir com certeza!",
-    date: "Janeiro 2026",
-    source: "Google",
-  },
-  {
-    name: "Ana R.",
-    rating: 5,
-    text: "Adoramos o sushi. Tudo muito bem servido e apresentado. A relação qualidade-preço é excelente!",
-    date: "Novembro 2025",
-    source: "TheFork",
-  },
-  {
-    name: "Carlos M.",
-    rating: 5,
-    text: "Comida excelente com muitas peças e combinações. Atendimento muito simpático e atencioso. Ambiente acolhedor.",
-    date: "Outubro 2025",
-    source: "Google",
-  },
-];
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -49,16 +19,49 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export function Reviews() {
+  const t = useTranslations("reviews");
+
+  const reviews = [
+    {
+      name: t("reviews.review1.name"),
+      rating: 5,
+      text: t("reviews.review1.text"),
+      date: t("reviews.review1.date"),
+      source: "Google",
+    },
+    {
+      name: t("reviews.review2.name"),
+      rating: 5,
+      text: t("reviews.review2.text"),
+      date: t("reviews.review2.date"),
+      source: "Google",
+    },
+    {
+      name: t("reviews.review3.name"),
+      rating: 5,
+      text: t("reviews.review3.text"),
+      date: t("reviews.review3.date"),
+      source: "TheFork",
+    },
+    {
+      name: t("reviews.review4.name"),
+      rating: 5,
+      text: t("reviews.review4.text"),
+      date: t("reviews.review4.date"),
+      source: "Google",
+    },
+  ];
+
   return (
     <section id="reviews" className="py-24 px-6 bg-card/30">
       <div className="max-w-6xl mx-auto">
         <BlurFade inView>
           <div className="text-center mb-16">
             <span className="text-gold text-sm font-medium tracking-[0.3em] uppercase">
-              Testemunhos
+              {t("sectionLabel")}
             </span>
             <h2 className="font-display text-4xl md:text-5xl font-semibold mt-4">
-              O Que Dizem os Nossos Clientes
+              {t("title")}
             </h2>
             <div className="flex items-center justify-center gap-2 mt-4">
               <div className="flex gap-0.5">
@@ -66,9 +69,7 @@ export function Reviews() {
                   <Star key={i} size={20} className="fill-gold text-gold" />
                 ))}
               </div>
-              <span className="text-muted text-sm">
-                4.6/5 baseado em 375+ avaliações
-              </span>
+              <span className="text-muted text-sm">{t("rating")}</span>
             </div>
           </div>
         </BlurFade>
@@ -112,7 +113,7 @@ export function Reviews() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-muted hover:text-gold transition-colors text-sm"
             >
-              Ver todas as avaliações no Google
+              {t("viewAll")}
               <svg
                 className="w-4 h-4"
                 fill="none"

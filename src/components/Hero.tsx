@@ -3,10 +3,13 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { BlurFade } from "./ui/blur-fade";
 import { ShimmerButton } from "./ui/shimmer-button";
 
 export function Hero() {
+  const t = useTranslations("hero");
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background image */}
@@ -46,7 +49,7 @@ export function Hero() {
           <div className="flex items-center justify-center gap-4 mb-8">
             <span className="w-12 h-px bg-gold" />
             <span className="text-gold text-sm font-medium tracking-[0.3em] uppercase">
-              Fusion Food • Porto
+              {t("tagline")}
             </span>
             <span className="w-12 h-px bg-gold" />
           </div>
@@ -54,16 +57,15 @@ export function Hero() {
 
         <BlurFade delay={0.2}>
           <h1 className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold leading-tight mb-6">
-            A Arte do Sushi
+            {t("title")}
             <br />
-            <span className="text-gradient">Reinventada</span>
+            <span className="text-gradient">{t("subtitle")}</span>
           </h1>
         </BlurFade>
 
         <BlurFade delay={0.3}>
           <p className="text-muted text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
-            Tradição japonesa encontra criatividade contemporânea
-            <br className="hidden sm:block" /> em duas localizações no Porto.
+            {t("description")}
           </p>
         </BlurFade>
 
@@ -74,13 +76,13 @@ export function Hero() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <ShimmerButton>Reservar Mesa</ShimmerButton>
+              <ShimmerButton>{t("bookTable")}</ShimmerButton>
             </a>
             <a
               href="#menu"
               className="px-8 py-4 text-sm font-medium tracking-wider uppercase text-muted hover:text-white transition-colors duration-300"
             >
-              Ver Menu
+              {t("viewMenu")}
             </a>
           </div>
         </BlurFade>

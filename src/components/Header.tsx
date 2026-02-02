@@ -4,21 +4,24 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-
-const leftLinks = [
-  { href: "/menu", label: "Menu" },
-  { href: "#sobre", label: "Sobre" },
-];
-
-const rightLinks = [
-  { href: "#localizacoes", label: "Locais" },
-  { href: "#contacto", label: "Contacto" },
-];
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export function Header() {
+  const t = useTranslations("navigation");
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const leftLinks = [
+    { href: "/menu", label: t("menu") },
+    { href: "#sobre", label: t("about") },
+  ];
+
+  const rightLinks = [
+    { href: "#localizacoes", label: t("locations") },
+    { href: "#contacto", label: t("contact") },
+  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -75,13 +78,14 @@ export function Header() {
                 {link.label}
               </a>
             ))}
+            <LanguageSwitcher />
             <a
               href="https://www.covermanager.com/reservation/module_restaurant/sushi-in-sushi/portuguese"
               target="_blank"
               rel="noopener noreferrer"
               className="ml-auto px-6 py-2 border border-gold text-gold text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
             >
-              Reservar
+              {t("book")}
             </a>
           </div>
         </div>
@@ -97,13 +101,16 @@ export function Header() {
               priority
             />
           </a>
-          <button
-            className="text-white p-2"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <button
+              className="text-white p-2"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -133,7 +140,7 @@ export function Header() {
                 rel="noopener noreferrer"
                 className="mt-4 px-6 py-3 border border-gold text-gold text-center text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
               >
-                Reservar
+                {t("book")}
               </a>
             </div>
           </motion.div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { BlurFade } from "./ui/blur-fade";
 
 const menuItems = [
@@ -31,16 +32,18 @@ const menuItems = [
 ];
 
 export function Menu() {
+  const t = useTranslations("menu");
+
   return (
     <section id="menu" className="py-24 px-6">
       <div className="max-w-6xl mx-auto">
         <BlurFade inView>
           <div className="text-center mb-16">
             <span className="text-gold text-sm font-medium tracking-[0.3em] uppercase">
-              O Nosso Menu
+              {t("sectionLabel")}
             </span>
             <h2 className="font-display text-4xl md:text-5xl font-semibold mt-4">
-              Criações de Assinatura
+              {t("title")}
             </h2>
           </div>
         </BlurFade>
@@ -78,7 +81,7 @@ export function Menu() {
               href="/menu"
               className="inline-block px-10 py-4 bg-gold text-background text-sm font-medium tracking-wider uppercase hover:bg-gold-light transition-all duration-300"
             >
-              Ver Menu Completo
+              {t("viewAll")}
             </a>
           </div>
         </BlurFade>

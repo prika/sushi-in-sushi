@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { menuCircunvalacao } from "@/data/menu-circunvalacao";
 import { menuBoavista } from "@/data/menu-boavista";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,8 @@ const restaurants = [
 ];
 
 export default function MenuPage() {
+  const t = useTranslations("menu");
+  const tDesc = useTranslations("menuDescriptions");
   const [activeRestaurant, setActiveRestaurant] = useState(restaurants[0].id);
   const [openCategories, setOpenCategories] = useState<string[]>([]);
   const currentRestaurant = restaurants.find((r) => r.id === activeRestaurant)!;
@@ -83,7 +86,7 @@ export default function MenuPage() {
             className="flex items-center gap-2 text-muted hover:text-white transition-colors"
           >
             <ArrowLeft size={20} />
-            <span className="text-sm font-medium hidden sm:inline">Voltar</span>
+            <span className="text-sm font-medium hidden sm:inline">{t("back")}</span>
           </Link>
           <div className="relative h-10 w-28">
             <Image
@@ -119,14 +122,14 @@ export default function MenuPage() {
           onClick={expandAll}
           className="text-xs text-muted hover:text-gold transition-colors"
         >
-          Expandir tudo
+          {t("expandAll")}
         </button>
         <span className="text-muted/30">|</span>
         <button
           onClick={collapseAll}
           className="text-xs text-muted hover:text-gold transition-colors"
         >
-          Fechar tudo
+          {t("collapseAll")}
         </button>
       </div>
 
@@ -150,7 +153,7 @@ export default function MenuPage() {
                 </h2>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-muted">
-                    {category.items.length} items
+                    {category.items.length} {t("items")}
                   </span>
                   <ChevronDown
                     size={20}
@@ -201,20 +204,20 @@ export default function MenuPage() {
                         <div className="flex items-center gap-2 mt-0.5">
                           {item.pieces && (
                             <span className="text-xs text-muted">
-                              {item.pieces} pçs
+                              {item.pieces} {t("pieces")}
                             </span>
                           )}
-                          {item.description && (
+                          {(item.description || tDesc.has(item.name)) && (
                             <>
                               {item.pieces && <span className="text-muted/30">•</span>}
                               <span className="text-xs text-muted line-clamp-1">
-                                {item.description}
+                                {tDesc.has(item.name) ? tDesc(item.name) : item.description}
                               </span>
                             </>
                           )}
                           {item.outOfStock && (
                             <span className="text-xs text-accent ml-auto">
-                              Esgotado
+                              {t("outOfStock")}
                             </span>
                           )}
                         </div>
@@ -238,7 +241,7 @@ export default function MenuPage() {
               rel="noopener noreferrer"
               className="flex-1 px-6 py-2.5 bg-gold text-background text-sm font-medium tracking-wider uppercase text-center hover:bg-gold-light transition-all duration-300"
             >
-              Reservar
+              {t("book")}
             </a>
             <a
               href="https://delivery.eatseasyapp.com/sushiinsushi"
@@ -246,7 +249,7 @@ export default function MenuPage() {
               rel="noopener noreferrer"
               className="flex-1 px-6 py-2.5 border border-white/20 text-white text-sm font-medium tracking-wider uppercase text-center hover:border-gold hover:text-gold transition-all duration-300"
             >
-              Encomendar
+              {t("order")}
             </a>
           </div>
         </div>
