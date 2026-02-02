@@ -7,7 +7,7 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const leftLinks = [
-  { href: "#menu", label: "Menu" },
+  { href: "/menu", label: "Menu" },
   { href: "#sobre", label: "Sobre" },
 ];
 

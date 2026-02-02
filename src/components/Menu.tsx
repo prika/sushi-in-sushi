@@ -5,28 +5,28 @@ import { BlurFade } from "./ui/blur-fade";
 
 const menuItems = [
   {
-    name: "Nigiri Premium",
-    description: "Seleção de nigiris com peixes frescos do dia",
-    price: "18.90",
-    image: "https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?q=80&w=600",
-  },
-  {
-    name: "Dragon Roll",
-    description: "Roll especial com camarão, abacate e unagi",
-    price: "14.50",
-    image: "https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?q=80&w=600",
+    name: "Sashimi de Salmão",
+    description: "Fatias finas de salmão fresco premium",
+    price: "12.00",
+    image: "/product/sashimi-salmao.jpg",
   },
   {
     name: "Hot Roll",
     description: "Roll empanado com cream cheese e salmão",
-    price: "12.90",
-    image: "https://images.unsplash.com/photo-1611143669185-af224c5e3252?q=80&w=600",
+    price: "7.00",
+    image: "/product/hot-roll.jpg",
   },
   {
-    name: "Sashimi Misto",
-    description: "30 fatias de sashimi variado premium",
-    price: "32.00",
-    image: "https://images.unsplash.com/photo-1534482421-64566f976cfa?q=80&w=600",
+    name: "Gunkan",
+    description: "Arroz envolto em alga com cobertura especial",
+    price: "5.00",
+    image: "/product/gunkan.jpg",
+  },
+  {
+    name: "Combinado Salmon Fusion",
+    description: "58 peças variadas de salmão para partilhar",
+    price: "37.00",
+    image: "/product/salmon-fusion.jpg",
   },
 ];
 
@@ -74,24 +74,12 @@ export function Menu() {
 
         <BlurFade delay={0.5} inView>
           <div className="text-center mt-12">
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <a
-                href="https://menusa.app/11eed38d2a757ac3a1d29448c47c9f89"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-8 py-3 border border-gold/50 text-gold text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
-              >
-                Menu Circunvalação
-              </a>
-              <a
-                href="https://menusa.app/11efe18a705bf1218300578d24ba92ad"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-8 py-3 border border-gold/50 text-gold text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
-              >
-                Menu Boavista
-              </a>
-            </div>
+            <a
+              href="/menu"
+              className="inline-block px-10 py-4 bg-gold text-background text-sm font-medium tracking-wider uppercase hover:bg-gold-light transition-all duration-300"
+            >
+              Ver Menu Completo
+            </a>
           </div>
         </BlurFade>
       </div>
