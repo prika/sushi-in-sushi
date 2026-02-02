@@ -51,26 +51,30 @@ export function Contact() {
         </BlurFade>
 
         <BlurFade delay={0.3} inView>
-          <div className="flex items-center justify-center gap-2 text-muted">
-            <MessageCircle size={16} className="text-gold" />
-            <span>{t("whatsappLabel")}</span>
-            <a
-              href="https://wa.me/351912348545"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white/80 hover:text-gold transition-colors"
-            >
-              {tLocations("circunvalacao.name")}
-            </a>
-            <span className="text-white/20">|</span>
-            <a
-              href="https://wa.me/351924667938"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white/80 hover:text-gold transition-colors"
-            >
-              {tLocations("boavista.name")}
-            </a>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-muted text-sm sm:text-base">
+            <div className="flex items-center gap-2">
+              <MessageCircle size={16} className="text-gold shrink-0" />
+              <span>{t("whatsappLabel")}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <a
+                href="https://wa.me/351912348545"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white/80 hover:text-gold transition-colors whitespace-nowrap"
+              >
+                {tLocations("circunvalacao.name")}
+              </a>
+              <span className="text-white/20">|</span>
+              <a
+                href="https://wa.me/351924667938"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white/80 hover:text-gold transition-colors whitespace-nowrap"
+              >
+                {tLocations("boavista.name")}
+              </a>
+            </div>
           </div>
         </BlurFade>
       </div>

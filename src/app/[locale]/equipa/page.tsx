@@ -9,72 +9,71 @@ import { BlurFade } from "@/components/ui/blur-fade";
 const teamMembers = [
   {
     id: "member1",
-    image: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=400&h=500&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=400&h=500&fit=crop",
   },
   {
     id: "member2",
-    image: "https://images.unsplash.com/photo-1581299894007-aaa50297cf16?w=400&h=500&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1581299894007-aaa50297cf16?w=400&h=500&fit=crop",
   },
   {
     id: "member3",
-    image: "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=500&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=500&fit=crop",
   },
   {
     id: "member4",
-    image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=500&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=500&fit=crop",
   },
   {
     id: "member5",
-    image: "https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?w=400&h=500&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?w=400&h=500&fit=crop",
   },
   {
     id: "member6",
-    image: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=500&fit=crop",
-  },
-];
-
-const groupPhotos = [
-  {
-    id: "group1",
-    image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&h=600&fit=crop",
-    alt: "Team photo",
-  },
-  {
-    id: "group2",
-    image: "https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800&h=600&fit=crop",
-    alt: "Restaurant team",
+    image:
+      "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=500&fit=crop",
   },
 ];
 
 const workPhotos = [
   {
     id: "work1",
-    image: "https://images.unsplash.com/photo-1579027989536-b7b1f875659b?w=600&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1579027989536-b7b1f875659b?w=600&h=400&fit=crop",
     alt: "Chef preparing sushi",
   },
   {
     id: "work2",
-    image: "https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?w=600&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?w=600&h=400&fit=crop",
     alt: "Sushi preparation",
   },
   {
     id: "work3",
-    image: "https://images.unsplash.com/photo-1611143669185-af224c5e3252?w=600&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1611143669185-af224c5e3252?w=600&h=400&fit=crop",
     alt: "Kitchen work",
   },
   {
     id: "work4",
-    image: "https://images.unsplash.com/photo-1583623025817-d180a2221d0a?w=600&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1583623025817-d180a2221d0a?w=600&h=400&fit=crop",
     alt: "Plating sushi",
   },
   {
     id: "work5",
-    image: "https://images.unsplash.com/photo-1607301406259-dfb186e15de8?w=600&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1607301406259-dfb186e15de8?w=600&h=400&fit=crop",
     alt: "Service",
   },
   {
     id: "work6",
-    image: "https://images.unsplash.com/photo-1540648639573-8c848de23f0a?w=600&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1540648639573-8c848de23f0a?w=600&h=400&fit=crop",
     alt: "Restaurant ambiance",
   },
 ];
@@ -154,29 +153,26 @@ export default function TeamPage() {
         </div>
       </section>
 
-      {/* Group Photos Section */}
+      {/* Team Photo Section */}
       <section className="px-6 py-20 bg-card/30">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <BlurFade inView>
             <h2 className="font-display text-3xl md:text-4xl font-semibold text-center mb-12">
               {tPage("groupTitle")}
             </h2>
           </BlurFade>
-          <div className="grid md:grid-cols-2 gap-6">
-            {groupPhotos.map((photo, index) => (
-              <BlurFade key={photo.id} delay={index * 0.1} inView>
-                <div className="relative aspect-[4/3] rounded-lg overflow-hidden">
-                  <Image
-                    src={photo.image}
-                    alt={photo.alt}
-                    fill
-                    className="object-cover hover:scale-105 transition-transform duration-500"
-                    unoptimized
-                  />
-                </div>
-              </BlurFade>
-            ))}
-          </div>
+          <BlurFade delay={0.1} inView>
+            <div className="relative aspect-[16/9] md:aspect-[2/1] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+              <Image
+                src="/team/team.png"
+                alt="Equipa Sushi in Sushi"
+                fill
+                className="object-cover"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent" />
+            </div>
+          </BlurFade>
         </div>
       </section>
 

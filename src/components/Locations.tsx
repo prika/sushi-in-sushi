@@ -70,24 +70,24 @@ export function Locations() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <a
                     href={location.mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-5 py-2.5 border border-white/10 text-muted text-sm font-medium tracking-wider uppercase hover:text-gold hover:border-gold/50 transition-all duration-300"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-white/10 text-muted text-xs sm:text-sm font-medium tracking-wider uppercase hover:text-gold hover:border-gold/50 transition-all duration-300"
                   >
-                    <Navigation size={16} />
-                    {t("directions")}
+                    <Navigation size={16} className="shrink-0" />
+                    <span className="whitespace-nowrap">{t("directions")}</span>
                   </a>
                   <a
                     href={`https://wa.me/${location.whatsapp}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-5 py-2.5 border border-white/10 text-muted text-sm font-medium tracking-wider uppercase hover:text-gold hover:border-gold/50 transition-all duration-300"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 border border-white/10 text-muted text-xs sm:text-sm font-medium tracking-wider uppercase hover:text-gold hover:border-gold/50 transition-all duration-300"
                   >
-                    <MessageCircle size={16} />
-                    {t("whatsapp")}
+                    <MessageCircle size={16} className="shrink-0" />
+                    <span className="whitespace-nowrap">{t("whatsapp")}</span>
                   </a>
                 </div>
               </div>
