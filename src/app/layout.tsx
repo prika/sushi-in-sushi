@@ -14,6 +14,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://sushiinsushi.pt"),
   title: "Sushi in Sushi | Fusion Food no Porto",
   description:
     "Restaurante de sushi no Porto. Rodízio, à carta, delivery e takeaway. Duas localizações: Circunvalação e Boavista.",
@@ -23,6 +24,15 @@ export const metadata: Metadata = {
     "rodízio sushi",
     "sushi delivery porto",
   ],
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  manifest: "/site.webmanifest",
   openGraph: {
     title: "Sushi in Sushi | Fusion Food no Porto",
     description:
@@ -31,6 +41,7 @@ export const metadata: Metadata = {
     siteName: "Sushi in Sushi",
     locale: "pt_PT",
     type: "website",
+    images: [{ url: "/logo.png" }],
   },
 };
 

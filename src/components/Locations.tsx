@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Phone, Clock } from "lucide-react";
+import { MapPin, Phone, Clock, Navigation, MessageCircle } from "lucide-react";
 import { BlurFade } from "./ui/blur-fade";
 
 const locations = [
@@ -67,21 +67,23 @@ export function Locations() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex items-center gap-4">
                   <a
                     href={location.mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 px-6 py-3 border border-gold/50 text-gold text-center text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
+                    className="flex items-center gap-2 px-5 py-2.5 border border-white/10 text-muted text-sm font-medium tracking-wider uppercase hover:text-gold hover:border-gold/50 transition-all duration-300"
                   >
+                    <Navigation size={16} />
                     Direções
                   </a>
                   <a
                     href={`https://wa.me/${location.whatsapp}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 px-6 py-3 bg-green-600 text-white text-center text-sm font-medium tracking-wider uppercase hover:bg-green-500 transition-all duration-300"
+                    className="flex items-center gap-2 px-5 py-2.5 border border-white/10 text-muted text-sm font-medium tracking-wider uppercase hover:text-gold hover:border-gold/50 transition-all duration-300"
                   >
+                    <MessageCircle size={16} />
                     WhatsApp
                   </a>
                 </div>

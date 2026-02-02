@@ -57,7 +57,7 @@ export const ShimmerButton = forwardRef<HTMLButtonElement, ShimmerButtonProps>(
           className="absolute inset-0 z-0 border-2 border-gold/50 group-hover:border-gold transition-colors duration-300"
           style={{ borderRadius }}
         />
-        <span className="relative z-10 text-white group-hover:text-gold transition-colors duration-300">
+        <span className="relative z-10 flex items-center text-white group-hover:text-gold transition-colors duration-300">
           {children}
         </span>
       </button>

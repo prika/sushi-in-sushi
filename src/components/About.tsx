@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { BlurFade } from "./ui/blur-fade";
 
 export function About() {
@@ -31,14 +32,22 @@ export function About() {
           </BlurFade>
 
           <BlurFade delay={0.2} inView>
-            <div className="relative aspect-[4/3] bg-gradient-to-br from-gold/10 to-accent/10 rounded-lg overflow-hidden border border-white/5">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-8xl mb-4">🍣</div>
-                  <p className="text-muted text-sm tracking-wider uppercase">
-                    Imagem do restaurante
-                  </p>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="relative aspect-[3/4] rounded-lg overflow-hidden">
+                <Image
+                  src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=600"
+                  alt="Interior do restaurante"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="relative aspect-[3/4] rounded-lg overflow-hidden mt-8">
+                <Image
+                  src="https://images.unsplash.com/photo-1553621042-f6e147245754?q=80&w=600"
+                  alt="Chef preparando sushi"
+                  fill
+                  className="object-cover"
+                />
               </div>
             </div>
           </BlurFade>

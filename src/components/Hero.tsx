@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { BlurFade } from "./ui/blur-fade";
@@ -8,10 +9,35 @@ import { ShimmerButton } from "./ui/shimmer-button";
 export function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-background">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gold/5 via-transparent to-transparent" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-accent/5 via-transparent to-transparent" />
+      {/* Background image */}
+      <div className="absolute inset-0">
+        <Image
+          src="https://images.unsplash.com/photo-1579871494447-9811cf80d66c?q=80&w=2070"
+          alt="Sushi background"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-background/85" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+      </div>
+
+      {/* Decorative sushi images */}
+      <div className="absolute top-20 left-10 w-32 h-32 md:w-48 md:h-48 opacity-20 blur-sm">
+        <Image
+          src="https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?q=80&w=500"
+          alt=""
+          fill
+          className="object-contain"
+        />
+      </div>
+      <div className="absolute bottom-32 right-10 w-40 h-40 md:w-56 md:h-56 opacity-20 blur-sm">
+        <Image
+          src="https://images.unsplash.com/photo-1611143669185-af224c5e3252?q=80&w=500"
+          alt=""
+          fill
+          className="object-contain"
+        />
       </div>
 
       {/* Content */}

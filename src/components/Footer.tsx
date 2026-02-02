@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Instagram, Facebook, MessageCircle } from "lucide-react";
 
 const socialLinks = [
@@ -31,12 +32,15 @@ export function Footer() {
   return (
     <footer className="py-16 px-6 border-t border-white/5">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h3 className="font-display text-3xl font-semibold mb-2">
-            <span className="text-gold">SUSHI</span>
-            <span className="text-white"> IN </span>
-            <span className="text-gold">SUSHI</span>
-          </h3>
+        <div className="flex flex-col items-center mb-12">
+          <div className="relative h-20 w-48 mb-4">
+            <Image
+              src="/logo.png"
+              alt="Sushi in Sushi"
+              fill
+              className="object-contain"
+            />
+          </div>
           <p className="text-muted text-sm tracking-wider uppercase">
             Fusion Food • Porto
           </p>

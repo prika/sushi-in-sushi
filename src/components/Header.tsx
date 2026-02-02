@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navLinks = [
+const leftLinks = [
   { href: "#menu", label: "Menu" },
   { href: "#sobre", label: "Sobre" },
+];
+
+const rightLinks = [
   { href: "#localizacoes", label: "Locais" },
   { href: "#contacto", label: "Contacto" },
 ];
@@ -33,43 +37,74 @@ export function Header() {
           : "bg-transparent"
       )}
     >
-      <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo */}
-        <a href="#" className="font-display text-2xl font-semibold tracking-wide">
-          <span className="text-gold">SUSHI</span>
-          <span className="text-white"> IN </span>
-          <span className="text-gold">SUSHI</span>
-        </a>
-
+      <nav className="max-w-7xl mx-auto px-6 py-4">
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-8">
-          {navLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="text-sm font-medium tracking-wider uppercase text-muted hover:text-white transition-colors duration-200"
-            >
-              {link.label}
-            </a>
-          ))}
-          <a
-            href="https://www.covermanager.com/reservation/module_restaurant/sushi-in-sushi/portuguese"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-4 px-6 py-2 border border-gold text-gold text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
-          >
-            Reservar
+        <div className="hidden md:flex items-center justify-between">
+          {/* Left Links */}
+          <div className="flex-1 flex items-center justify-end gap-8 pr-12">
+            {leftLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="text-sm font-medium tracking-wider uppercase text-muted hover:text-white transition-colors duration-200"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+
+          {/* Center Logo */}
+          <a href="#" className="relative h-24 w-64 shrink-0">
+            <Image
+              src="/logo.png"
+              alt="Sushi in Sushi"
+              fill
+              className="object-contain"
+              priority
+            />
           </a>
+
+          {/* Right Links */}
+          <div className="flex-1 flex items-center gap-8 pl-12">
+            {rightLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="text-sm font-medium tracking-wider uppercase text-muted hover:text-white transition-colors duration-200"
+              >
+                {link.label}
+              </a>
+            ))}
+            <a
+              href="https://www.covermanager.com/reservation/module_restaurant/sushi-in-sushi/portuguese"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto px-6 py-2 border border-gold text-gold text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
+            >
+              Reservar
+            </a>
+          </div>
         </div>
 
-        {/* Mobile Menu Button */}
-        <button
-          className="md:hidden text-white p-2"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        {/* Mobile Navigation */}
+        <div className="md:hidden flex items-center justify-between">
+          <a href="#" className="relative h-14 w-44">
+            <Image
+              src="/logo.png"
+              alt="Sushi in Sushi"
+              fill
+              className="object-contain"
+              priority
+            />
+          </a>
+          <button
+            className="text-white p-2"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </nav>
 
       {/* Mobile Menu */}
@@ -82,7 +117,7 @@ export function Header() {
             className="md:hidden bg-background/95 backdrop-blur-md border-b border-white/5"
           >
             <div className="px-6 py-6 flex flex-col gap-4">
-              {navLinks.map((link) => (
+              {[...leftLinks, ...rightLinks].map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
