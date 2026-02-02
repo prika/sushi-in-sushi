@@ -241,6 +241,9 @@ export type Database = {
 export type SessionStatus = "active" | "pending_payment" | "paid" | "closed";
 export type OrderStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled";
 
+// Generic helper type for table rows
+export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"];
+
 // Helper types for easier usage
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
 export type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];

@@ -3,7 +3,6 @@ import { Cormorant_Garamond, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
-import "../globals.css";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -113,12 +112,10 @@ export default async function LocaleLayout({ children, params }: Props) {
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className="dark">
-      <body className={`${cormorant.variable} ${inter.variable} font-sans`}>
-        <NextIntlClientProvider messages={messages}>
-          {children}
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <div className={`${cormorant.variable} ${inter.variable} font-sans`}>
+      <NextIntlClientProvider messages={messages}>
+        {children}
+      </NextIntlClientProvider>
+    </div>
   );
 }
