@@ -42,9 +42,9 @@ export function Header() {
     >
       <nav className="max-w-7xl mx-auto px-6 py-4">
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center justify-between">
+        <div className="hidden md:grid grid-cols-[1fr_auto_1fr] items-center">
           {/* Left Links */}
-          <div className="flex-1 flex items-center justify-end gap-8 pr-12">
+          <div className="flex items-center justify-end gap-8 pr-12">
             {leftLinks.map((link) => (
               <a
                 key={link.href}
@@ -57,7 +57,7 @@ export function Header() {
           </div>
 
           {/* Center Logo */}
-          <a href="#" className="relative h-24 w-64 shrink-0">
+          <a href="#" className="relative h-24 w-64">
             <Image
               src="/logo.png"
               alt="Sushi in Sushi"
@@ -68,22 +68,24 @@ export function Header() {
           </a>
 
           {/* Right Links */}
-          <div className="flex-1 flex items-center gap-8 pl-12">
-            {rightLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="text-sm font-medium tracking-wider uppercase text-muted hover:text-white transition-colors duration-200"
-              >
-                {link.label}
-              </a>
-            ))}
-            <LanguageSwitcher />
+          <div className="flex items-center justify-between pl-12">
+            <div className="flex items-center gap-8">
+              {rightLinks.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  className="text-sm font-medium tracking-wider uppercase text-muted hover:text-white transition-colors duration-200"
+                >
+                  {link.label}
+                </a>
+              ))}
+              <LanguageSwitcher />
+            </div>
             <a
               href="https://www.covermanager.com/reservation/module_restaurant/sushi-in-sushi/portuguese"
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-auto px-6 py-2 border border-gold text-gold text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
+              className="px-6 py-2 border border-gold text-gold text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
             >
               {t("book")}
             </a>

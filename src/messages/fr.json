@@ -115,6 +115,49 @@
     "it": "Italiano",
     "es": "Español"
   },
+  "team": {
+    "sectionLabel": "Notre Équipe",
+    "title": "Découvrez Ceux Qui Font la Magie",
+    "description": "Une équipe passionnée par le sushi, dédiée à vous offrir une expérience gastronomique unique.",
+    "viewAll": "Rencontrer Toute l'Équipe",
+    "members": {
+      "member1": {
+        "name": "Nom du Membre",
+        "role": "Chef Principal"
+      },
+      "member2": {
+        "name": "Nom du Membre",
+        "role": "Chef Sushi"
+      },
+      "member3": {
+        "name": "Nom du Membre",
+        "role": "Gérant"
+      },
+      "member4": {
+        "name": "Nom du Membre",
+        "role": "Service"
+      },
+      "member5": {
+        "name": "Nom du Membre",
+        "role": "Cuisine"
+      },
+      "member6": {
+        "name": "Nom du Membre",
+        "role": "Support"
+      }
+    }
+  },
+  "video": {
+    "sectionLabel": "Voyez-nous en Action",
+    "title": "L'Art de Créer des Sushis"
+  },
+  "teamPage": {
+    "title": "Notre Équipe",
+    "subtitle": "Passion, dévouement et amour pour le sushi",
+    "groupTitle": "Ensemble Nous Faisons la Différence",
+    "workTitle": "Au Quotidien",
+    "back": "Retour"
+  },
   "menuDescriptions": {
     "Sopa Missô": "Soupe au miso, champignons shimeji, carotte, poireau et algue wakame",
     "Aros de Lula": "Anneaux de calamars panés",

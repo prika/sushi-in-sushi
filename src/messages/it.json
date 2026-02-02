@@ -115,6 +115,49 @@
     "it": "Italiano",
     "es": "Español"
   },
+  "team": {
+    "sectionLabel": "Il Nostro Team",
+    "title": "Scopri Chi Crea la Magia",
+    "description": "Un team appassionato di sushi, dedicato a offrirvi un'esperienza gastronomica unica.",
+    "viewAll": "Incontra Tutto il Team",
+    "members": {
+      "member1": {
+        "name": "Nome Membro",
+        "role": "Chef Principale"
+      },
+      "member2": {
+        "name": "Nome Membro",
+        "role": "Sushi Chef"
+      },
+      "member3": {
+        "name": "Nome Membro",
+        "role": "Manager"
+      },
+      "member4": {
+        "name": "Nome Membro",
+        "role": "Servizio"
+      },
+      "member5": {
+        "name": "Nome Membro",
+        "role": "Cucina"
+      },
+      "member6": {
+        "name": "Nome Membro",
+        "role": "Supporto"
+      }
+    }
+  },
+  "video": {
+    "sectionLabel": "Guardaci in Azione",
+    "title": "L'Arte di Creare Sushi"
+  },
+  "teamPage": {
+    "title": "Il Nostro Team",
+    "subtitle": "Passione, dedizione e amore per il sushi",
+    "groupTitle": "Insieme Facciamo la Differenza",
+    "workTitle": "Giorno per Giorno",
+    "back": "Indietro"
+  },
   "menuDescriptions": {
     "Sopa Missô": "Zuppa con miso, funghi shimeji, carota, porro e alga wakame",
     "Aros de Lula": "Anelli di calamaro impanati",

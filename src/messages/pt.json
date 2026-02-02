@@ -115,6 +115,49 @@
     "it": "Italiano",
     "es": "Español"
   },
+  "team": {
+    "sectionLabel": "A Nossa Equipa",
+    "title": "Conheça Quem Faz a Magia",
+    "description": "Uma equipa apaixonada por sushi, dedicada a proporcionar-lhe uma experiência gastronómica única.",
+    "viewAll": "Conhecer Toda a Equipa",
+    "members": {
+      "member1": {
+        "name": "Nome do Membro",
+        "role": "Chef Principal"
+      },
+      "member2": {
+        "name": "Nome do Membro",
+        "role": "Sushi Chef"
+      },
+      "member3": {
+        "name": "Nome do Membro",
+        "role": "Gerente"
+      },
+      "member4": {
+        "name": "Nome do Membro",
+        "role": "Atendimento"
+      },
+      "member5": {
+        "name": "Nome do Membro",
+        "role": "Cozinha"
+      },
+      "member6": {
+        "name": "Nome do Membro",
+        "role": "Apoio"
+      }
+    }
+  },
+  "video": {
+    "sectionLabel": "Veja-nos em Ação",
+    "title": "A Arte de Criar Sushi"
+  },
+  "teamPage": {
+    "title": "A Nossa Equipa",
+    "subtitle": "Paixão, dedicação e amor pelo sushi",
+    "groupTitle": "Juntos Fazemos a Diferença",
+    "workTitle": "No Dia a Dia",
+    "back": "Voltar"
+  },
   "menuDescriptions": {
     "Sopa Missô": "Sopa com missô, shimeji, cenoura, alho francês e alga wakame",
     "Aros de Lula": "Aros de lula panados",

@@ -115,6 +115,49 @@
     "it": "Italiano",
     "es": "Español"
   },
+  "team": {
+    "sectionLabel": "Unser Team",
+    "title": "Lernen Sie die Menschen Hinter der Magie Kennen",
+    "description": "Ein Team mit Leidenschaft für Sushi, das Ihnen ein einzigartiges kulinarisches Erlebnis bietet.",
+    "viewAll": "Das Ganze Team Kennenlernen",
+    "members": {
+      "member1": {
+        "name": "Mitgliedsname",
+        "role": "Küchenchef"
+      },
+      "member2": {
+        "name": "Mitgliedsname",
+        "role": "Sushi-Koch"
+      },
+      "member3": {
+        "name": "Mitgliedsname",
+        "role": "Manager"
+      },
+      "member4": {
+        "name": "Mitgliedsname",
+        "role": "Service"
+      },
+      "member5": {
+        "name": "Mitgliedsname",
+        "role": "Küche"
+      },
+      "member6": {
+        "name": "Mitgliedsname",
+        "role": "Unterstützung"
+      }
+    }
+  },
+  "video": {
+    "sectionLabel": "Sehen Sie Uns in Aktion",
+    "title": "Die Kunst, Sushi zu Kreieren"
+  },
+  "teamPage": {
+    "title": "Unser Team",
+    "subtitle": "Leidenschaft, Hingabe und Liebe für Sushi",
+    "groupTitle": "Gemeinsam Machen Wir den Unterschied",
+    "workTitle": "Im Alltag",
+    "back": "Zurück"
+  },
   "menuDescriptions": {
     "Sopa Missô": "Suppe mit Miso, Shimeji-Pilzen, Karotte, Lauch und Wakame-Alge",
     "Aros de Lula": "Panierte Tintenfischringe",

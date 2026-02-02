@@ -115,6 +115,49 @@
     "it": "Italiano",
     "es": "Español"
   },
+  "team": {
+    "sectionLabel": "Nuestro Equipo",
+    "title": "Conoce a Quienes Hacen la Magia",
+    "description": "Un equipo apasionado por el sushi, dedicado a ofrecerte una experiencia gastronómica única.",
+    "viewAll": "Conocer a Todo el Equipo",
+    "members": {
+      "member1": {
+        "name": "Nombre del Miembro",
+        "role": "Chef Principal"
+      },
+      "member2": {
+        "name": "Nombre del Miembro",
+        "role": "Sushi Chef"
+      },
+      "member3": {
+        "name": "Nombre del Miembro",
+        "role": "Gerente"
+      },
+      "member4": {
+        "name": "Nombre del Miembro",
+        "role": "Servicio"
+      },
+      "member5": {
+        "name": "Nombre del Miembro",
+        "role": "Cocina"
+      },
+      "member6": {
+        "name": "Nombre del Miembro",
+        "role": "Apoyo"
+      }
+    }
+  },
+  "video": {
+    "sectionLabel": "Míranos en Acción",
+    "title": "El Arte de Crear Sushi"
+  },
+  "teamPage": {
+    "title": "Nuestro Equipo",
+    "subtitle": "Pasión, dedicación y amor por el sushi",
+    "groupTitle": "Juntos Hacemos la Diferencia",
+    "workTitle": "En el Día a Día",
+    "back": "Volver"
+  },
   "menuDescriptions": {
     "Sopa Missô": "Sopa con miso, setas shimeji, zanahoria, puerro y alga wakame",
     "Aros de Lula": "Aros de calamar empanados",

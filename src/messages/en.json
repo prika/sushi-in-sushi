@@ -115,6 +115,49 @@
     "it": "Italiano",
     "es": "Español"
   },
+  "team": {
+    "sectionLabel": "Our Team",
+    "title": "Meet the People Behind the Magic",
+    "description": "A team passionate about sushi, dedicated to providing you with a unique dining experience.",
+    "viewAll": "Meet the Whole Team",
+    "members": {
+      "member1": {
+        "name": "Member Name",
+        "role": "Head Chef"
+      },
+      "member2": {
+        "name": "Member Name",
+        "role": "Sushi Chef"
+      },
+      "member3": {
+        "name": "Member Name",
+        "role": "Manager"
+      },
+      "member4": {
+        "name": "Member Name",
+        "role": "Service"
+      },
+      "member5": {
+        "name": "Member Name",
+        "role": "Kitchen"
+      },
+      "member6": {
+        "name": "Member Name",
+        "role": "Support"
+      }
+    }
+  },
+  "video": {
+    "sectionLabel": "See Us in Action",
+    "title": "The Art of Creating Sushi"
+  },
+  "teamPage": {
+    "title": "Our Team",
+    "subtitle": "Passion, dedication and love for sushi",
+    "groupTitle": "Together We Make the Difference",
+    "workTitle": "Day by Day",
+    "back": "Back"
+  },
   "menuDescriptions": {
     "Sopa Missô": "Soup with miso, shimeji mushrooms, carrot, leek and wakame seaweed",
     "Aros de Lula": "Breaded squid rings",
