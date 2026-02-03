@@ -4,6 +4,8 @@ import { getAuthUser } from "@/lib/auth";
 import type { ReservationUpdate, Reservation } from "@/types/database";
 import { sendReservationConfirmedEmail } from "@/lib/email";
 
+export const dynamic = "force-dynamic";
+
 // Helper to get typed supabase query for tables not in generated types
 function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>) {
   return supabase as unknown as {
