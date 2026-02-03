@@ -1,14 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BlurFade } from "./ui/blur-fade";
 import { ShimmerButton } from "./ui/shimmer-button";
+import { ReservationForm } from "./ReservationForm";
 
 export function Hero() {
   const t = useTranslations("hero");
+  const [showReservationModal, setShowReservationModal] = useState(false);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -71,13 +74,9 @@ export function Hero() {
 
         <BlurFade delay={0.4}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="https://www.covermanager.com/reservation/module_restaurant/sushi-in-sushi/portuguese"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <button onClick={() => setShowReservationModal(true)}>
               <ShimmerButton>{t("bookTable")}</ShimmerButton>
-            </a>
+            </button>
             <a
               href="#menu"
               className="px-8 py-4 text-sm font-medium tracking-wider uppercase text-muted hover:text-white transition-colors duration-300"
@@ -96,6 +95,34 @@ export function Hero() {
       >
         <ChevronDown className="text-gold/50" size={32} />
       </motion.div>
+
+      {/* Reservation Modal */}
+      {showReservationModal && (
+        <div
+          className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setShowReservationModal(false)}
+        >
+          <div
+            className="bg-background border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-background flex items-center justify-between p-6 border-b border-white/10 z-10">
+              <h2 className="text-xl font-semibold text-white">
+                Reservar Mesa
+              </h2>
+              <button
+                onClick={() => setShowReservationModal(false)}
+                className="p-2 text-muted hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <ReservationForm />
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

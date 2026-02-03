@@ -7,11 +7,13 @@ import { Menu, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { ReservationForm } from "./ReservationForm";
 
 export function Header() {
   const t = useTranslations("navigation");
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showReservationModal, setShowReservationModal] = useState(false);
 
   const leftLinks = [
     { href: "/menu", label: t("menu") },
@@ -81,14 +83,12 @@ export function Header() {
               ))}
               <LanguageSwitcher />
             </div>
-            <a
-              href="https://www.covermanager.com/reservation/module_restaurant/sushi-in-sushi/portuguese"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => setShowReservationModal(true)}
               className="px-6 py-2 border border-gold text-gold text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
             >
               {t("book")}
-            </a>
+            </button>
           </div>
         </div>
 
@@ -136,18 +136,47 @@ export function Header() {
                   {link.label}
                 </a>
               ))}
-              <a
-                href="https://www.covermanager.com/reservation/module_restaurant/sushi-in-sushi/portuguese"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setShowReservationModal(true);
+                }}
                 className="mt-4 px-6 py-3 border border-gold text-gold text-center text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
               >
                 {t("book")}
-              </a>
+              </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Reservation Modal */}
+      {showReservationModal && (
+        <div
+          className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setShowReservationModal(false)}
+        >
+          <div
+            className="bg-background border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-background flex items-center justify-between p-6 border-b border-white/10 z-10">
+              <h2 className="text-xl font-semibold text-white">
+                Reservar Mesa
+              </h2>
+              <button
+                onClick={() => setShowReservationModal(false)}
+                className="p-2 text-muted hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <ReservationForm />
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

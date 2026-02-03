@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronDown, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { menuCircunvalacao } from "@/data/menu-circunvalacao";
 import { menuBoavista } from "@/data/menu-boavista";
 import { cn } from "@/lib/utils";
+import { ReservationForm } from "@/components/ReservationForm";
+import type { Location } from "@/types/database";
 
 // Map category names to images
 const categoryImages: Record<string, string> = {
@@ -51,6 +53,7 @@ export default function MenuPage() {
   const tDesc = useTranslations("menuDescriptions");
   const [activeRestaurant, setActiveRestaurant] = useState(restaurants[0].id);
   const [openCategories, setOpenCategories] = useState<string[]>([]);
+  const [showReservationModal, setShowReservationModal] = useState(false);
   const currentRestaurant = restaurants.find((r) => r.id === activeRestaurant)!;
 
   // Open first category by default
@@ -246,14 +249,12 @@ export default function MenuPage() {
       <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t border-white/5 py-3">
         <div className="max-w-3xl mx-auto px-4">
           <div className="flex items-center justify-center gap-3">
-            <a
-              href="https://www.covermanager.com/reservation/module_restaurant/sushi-in-sushi/portuguese"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => setShowReservationModal(true)}
               className="flex-1 px-6 py-2.5 bg-gold text-background text-sm font-medium tracking-wider uppercase text-center hover:bg-gold-light transition-all duration-300"
             >
               {t("book")}
-            </a>
+            </button>
             <a
               href="https://delivery.eatseasyapp.com/sushinsushi"
               target="_blank"
@@ -265,6 +266,34 @@ export default function MenuPage() {
           </div>
         </div>
       </div>
+
+      {/* Reservation Modal */}
+      {showReservationModal && (
+        <div
+          className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setShowReservationModal(false)}
+        >
+          <div
+            className="bg-background border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-background flex items-center justify-between p-6 border-b border-white/10 z-10">
+              <h2 className="text-xl font-semibold text-white">
+                Reservar Mesa
+              </h2>
+              <button
+                onClick={() => setShowReservationModal(false)}
+                className="p-2 text-muted hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <ReservationForm defaultLocation={activeRestaurant as Location} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

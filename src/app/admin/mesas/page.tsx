@@ -2,15 +2,21 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Table } from "@/types/database";
+import type { Table, TableFullStatus, TableStatus } from "@/types/database";
 import { generateQRCodeToCanvas, buildTableOrderURLByNumber } from "@/lib/qrcode";
+import { TableMap } from "@/components/admin/TableMap";
+import { TableDetailModal } from "@/components/admin/TableDetailModal";
+import { useTableManagement } from "@/hooks/useTableManagement";
 
 const LOCATION_LABELS: Record<string, string> = {
   circunvalacao: "Circunvalação",
   boavista: "Boavista",
 };
 
+type TabType = "config" | "map";
+
 export default function MesasPage() {
+  const [activeTab, setActiveTab] = useState<TabType>("map");
   const [tables, setTables] = useState<Table[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -24,6 +30,23 @@ export default function MesasPage() {
     location: "circunvalacao",
     is_active: true,
   });
+
+  // Map tab state
+  const [selectedLocation, setSelectedLocation] = useState<string>("circunvalacao");
+  const [selectedTableForDetail, setSelectedTableForDetail] = useState<TableFullStatus | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Table management hook
+  const {
+    tables: mapTables,
+    isLoading: mapIsLoading,
+    refresh: refreshMap,
+    startWalkInSession,
+    markTableInactive,
+    reactivateTable,
+    requestBill,
+    closeSession,
+  } = useTableManagement({ location: selectedLocation, refreshInterval: 15000 });
 
   useEffect(() => {
     fetchTables();
@@ -198,6 +221,32 @@ export default function MesasPage() {
       printWindow.print();
     };
   };
+
+  const handleTableClick = (table: TableFullStatus) => {
+    setSelectedTableForDetail(table);
+    setShowDetailModal(true);
+  };
+
+  const handleDetailModalClose = () => {
+    setShowDetailModal(false);
+    setSelectedTableForDetail(null);
+  };
+
+  const getStatusCounts = () => {
+    const counts = {
+      available: 0,
+      reserved: 0,
+      occupied: 0,
+      inactive: 0,
+    };
+    mapTables.forEach((t) => {
+      const status = (t.status as TableStatus) || "available";
+      counts[status]++;
+    });
+    return counts;
+  };
+
+  const statusCounts = getStatusCounts();
 
   const handlePrintAllQRs = (location?: string) => {
     const tablesToPrint = location
@@ -375,31 +424,144 @@ export default function MesasPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gestão de Mesas</h1>
-          <p className="text-gray-500">Configurar mesas e QR codes</p>
+          <p className="text-gray-500">Mapa em tempo real e configuração</p>
         </div>
-        <div className="flex gap-2">
+        {activeTab === "config" && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => handlePrintAllQRs()}
+              className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              Imprimir QRs
+            </button>
+            <button
+              onClick={() => handleOpenModal()}
+              className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nova Mesa
+            </button>
+          </div>
+        )}
+        {activeTab === "map" && (
           <button
-            onClick={() => handlePrintAllQRs()}
+            onClick={() => refreshMap()}
             className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Imprimir QRs
+            Atualizar
           </button>
-          <button
-            onClick={() => handleOpenModal()}
-            className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Nova Mesa
-          </button>
-        </div>
+        )}
       </div>
 
-      {/* Stats */}
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab("map")}
+          className={`px-6 py-3 font-medium text-sm transition-colors ${
+            activeTab === "map"
+              ? "text-[#D4AF37] border-b-2 border-[#D4AF37]"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Mapa em Tempo Real
+        </button>
+        <button
+          onClick={() => setActiveTab("config")}
+          className={`px-6 py-3 font-medium text-sm transition-colors ${
+            activeTab === "config"
+              ? "text-[#D4AF37] border-b-2 border-[#D4AF37]"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Configuração
+        </button>
+      </div>
+
+      {/* Map Tab */}
+      {activeTab === "map" && (
+        <>
+          {/* Location Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setSelectedLocation("circunvalacao")}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  selectedLocation === "circunvalacao"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Circunvalação
+              </button>
+              <button
+                onClick={() => setSelectedLocation("boavista")}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  selectedLocation === "boavista"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Boavista
+              </button>
+            </div>
+
+            {/* Status Summary */}
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-1">
+                <span className="text-green-500">🟢</span>
+                <span className="text-gray-600">{statusCounts.available} Livres</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-yellow-500">🟡</span>
+                <span className="text-gray-600">{statusCounts.reserved} Reservadas</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-red-500">🔴</span>
+                <span className="text-gray-600">{statusCounts.occupied} Ocupadas</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500">⚫</span>
+                <span className="text-gray-600">{statusCounts.inactive} Inativas</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Table Map */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <TableMap
+              tables={mapTables}
+              onTableClick={handleTableClick}
+              isLoading={mapIsLoading}
+            />
+          </div>
+
+          {/* Table Detail Modal */}
+          <TableDetailModal
+            table={selectedTableForDetail}
+            isOpen={showDetailModal}
+            onClose={handleDetailModalClose}
+            onStatusChange={refreshMap}
+            onStartSession={startWalkInSession}
+            onMarkInactive={markTableInactive}
+            onReactivate={reactivateTable}
+            onRequestBill={requestBill}
+            onCloseSession={closeSession}
+          />
+        </>
+      )}
+
+      {/* Config Tab */}
+      {activeTab === "config" && (
+        <>
+          {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500">Total</p>
@@ -475,6 +637,8 @@ export default function MesasPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* Edit/Create Modal */}
       {showModal && (

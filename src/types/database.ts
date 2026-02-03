@@ -436,6 +436,7 @@ export type Database = {
 // Enum types
 export type SessionStatus = "active" | "pending_payment" | "paid" | "closed";
 export type OrderStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled";
+export type TableStatus = "available" | "reserved" | "occupied" | "inactive";
 
 // Generic helper type for table rows
 export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"];
@@ -445,17 +446,51 @@ export type Category = Database["public"]["Tables"]["categories"]["Row"];
 export type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
 export type CategoryUpdate = Database["public"]["Tables"]["categories"]["Update"];
 
-export type Table = Database["public"]["Tables"]["tables"]["Row"];
+export type TableBase = Database["public"]["Tables"]["tables"]["Row"];
 export type TableInsert = Database["public"]["Tables"]["tables"]["Insert"];
 export type TableUpdate = Database["public"]["Tables"]["tables"]["Update"];
+
+// Extended Table type with new fields
+export type Table = TableBase & {
+  status?: TableStatus;
+  status_note?: string | null;
+  current_session_id?: string | null;
+  current_reservation_id?: string | null;
+};
+
+// Table with full status from view
+export type TableFullStatus = Table & {
+  session_id: string | null;
+  session_started: string | null;
+  is_rodizio: boolean | null;
+  session_people: number | null;
+  session_total: number | null;
+  reservation_id?: string | null;
+  reservation_time?: string | null;
+  reservation_people?: number | null;
+  reservation_name?: string | null;
+  reservation_phone?: string | null;
+  status_label: string;
+  minutes_occupied: number | null;
+};
 
 export type Product = Database["public"]["Tables"]["products"]["Row"];
 export type ProductInsert = Database["public"]["Tables"]["products"]["Insert"];
 export type ProductUpdate = Database["public"]["Tables"]["products"]["Update"];
 
-export type Session = Database["public"]["Tables"]["sessions"]["Row"];
+export type SessionBase = Database["public"]["Tables"]["sessions"]["Row"];
 export type SessionInsert = Database["public"]["Tables"]["sessions"]["Insert"];
 export type SessionUpdate = Database["public"]["Tables"]["sessions"]["Update"];
+
+// Extended Session type with metrics fields
+export type Session = SessionBase & {
+  first_order_at?: string | null;
+  last_order_at?: string | null;
+  bill_requested_at?: string | null;
+  time_to_first_order?: number | null;
+  total_duration?: number | null;
+  time_ordering?: number | null;
+};
 
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
@@ -595,4 +630,123 @@ export type AuthUser = {
   name: string;
   role: RoleName;
   location: Location | null;
+};
+
+// =============================================
+// TABLE MANAGEMENT TYPES
+// =============================================
+
+// Table status history
+export type TableStatusHistory = {
+  id: number;
+  table_id: string;
+  old_status: TableStatus | null;
+  new_status: TableStatus;
+  changed_by: string | null;
+  reason: string | null;
+  reservation_id: string | null;
+  session_id: string | null;
+  created_at: string;
+};
+
+export type TableStatusHistoryInsert = Omit<TableStatusHistory, "id" | "created_at"> & {
+  id?: number;
+  created_at?: string;
+};
+
+// Daily metrics
+export type DailyMetrics = {
+  id: number;
+  date: string;
+  location: string;
+  total_sessions: number;
+  rodizio_sessions: number;
+  carta_sessions: number;
+  total_covers: number;
+  avg_time_to_first_order: number | null;
+  avg_session_duration: number | null;
+  avg_rodizio_duration: number | null;
+  avg_carta_duration: number | null;
+  total_revenue: number;
+  avg_ticket: number;
+  total_reservations: number;
+  confirmed_reservations: number;
+  cancelled_reservations: number;
+  no_shows: number;
+  walk_ins: number;
+  created_at: string;
+  updated_at: string;
+};
+
+// Session metrics summary (from view)
+export type SessionMetricsSummary = {
+  location: string;
+  total_sessions: number;
+  rodizio_count: number;
+  carta_count: number;
+  total_covers: number;
+  avg_time_to_first_order: number | null;
+  avg_duration: number | null;
+  avg_rodizio_duration: number | null;
+  avg_carta_duration: number | null;
+  total_revenue: number;
+  avg_ticket: number;
+};
+
+// =============================================
+// RESERVATIONS TYPES
+// =============================================
+
+export type ReservationStatus = "pending" | "confirmed" | "cancelled" | "completed" | "no_show";
+export type ReservationOccasion = "birthday" | "anniversary" | "business" | "other";
+
+export type Reservation = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  reservation_date: string;
+  reservation_time: string;
+  party_size: number;
+  location: Location;
+  table_id: number | null;
+  is_rodizio: boolean;
+  special_requests: string | null;
+  occasion: ReservationOccasion | null;
+  status: ReservationStatus;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+  session_id: string | null;
+  seated_at: string | null;
+  marketing_consent: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReservationInsert = {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  reservation_date: string;
+  reservation_time: string;
+  party_size: number;
+  location: Location;
+  is_rodizio?: boolean;
+  special_requests?: string | null;
+  occasion?: ReservationOccasion | null;
+  marketing_consent?: boolean;
+};
+
+export type ReservationUpdate = Partial<Omit<Reservation, "id" | "created_at">>;
+
+export type ReservationWithDetails = Reservation & {
+  table_number: number | null;
+  table_name: string | null;
+  confirmed_by_name: string | null;
+  customer_name: string;
+  status_label: string;
 };
