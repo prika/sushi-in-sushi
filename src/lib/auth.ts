@@ -14,7 +14,7 @@ import type {
 // =============================================
 
 const SECRET_KEY = new TextEncoder().encode(
-  process.env.AUTH_SECRET || "sushi-in-sushi-secret-key-change-in-production"
+  process.env.AUTH_SECRET || "sushi-in-sushi-secret-key-change-in-production",
 );
 
 const COOKIE_NAME = "sushi-auth-token";
@@ -146,23 +146,26 @@ export interface LoginResult {
 }
 
 // Fallback credentials from environment (for development before DB migration)
-const FALLBACK_USERS: Record<string, { password: string; role: RoleName; name: string }> = {
-  "admin@sushiinsushi.pt": {
+const FALLBACK_USERS: Record<
+  string,
+  { password: string; role: RoleName; name: string }
+> = {
+  "admin@sushinsushi.pt": {
     password: process.env.ADMIN_PASSWORD || "admin123",
     role: "admin",
     name: "Administrador",
   },
-  "admin": {
+  admin: {
     password: process.env.ADMIN_PASSWORD || "admin123",
     role: "admin",
     name: "Administrador",
   },
-  "cozinha@sushiinsushi.pt": {
+  "cozinha@sushinsushi.pt": {
     password: process.env.COZINHA_PASSWORD || "cozinha123",
     role: "kitchen",
     name: "Cozinha",
   },
-  "cozinha": {
+  cozinha: {
     password: process.env.COZINHA_PASSWORD || "cozinha123",
     role: "kitchen",
     name: "Cozinha",
@@ -174,7 +177,7 @@ const FALLBACK_USERS: Record<string, { password: string; role: RoleName; name: s
  */
 export async function login(
   email: string,
-  password: string
+  password: string,
 ): Promise<LoginResult> {
   try {
     const supabase = await createClient();
@@ -186,7 +189,7 @@ export async function login(
         `
         *,
         role:roles(*)
-      `
+      `,
       )
       .eq("email", email.toLowerCase())
       .eq("is_active", true)
@@ -278,7 +281,7 @@ export async function getStaffById(id: string): Promise<StaffWithRole | null> {
         `
         *,
         role:roles(*)
-      `
+      `,
       )
       .eq("id", id)
       .single();
@@ -306,7 +309,7 @@ export async function getAllStaff(): Promise<StaffWithRole[]> {
       `
         *,
         role:roles(*)
-      `
+      `,
     );
 
     if (error || !data) return [];
@@ -326,7 +329,7 @@ export async function getAllStaff(): Promise<StaffWithRole[]> {
  * Get all tables accessible by a user based on their role
  */
 export async function getAccessibleTables(
-  userId: string
+  userId: string,
 ): Promise<{ id: string; number: number; name: string }[]> {
   try {
     const supabase = await createClient();
@@ -359,7 +362,7 @@ export async function getAccessibleTables(
         .select(
           `
           table:tables(id, number, name)
-        `
+        `,
         )
         .eq("staff_id", userId);
 
@@ -382,7 +385,7 @@ export async function getAccessibleTables(
  */
 export async function canAccessTable(
   userId: string,
-  tableId: string
+  tableId: string,
 ): Promise<boolean> {
   try {
     const staff = await getStaffById(userId);
@@ -420,7 +423,7 @@ export async function canAccessTable(
  */
 export async function canEditOrder(
   userId: string,
-  orderId: string
+  orderId: string,
 ): Promise<boolean> {
   try {
     const staff = await getStaffById(userId);
@@ -442,7 +445,7 @@ export async function canEditOrder(
         .select(
           `
           session:sessions(table_id)
-        `
+        `,
         )
         .eq("id", orderId)
         .single();
@@ -501,7 +504,7 @@ export async function logActivity(
   action: string,
   entityType?: string,
   entityId?: string,
-  details?: Record<string, unknown>
+  details?: Record<string, unknown>,
 ): Promise<void> {
   try {
     const supabase = await createClient();
@@ -528,7 +531,7 @@ export async function logActivity(
  */
 export async function assignTableToWaiter(
   waiterId: string,
-  tableId: string
+  tableId: string,
 ): Promise<boolean> {
   try {
     const supabase = await createClient();
@@ -555,7 +558,7 @@ export async function assignTableToWaiter(
  */
 export async function removeTableFromWaiter(
   waiterId: string,
-  tableId: string
+  tableId: string,
 ): Promise<boolean> {
   try {
     const supabase = await createClient();
@@ -582,7 +585,7 @@ export async function removeTableFromWaiter(
  * Get all tables assigned to a waiter
  */
 export async function getWaiterTables(
-  waiterId: string
+  waiterId: string,
 ): Promise<{ id: string; number: number; name: string; location: string }[]> {
   try {
     const supabase = await createClient();
@@ -592,7 +595,7 @@ export async function getWaiterTables(
       .select(
         `
         table:tables(id, number, name, location)
-      `
+      `,
       )
       .eq("staff_id", waiterId);
 
@@ -602,7 +605,12 @@ export async function getWaiterTables(
       .filter((d) => d.table)
       .map(
         (d) =>
-          d.table as { id: string; number: number; name: string; location: string }
+          d.table as {
+            id: string;
+            number: number;
+            name: string;
+            location: string;
+          },
       );
   } catch (error) {
     console.error("Error fetching waiter tables:", error);

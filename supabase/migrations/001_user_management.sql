@@ -169,37 +169,37 @@ CREATE POLICY "System can insert activity log" ON activity_log
 -- =============================================
 INSERT INTO staff (email, name, password_hash, role_id, location)
 SELECT
-    'admin@sushiinsushi.pt',
+    'admin@sushinsushi.pt',
     'Administrador',
     'admin123', -- TODO: Replace with bcrypt hash in production
     (SELECT id FROM roles WHERE name = 'admin'),
     'circunvalacao'
 WHERE NOT EXISTS (
-    SELECT 1 FROM staff WHERE email = 'admin@sushiinsushi.pt'
+    SELECT 1 FROM staff WHERE email = 'admin@sushinsushi.pt'
 );
 
 -- Insert default kitchen user
 INSERT INTO staff (email, name, password_hash, role_id, location)
 SELECT
-    'cozinha@sushiinsushi.pt',
+    'cozinha@sushinsushi.pt',
     'Cozinha Circunvalação',
     'cozinha123', -- TODO: Replace with bcrypt hash in production
     (SELECT id FROM roles WHERE name = 'kitchen'),
     'circunvalacao'
 WHERE NOT EXISTS (
-    SELECT 1 FROM staff WHERE email = 'cozinha@sushiinsushi.pt'
+    SELECT 1 FROM staff WHERE email = 'cozinha@sushinsushi.pt'
 );
 
 -- Insert kitchen user for Boavista
 INSERT INTO staff (email, name, password_hash, role_id, location)
 SELECT
-    'cozinha.boavista@sushiinsushi.pt',
+    'cozinha.boavista@sushinsushi.pt',
     'Cozinha Boavista',
     'cozinha123', -- TODO: Replace with bcrypt hash in production
     (SELECT id FROM roles WHERE name = 'kitchen'),
     'boavista'
 WHERE NOT EXISTS (
-    SELECT 1 FROM staff WHERE email = 'cozinha.boavista@sushiinsushi.pt'
+    SELECT 1 FROM staff WHERE email = 'cozinha.boavista@sushinsushi.pt'
 );
 
 -- =============================================

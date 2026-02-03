@@ -12,7 +12,7 @@ const socialLinks = [
   },
   {
     name: "Facebook",
-    url: "https://facebook.com/sushiinsushi",
+    url: "https://facebook.com/sushinsushi",
     icon: Facebook,
   },
   {

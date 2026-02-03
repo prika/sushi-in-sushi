@@ -13,24 +13,24 @@ import { cn } from "@/lib/utils";
 const categoryImages: Record<string, string> = {
   "Entradas Quentes": "/product/sopa-miso.jpg",
   "Entradas Frias": "/product/ceviche.jpg",
-  "Entradas": "/product/camarao-empanado.jpg",
-  "Sashimi": "/product/sashimi-salmao.jpg",
-  "Nigiri": "/product/nigiri-salmao.jpg",
-  "Hossomaki": "/product/sashimi-salmao.jpg",
-  "Gunkan": "/product/gunkan.jpg",
+  Entradas: "/product/camarao-empanado.jpg",
+  Sashimi: "/product/sashimi-salmao.jpg",
+  Nigiri: "/product/nigiri-salmao.jpg",
+  Hossomaki: "/product/sashimi-salmao.jpg",
+  Gunkan: "/product/gunkan.jpg",
   "Hot Rolls": "/product/hot-roll.jpg",
-  "Temaki": "/product/temaki.jpg",
+  Temaki: "/product/temaki.jpg",
   "Big Hot": "/product/big-hot.jpg",
-  "Poke": "/product/poke.jpg",
+  Poke: "/product/poke.jpg",
   "Combinados Individuais": "/product/combinado-su.jpg",
   "Combinados Frios": "/product/combinado-su.jpg",
   "Combinados Quentes + Frios": "/product/combinado-sesamo.jpg",
   "Combinados para Partilhar": "/product/salmon-fusion.jpg",
-  "Vegetariano": "/product/temaki-vegan.jpg",
-  "Sobremesas": "/product/sobremesa-banana.jpg",
+  Vegetariano: "/product/temaki-vegan.jpg",
+  Sobremesas: "/product/sobremesa-banana.jpg",
   "Uramaki Premium": "/product/sashimi-salmao.jpg",
-  "Promoções": "/product/salmon-fusion.jpg",
-  "Bebidas": "/product/sopa-miso.jpg",
+  Promoções: "/product/salmon-fusion.jpg",
+  Bebidas: "/product/sopa-miso.jpg",
 };
 
 const restaurants = [
@@ -64,7 +64,7 @@ export default function MenuPage() {
     setOpenCategories((prev) =>
       prev.includes(categoryName)
         ? prev.filter((c) => c !== categoryName)
-        : [...prev, categoryName]
+        : [...prev, categoryName],
     );
   };
 
@@ -86,7 +86,9 @@ export default function MenuPage() {
             className="flex items-center gap-2 text-muted hover:text-white transition-colors"
           >
             <ArrowLeft size={20} />
-            <span className="text-sm font-medium hidden sm:inline">{t("back")}</span>
+            <span className="text-sm font-medium hidden sm:inline">
+              {t("back")}
+            </span>
           </Link>
           <div className="relative h-10 w-28">
             <Image
@@ -106,7 +108,7 @@ export default function MenuPage() {
                   "px-3 py-1.5 text-xs font-medium tracking-wider uppercase transition-all duration-300 rounded",
                   activeRestaurant === restaurant.id
                     ? "text-background bg-gold"
-                    : "text-muted hover:text-white"
+                    : "text-muted hover:text-white",
                 )}
               >
                 {restaurant.name}
@@ -159,7 +161,7 @@ export default function MenuPage() {
                     size={20}
                     className={cn(
                       "text-muted transition-transform duration-300",
-                      isOpen && "rotate-180 text-gold"
+                      isOpen && "rotate-180 text-gold",
                     )}
                   />
                 </div>
@@ -169,7 +171,9 @@ export default function MenuPage() {
               <div
                 className={cn(
                   "overflow-hidden transition-all duration-300",
-                  isOpen ? "max-h-[5000px] opacity-100 pb-4" : "max-h-0 opacity-0"
+                  isOpen
+                    ? "max-h-[5000px] opacity-100 pb-4"
+                    : "max-h-0 opacity-0",
                 )}
               >
                 <div className="grid grid-cols-1 gap-2">
@@ -178,13 +182,16 @@ export default function MenuPage() {
                       key={item.name}
                       className={cn(
                         "flex items-center gap-3 p-3 bg-card/30 rounded-lg",
-                        item.outOfStock && "opacity-50"
+                        item.outOfStock && "opacity-50",
                       )}
                     >
                       {/* Product Image */}
                       <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-white/5">
                         <Image
-                          src={categoryImages[category.name] || "/product/sashimi-salmao.jpg"}
+                          src={
+                            categoryImages[category.name] ||
+                            "/product/sashimi-salmao.jpg"
+                          }
                           alt={item.name}
                           fill
                           className="object-cover"
@@ -209,9 +216,13 @@ export default function MenuPage() {
                           )}
                           {(item.description || tDesc.has(item.name)) && (
                             <>
-                              {item.pieces && <span className="text-muted/30">•</span>}
+                              {item.pieces && (
+                                <span className="text-muted/30">•</span>
+                              )}
                               <span className="text-xs text-muted line-clamp-1">
-                                {tDesc.has(item.name) ? tDesc(item.name) : item.description}
+                                {tDesc.has(item.name)
+                                  ? tDesc(item.name)
+                                  : item.description}
                               </span>
                             </>
                           )}
@@ -244,7 +255,7 @@ export default function MenuPage() {
               {t("book")}
             </a>
             <a
-              href="https://delivery.eatseasyapp.com/sushiinsushi"
+              href="https://delivery.eatseasyapp.com/sushinsushi"
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 px-6 py-2.5 border border-white/20 text-white text-sm font-medium tracking-wider uppercase text-center hover:border-gold hover:text-gold transition-all duration-300"

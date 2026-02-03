@@ -54,7 +54,7 @@ export default function ClientesPage() {
         return;
       }
 
-      setCustomers(data || []);
+      setCustomers((data || []) as Customer[]);
       setDbError(null);
     } catch (error) {
       console.error("Error fetching customers:", error);

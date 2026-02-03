@@ -21,9 +21,7 @@ export function Contact() {
             <br />
             <span className="text-gradient">{t("titleHighlight")}</span>
           </h2>
-          <p className="text-muted text-lg mb-12">
-            {t("description")}
-          </p>
+          <p className="text-muted text-lg mb-12">{t("description")}</p>
         </BlurFade>
 
         <BlurFade delay={0.2} inView>
@@ -39,7 +37,7 @@ export function Contact() {
               </ShimmerButton>
             </a>
             <a
-              href="https://delivery.eatseasyapp.com/sushiinsushi"
+              href="https://delivery.eatseasyapp.com/sushinsushi"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-8 py-4 border border-white/20 text-white text-sm font-medium tracking-wider uppercase hover:border-gold hover:text-gold transition-all duration-300 rounded-full"

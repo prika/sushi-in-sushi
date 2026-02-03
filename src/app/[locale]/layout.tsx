@@ -64,7 +64,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 
   return {
-    metadataBase: new URL("https://sushiinsushi.pt"),
+    metadataBase: new URL("https://sushinsushi.pt"),
     title: titles[locale] || titles.pt,
     description: descriptions[locale] || descriptions.pt,
     keywords: [
@@ -85,21 +85,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: titles[locale] || titles.pt,
       description: ogDescriptions[locale] || ogDescriptions.pt,
-      url: "https://sushiinsushi.pt",
+      url: "https://sushinsushi.pt",
       siteName: "Sushi in Sushi",
       locale: localeMap[locale] || "pt_PT",
       type: "website",
       images: [{ url: "/logo.png" }],
     },
     alternates: {
-      canonical: `https://sushiinsushi.pt/${locale}`,
+      canonical: `https://sushinsushi.pt/${locale}`,
       languages: {
-        pt: "https://sushiinsushi.pt/pt",
-        en: "https://sushiinsushi.pt/en",
-        fr: "https://sushiinsushi.pt/fr",
-        de: "https://sushiinsushi.pt/de",
-        it: "https://sushiinsushi.pt/it",
-        es: "https://sushiinsushi.pt/es",
+        pt: "https://sushinsushi.pt/pt",
+        en: "https://sushinsushi.pt/en",
+        fr: "https://sushinsushi.pt/fr",
+        de: "https://sushinsushi.pt/de",
+        it: "https://sushinsushi.pt/it",
+        es: "https://sushinsushi.pt/es",
       },
     },
   };

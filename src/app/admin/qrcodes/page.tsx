@@ -12,7 +12,7 @@ interface TableData {
   is_active: boolean;
 }
 
-const BASE_URL = "https://sushiinsushi.pt";
+const BASE_URL = "https://sushinsushi.pt";
 
 export default function QRCodesPage() {
   const [tables, setTables] = useState<TableData[]>([]);
@@ -41,17 +41,22 @@ export default function QRCodesPage() {
   }, []);
 
   // Group tables by location
-  const tablesByLocation = tables.reduce((acc, table) => {
-    if (!acc[table.location]) {
-      acc[table.location] = [];
-    }
-    acc[table.location].push(table);
-    return acc;
-  }, {} as Record<string, TableData[]>);
+  const tablesByLocation = tables.reduce(
+    (acc, table) => {
+      if (!acc[table.location]) {
+        acc[table.location] = [];
+      }
+      acc[table.location].push(table);
+      return acc;
+    },
+    {} as Record<string, TableData[]>,
+  );
 
   // Generate QR code URL
   const getQRCodeUrl = (table: TableData, size: number = 300) => {
-    const mesaUrl = encodeURIComponent(`${BASE_URL}/mesa/${table.number}?loc=${encodeURIComponent(table.location)}`);
+    const mesaUrl = encodeURIComponent(
+      `${BASE_URL}/mesa/${table.number}?loc=${encodeURIComponent(table.location)}`,
+    );
     return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${mesaUrl}&format=png&margin=10`;
   };
 
@@ -134,7 +139,9 @@ export default function QRCodesPage() {
           </style>
         </head>
         <body>
-          ${tables.map(table => `
+          ${tables
+            .map(
+              (table) => `
             <div class="qr-card">
               <div class="logo">🍣</div>
               <div class="restaurant-name">Sushi in Sushi</div>
@@ -144,7 +151,9 @@ export default function QRCodesPage() {
               <div class="location">${table.location}</div>
               <div class="scan-text">Scan para fazer o pedido</div>
             </div>
-          `).join("")}
+          `,
+            )
+            .join("")}
         </body>
       </html>
     `;
@@ -219,12 +228,24 @@ export default function QRCodesPage() {
       {/* Header Actions */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">QR Codes das Mesas</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            QR Codes das Mesas
+          </h2>
           <p className="text-sm text-gray-500">{tables.length} mesas ativas</p>
         </div>
         <Button variant="primary" onClick={handlePrintAll}>
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          <svg
+            className="w-5 h-5 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+            />
           </svg>
           Imprimir Todos
         </Button>
@@ -232,12 +253,18 @@ export default function QRCodesPage() {
 
       {/* Tables by Location */}
       {Object.entries(tablesByLocation).map(([location, locationTables]) => (
-        <Card key={location} variant="light" header={
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">{location}</h3>
-            <span className="text-sm text-gray-500">{locationTables.length} mesas</span>
-          </div>
-        }>
+        <Card
+          key={location}
+          variant="light"
+          header={
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">{location}</h3>
+              <span className="text-sm text-gray-500">
+                {locationTables.length} mesas
+              </span>
+            </div>
+          }
+        >
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {locationTables.map((table) => (
               <div
@@ -250,8 +277,12 @@ export default function QRCodesPage() {
                   alt={`QR Code Mesa ${table.number}`}
                   className="w-full aspect-square rounded-lg mb-3"
                 />
-                <div className="text-xs text-gray-500 uppercase tracking-wide">Mesa</div>
-                <div className="text-2xl font-bold text-[#D4AF37]">{table.number}</div>
+                <div className="text-xs text-gray-500 uppercase tracking-wide">
+                  Mesa
+                </div>
+                <div className="text-2xl font-bold text-[#D4AF37]">
+                  {table.number}
+                </div>
               </div>
             ))}
           </div>
@@ -277,9 +308,15 @@ export default function QRCodesPage() {
               className="w-64 h-64 mx-auto rounded-lg mb-4"
             />
 
-            <div className="text-sm text-gray-500 uppercase tracking-wider">Mesa</div>
-            <div className="text-5xl font-bold text-[#D4AF37] mb-2">{selectedTable.number}</div>
-            <div className="text-sm text-gray-500 mb-4">{selectedTable.location}</div>
+            <div className="text-sm text-gray-500 uppercase tracking-wider">
+              Mesa
+            </div>
+            <div className="text-5xl font-bold text-[#D4AF37] mb-2">
+              {selectedTable.number}
+            </div>
+            <div className="text-sm text-gray-500 mb-4">
+              {selectedTable.location}
+            </div>
 
             <div className="text-xs text-gray-400 mb-6 break-all">
               {getMesaUrl(selectedTable)}
