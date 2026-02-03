@@ -416,6 +416,89 @@ export type Database = {
           }
         ];
       };
+      cart_items: {
+        Row: {
+          id: string;
+          session_id: string;
+          product_id: string;
+          quantity: number;
+          added_by_device: string;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          product_id: string;
+          quantity?: number;
+          added_by_device: string;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          product_id?: string;
+          quantity?: number;
+          added_by_device?: string;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cart_items_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cart_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      session_participants: {
+        Row: {
+          id: string;
+          session_id: string;
+          device_id: string;
+          device_name: string;
+          is_sending: boolean;
+          last_seen: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          device_id: string;
+          device_name?: string;
+          is_sending?: boolean;
+          last_seen?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          device_id?: string;
+          device_name?: string;
+          is_sending?: boolean;
+          last_seen?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "session_participants_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -595,4 +678,30 @@ export type AuthUser = {
   name: string;
   role: RoleName;
   location: Location | null;
+};
+
+// =============================================
+// SHARED CART SYSTEM TYPES
+// =============================================
+
+// Cart item types
+export type CartItem = Database["public"]["Tables"]["cart_items"]["Row"];
+export type CartItemInsert = Database["public"]["Tables"]["cart_items"]["Insert"];
+export type CartItemUpdate = Database["public"]["Tables"]["cart_items"]["Update"];
+
+export type CartItemWithProduct = CartItem & {
+  product: Product;
+};
+
+// Session participant types
+export type SessionParticipant = Database["public"]["Tables"]["session_participants"]["Row"];
+export type SessionParticipantInsert = Database["public"]["Tables"]["session_participants"]["Insert"];
+export type SessionParticipantUpdate = Database["public"]["Tables"]["session_participants"]["Update"];
+
+// Grouped cart items by device
+export type GroupedCartItems = {
+  deviceId: string;
+  deviceName: string;
+  items: CartItemWithProduct[];
+  subtotal: number;
 };

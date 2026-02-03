@@ -4,17 +4,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import { useDeviceId } from "@/hooks/useDeviceId";
+import { useSessionParticipants } from "@/hooks/useSessionParticipants";
+import { useSharedCart } from "@/hooks/useSharedCart";
+import { OrderSendingOverlay } from "@/components/OrderSendingOverlay";
 import type { Product, Category, Session, Order, OrderStatus } from "@/types/database";
 
 type Step = "welcome" | "menu" | "tracking";
 type OrderType = "rodizio" | "carta" | null;
-
-interface CartItem {
-  productId: string;
-  product: Product;
-  quantity: number;
-  notes?: string;
-}
 
 interface CategoryWithProducts extends Category {
   products: Product[];
@@ -58,15 +55,52 @@ export default function MesaPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [tableId, setTableId] = useState<string | null>(null);
 
+  // Device and participant tracking
+  const { deviceId, deviceName, isReady: isDeviceReady } = useDeviceId();
+
+  const {
+    participants,
+    activeParticipantCount,
+    isSomeoneElseSending,
+    sendingParticipant,
+    setIsSending,
+  } = useSessionParticipants({
+    sessionId: session?.id || null,
+    deviceId,
+    deviceName,
+  });
+
+  // Shared cart
+  const {
+    items: cartItems,
+    groupedItems,
+    myItems,
+    myItemCount,
+    myTotal,
+    totalItemCount,
+    grandTotal,
+    isEmpty: isCartEmpty,
+    addItem: addToSharedCart,
+    removeItem: removeFromSharedCart,
+    updateQuantity: updateSharedQuantity,
+    deleteItem: deleteSharedItem,
+    clearAllItems,
+    getQuantity: getSharedQuantity,
+    getTotalQuantity,
+  } = useSharedCart({
+    sessionId: session?.id || null,
+    deviceId,
+  });
+
   // Products state
   const [categories, setCategories] = useState<CategoryWithProducts[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
-  // Cart state
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Cart UI state
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
+  const [showSendConfirmModal, setShowSendConfirmModal] = useState(false);
 
   // Orders/Tracking state
   const [sessionOrders, setSessionOrders] = useState<OrderWithProduct[]>([]);
@@ -303,63 +337,33 @@ export default function MesaPage() {
     }
   }, [orderType, mesaNumero, localizacao, numPessoas, rodizioPrice, supabase]);
 
-  // Cart functions
+  // Cart functions (using shared cart)
   const addToCart = useCallback((product: Product) => {
-    setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.productId === product.id);
-      if (existingItem) {
-        return prevCart.map(item =>
-          item.productId === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      return [...prevCart, { productId: product.id, product, quantity: 1 }];
-    });
-  }, []);
+    addToSharedCart(product, 1);
+  }, [addToSharedCart]);
 
   const removeFromCart = useCallback((productId: string) => {
-    setCart(prevCart => prevCart.filter(item => item.productId !== productId));
-  }, []);
+    removeFromSharedCart(productId);
+  }, [removeFromSharedCart]);
 
   const updateQuantity = useCallback((productId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeFromCart(productId);
-      return;
+    const item = myItems.find(i => i.product_id === productId);
+    if (item) {
+      updateSharedQuantity(item.id, newQuantity);
     }
-    setCart(prevCart =>
-      prevCart.map(item =>
-        item.productId === productId
-          ? { ...item, quantity: newQuantity }
-          : item
-      )
-    );
-  }, [removeFromCart]);
+  }, [myItems, updateSharedQuantity]);
 
-  const updateNotes = useCallback((productId: string, notes: string) => {
-    setCart(prevCart =>
-      prevCart.map(item =>
-        item.productId === productId
-          ? { ...item, notes }
-          : item
-      )
-    );
-  }, []);
-
-  // Calculate cart total
-  const cartTotal = cart.reduce((total, item) => {
+  // Calculate cart total (considering rodizio)
+  const cartTotal = cartItems.reduce((total, item) => {
     if (orderType === "rodizio" && item.product.is_rodizio) {
       return total;
     }
     return total + (item.product.price * item.quantity);
   }, 0);
 
-  const cartItemsCount = cart.reduce((count, item) => count + item.quantity, 0);
-
   const getCartQuantity = useCallback((productId: string) => {
-    const item = cart.find(i => i.productId === productId);
-    return item?.quantity || 0;
-  }, [cart]);
+    return getSharedQuantity(productId);
+  }, [getSharedQuantity]);
 
   // Get final total including rodizio
   const getFinalTotal = useCallback(() => {
@@ -369,17 +373,31 @@ export default function MesaPage() {
     return cartTotal;
   }, [orderType, rodizioPrice, numPessoas, cartTotal]);
 
+  // Handle send order button click
+  const handleSendOrderClick = useCallback(() => {
+    if (activeParticipantCount > 1) {
+      setShowSendConfirmModal(true);
+    } else {
+      submitOrder();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeParticipantCount]);
+
   // Submit order
   const submitOrder = useCallback(async () => {
-    if (!session || cart.length === 0) return;
+    if (!session || cartItems.length === 0) return;
 
     setIsSubmittingOrder(true);
     setError(null);
+    setShowSendConfirmModal(false);
 
     try {
-      const ordersToInsert = cart.map(item => ({
+      // Set sending flag
+      await setIsSending(true);
+
+      const ordersToInsert = cartItems.map(item => ({
         session_id: session.id,
-        product_id: item.productId,
+        product_id: item.product_id,
         quantity: item.quantity,
         unit_price: item.product.price,
         notes: item.notes || null,
@@ -401,7 +419,10 @@ export default function MesaPage() {
       if (updateError) throw updateError;
 
       setSession(prev => prev ? { ...prev, total_amount: newTotal } : null);
-      setCart([]);
+
+      // Clear all cart items (shared cart)
+      await clearAllItems();
+
       setIsCartOpen(false);
 
       // Show success message
@@ -413,9 +434,10 @@ export default function MesaPage() {
       console.error("Error submitting order:", err);
       setError("Erro ao enviar pedido. Por favor, tente novamente.");
     } finally {
+      await setIsSending(false);
       setIsSubmittingOrder(false);
     }
-  }, [session, cart, cartTotal, supabase]);
+  }, [session, cartItems, cartTotal, supabase, setIsSending, clearAllItems]);
 
   // Request bill
   const requestBill = useCallback(async () => {
@@ -630,9 +652,9 @@ export default function MesaPage() {
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
-                {cartItemsCount > 0 && (
+                {totalItemCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-[#D4AF37] text-black text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                    {cartItemsCount}
+                    {totalItemCount}
                   </span>
                 )}
               </button>
@@ -785,15 +807,22 @@ export default function MesaPage() {
           </div>
 
           {/* Floating Submit Button */}
-          {cartItemsCount > 0 && (
+          {totalItemCount > 0 && (
             <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#0D0D0D] via-[#0D0D0D] to-transparent pt-8">
+              {activeParticipantCount > 1 && (
+                <div className="text-center mb-2">
+                  <span className="text-xs text-gray-400 bg-gray-800 px-3 py-1 rounded-full">
+                    {activeParticipantCount} pessoas a pedir
+                  </span>
+                </div>
+              )}
               <button
                 onClick={() => setIsCartOpen(true)}
                 className="w-full py-4 rounded-xl bg-[#D4AF37] text-black font-bold text-lg hover:bg-[#C4A030] transition-colors flex items-center justify-center gap-2"
               >
                 <span>Ver Pedido</span>
                 <span className="bg-black/20 px-3 py-1 rounded-full">
-                  €{getFinalTotal().toFixed(2)}
+                  {totalItemCount} items • €{getFinalTotal().toFixed(2)}
                 </span>
               </button>
             </div>
@@ -825,120 +854,107 @@ export default function MesaPage() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-6 py-4">
-                  {cart.length === 0 ? (
+                  {isCartEmpty ? (
                     <p className="text-gray-400 text-center py-8">O carrinho está vazio</p>
                   ) : (
-                    <div className="space-y-4">
-                      {cart.map(item => (
-                        <div key={item.productId} className="bg-gray-900 rounded-xl p-4">
-                          <div className="flex gap-4">
-                            <div className="relative w-20 h-20 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
-                              {item.product.image_url ? (
-                                <Image
-                                  src={item.product.image_url}
-                                  alt={item.product.name}
-                                  fill
-                                  className="object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-2xl">🍣</div>
-                              )}
+                    <div className="space-y-6">
+                      {groupedItems.map((group) => {
+                        const isMyGroup = group.deviceId === deviceId;
+                        const participantInfo = participants.find(p => p.device_id === group.deviceId);
+                        const displayName = isMyGroup ? "Os meus items" : (participantInfo?.device_name || "Outro participante");
+
+                        return (
+                          <div key={group.deviceId}>
+                            {/* Group Header */}
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${isMyGroup ? "bg-[#D4AF37]" : "bg-blue-500"}`} />
+                                <span className="text-sm font-medium text-gray-300">{displayName}</span>
+                              </div>
+                              <span className="text-sm text-gray-500">€{group.subtotal.toFixed(2)}</span>
                             </div>
 
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <h3 className="font-medium line-clamp-2">{item.product.name}</h3>
-                                <button
-                                  onClick={() => removeFromCart(item.productId)}
-                                  className="p-1 text-gray-500 hover:text-red-500 transition-colors flex-shrink-0"
-                                >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                              </div>
+                            {/* Items */}
+                            <div className="space-y-3">
+                              {group.items.map(item => (
+                                <div key={item.id} className={`bg-gray-900 rounded-xl p-4 ${!isMyGroup ? "opacity-75" : ""}`}>
+                                  <div className="flex gap-4">
+                                    <div className="relative w-16 h-16 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
+                                      {item.product.image_url ? (
+                                        <Image
+                                          src={item.product.image_url}
+                                          alt={item.product.name}
+                                          fill
+                                          className="object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-xl">🍣</div>
+                                      )}
+                                    </div>
 
-                              <div className="flex items-center justify-between mt-2">
-                                <div>
-                                  {orderType === "rodizio" && item.product.is_rodizio ? (
-                                    <span className="text-green-500 text-sm">Incluído</span>
-                                  ) : (
-                                    <span className="text-[#D4AF37] font-semibold">
-                                      €{(item.product.price * item.quantity).toFixed(2)}
-                                    </span>
-                                  )}
-                                </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <h3 className="font-medium text-sm line-clamp-2">{item.product.name}</h3>
+                                        {isMyGroup && (
+                                          <button
+                                            onClick={() => deleteSharedItem(item.id)}
+                                            className="p-1 text-gray-500 hover:text-red-500 transition-colors flex-shrink-0"
+                                          >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                          </button>
+                                        )}
+                                      </div>
 
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                                    className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700"
-                                  >
-                                    −
-                                  </button>
-                                  <span className="w-6 text-center font-semibold">{item.quantity}</span>
-                                  <button
-                                    onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                                    className="w-8 h-8 rounded-full bg-[#D4AF37] text-black flex items-center justify-center hover:bg-[#C4A030]"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              </div>
+                                      <div className="flex items-center justify-between mt-2">
+                                        <div>
+                                          {orderType === "rodizio" && item.product.is_rodizio ? (
+                                            <span className="text-green-500 text-xs">Incluído</span>
+                                          ) : (
+                                            <span className="text-[#D4AF37] font-semibold text-sm">
+                                              €{(item.product.price * item.quantity).toFixed(2)}
+                                            </span>
+                                          )}
+                                        </div>
 
-                              <div className="mt-3">
-                                {editingNotes === item.productId ? (
-                                  <div className="flex gap-2">
-                                    <input
-                                      type="text"
-                                      placeholder="Sem wasabi, extra gengibre..."
-                                      defaultValue={item.notes || ""}
-                                      className="flex-1 bg-gray-800 text-sm px-3 py-2 rounded-lg border border-gray-700 focus:border-[#D4AF37] focus:outline-none"
-                                      onBlur={(e) => {
-                                        updateNotes(item.productId, e.target.value);
-                                        setEditingNotes(null);
-                                      }}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          updateNotes(item.productId, e.currentTarget.value);
-                                          setEditingNotes(null);
-                                        }
-                                      }}
-                                      autoFocus
-                                    />
+                                        {isMyGroup ? (
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={() => updateSharedQuantity(item.id, item.quantity - 1)}
+                                              className="w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 text-sm"
+                                            >
+                                              −
+                                            </button>
+                                            <span className="w-5 text-center font-semibold text-sm">{item.quantity}</span>
+                                            <button
+                                              onClick={() => updateSharedQuantity(item.id, item.quantity + 1)}
+                                              className="w-7 h-7 rounded-full bg-[#D4AF37] text-black flex items-center justify-center hover:bg-[#C4A030] text-sm"
+                                            >
+                                              +
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <span className="text-sm text-gray-400">×{item.quantity}</span>
+                                        )}
+                                      </div>
+
+                                      {item.notes && (
+                                        <p className="text-xs text-gray-500 mt-1">📝 {item.notes}</p>
+                                      )}
+                                    </div>
                                   </div>
-                                ) : (
-                                  <button
-                                    onClick={() => setEditingNotes(item.productId)}
-                                    className="text-sm text-gray-400 hover:text-white transition-colors"
-                                  >
-                                    {item.notes ? (
-                                      <span className="flex items-center gap-1">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </svg>
-                                        {item.notes}
-                                      </span>
-                                    ) : (
-                                      <span className="flex items-center gap-1">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                        </svg>
-                                        Adicionar nota
-                                      </span>
-                                    )}
-                                  </button>
-                                )}
-                              </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
 
-                {cart.length > 0 && (
+                {!isCartEmpty && (
                   <div className="border-t border-gray-800 px-6 py-4 space-y-4">
                     <div className="space-y-2">
                       {orderType === "rodizio" && (
@@ -954,14 +970,20 @@ export default function MesaPage() {
                         </div>
                       )}
                       <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-800">
-                        <span>Total</span>
+                        <span>Total ({totalItemCount} items)</span>
                         <span className="text-[#D4AF37]">€{getFinalTotal().toFixed(2)}</span>
                       </div>
                     </div>
 
+                    {activeParticipantCount > 1 && (
+                      <div className="text-center text-xs text-gray-400 bg-gray-800/50 rounded-lg py-2">
+                        {activeParticipantCount} pessoas estão a escolher
+                      </div>
+                    )}
+
                     <button
-                      onClick={submitOrder}
-                      disabled={isSubmittingOrder}
+                      onClick={handleSendOrderClick}
+                      disabled={isSubmittingOrder || isSomeoneElseSending}
                       className="w-full py-4 rounded-xl bg-[#D4AF37] text-black font-bold text-lg hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {isSubmittingOrder ? (
@@ -1130,6 +1152,73 @@ export default function MesaPage() {
                     </svg>
                     Pedir Conta
                   </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Order Sending Overlay (when someone else is sending) */}
+      <OrderSendingOverlay
+        isVisible={isSomeoneElseSending}
+        sendingParticipant={sendingParticipant}
+      />
+
+      {/* Send Confirmation Modal (for multiple participants) */}
+      {showSendConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setShowSendConfirmModal(false)}
+          />
+
+          <div className="relative bg-[#1A1A1A] rounded-2xl p-6 max-w-sm w-full animate-scale-up">
+            <h3 className="text-xl font-semibold mb-2">Enviar Pedido</h3>
+            <p className="text-gray-400 mb-4">
+              Há {activeParticipantCount} pessoas a escolher nesta mesa. Confirma que pretende enviar o pedido de todos para a cozinha?
+            </p>
+
+            <div className="bg-gray-900 rounded-xl p-4 mb-6">
+              <div className="space-y-2">
+                {groupedItems.map((group) => {
+                  const isMyGroup = group.deviceId === deviceId;
+                  const participantInfo = participants.find(p => p.device_id === group.deviceId);
+                  const displayName = isMyGroup ? "Eu" : (participantInfo?.device_name || "Outro");
+
+                  return (
+                    <div key={group.deviceId} className="flex justify-between text-sm">
+                      <span className="text-gray-400">{displayName}</span>
+                      <span>{group.items.reduce((sum, i) => sum + i.quantity, 0)} items</span>
+                    </div>
+                  );
+                })}
+                <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-700">
+                  <span>Total</span>
+                  <span className="text-[#D4AF37]">€{getFinalTotal().toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSendConfirmModal(false)}
+                className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={submitOrder}
+                disabled={isSubmittingOrder}
+                className="flex-1 py-3 rounded-xl bg-[#D4AF37] text-black font-semibold hover:bg-[#C4A030] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSubmittingOrder ? (
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : (
+                  "Enviar Tudo"
                 )}
               </button>
             </div>
