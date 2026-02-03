@@ -17,7 +17,7 @@ type TabType = "config" | "map";
 
 export default function MesasPage() {
   const [activeTab, setActiveTab] = useState<TabType>("map");
-  const [tables, setTables] = useState<Table[]>([]);
+  const [tables, setTables] = useState<(Table & { waiter_name?: string | null })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -70,7 +70,30 @@ export default function MesasPage() {
       .select("*")
       .order("number");
 
-    setTables(data || []);
+    // Fetch waiter assignments
+    const extendedSupabase = supabase as unknown as {
+      from: (table: string) => {
+        select: (fields: string) => ReturnType<ReturnType<typeof createClient>["from"]>["select"];
+      };
+    };
+    const { data: waiterData } = await extendedSupabase
+      .from("waiter_assignments")
+      .select("table_id, staff_name");
+
+    const waiterMap = new Map<string, string>(
+      (waiterData || []).map((w: { table_id: string; staff_name: string }) => [
+        w.table_id,
+        w.staff_name,
+      ])
+    );
+
+    // Combine tables with waiter info
+    const tablesWithWaiter = (data || []).map((table) => ({
+      ...table,
+      waiter_name: waiterMap.get(table.id) || null,
+    }));
+
+    setTables(tablesWithWaiter);
     setIsLoading(false);
   };
 
@@ -367,7 +390,7 @@ export default function MesasPage() {
   const circunvalacaoTables = tables.filter(t => t.location === "circunvalacao");
   const boavistaTables = tables.filter(t => t.location === "boavista");
 
-  const TableCard = ({ table }: { table: Table }) => (
+  const TableCard = ({ table }: { table: Table & { waiter_name?: string | null } }) => (
     <div
       className={`relative p-4 rounded-xl border-2 text-center ${
         table.is_active
@@ -377,6 +400,14 @@ export default function MesasPage() {
     >
       <div className="text-2xl font-bold text-gray-900">#{table.number}</div>
       <div className="text-xs text-gray-500 truncate">{table.name}</div>
+      {table.waiter_name && (
+        <div className="flex items-center justify-center gap-1 mt-1 text-xs text-blue-600">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span className="truncate max-w-[80px]">{table.waiter_name}</span>
+        </div>
+      )}
       <div className="flex justify-center gap-1 mt-2">
         <button
           onClick={() => handleOpenQRModal(table)}

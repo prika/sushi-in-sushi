@@ -1,20 +1,29 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useRequireWaiter } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import { useActivityLog } from "@/hooks/useActivityLog";
-import type { Table, Session, OrderWithProduct, Product, Category } from "@/types/database";
+import type { Table, Session, OrderWithProduct, Product, Category, WaiterCall } from "@/types/database";
+
+// Helper to bypass Supabase type checking for tables not in the generated types
+function getExtendedSupabase(supabase: ReturnType<typeof createClient>) {
+  return supabase as unknown as {
+    from: (table: string) => ReturnType<typeof supabase.from>;
+  };
+}
 
 interface TableWithDetails extends Table {
   activeSession?: Session | null;
   orders?: OrderWithProduct[];
 }
 
-export default function WaiterMesaPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function WaiterMesaPage() {
+  const params = useParams();
+  const id = params.id as string;
   const { user, isLoading: authLoading } = useRequireWaiter();
   const router = useRouter();
   const { logActivity } = useActivityLog();
@@ -27,6 +36,7 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [orderNote, setOrderNote] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [waiterCalls, setWaiterCalls] = useState<WaiterCall[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -102,6 +112,17 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
 
       setCategories(categoriesData || []);
       setProducts(productsData || []);
+
+      // Fetch pending waiter calls for this table
+      const extendedSupabase = getExtendedSupabase(supabase);
+      const { data: callsData } = await extendedSupabase
+        .from("waiter_calls")
+        .select("*")
+        .eq("table_id", id)
+        .in("status", ["pending", "acknowledged"])
+        .order("created_at", { ascending: false });
+
+      setWaiterCalls((callsData || []) as WaiterCall[]);
       setIsLoading(false);
     };
 
@@ -125,6 +146,13 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
           fetchData();
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "waiter_calls" },
+        () => {
+          fetchData();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -132,23 +160,49 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
     };
   }, [user, id, router]);
 
+  const [error, setError] = useState<string | null>(null);
+  const [isStartingSession, setIsStartingSession] = useState(false);
+
   const handleStartSession = async (isRodizio: boolean, numPeople: number) => {
     if (!table) return;
 
-    const supabase = createClient();
-    const { data: session, error } = await supabase
-      .from("sessions")
-      .insert({
-        table_id: table.id,
-        is_rodizio: isRodizio,
-        num_people: numPeople,
-        status: "active",
-      })
-      .select()
-      .single();
+    setIsStartingSession(true);
+    setError(null);
 
-    if (!error && session) {
-      setTable({ ...table, activeSession: session });
+    try {
+      const supabase = createClient();
+      const { data: session, error: insertError } = await supabase
+        .from("sessions")
+        .insert({
+          table_id: table.id,
+          is_rodizio: isRodizio,
+          num_people: numPeople,
+          status: "active",
+          total_amount: 0,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error("Error starting session:", insertError);
+        setError(`Erro ao iniciar sessão: ${insertError.message}`);
+        return;
+      }
+
+      if (session) {
+        setTable({ ...table, activeSession: session });
+        await logActivity("session_started", "session", session.id, {
+          tableNumber: table.number,
+          location: table.location,
+          isRodizio,
+          numPeople,
+        });
+      }
+    } catch (err) {
+      console.error("Error starting session:", err);
+      setError("Erro ao iniciar sessão. Por favor, tente novamente.");
+    } finally {
+      setIsStartingSession(false);
     }
   };
 
@@ -197,6 +251,32 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
       .from("sessions")
       .update({ status: "pending_payment" })
       .eq("id", table.activeSession.id);
+  };
+
+  const handleAcknowledgeCall = async (callId: string) => {
+    if (!user) return;
+    const supabase = createClient();
+    const extendedSupabase = getExtendedSupabase(supabase);
+    await extendedSupabase
+      .from("waiter_calls")
+      .update({
+        status: "acknowledged",
+        acknowledged_by: user.id,
+        acknowledged_at: new Date().toISOString(),
+      })
+      .eq("id", callId);
+  };
+
+  const handleCompleteCall = async (callId: string) => {
+    const supabase = createClient();
+    const extendedSupabase = getExtendedSupabase(supabase);
+    await extendedSupabase
+      .from("waiter_calls")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", callId);
   };
 
   if (authLoading || isLoading) {
@@ -274,20 +354,104 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
               Inicie uma nova sessão para começar a receber pedidos.
             </p>
 
+            {error && (
+              <div className="max-w-md mx-auto mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+
             <div className="max-w-md mx-auto space-y-4">
               <button
                 onClick={() => handleStartSession(false, 2)}
-                className="w-full py-4 bg-[#D4AF37] text-black font-semibold rounded-xl hover:bg-[#C4A030] transition-colors"
+                disabled={isStartingSession}
+                className="w-full py-4 bg-[#D4AF37] text-black font-semibold rounded-xl hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Iniciar Sessão Normal
+                {isStartingSession ? (
+                  <>
+                    <div className="animate-spin h-5 w-5 border-2 border-black border-t-transparent rounded-full" />
+                    A iniciar...
+                  </>
+                ) : (
+                  "Iniciar Sessão Normal"
+                )}
               </button>
               <button
                 onClick={() => handleStartSession(true, 2)}
-                className="w-full py-4 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors"
+                disabled={isStartingSession}
+                className="w-full py-4 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Iniciar Rodízio
+                {isStartingSession ? (
+                  <>
+                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                    A iniciar...
+                  </>
+                ) : (
+                  "Iniciar Rodízio"
+                )}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Waiter Calls Alert */}
+        {waiterCalls.length > 0 && (
+          <div className="mb-6 space-y-3">
+            {waiterCalls.map((call) => (
+              <div
+                key={call.id}
+                className={`rounded-xl p-4 border ${
+                  call.status === "pending"
+                    ? "bg-red-500/20 border-red-500/50 animate-pulse"
+                    : "bg-yellow-500/20 border-yellow-500/50"
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">
+                      {call.call_type === "bill" && "💳"}
+                      {call.call_type === "assistance" && "🔔"}
+                      {call.call_type === "order" && "📝"}
+                      {call.call_type === "other" && "❓"}
+                    </span>
+                    <div>
+                      <h3 className={`font-semibold ${
+                        call.status === "pending" ? "text-red-400" : "text-yellow-400"
+                      }`}>
+                        {call.call_type === "bill" && "Cliente pede a conta"}
+                        {call.call_type === "assistance" && "Cliente precisa de ajuda"}
+                        {call.call_type === "order" && "Cliente quer fazer pedido"}
+                        {call.call_type === "other" && "Chamada do cliente"}
+                      </h3>
+                      {call.message && (
+                        <p className="text-sm text-gray-300 mt-1">{call.message}</p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(call.created_at).toLocaleTimeString("pt-PT", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {call.status === "pending" && (
+                      <button
+                        onClick={() => handleAcknowledgeCall(call.id)}
+                        className="px-3 py-1 text-sm bg-yellow-500/30 text-yellow-400 rounded-lg hover:bg-yellow-500/40 transition-colors"
+                      >
+                        Aceitar
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleCompleteCall(call.id)}
+                      className="px-3 py-1 text-sm bg-green-500/30 text-green-400 rounded-lg hover:bg-green-500/40 transition-colors"
+                    >
+                      Concluir
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

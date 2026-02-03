@@ -75,8 +75,24 @@ export function useTableManagement(
 
       const { data: viewData, error: viewError } = await viewQuery.order("number");
 
+      // Also fetch waiter assignments
+      const { data: waiterData } = await extendedSupabase
+        .from("waiter_assignments")
+        .select("table_id, staff_id, staff_name");
+
+      const waiterMap = new Map(
+        (waiterData || []).map((w: { table_id: string; staff_id: string; staff_name: string }) => [
+          w.table_id,
+          { waiter_id: w.staff_id, waiter_name: w.staff_name },
+        ])
+      );
+
       if (!viewError && viewData) {
-        setTables(viewData as TableFullStatus[]);
+        const tablesWithWaiter = (viewData as TableFullStatus[]).map((t) => ({
+          ...t,
+          ...(waiterMap.get(t.id) || {}),
+        }));
+        setTables(tablesWithWaiter);
         setError(null);
         setIsLoading(false);
         return;
@@ -108,6 +124,7 @@ export function useTableManagement(
           session_total: null,
           status_label: "Livre",
           minutes_occupied: null,
+          ...(waiterMap.get(t.id) || {}),
         })
       );
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
-import type { Product, Category, Session, Order, OrderStatus } from "@/types/database";
+import type { Product, Category, Session, Order, OrderStatus, SessionCustomer, SessionCustomerInsert } from "@/types/database";
 
 type Step = "welcome" | "menu" | "tracking";
 type OrderType = "rodizio" | "carta" | null;
@@ -81,11 +81,67 @@ export default function MesaPage() {
   const [isRequestingBill, setIsRequestingBill] = useState(false);
   const [billRequested, setBillRequested] = useState(false);
 
+  // Waiter state
+  const [waiterName, setWaiterName] = useState<string | null>(null);
+  const [isCallingWaiter, setIsCallingWaiter] = useState(false);
+  const [waiterCallStatus, setWaiterCallStatus] = useState<"idle" | "pending" | "acknowledged">("idle");
+  const [showCallWaiterModal, setShowCallWaiterModal] = useState(false);
+  const [callType, setCallType] = useState<"assistance" | "bill" | "order">("assistance");
+
+  // Customer registration state
+  const [currentCustomer, setCurrentCustomer] = useState<SessionCustomer | null>(null);
+  const [sessionCustomers, setSessionCustomers] = useState<SessionCustomer[]>([]);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [customerForm, setCustomerForm] = useState({
+    display_name: "",
+    full_name: "",
+    email: "",
+    phone: "",
+    birth_date: "",
+    marketing_consent: false,
+    preferred_contact: "email" as "email" | "phone" | "none",
+  });
+
   // Refs
   const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const tabsRef = useRef<HTMLDivElement>(null);
 
   const rodizioPrice = isLunch ? 17 : 20;
+
+  // Fetch waiter info for this table
+  useEffect(() => {
+    async function fetchWaiterInfo() {
+      try {
+        // Get table ID first
+        const { data: tableData } = await supabase
+          .from("tables")
+          .select("id")
+          .eq("number", parseInt(mesaNumero))
+          .eq("location", localizacao)
+          .single();
+
+        if (!tableData) return;
+
+        // Fetch waiter assignment using the view
+        const { data: waiterData } = await (supabase as unknown as {
+          from: (table: string) => ReturnType<typeof supabase.from>;
+        })
+          .from("waiter_assignments")
+          .select("staff_name")
+          .eq("table_id", tableData.id)
+          .single();
+
+        if (waiterData) {
+          setWaiterName(waiterData.staff_name);
+        }
+      } catch (err) {
+        // Waiter info is optional, don't show error
+        console.log("Waiter info not available:", err);
+      }
+    }
+
+    fetchWaiterInfo();
+  }, [supabase, mesaNumero, localizacao]);
 
   // Fetch products grouped by category
   useEffect(() => {
@@ -369,6 +425,104 @@ export default function MesaPage() {
     return cartTotal;
   }, [orderType, rodizioPrice, numPessoas, cartTotal]);
 
+  // Fetch session customers
+  const fetchSessionCustomers = useCallback(async (sessionId: string) => {
+    const extendedSupabase = supabase as unknown as {
+      from: (table: string) => ReturnType<typeof supabase.from>;
+    };
+    const { data } = await extendedSupabase
+      .from("session_customers")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      setSessionCustomers(data as SessionCustomer[]);
+    }
+  }, [supabase]);
+
+  // Load current customer from localStorage
+  useEffect(() => {
+    if (session?.id) {
+      const storedCustomerId = localStorage.getItem(`customer_${session.id}`);
+      if (storedCustomerId && sessionCustomers.length > 0) {
+        const customer = sessionCustomers.find(c => c.id === storedCustomerId);
+        if (customer) {
+          setCurrentCustomer(customer);
+        }
+      }
+    }
+  }, [session?.id, sessionCustomers]);
+
+  // Fetch session customers when session is set
+  useEffect(() => {
+    if (session?.id) {
+      fetchSessionCustomers(session.id);
+    }
+  }, [session?.id, fetchSessionCustomers]);
+
+  // Register customer
+  const registerCustomer = useCallback(async () => {
+    if (!session || !customerForm.display_name.trim()) return;
+
+    try {
+      const extendedSupabase = supabase as unknown as {
+        from: (table: string) => ReturnType<typeof supabase.from>;
+      };
+
+      const customerData: SessionCustomerInsert = {
+        session_id: session.id,
+        display_name: customerForm.display_name.trim(),
+        full_name: customerForm.full_name.trim() || null,
+        email: customerForm.email.trim() || null,
+        phone: customerForm.phone.trim() || null,
+        birth_date: customerForm.birth_date || null,
+        marketing_consent: customerForm.marketing_consent,
+        preferred_contact: customerForm.preferred_contact,
+        is_session_host: sessionCustomers.length === 0,
+      };
+
+      const { data, error: insertError } = await extendedSupabase
+        .from("session_customers")
+        .insert(customerData)
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      const newCustomer = data as SessionCustomer;
+      setSessionCustomers(prev => [...prev, newCustomer]);
+      setCurrentCustomer(newCustomer);
+      localStorage.setItem(`customer_${session.id}`, newCustomer.id);
+
+      setCustomerForm({
+        display_name: "",
+        full_name: "",
+        email: "",
+        phone: "",
+        birth_date: "",
+        marketing_consent: false,
+        preferred_contact: "email",
+      });
+      setShowCustomerModal(false);
+
+      setSuccessMessage(`Olá, ${newCustomer.display_name}! Bom apetite!`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      console.error("Error registering customer:", err);
+      setError("Erro ao registar. Por favor, tente novamente.");
+    }
+  }, [session, customerForm, sessionCustomers.length, supabase]);
+
+  // Select existing customer
+  const selectCustomer = useCallback((customer: SessionCustomer) => {
+    if (session?.id) {
+      setCurrentCustomer(customer);
+      localStorage.setItem(`customer_${session.id}`, customer.id);
+      setShowCustomerModal(false);
+    }
+  }, [session?.id]);
+
   // Submit order
   const submitOrder = useCallback(async () => {
     if (!session || cart.length === 0) return;
@@ -384,6 +538,7 @@ export default function MesaPage() {
         unit_price: item.product.price,
         notes: item.notes || null,
         status: "pending" as const,
+        session_customer_id: currentCustomer?.id || null,
       }));
 
       const { error: ordersError } = await supabase
@@ -405,7 +560,8 @@ export default function MesaPage() {
       setIsCartOpen(false);
 
       // Show success message
-      setSuccessMessage("Pedido enviado para a cozinha!");
+      const customerName = currentCustomer?.display_name;
+      setSuccessMessage(customerName ? `${customerName}, pedido enviado!` : "Pedido enviado para a cozinha!");
       setTimeout(() => setSuccessMessage(null), 3000);
 
       setStep("tracking");
@@ -445,11 +601,86 @@ export default function MesaPage() {
     }
   }, [session, supabase]);
 
-  // Help function
-  const requestHelp = useCallback(() => {
-    setSuccessMessage("Um funcionário foi notificado e virá até si em breve.");
-    setTimeout(() => setSuccessMessage(null), 5000);
-  }, []);
+  // Call waiter function
+  const callWaiter = useCallback(async (type: "assistance" | "bill" | "order" = "assistance") => {
+    if (!tableId || isCallingWaiter) return;
+
+    setIsCallingWaiter(true);
+
+    try {
+      // Create waiter call record
+      const { error: insertError } = await (supabase as unknown as {
+        from: (table: string) => ReturnType<typeof supabase.from>;
+      })
+        .from("waiter_calls")
+        .insert({
+          table_id: tableId,
+          session_id: session?.id || null,
+          call_type: type,
+          location: localizacao,
+          status: "pending",
+        });
+
+      if (insertError) throw insertError;
+
+      setWaiterCallStatus("pending");
+      setShowCallWaiterModal(false);
+
+      const messages = {
+        assistance: waiterName
+          ? `${waiterName} foi notificado(a) e virá até si em breve.`
+          : "Um funcionário foi notificado e virá até si em breve.",
+        bill: "A conta foi pedida. Um funcionário virá até si em breve.",
+        order: "Um funcionário foi notificado para ajudar com o pedido.",
+      };
+
+      setSuccessMessage(messages[type]);
+      setTimeout(() => setSuccessMessage(null), 5000);
+
+      // Reset call status after 2 minutes
+      setTimeout(() => {
+        setWaiterCallStatus("idle");
+      }, 120000);
+    } catch (err) {
+      console.error("Error calling waiter:", err);
+      setError("Erro ao chamar funcionário. Por favor, tente novamente.");
+    } finally {
+      setIsCallingWaiter(false);
+    }
+  }, [tableId, session, localizacao, waiterName, isCallingWaiter, supabase]);
+
+  // Subscribe to waiter call status updates
+  useEffect(() => {
+    if (!tableId) return;
+
+    const channel = supabase
+      .channel(`waiter-calls-${tableId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "waiter_calls",
+          filter: `table_id=eq.${tableId}`,
+        },
+        (payload) => {
+          if (payload.new.status === "acknowledged") {
+            setWaiterCallStatus("acknowledged");
+            setSuccessMessage(waiterName
+              ? `${waiterName} está a caminho!`
+              : "O funcionário está a caminho!");
+            setTimeout(() => setSuccessMessage(null), 5000);
+          } else if (payload.new.status === "completed") {
+            setWaiterCallStatus("idle");
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [tableId, waiterName, supabase]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -475,7 +706,7 @@ export default function MesaPage() {
       {step === "welcome" && (
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-6">
           {/* Compact Header with Logo and Table Number */}
-          <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center gap-4 mb-6">
             <div className="w-14 h-14 relative">
               <Image
                 src="/logo.png"
@@ -495,6 +726,39 @@ export default function MesaPage() {
               </div>
             </div>
           </div>
+
+          {/* Waiter Info Card */}
+          {waiterName && (
+            <div className="w-full max-w-sm mb-6">
+              <div className="flex items-center justify-between p-4 bg-gray-900/50 rounded-xl border border-gray-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#D4AF37]/20 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">O seu empregado</p>
+                    <p className="text-sm font-semibold text-white">{waiterName}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => callWaiter("assistance")}
+                  disabled={isCallingWaiter || waiterCallStatus !== "idle"}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    waiterCallStatus === "pending"
+                      ? "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30"
+                      : waiterCallStatus === "acknowledged"
+                        ? "bg-green-500/20 text-green-500 border border-green-500/30"
+                        : "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
+                  }`}
+                >
+                  {waiterCallStatus === "pending" ? "A chamar..." :
+                   waiterCallStatus === "acknowledged" ? "A caminho!" : "Chamar"}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="w-full max-w-sm mb-8">
             <p className="text-sm text-gray-400 text-center mb-4">
@@ -623,19 +887,38 @@ export default function MesaPage() {
                 </span>
               </div>
 
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="relative p-1.5 -mr-1"
-              >
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-                {cartItemsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#D4AF37] text-black text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                    {cartItemsCount}
+              <div className="flex items-center gap-2">
+                {/* Customer indicator */}
+                <button
+                  onClick={() => setShowCustomerModal(true)}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-colors ${
+                    currentCustomer
+                      ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                      : "bg-gray-800 text-gray-400 border border-gray-700 hover:border-[#D4AF37]"
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span className="max-w-[60px] truncate">
+                    {currentCustomer?.display_name || "Entrar"}
                   </span>
-                )}
-              </button>
+                </button>
+
+                <button
+                  onClick={() => setIsCartOpen(true)}
+                  className="relative p-1.5"
+                >
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  {cartItemsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#D4AF37] text-black text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                      {cartItemsCount}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
 
             <div
@@ -1095,16 +1378,55 @@ export default function MesaPage() {
               </div>
             )}
 
+            {/* Waiter Info */}
+            {waiterName && (
+              <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-[#D4AF37]/20 rounded-full flex items-center justify-center">
+                    <svg className="w-4 h-4 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">O seu empregado</p>
+                    <p className="text-sm font-medium text-white">{waiterName}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => callWaiter("assistance")}
+                  disabled={isCallingWaiter || waiterCallStatus !== "idle"}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    waiterCallStatus === "pending"
+                      ? "bg-yellow-500/20 text-yellow-500"
+                      : waiterCallStatus === "acknowledged"
+                        ? "bg-green-500/20 text-green-500"
+                        : "bg-[#D4AF37]/20 text-[#D4AF37] hover:bg-[#D4AF37]/30"
+                  }`}
+                >
+                  {waiterCallStatus === "pending" ? "A chamar..." :
+                   waiterCallStatus === "acknowledged" ? "A caminho!" : "Chamar"}
+                </button>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="px-4 py-4 flex gap-3">
               <button
-                onClick={requestHelp}
-                className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors flex items-center justify-center gap-2"
+                onClick={() => setShowCallWaiterModal(true)}
+                disabled={waiterCallStatus !== "idle"}
+                className={`flex-1 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors ${
+                  waiterCallStatus === "pending"
+                    ? "bg-yellow-500/20 text-yellow-500 border-2 border-yellow-500/30"
+                    : waiterCallStatus === "acknowledged"
+                      ? "bg-green-500/20 text-green-500 border-2 border-green-500/30"
+                      : "border-2 border-gray-700 text-gray-300 hover:border-gray-600"
+                }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                Ajuda
+                {waiterCallStatus === "pending" ? "A chamar..." :
+                 waiterCallStatus === "acknowledged" ? "A caminho!" : "Chamar Empregado"}
               </button>
 
               <button
@@ -1183,6 +1505,308 @@ export default function MesaPage() {
                   "Confirmar"
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Call Waiter Modal */}
+      {showCallWaiterModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setShowCallWaiterModal(false)}
+          />
+
+          <div className="relative bg-[#1A1A1A] rounded-2xl p-6 max-w-sm w-full animate-scale-up">
+            <h3 className="text-xl font-semibold mb-2">Chamar Empregado</h3>
+            <p className="text-gray-400 mb-6">
+              {waiterName
+                ? `${waiterName} será notificado(a) imediatamente.`
+                : "Um funcionário será notificado imediatamente."}
+            </p>
+
+            <div className="space-y-3 mb-6">
+              <button
+                onClick={() => setCallType("assistance")}
+                className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+                  callType === "assistance"
+                    ? "border-[#D4AF37] bg-[#D4AF37]/10"
+                    : "border-gray-700 hover:border-gray-600"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🙋</span>
+                  <div>
+                    <p className="font-semibold">Preciso de Ajuda</p>
+                    <p className="text-sm text-gray-400">Assistência geral</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setCallType("order")}
+                className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+                  callType === "order"
+                    ? "border-[#D4AF37] bg-[#D4AF37]/10"
+                    : "border-gray-700 hover:border-gray-600"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📝</span>
+                  <div>
+                    <p className="font-semibold">Ajuda com Pedido</p>
+                    <p className="text-sm text-gray-400">Dúvidas sobre o menu</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCallWaiterModal(false)}
+                className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => callWaiter(callType)}
+                disabled={isCallingWaiter}
+                className="flex-1 py-3 rounded-xl bg-[#D4AF37] text-black font-semibold hover:bg-[#C4A030] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isCallingWaiter ? (
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : (
+                  "Chamar"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Registration Modal */}
+      {showCustomerModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setShowCustomerModal(false)}
+          />
+
+          <div className="relative bg-[#1A1A1A] rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto animate-slide-up sm:animate-scale-up">
+            {/* Header */}
+            <div className="sticky top-0 bg-[#1A1A1A] px-6 pt-6 pb-4 border-b border-gray-800">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Identificar-se</h3>
+                <button
+                  onClick={() => setShowCustomerModal(false)}
+                  className="p-2 -mr-2 text-gray-400 hover:text-white"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-sm text-gray-400 mt-1">
+                Personalize a sua experiência e acompanhe os seus pedidos
+              </p>
+            </div>
+
+            <div className="p-6">
+              {/* Existing customers in session */}
+              {sessionCustomers.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-sm text-gray-400 mb-3">Quem está a pedir?</p>
+                  <div className="flex flex-wrap gap-2">
+                    {sessionCustomers.map((customer) => (
+                      <button
+                        key={customer.id}
+                        onClick={() => selectCustomer(customer)}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                          currentCustomer?.id === customer.id
+                            ? "bg-[#D4AF37] text-black"
+                            : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                        }`}
+                      >
+                        {customer.display_name}
+                        {customer.is_session_host && (
+                          <span className="ml-1 text-xs opacity-70">(anfitrião)</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3 my-4">
+                    <div className="flex-1 h-px bg-gray-700" />
+                    <span className="text-xs text-gray-500">ou adicionar nova pessoa</span>
+                    <div className="flex-1 h-px bg-gray-700" />
+                  </div>
+                </div>
+              )}
+
+              {/* Registration Form */}
+              <div className="space-y-4">
+                {/* Display Name - Required */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Como quer ser tratado(a)? *
+                  </label>
+                  <input
+                    type="text"
+                    value={customerForm.display_name}
+                    onChange={(e) => setCustomerForm(prev => ({ ...prev, display_name: e.target.value }))}
+                    placeholder="Ex: João, Maria, Sr. Silva..."
+                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl focus:border-[#D4AF37] focus:outline-none transition-colors"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Incentive Message */}
+                <div className="bg-gradient-to-r from-[#D4AF37]/10 to-transparent border border-[#D4AF37]/20 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🎁</span>
+                    <div>
+                      <p className="text-sm font-medium text-[#D4AF37]">Ganhe vantagens exclusivas!</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Preencha os dados adicionais e receba ofertas especiais no seu aniversário e promoções exclusivas.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Optional Fields - Collapsible */}
+                <details className="group">
+                  <summary className="flex items-center justify-between cursor-pointer py-2 text-sm text-gray-400 hover:text-white transition-colors">
+                    <span>Dados adicionais (opcional)</span>
+                    <svg className="w-5 h-5 transform group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </summary>
+
+                  <div className="space-y-4 pt-4">
+                    {/* Full Name */}
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1.5">Nome completo</label>
+                      <input
+                        type="text"
+                        value={customerForm.full_name}
+                        onChange={(e) => setCustomerForm(prev => ({ ...prev, full_name: e.target.value }))}
+                        placeholder="João Silva"
+                        className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
+                      />
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1.5">Email</label>
+                      <input
+                        type="email"
+                        value={customerForm.email}
+                        onChange={(e) => setCustomerForm(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder="joao@email.com"
+                        className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
+                      />
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1.5">Telemóvel</label>
+                      <input
+                        type="tel"
+                        value={customerForm.phone}
+                        onChange={(e) => setCustomerForm(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="912 345 678"
+                        className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
+                      />
+                    </div>
+
+                    {/* Birth Date */}
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1.5">Data de nascimento</label>
+                      <input
+                        type="date"
+                        value={customerForm.birth_date}
+                        onChange={(e) => setCustomerForm(prev => ({ ...prev, birth_date: e.target.value }))}
+                        className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Receba uma surpresa no seu aniversário!</p>
+                    </div>
+
+                    {/* Preferred Contact */}
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Contacto preferencial</label>
+                      <div className="flex gap-2">
+                        {[
+                          { value: "email", label: "Email" },
+                          { value: "phone", label: "Telemóvel" },
+                          { value: "none", label: "Nenhum" },
+                        ].map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setCustomerForm(prev => ({ ...prev, preferred_contact: option.value as "email" | "phone" | "none" }))}
+                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                              customerForm.preferred_contact === option.value
+                                ? "bg-[#D4AF37] text-black"
+                                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Marketing Consent */}
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <div className="relative mt-0.5">
+                        <input
+                          type="checkbox"
+                          checked={customerForm.marketing_consent}
+                          onChange={(e) => setCustomerForm(prev => ({ ...prev, marketing_consent: e.target.checked }))}
+                          className="sr-only"
+                        />
+                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          customerForm.marketing_consent
+                            ? "bg-[#D4AF37] border-[#D4AF37]"
+                            : "border-gray-600 group-hover:border-gray-500"
+                        }`}>
+                          {customerForm.marketing_consent && (
+                            <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-sm text-gray-400">
+                        Quero receber promoções e novidades por email/SMS
+                      </span>
+                    </label>
+                  </div>
+                </details>
+              </div>
+
+              {/* Submit Button */}
+              <div className="mt-6 pt-4 border-t border-gray-800">
+                <button
+                  onClick={registerCustomer}
+                  disabled={!customerForm.display_name.trim()}
+                  className="w-full py-4 rounded-xl bg-[#D4AF37] text-black font-bold text-lg hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {sessionCustomers.length === 0 ? "Começar a Pedir" : "Adicionar Pessoa"}
+                </button>
+
+                {currentCustomer && (
+                  <button
+                    onClick={() => setShowCustomerModal(false)}
+                    className="w-full mt-3 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
+                  >
+                    Continuar como {currentCustomer.display_name}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

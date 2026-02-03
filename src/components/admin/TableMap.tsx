@@ -153,6 +153,12 @@ export function TableMap({ tables, onTableClick, isLoading }: TableMapProps) {
                     </div>
                   )}
 
+                  {table.waiter_name && (
+                    <div className="text-blue-300 mt-1 pt-1 border-t border-gray-700">
+                      Empregado: {table.waiter_name}
+                    </div>
+                  )}
+
                   {/* Seta do tooltip */}
                   <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-8 border-transparent border-t-gray-900" />
                 </div>

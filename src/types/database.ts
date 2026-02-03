@@ -178,6 +178,7 @@ export type Database = {
           unit_price: number;
           notes: string | null;
           status: OrderStatus;
+          session_customer_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -189,6 +190,7 @@ export type Database = {
           unit_price: number;
           notes?: string | null;
           status?: OrderStatus;
+          session_customer_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -200,6 +202,7 @@ export type Database = {
           unit_price?: number;
           notes?: string | null;
           status?: OrderStatus;
+          session_customer_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -472,6 +475,9 @@ export type TableFullStatus = Table & {
   reservation_phone?: string | null;
   status_label: string;
   minutes_occupied: number | null;
+  // Waiter info
+  waiter_id?: string | null;
+  waiter_name?: string | null;
 };
 
 export type Product = Database["public"]["Tables"]["products"]["Row"];
@@ -788,3 +794,119 @@ export type RestaurantClosureInsert = {
 };
 
 export type RestaurantClosureUpdate = Partial<Omit<RestaurantClosure, "id" | "created_at" | "created_by">>;
+
+// =============================================
+// WAITER CALLS TYPES
+// =============================================
+
+export type WaiterCallType = "assistance" | "bill" | "order" | "other";
+export type WaiterCallStatus = "pending" | "acknowledged" | "completed" | "cancelled";
+
+export type WaiterCall = {
+  id: string;
+  table_id: string;
+  session_id: string | null;
+  call_type: WaiterCallType;
+  message: string | null;
+  status: WaiterCallStatus;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
+  completed_at: string | null;
+  location: Location;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WaiterCallInsert = {
+  table_id: string;
+  session_id?: string | null;
+  call_type?: WaiterCallType;
+  message?: string | null;
+  location: Location;
+};
+
+export type WaiterCallUpdate = Partial<Omit<WaiterCall, "id" | "created_at" | "table_id" | "location">>;
+
+export type WaiterCallWithDetails = WaiterCall & {
+  table_number: number;
+  table_name: string;
+  acknowledged_by_name: string | null;
+  assigned_waiter_name: string | null;
+  assigned_waiter_id: string | null;
+};
+
+// Table with assigned waiter (from view)
+export type TableWithWaiter = Table & {
+  waiter_id: string | null;
+  waiter_name: string | null;
+  waiter_email: string | null;
+  waiter_assigned_at: string | null;
+};
+
+// =============================================
+// SESSION CUSTOMERS TYPES
+// =============================================
+
+export type PreferredContact = "email" | "phone" | "none";
+
+export type SessionCustomer = {
+  id: string;
+  session_id: string;
+  display_name: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  birth_date: string | null;
+  marketing_consent: boolean;
+  preferred_contact: PreferredContact;
+  customer_id: string | null;
+  is_session_host: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SessionCustomerInsert = {
+  session_id: string;
+  display_name: string;
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  birth_date?: string | null;
+  marketing_consent?: boolean;
+  preferred_contact?: PreferredContact;
+  customer_id?: string | null;
+  is_session_host?: boolean;
+};
+
+export type SessionCustomerUpdate = Partial<Omit<SessionCustomer, "id" | "session_id" | "created_at">>;
+
+// Session customer summary (for display in waiter panel)
+export type SessionCustomerSummary = {
+  id: string;
+  display_name: string;
+  is_host: boolean;
+  created_at: string;
+};
+
+// Session with customers (from view)
+export type SessionWithCustomers = Session & {
+  table_number: number;
+  table_name: string;
+  table_location: string;
+  customers: SessionCustomerSummary[];
+  customer_count: number;
+};
+
+// Order with customer info (from view)
+export type OrderWithCustomer = Order & {
+  product_name: string;
+  product_price: number;
+  customer_name: string | null;
+  customer_id: string | null;
+};
+
+// Extended OrderWithProduct to include customer info
+export type OrderWithProductAndCustomer = OrderWithProduct & {
+  session_customer_id: string | null;
+  customer_name?: string | null;
+};
