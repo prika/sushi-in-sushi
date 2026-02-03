@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
+import { APP_URL } from "@/lib/config/constants";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -64,7 +65,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 
   return {
-    metadataBase: new URL("https://sushinsushi.pt"),
+    metadataBase: new URL(APP_URL),
     title: titles[locale] || titles.pt,
     description: descriptions[locale] || descriptions.pt,
     keywords: [
@@ -85,21 +86,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: titles[locale] || titles.pt,
       description: ogDescriptions[locale] || ogDescriptions.pt,
-      url: "https://sushinsushi.pt",
+      url: APP_URL,
       siteName: "Sushi in Sushi",
       locale: localeMap[locale] || "pt_PT",
       type: "website",
       images: [{ url: "/logo.png" }],
     },
     alternates: {
-      canonical: `https://sushinsushi.pt/${locale}`,
+      canonical: `${APP_URL}/${locale}`,
       languages: {
-        pt: "https://sushinsushi.pt/pt",
-        en: "https://sushinsushi.pt/en",
-        fr: "https://sushinsushi.pt/fr",
-        de: "https://sushinsushi.pt/de",
-        it: "https://sushinsushi.pt/it",
-        es: "https://sushinsushi.pt/es",
+        pt: `${APP_URL}/pt`,
+        en: `${APP_URL}/en`,
+        fr: `${APP_URL}/fr`,
+        de: `${APP_URL}/de`,
+        it: `${APP_URL}/it`,
+        es: `${APP_URL}/es`,
       },
     },
   };

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, Button } from "@/components/ui";
+import { APP_URL } from "@/lib/config/constants";
 
 interface TableData {
   id: string;
@@ -11,8 +12,6 @@ interface TableData {
   location: string;
   is_active: boolean;
 }
-
-const BASE_URL = "https://sushinsushi.pt";
 
 export default function QRCodesPage() {
   const [tables, setTables] = useState<TableData[]>([]);
@@ -55,14 +54,14 @@ export default function QRCodesPage() {
   // Generate QR code URL
   const getQRCodeUrl = (table: TableData, size: number = 300) => {
     const mesaUrl = encodeURIComponent(
-      `${BASE_URL}/mesa/${table.number}?loc=${encodeURIComponent(table.location)}`,
+      `${APP_URL}/mesa/${table.number}?loc=${encodeURIComponent(table.location)}`,
     );
     return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${mesaUrl}&format=png&margin=10`;
   };
 
   // Get direct mesa URL
   const getMesaUrl = (table: TableData) => {
-    return `${BASE_URL}/mesa/${table.number}?loc=${encodeURIComponent(table.location)}`;
+    return `${APP_URL}/mesa/${table.number}?loc=${encodeURIComponent(table.location)}`;
   };
 
   // Print all QR codes

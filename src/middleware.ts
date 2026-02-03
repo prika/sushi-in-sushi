@@ -4,12 +4,9 @@ import createIntlMiddleware from "next-intl/middleware";
 import { jwtVerify } from "jose";
 import { routing } from "./i18n/routing";
 import type { RoleName } from "@/types/database";
+import { AUTH_COOKIE_NAME, AUTH_SECRET_KEY } from "@/lib/config/constants";
 
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.AUTH_SECRET || "sushi-in-sushi-secret-key-change-in-production"
-);
-
-const COOKIE_NAME = "sushi-auth-token";
+const SECRET_KEY = new TextEncoder().encode(AUTH_SECRET_KEY);
 
 // Route configuration with role requirements
 const ROUTE_CONFIG: Record<string, { roles: RoleName[]; redirect: string }> = {
@@ -33,7 +30,7 @@ async function verifyAuth(request: NextRequest): Promise<{
   authenticated: boolean;
   user?: AuthPayload;
 }> {
-  const token = request.cookies.get(COOKIE_NAME)?.value;
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
   if (!token) {
     return { authenticated: false };

@@ -1,7 +1,6 @@
 import QRCode from "qrcode";
 import type { TableLocation } from "@/types/tables";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
+import { APP_URL } from "@/lib/config/constants";
 
 export interface QRCodeOptions {
   width?: number;
