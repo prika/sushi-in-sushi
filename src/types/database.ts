@@ -765,3 +765,26 @@ export type ReservationWithDetails = Reservation & {
   status_label: string;
   email_status_label: "not_sent" | "sent" | "delivered" | "opened";
 };
+
+// Restaurant Closures (days off)
+export type RestaurantClosure = {
+  id: number;
+  closure_date: string;
+  location: Location | null;
+  reason: string | null;
+  is_recurring: boolean;
+  recurring_day_of_week: number | null; // 0=Sunday, 1=Monday, ..., 6=Saturday
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RestaurantClosureInsert = {
+  closure_date: string;
+  location?: Location | null;
+  reason?: string | null;
+  is_recurring?: boolean;
+  recurring_day_of_week?: number | null;
+};
+
+export type RestaurantClosureUpdate = Partial<Omit<RestaurantClosure, "id" | "created_at" | "created_by">>;

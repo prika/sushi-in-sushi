@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Location, ReservationOccasion } from "@/types/database";
 
 interface ReservationFormProps {
@@ -39,6 +39,8 @@ export function ReservationForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [closureWarning, setClosureWarning] = useState<string | null>(null);
+  const [isCheckingClosure, setIsCheckingClosure] = useState(false);
 
   const [formData, setFormData] = useState({
     first_name: "",
@@ -54,6 +56,58 @@ export function ReservationForm({
     occasion: "" as ReservationOccasion | "",
     marketing_consent: false,
   });
+
+  // Check if date is closed when date or location changes
+  useEffect(() => {
+    const checkClosure = async () => {
+      if (!formData.reservation_date || !formData.location) {
+        setClosureWarning(null);
+        return;
+      }
+
+      setIsCheckingClosure(true);
+      try {
+        const response = await fetch(
+          `/api/closures/check?date=${formData.reservation_date}&location=${formData.location}`
+        );
+        const data = await response.json();
+
+        if (data.isClosed) {
+          setClosureWarning(data.reason || "O restaurante está fechado nesta data");
+        } else {
+          setClosureWarning(null);
+        }
+      } catch (err) {
+        console.error("Error checking closure:", err);
+        setClosureWarning(null);
+      } finally {
+        setIsCheckingClosure(false);
+      }
+    };
+
+    checkClosure();
+  }, [formData.reservation_date, formData.location]);
+
+  // Filter time slots based on current time (for same-day reservations)
+  const getAvailableTimeSlots = () => {
+    if (!formData.reservation_date) return TIME_SLOTS;
+
+    const today = new Date().toISOString().split("T")[0];
+    if (formData.reservation_date !== today) return TIME_SLOTS;
+
+    const now = new Date();
+    const bufferMinutes = 30; // 30 minutes buffer
+
+    return TIME_SLOTS.filter((slot) => {
+      const [hours, minutes] = slot.split(":").map(Number);
+      const slotTime = new Date();
+      slotTime.setHours(hours, minutes, 0, 0);
+      const bufferTime = new Date(now.getTime() + bufferMinutes * 60 * 1000);
+      return slotTime > bufferTime;
+    });
+  };
+
+  const availableTimeSlots = getAvailableTimeSlots();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,6 +181,15 @@ export function ReservationForm({
       {error && (
         <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
           {error}
+        </div>
+      )}
+
+      {closureWarning && (
+        <div className="p-4 bg-orange-500/20 border border-orange-500/50 rounded-lg text-orange-200 text-sm flex items-center gap-3">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>{closureWarning}. Por favor escolha outra data.</span>
         </div>
       )}
 
@@ -228,12 +291,25 @@ export function ReservationForm({
             className="w-full px-4 py-3 bg-card border border-white/10 rounded-lg text-white placeholder-muted focus:border-gold focus:ring-1 focus:ring-gold outline-none transition-colors"
           >
             <option value="">Selecione a hora</option>
-            {TIME_SLOTS.map((time) => (
-              <option key={time} value={time}>
-                {time}
+            {availableTimeSlots.length === 0 ? (
+              <option value="" disabled>
+                Sem horários disponíveis
               </option>
-            ))}
+            ) : (
+              availableTimeSlots.map((time) => (
+                <option key={time} value={time}>
+                  {time}
+                </option>
+              ))
+            )}
           </select>
+          {formData.reservation_date &&
+            availableTimeSlots.length === 0 &&
+            formData.reservation_date === new Date().toISOString().split("T")[0] && (
+              <p className="mt-1 text-xs text-orange-400">
+                Não há mais horários disponíveis para hoje
+              </p>
+            )}
         </div>
       </div>
 
@@ -380,7 +456,7 @@ export function ReservationForm({
       {/* Submit */}
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !!closureWarning || isCheckingClosure}
         className="w-full py-4 bg-gold text-background font-semibold text-lg tracking-wider uppercase hover:bg-gold-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? "A processar..." : "Confirmar Reserva"}

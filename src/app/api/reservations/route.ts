@@ -124,6 +124,63 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate time is not in the past (for same-day reservations)
+    if (reservationDate.getTime() === today.getTime()) {
+      const now = new Date();
+      const [hours, minutes] = body.reservation_time.split(":").map(Number);
+      const reservationDateTime = new Date();
+      reservationDateTime.setHours(hours, minutes, 0, 0);
+
+      // Add 30 minutes buffer - don't allow reservations within 30 minutes
+      const bufferTime = new Date(now.getTime() + 30 * 60 * 1000);
+
+      if (reservationDateTime < bufferTime) {
+        return NextResponse.json(
+          { error: "Não é possível reservar para horários que já passaram. Por favor escolha um horário futuro." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Check if the date is a closed day
+    const dayOfWeek = reservationDate.getDay();
+
+    // Check for specific date closure
+    const { data: specificClosure } = await extendedSupabase
+      .from("restaurant_closures")
+      .select("reason")
+      .eq("closure_date", body.reservation_date)
+      .or(`location.eq.${body.location},location.is.null`)
+      .or("is_recurring.eq.false,is_recurring.is.null")
+      .limit(1)
+      .maybeSingle();
+
+    if (specificClosure) {
+      const reason = specificClosure.reason ? ` (${specificClosure.reason})` : "";
+      return NextResponse.json(
+        { error: `O restaurante está fechado nesta data${reason}. Por favor escolha outra data.` },
+        { status: 400 }
+      );
+    }
+
+    // Check for recurring weekly closure
+    const { data: recurringClosure } = await extendedSupabase
+      .from("restaurant_closures")
+      .select("reason")
+      .eq("is_recurring", true)
+      .eq("recurring_day_of_week", dayOfWeek)
+      .or(`location.eq.${body.location},location.is.null`)
+      .limit(1)
+      .maybeSingle();
+
+    if (recurringClosure) {
+      const reason = recurringClosure.reason ? ` (${recurringClosure.reason})` : "";
+      return NextResponse.json(
+        { error: `O restaurante não abre neste dia da semana${reason}. Por favor escolha outra data.` },
+        { status: 400 }
+      );
+    }
+
     // Validate location
     if (!["circunvalacao", "boavista"].includes(body.location)) {
       return NextResponse.json(
