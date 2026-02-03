@@ -788,3 +788,157 @@ export type RestaurantClosureInsert = {
 };
 
 export type RestaurantClosureUpdate = Partial<Omit<RestaurantClosure, "id" | "created_at" | "created_by">>;
+
+// =============================================
+// VENDUS INTEGRATION TYPES
+// =============================================
+
+export type VendusSyncStatus = "pending" | "synced" | "error" | "not_applicable";
+export type VendusSyncDirection = "push" | "pull" | "both";
+export type VendusSyncLogStatus = "started" | "success" | "error" | "partial";
+export type InvoiceStatus = "pending" | "issued" | "voided" | "error";
+export type VendusDocumentType = "FR" | "FT" | "FS"; // Fatura-Recibo, Fatura, Fatura Simplificada
+export type RetryQueueStatus = "pending" | "processing" | "completed" | "failed" | "cancelled";
+
+// Extended Product type with Vendus fields
+export type ProductWithVendus = Product & {
+  vendus_id: string | null;
+  vendus_reference: string | null;
+  vendus_tax_id: string | null;
+  vendus_synced_at: string | null;
+  vendus_sync_status: VendusSyncStatus;
+};
+
+// Extended Table type with Vendus fields
+export type TableWithVendus = Table & {
+  vendus_table_id: string | null;
+  vendus_room_id: string | null;
+  vendus_synced_at: string | null;
+};
+
+// Payment Method
+export type PaymentMethod = {
+  id: number;
+  name: string;
+  slug: string;
+  vendus_id: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+};
+
+export type PaymentMethodInsert = Omit<PaymentMethod, "id" | "created_at"> & {
+  id?: number;
+  created_at?: string;
+};
+
+// Invoice
+export type Invoice = {
+  id: string;
+  session_id: string | null;
+  location_id: string | null;
+  vendus_id: string | null;
+  vendus_document_number: string | null;
+  vendus_document_type: VendusDocumentType;
+  vendus_series: string | null;
+  vendus_hash: string | null;
+  subtotal: number;
+  tax_amount: number;
+  total: number;
+  currency: string;
+  payment_method_id: number | null;
+  paid_amount: number | null;
+  change_amount: number;
+  customer_nif: string | null;
+  customer_name: string | null;
+  status: InvoiceStatus;
+  voided_at: string | null;
+  voided_by: string | null;
+  void_reason: string | null;
+  pdf_url: string | null;
+  pdf_generated_at: string | null;
+  issued_by: string | null;
+  error_message: string | null;
+  raw_response: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InvoiceInsert = Omit<Invoice, "id" | "created_at" | "updated_at"> & {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type InvoiceUpdate = Partial<Omit<Invoice, "id" | "created_at">>;
+
+export type InvoiceWithDetails = Invoice & {
+  payment_method_name: string | null;
+  issued_by_name: string | null;
+  voided_by_name: string | null;
+  table_id: string | null;
+  table_number: number | null;
+  table_name: string | null;
+  status_label: string;
+};
+
+// Vendus Sync Log
+export type VendusSyncLog = {
+  id: number;
+  operation: string;
+  direction: VendusSyncDirection;
+  entity_type: string;
+  entity_id: string | null;
+  vendus_id: string | null;
+  location_id: string | null;
+  status: VendusSyncLogStatus;
+  records_processed: number;
+  records_created: number;
+  records_updated: number;
+  records_failed: number;
+  error_message: string | null;
+  error_details: Record<string, unknown> | null;
+  request_data: Record<string, unknown> | null;
+  response_data: Record<string, unknown> | null;
+  initiated_by: string | null;
+  started_at: string;
+  completed_at: string | null;
+  duration_ms: number | null;
+};
+
+export type VendusSyncLogInsert = Omit<VendusSyncLog, "id" | "started_at"> & {
+  id?: number;
+  started_at?: string;
+};
+
+// Vendus Retry Queue
+export type VendusRetryQueue = {
+  id: number;
+  operation: string;
+  entity_type: string;
+  entity_id: string;
+  location_id: string | null;
+  payload: Record<string, unknown>;
+  attempts: number;
+  max_attempts: number;
+  next_retry_at: string;
+  last_error: string | null;
+  status: RetryQueueStatus;
+  created_at: string;
+  processed_at: string | null;
+};
+
+export type VendusRetryQueueInsert = Omit<VendusRetryQueue, "id" | "created_at" | "attempts"> & {
+  id?: number;
+  created_at?: string;
+  attempts?: number;
+};
+
+// Products with Vendus status (from view)
+export type ProductWithVendusStatus = Product & {
+  category_name: string | null;
+  vendus_id: string | null;
+  vendus_sync_status: VendusSyncStatus;
+  sync_status_label: string;
+  last_synced: string | null;
+};

@@ -256,7 +256,7 @@ export default function MenuPage() {
               {t("book")}
             </button>
             <a
-              href="https://delivery.eatseasyapp.com/sushinsushi"
+              href="https://delivery.eatseasyapp.com/sushiinsushi"
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 px-6 py-2.5 border border-white/20 text-white text-sm font-medium tracking-wider uppercase text-center hover:border-gold hover:text-gold transition-all duration-300"

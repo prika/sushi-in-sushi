@@ -34,7 +34,7 @@ export function Contact() {
               {t("bookRodizio")}
             </ShimmerButton>
             <a
-              href="https://delivery.eatseasyapp.com/sushinsushi"
+              href="https://delivery.eatseasyapp.com/sushiinsushi"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-8 py-4 border border-white/20 text-white text-sm font-medium tracking-wider uppercase hover:border-gold hover:text-gold transition-all duration-300 rounded-full"
@@ -45,37 +45,37 @@ export function Contact() {
           </div>
         </BlurFade>
 
-      {/* Reservation Modal */}
-      {showReservationModal && (
-        <div
-          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => setShowReservationModal(false)}
-        >
+        {/* Reservation Modal */}
+        {showReservationModal && (
           <div
-            className="bg-background border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto my-8"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 overflow-y-auto"
+            onClick={() => setShowReservationModal(false)}
           >
-            <div className="sticky top-0 bg-background flex items-center justify-between p-6 border-b border-white/10">
-              <h2 className="text-xl font-semibold text-white">
-                Reservar Mesa
-              </h2>
-              <button
-                onClick={() => setShowReservationModal(false)}
-                className="p-2 text-muted hover:text-white transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            <div className="p-6">
-              <ReservationForm
-                onSuccess={() => {
-                  // Keep modal open to show success message
-                }}
-              />
+            <div
+              className="bg-background border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto my-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-background flex items-center justify-between p-6 border-b border-white/10">
+                <h2 className="text-xl font-semibold text-white">
+                  Reservar Mesa
+                </h2>
+                <button
+                  onClick={() => setShowReservationModal(false)}
+                  className="p-2 text-muted hover:text-white transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="p-6">
+                <ReservationForm
+                  onSuccess={() => {
+                    // Keep modal open to show success message
+                  }}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
         <BlurFade delay={0.3} inView>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-muted text-sm sm:text-base">
