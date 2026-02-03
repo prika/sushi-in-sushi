@@ -135,30 +135,38 @@ ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 
 -- Policies for staff table (admin only for write, authenticated for read own)
+DROP POLICY IF EXISTS "Staff can view own profile" ON staff;
 CREATE POLICY "Staff can view own profile" ON staff
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Admin can manage staff" ON staff;
 CREATE POLICY "Admin can manage staff" ON staff
     FOR ALL USING (true);
 
 -- Policies for waiter_tables
+DROP POLICY IF EXISTS "Staff can view waiter assignments" ON waiter_tables;
 CREATE POLICY "Staff can view waiter assignments" ON waiter_tables
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Admin can manage waiter assignments" ON waiter_tables;
 CREATE POLICY "Admin can manage waiter assignments" ON waiter_tables
     FOR ALL USING (true);
 
 -- Policies for customers
+DROP POLICY IF EXISTS "Staff can view customers" ON customers;
 CREATE POLICY "Staff can view customers" ON customers
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Admin can manage customers" ON customers;
 CREATE POLICY "Admin can manage customers" ON customers
     FOR ALL USING (true);
 
 -- Policies for activity_log
+DROP POLICY IF EXISTS "Staff can view activity log" ON activity_log;
 CREATE POLICY "Staff can view activity log" ON activity_log
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "System can insert activity log" ON activity_log;
 CREATE POLICY "System can insert activity log" ON activity_log
     FOR INSERT WITH CHECK (true);
 

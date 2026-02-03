@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, Button, Modal, Badge } from "@/components/ui";
+import { useActivityLog } from "@/hooks/useActivityLog";
 import type { SessionStatus } from "@/types/database";
 
 interface OrderItem {
@@ -27,6 +28,7 @@ interface Session {
 type FilterStatus = "all" | SessionStatus;
 
 export default function SessoesPage() {
+  const { logActivity } = useActivityLog();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [isLoading, setIsLoading] = useState(true);
@@ -103,6 +105,13 @@ export default function SessoesPage() {
       .eq("id", selectedSession.id);
 
     if (!error) {
+      // Log activity when session is closed
+      await logActivity("session_closed", "session", selectedSession.id, {
+        tableNumber: selectedSession.tables?.number,
+        totalAmount: calculateSessionTotal(selectedSession),
+        orderCount: selectedSession.orders?.length || 0,
+      });
+
       fetchSessions();
     }
 

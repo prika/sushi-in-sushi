@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useRequireWaiter } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
+import { useActivityLog } from "@/hooks/useActivityLog";
 import type { Table, Session, OrderWithProduct, Product, Category } from "@/types/database";
 
 interface TableWithDetails extends Table {
@@ -16,6 +17,7 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
   const { id } = use(params);
   const { user, isLoading: authLoading } = useRequireWaiter();
   const router = useRouter();
+  const { logActivity } = useActivityLog();
   const [table, setTable] = useState<TableWithDetails | null>(null);
   const [orders, setOrders] = useState<OrderWithProduct[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -171,6 +173,20 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
     const supabase = createClient();
     await supabase.from("orders").update({ status: status as "pending" | "preparing" | "ready" | "delivered" | "cancelled" }).eq("id", orderId);
+
+    // Log activity when marking order as delivered
+    if (status === "delivered") {
+      const order = orders.find((o) => o.id === orderId);
+      if (order) {
+        await logActivity("order_delivered", "order", orderId, {
+          tableNumber: table?.number,
+          location: table?.location,
+          productName: order.product?.name,
+          quantity: order.quantity,
+          sessionId: table?.activeSession?.id,
+        });
+      }
+    }
   };
 
   const handleCloseSession = async () => {

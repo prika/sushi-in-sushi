@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSound } from "@/hooks/useSound";
+import { useActivityLog } from "@/hooks/useActivityLog";
 import type { OrderStatus } from "@/types/database";
 
 interface KitchenOrder {
@@ -49,6 +50,7 @@ export default function CozinhaPage() {
   const router = useRouter();
   const supabase = createClient();
   const { isSoundEnabled, toggleSound, playNewOrderSound, requestNotificationPermission, showNotification } = useSound();
+  const { logActivity } = useActivityLog();
 
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -284,8 +286,21 @@ export default function CozinhaPage() {
       await Promise.all(
         group.orders.map((order) => updateOrderStatus(order.id, newStatus))
       );
+
+      // Log activity when marking orders as delivered
+      if (newStatus === "delivered") {
+        for (const order of group.orders) {
+          await logActivity("order_delivered", "order", order.id, {
+            tableNumber: group.tableNumber,
+            location: group.location,
+            productName: order.product?.name,
+            quantity: order.quantity,
+            sessionId: order.session_id,
+          });
+        }
+      }
     },
-    [updateOrderStatus]
+    [updateOrderStatus, logActivity]
   );
 
   // Get time color
