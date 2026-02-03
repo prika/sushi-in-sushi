@@ -192,7 +192,7 @@ export default function ExportarPage() {
                 type="date"
                 value={customDateStart}
                 onChange={(e) => setCustomDateStart(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:border-[#D4AF37] focus:outline-none"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-900 focus:border-[#D4AF37] focus:outline-none"
               />
             </div>
             <div>
@@ -201,7 +201,7 @@ export default function ExportarPage() {
                 type="date"
                 value={customDateEnd}
                 onChange={(e) => setCustomDateEnd(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:border-[#D4AF37] focus:outline-none"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-900 focus:border-[#D4AF37] focus:outline-none"
               />
             </div>
           </div>
@@ -215,7 +215,7 @@ export default function ExportarPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:border-[#D4AF37] focus:outline-none"
+            className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 focus:border-[#D4AF37] focus:outline-none"
           >
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>

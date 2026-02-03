@@ -29,12 +29,10 @@ export function Contact() {
 
         <BlurFade delay={0.2} inView>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-            <button onClick={() => setShowReservationModal(true)}>
-              <ShimmerButton>
-                <CalendarDays size={18} className="mr-2" />
-                {t("bookRodizio")}
-              </ShimmerButton>
-            </button>
+            <ShimmerButton onClick={() => setShowReservationModal(true)}>
+              <CalendarDays size={18} className="mr-2" />
+              {t("bookRodizio")}
+            </ShimmerButton>
             <a
               href="https://delivery.eatseasyapp.com/sushinsushi"
               target="_blank"

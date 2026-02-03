@@ -338,7 +338,7 @@ export default function StaffDetailPage() {
               onChange={(e) =>
                 setDateRange({ ...dateRange, startDate: e.target.value })
               }
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             />
           </div>
           <div>
@@ -351,7 +351,7 @@ export default function StaffDetailPage() {
               onChange={(e) =>
                 setDateRange({ ...dateRange, endDate: e.target.value })
               }
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             />
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { ReservationInsert } from "@/types/database";
+import type { ReservationInsert, Reservation } from "@/types/database";
+import { sendReservationEmails } from "@/lib/email";
 
 // Helper to get typed supabase query for tables not in generated types
 function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -155,6 +156,13 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("Error creating reservation:", error);
       throw error;
+    }
+
+    // Send confirmation emails (don't block on this)
+    if (data) {
+      sendReservationEmails(data as Reservation).catch((emailError) => {
+        console.error("Error sending reservation emails:", emailError);
+      });
     }
 
     return NextResponse.json(data, { status: 201 });

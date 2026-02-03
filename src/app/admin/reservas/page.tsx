@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import type { ReservationStatus, Location } from "@/types/database";
 
+type EmailStatus = "sent" | "delivered" | "opened" | "clicked" | "bounced" | "complained" | "failed";
+
 interface Reservation {
   id: string;
   first_name: string;
@@ -38,7 +40,29 @@ interface Reservation {
   cancellation_reason: string | null;
   table_id: string | null;
   table_number?: number | null;
+  // Email tracking
+  customer_email_id: string | null;
+  customer_email_sent_at: string | null;
+  customer_email_delivered_at: string | null;
+  customer_email_opened_at: string | null;
+  customer_email_status: EmailStatus | null;
+  confirmation_email_id: string | null;
+  confirmation_email_sent_at: string | null;
+  confirmation_email_delivered_at: string | null;
+  confirmation_email_opened_at: string | null;
+  confirmation_email_status: EmailStatus | null;
 }
+
+const emailStatusConfig: Record<string, { icon: string; label: string; color: string }> = {
+  sent: { icon: "📤", label: "Enviado", color: "text-blue-600" },
+  delivered: { icon: "✅", label: "Entregue", color: "text-green-600" },
+  opened: { icon: "👁️", label: "Lido", color: "text-purple-600" },
+  clicked: { icon: "🔗", label: "Clicado", color: "text-indigo-600" },
+  bounced: { icon: "❌", label: "Rejeitado", color: "text-red-600" },
+  complained: { icon: "⚠️", label: "Spam", color: "text-orange-600" },
+  failed: { icon: "❌", label: "Falhou", color: "text-red-600" },
+  not_sent: { icon: "⏳", label: "Não enviado", color: "text-gray-400" },
+};
 
 const statusConfig: Record<
   ReservationStatus,
@@ -230,7 +254,7 @@ export default function ReservationsPage() {
             type="date"
             value={selectedDate === "all" ? "" : selectedDate}
             onChange={(e) => setSelectedDate(e.target.value || "all")}
-            className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+            className="px-4 py-2 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
           />
           <button
             onClick={() => changeDate(1)}
@@ -307,7 +331,7 @@ export default function ReservationsPage() {
           <select
             value={locationFilter}
             onChange={(e) => setLocationFilter(e.target.value as Location | "")}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
           >
             <option value="">Todos os restaurantes</option>
             <option value="circunvalacao">Circunvalação</option>
@@ -318,7 +342,7 @@ export default function ReservationsPage() {
             onChange={(e) =>
               setStatusFilter(e.target.value as ReservationStatus | "")
             }
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
           >
             <option value="">Todos os estados</option>
             <option value="pending">Pendente</option>
@@ -445,6 +469,25 @@ function ReservationCard({
         <div className="flex items-center gap-2 text-gray-600">
           <Phone size={14} />
           <span>{reservation.phone}</span>
+        </div>
+        {/* Email Status Indicator */}
+        <div className="flex items-center gap-2">
+          <Mail size={14} className="text-gray-400" />
+          {reservation.customer_email_status ? (
+            <span className={`text-xs ${emailStatusConfig[reservation.customer_email_status]?.color || "text-gray-400"}`}>
+              {emailStatusConfig[reservation.customer_email_status]?.icon}{" "}
+              {emailStatusConfig[reservation.customer_email_status]?.label}
+              {reservation.customer_email_opened_at && (
+                <span className="text-gray-400 ml-1">
+                  ({new Date(reservation.customer_email_opened_at).toLocaleDateString("pt-PT")})
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="text-xs text-gray-400">
+              {emailStatusConfig.not_sent.icon} {emailStatusConfig.not_sent.label}
+            </span>
+          )}
         </div>
         {reservation.occasion && (
           <div className="text-gray-500">
@@ -637,6 +680,74 @@ function ReservationModal({
               </div>
             )}
 
+          {/* Email Status */}
+          <div>
+            <h3 className="font-medium text-gray-900 mb-3">Estado dos Emails</h3>
+            <div className="space-y-3">
+              {/* Customer Confirmation Email */}
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Email de Confirmação</span>
+                  {reservation.customer_email_status ? (
+                    <span className={`text-sm font-medium ${emailStatusConfig[reservation.customer_email_status]?.color || "text-gray-400"}`}>
+                      {emailStatusConfig[reservation.customer_email_status]?.icon}{" "}
+                      {emailStatusConfig[reservation.customer_email_status]?.label}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-400">
+                      {emailStatusConfig.not_sent.icon} {emailStatusConfig.not_sent.label}
+                    </span>
+                  )}
+                </div>
+                {reservation.customer_email_sent_at && (
+                  <div className="mt-2 text-xs text-gray-400 space-y-1">
+                    <p>Enviado: {new Date(reservation.customer_email_sent_at).toLocaleString("pt-PT")}</p>
+                    {reservation.customer_email_delivered_at && (
+                      <p>Entregue: {new Date(reservation.customer_email_delivered_at).toLocaleString("pt-PT")}</p>
+                    )}
+                    {reservation.customer_email_opened_at && (
+                      <p className="text-purple-600 font-medium">
+                        👁️ Lido: {new Date(reservation.customer_email_opened_at).toLocaleString("pt-PT")}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Reservation Confirmed Email (only shown if reservation is confirmed) */}
+              {reservation.status === "confirmed" && (
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Email de Reserva Confirmada</span>
+                    {reservation.confirmation_email_status ? (
+                      <span className={`text-sm font-medium ${emailStatusConfig[reservation.confirmation_email_status]?.color || "text-gray-400"}`}>
+                        {emailStatusConfig[reservation.confirmation_email_status]?.icon}{" "}
+                        {emailStatusConfig[reservation.confirmation_email_status]?.label}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400">
+                        {emailStatusConfig.not_sent.icon} {emailStatusConfig.not_sent.label}
+                      </span>
+                    )}
+                  </div>
+                  {reservation.confirmation_email_sent_at && (
+                    <div className="mt-2 text-xs text-gray-400 space-y-1">
+                      <p>Enviado: {new Date(reservation.confirmation_email_sent_at).toLocaleString("pt-PT")}</p>
+                      {reservation.confirmation_email_delivered_at && (
+                        <p>Entregue: {new Date(reservation.confirmation_email_delivered_at).toLocaleString("pt-PT")}</p>
+                      )}
+                      {reservation.confirmation_email_opened_at && (
+                        <p className="text-purple-600 font-medium">
+                          👁️ Lido: {new Date(reservation.confirmation_email_opened_at).toLocaleString("pt-PT")}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Timestamps */}
           <div className="text-xs text-gray-400 space-y-1">
             <p>
@@ -666,7 +777,7 @@ function ReservationModal({
               <textarea
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent resize-none"
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent resize-none"
                 rows={3}
                 placeholder="Ex: Cliente pediu cancelamento por telefone"
               />

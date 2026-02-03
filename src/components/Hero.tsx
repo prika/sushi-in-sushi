@@ -74,9 +74,9 @@ export function Hero() {
 
         <BlurFade delay={0.4}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button onClick={() => setShowReservationModal(true)}>
-              <ShimmerButton>{t("bookTable")}</ShimmerButton>
-            </button>
+            <ShimmerButton onClick={() => setShowReservationModal(true)}>
+              {t("bookTable")}
+            </ShimmerButton>
             <a
               href="#menu"
               className="px-8 py-4 text-sm font-medium tracking-wider uppercase text-muted hover:text-white transition-colors duration-300"

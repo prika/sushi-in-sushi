@@ -700,6 +700,8 @@ export type SessionMetricsSummary = {
 export type ReservationStatus = "pending" | "confirmed" | "cancelled" | "completed" | "no_show";
 export type ReservationOccasion = "birthday" | "anniversary" | "business" | "other";
 
+export type EmailStatus = "sent" | "delivered" | "opened" | "clicked" | "bounced" | "complained" | "failed";
+
 export type Reservation = {
   id: string;
   first_name: string;
@@ -722,6 +724,18 @@ export type Reservation = {
   session_id: string | null;
   seated_at: string | null;
   marketing_consent: boolean;
+  // Email tracking - customer confirmation
+  customer_email_id: string | null;
+  customer_email_sent_at: string | null;
+  customer_email_delivered_at: string | null;
+  customer_email_opened_at: string | null;
+  customer_email_status: EmailStatus | null;
+  // Email tracking - reservation confirmed
+  confirmation_email_id: string | null;
+  confirmation_email_sent_at: string | null;
+  confirmation_email_delivered_at: string | null;
+  confirmation_email_opened_at: string | null;
+  confirmation_email_status: EmailStatus | null;
   created_at: string;
   updated_at: string;
 };
@@ -749,4 +763,5 @@ export type ReservationWithDetails = Reservation & {
   confirmed_by_name: string | null;
   customer_name: string;
   status_label: string;
+  email_status_label: "not_sent" | "sent" | "delivered" | "opened";
 };

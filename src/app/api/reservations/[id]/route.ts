@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
-import type { ReservationUpdate } from "@/types/database";
+import type { ReservationUpdate, Reservation } from "@/types/database";
+import { sendReservationConfirmedEmail } from "@/lib/email";
 
 // Helper to get typed supabase query for tables not in generated types
 function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -115,6 +116,13 @@ export async function PATCH(
         );
       }
       throw error;
+    }
+
+    // Send confirmation email if status changed to confirmed
+    if (body.status === "confirmed" && data) {
+      sendReservationConfirmedEmail(data as Reservation).catch((emailError) => {
+        console.error("Error sending confirmation email:", emailError);
+      });
     }
 
     return NextResponse.json(data);
