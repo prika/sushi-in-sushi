@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSound } from "@/hooks/useSound";
 import type { OrderStatus } from "@/types/database";
@@ -45,6 +46,7 @@ const LOCATIONS = [
 ];
 
 export default function CozinhaPage() {
+  const router = useRouter();
   const supabase = createClient();
   const { isSoundEnabled, toggleSound, playNewOrderSound, requestNotificationPermission, showNotification } = useSound();
 
@@ -54,6 +56,19 @@ export default function CozinhaPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [headerFlash, setHeaderFlash] = useState(false);
   const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set());
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   // Update clock every second
   useEffect(() => {
@@ -346,6 +361,18 @@ export default function CozinhaPage() {
               second: "2-digit",
             })}
           </div>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-red-500/20 hover:text-red-400 transition-colors disabled:opacity-50"
+            title="Sair"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
         </div>
       </header>
 

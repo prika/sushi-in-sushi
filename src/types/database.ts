@@ -220,6 +220,202 @@ export type Database = {
           }
         ];
       };
+      roles: {
+        Row: {
+          id: number;
+          name: string;
+          description: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          name: string;
+          description?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          name?: string;
+          description?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      staff: {
+        Row: {
+          id: string;
+          email: string;
+          name: string;
+          password_hash: string;
+          role_id: number;
+          location: string | null;
+          phone: string | null;
+          is_active: boolean;
+          last_login: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          name: string;
+          password_hash: string;
+          role_id: number;
+          location?: string | null;
+          phone?: string | null;
+          is_active?: boolean;
+          last_login?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          name?: string;
+          password_hash?: string;
+          role_id?: number;
+          location?: string | null;
+          phone?: string | null;
+          is_active?: boolean;
+          last_login?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "staff_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      waiter_tables: {
+        Row: {
+          id: number;
+          staff_id: string;
+          table_id: string;
+          assigned_at: string;
+        };
+        Insert: {
+          id?: number;
+          staff_id: string;
+          table_id: string;
+          assigned_at?: string;
+        };
+        Update: {
+          id?: number;
+          staff_id?: string;
+          table_id?: string;
+          assigned_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "waiter_tables_staff_id_fkey";
+            columns: ["staff_id"];
+            isOneToOne: false;
+            referencedRelation: "staff";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "waiter_tables_table_id_fkey";
+            columns: ["table_id"];
+            isOneToOne: false;
+            referencedRelation: "tables";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      customers: {
+        Row: {
+          id: string;
+          email: string;
+          name: string;
+          phone: string | null;
+          birth_date: string | null;
+          preferred_location: string | null;
+          marketing_consent: boolean;
+          points: number;
+          total_spent: number;
+          visit_count: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          name: string;
+          phone?: string | null;
+          birth_date?: string | null;
+          preferred_location?: string | null;
+          marketing_consent?: boolean;
+          points?: number;
+          total_spent?: number;
+          visit_count?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          name?: string;
+          phone?: string | null;
+          birth_date?: string | null;
+          preferred_location?: string | null;
+          marketing_consent?: boolean;
+          points?: number;
+          total_spent?: number;
+          visit_count?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      activity_log: {
+        Row: {
+          id: number;
+          staff_id: string | null;
+          action: string;
+          entity_type: string | null;
+          entity_id: string | null;
+          details: Record<string, unknown> | null;
+          ip_address: string | null;
+          user_agent: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          staff_id?: string | null;
+          action: string;
+          entity_type?: string | null;
+          entity_id?: string | null;
+          details?: Record<string, unknown> | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          staff_id?: string | null;
+          action?: string;
+          entity_type?: string | null;
+          entity_id?: string | null;
+          details?: Record<string, unknown> | null;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "activity_log_staff_id_fkey";
+            columns: ["staff_id"];
+            isOneToOne: false;
+            referencedRelation: "staff";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -277,4 +473,126 @@ export type OrderWithProduct = Order & {
 export type SessionWithOrders = Session & {
   orders: OrderWithProduct[];
   table: Table;
+};
+
+// =============================================
+// USER MANAGEMENT SYSTEM TYPES
+// =============================================
+
+// Role types
+export type RoleName = "admin" | "kitchen" | "waiter" | "customer";
+
+export type Role = {
+  id: number;
+  name: RoleName;
+  description: string;
+};
+
+// Location type
+export type Location = "circunvalacao" | "boavista";
+
+// Staff types
+export type Staff = {
+  id: string;
+  email: string;
+  name: string;
+  password_hash: string;
+  role_id: number;
+  location: Location | null;
+  phone: string | null;
+  is_active: boolean;
+  last_login: string | null;
+  created_at: string;
+};
+
+export type StaffInsert = Omit<Staff, "id" | "created_at" | "last_login"> & {
+  id?: string;
+  created_at?: string;
+  last_login?: string | null;
+};
+
+export type StaffUpdate = Partial<Omit<Staff, "id" | "created_at">>;
+
+export type StaffWithRole = Staff & {
+  role: Role;
+};
+
+// Waiter-Table assignment types
+export type WaiterTable = {
+  id: number;
+  staff_id: string;
+  table_id: string;
+  assigned_at: string;
+};
+
+export type WaiterTableInsert = Omit<WaiterTable, "id" | "assigned_at"> & {
+  id?: number;
+  assigned_at?: string;
+};
+
+export type WaiterTableUpdate = Partial<Omit<WaiterTable, "id">>;
+
+export type WaiterTableWithDetails = WaiterTable & {
+  staff: Staff;
+  table: Table;
+};
+
+// Customer types
+export type Customer = {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  birth_date: string | null;
+  preferred_location: Location | null;
+  marketing_consent: boolean;
+  points: number;
+  total_spent: number;
+  visit_count: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CustomerInsert = Omit<Customer, "id" | "created_at" | "updated_at" | "points" | "total_spent" | "visit_count"> & {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+  points?: number;
+  total_spent?: number;
+  visit_count?: number;
+};
+
+export type CustomerUpdate = Partial<Omit<Customer, "id" | "created_at">>;
+
+// Activity log types
+export type ActivityLog = {
+  id: number;
+  staff_id: string;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export type ActivityLogInsert = Omit<ActivityLog, "id" | "created_at"> & {
+  id?: number;
+  created_at?: string;
+};
+
+// Auth session type (for JWT payload)
+export type AuthSession = {
+  staff: StaffWithRole;
+  token: string;
+  expires_at: string;
+};
+
+// Auth user type (simplified for middleware/client)
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: RoleName;
+  location: Location | null;
 };
