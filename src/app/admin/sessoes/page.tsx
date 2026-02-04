@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, Button, Modal, Badge } from "@/components/ui";
 import { useActivityLog } from "@/hooks/useActivityLog";
@@ -36,7 +36,7 @@ export default function SessoesPage() {
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closingSession, setClosingSession] = useState(false);
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     const supabase = createClient();
 
     // Get today's date at midnight
@@ -64,7 +64,7 @@ export default function SessoesPage() {
     }
 
     setIsLoading(false);
-  };
+  }, [filterStatus]);
 
   useEffect(() => {
     fetchSessions();
@@ -88,7 +88,7 @@ export default function SessoesPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [filterStatus]);
+  }, [fetchSessions]);
 
   const handleCloseSession = async () => {
     if (!selectedSession) return;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, Button } from "@/components/ui";
 import type { SessionStatus } from "@/types/database";
@@ -24,8 +24,7 @@ export default function ExportarPage() {
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   // Calculate date range based on period
-  const getDateRange = () => {
-    const now = new Date();
+  const getDateRange = useCallback(() => {
     let startDate: Date;
     let endDate = new Date();
     endDate.setHours(23, 59, 59, 999);
@@ -56,7 +55,7 @@ export default function ExportarPage() {
     }
 
     return { startDate, endDate };
-  };
+  }, [period, customDateStart, customDateEnd]);
 
   // Fetch preview data
   useEffect(() => {
@@ -97,7 +96,7 @@ export default function ExportarPage() {
     };
 
     fetchPreview();
-  }, [period, statusFilter, customDateStart, customDateEnd]);
+  }, [getDateRange, statusFilter]);
 
   const handleExport = async () => {
     setIsExporting(true);

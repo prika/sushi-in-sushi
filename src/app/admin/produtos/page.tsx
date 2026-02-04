@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import type { Product, Category } from "@/types/database";
 
@@ -221,11 +222,13 @@ export default function ProdutosPage() {
               }`}
             >
               {product.image_url && (
-                <div className="h-32 bg-gray-100">
-                  <img
+                <div className="h-32 bg-gray-100 relative">
+                  <Image
                     src={product.image_url}
                     alt={product.name}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
+                    unoptimized
                   />
                 </div>
               )}

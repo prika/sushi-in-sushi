@@ -1,0 +1,17 @@
+# Project Rules
+
+## Development Guidelines
+
+For comprehensive development rules, patterns, and examples, please refer to:
+**[README.md](README.md)**
+
+## Quick Reference
+
+### File Structure
+### TypeScript Rules
+- **NEVER** use `as any` or `any` type
+- Always import types from `@repo/types/customerServiceTypesDef`
+- Follow exact naming from Swagger documentation
+
+For complete details, code templates, and implementation patterns, see the README.md file linked above.
+

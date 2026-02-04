@@ -280,6 +280,23 @@ Base de dados PostgreSQL com funcionalidades em tempo real.
 | **Row Level Security** | Políticas de segurança por role |
 | **Functions** | Funções PostgreSQL para lógica de negócio |
 
+**Gerar tipos TypeScript a partir do schema:** O comando `gen types` escreve para o stdout, por isso é preciso redirecionar para um ficheiro. Além disso, é necessário estar autenticado e usar o **project ref** (subdomínio da URL do projeto, e.g. em `https://abcdefgh.supabase.co` o ref é `NEXT_PUBLIC_SUPABASE_PROJECT_REF`).
+
+```bash
+# 1. Autenticar (uma vez)
+npx supabase login
+
+# 2a. Com project ref em variável de ambiente (extrair ref da NEXT_PUBLIC_SUPABASE_URL)
+export SUPABASE_PROJECT_REF=NEXT_PUBLIC_SUPABASE_PROJECT_REF   
+# o subdomínio do teu projeto
+npm run supabase:types
+
+# 2b. Ou, se tiveres o projeto ligado (supabase link)
+npm run supabase:types:linked
+```
+
+Os tipos são gravados em `src/types/supabase.ts`.
+
 ### Resend (Email)
 
 Serviço de envio de emails transaccionais.

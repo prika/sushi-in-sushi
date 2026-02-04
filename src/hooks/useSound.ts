@@ -34,16 +34,22 @@ export function useSound() {
     });
   }, []);
 
-  // Play new order sound
+  // Store isSoundEnabled in a ref to avoid dependency changes
+  const isSoundEnabledRef = useRef(isSoundEnabled);
+  useEffect(() => {
+    isSoundEnabledRef.current = isSoundEnabled;
+  }, [isSoundEnabled]);
+
+  // Play new order sound - stable reference, no dependencies that change
   const playNewOrderSound = useCallback(() => {
-    if (!isSoundEnabled || !audioRef.current) return;
+    if (!isSoundEnabledRef.current || !audioRef.current) return;
 
     // Reset and play
     audioRef.current.currentTime = 0;
     audioRef.current.play().catch((err) => {
       console.log("Could not play sound:", err);
     });
-  }, [isSoundEnabled]);
+  }, []);
 
   // Request notification permission
   const requestNotificationPermission = useCallback(async () => {

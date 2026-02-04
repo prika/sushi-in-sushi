@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { Card, Button } from "@/components/ui";
 import { APP_URL } from "@/lib/config/constants";
@@ -271,10 +272,13 @@ export default function QRCodesPage() {
                 className="bg-gray-50 rounded-xl p-4 text-center cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => setSelectedTable(table)}
               >
-                <img
+                <Image
                   src={getQRCodeUrl(table, 150)}
                   alt={`QR Code Mesa ${table.number}`}
+                  width={150}
+                  height={150}
                   className="w-full aspect-square rounded-lg mb-3"
+                  unoptimized
                 />
                 <div className="text-xs text-gray-500 uppercase tracking-wide">
                   Mesa
@@ -301,10 +305,13 @@ export default function QRCodesPage() {
             <div className="text-4xl mb-2">🍣</div>
             <h3 className="text-xl font-bold mb-4">Sushi in Sushi</h3>
 
-            <img
+            <Image
               src={getQRCodeUrl(selectedTable, 300)}
               alt={`QR Code Mesa ${selectedTable.number}`}
+              width={300}
+              height={300}
               className="w-64 h-64 mx-auto rounded-lg mb-4"
+              unoptimized
             />
 
             <div className="text-sm text-gray-500 uppercase tracking-wider">

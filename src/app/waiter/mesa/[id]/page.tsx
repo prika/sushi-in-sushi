@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -38,139 +38,145 @@ export default function WaiterMesaPage() {
   const [quantity, setQuantity] = useState(1);
   const [waiterCalls, setWaiterCalls] = useState<WaiterCall[]>([]);
 
-  useEffect(() => {
+  // Use memoized supabase client to prevent real-time subscription issues
+  const supabase = useMemo(() => createClient(), []);
+  const extendedSupabase = useMemo(() => getExtendedSupabase(supabase), [supabase]);
+
+  // Ref for fetchData to avoid useEffect dependency issues
+  const fetchDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
+  const fetchData = useCallback(async () => {
     if (!user) return;
 
-    const fetchData = async () => {
-      const supabase = createClient();
-
-      // Verify access to this table
-      if (user.role === "waiter") {
-        const { data: assignment } = await supabase
-          .from("waiter_tables")
-          .select("id")
-          .eq("staff_id", user.id)
-          .eq("table_id", id)
-          .single();
-
-        if (!assignment) {
-          router.push("/waiter");
-          return;
-        }
-      }
-
-      // Fetch table details
-      const { data: tableData } = await supabase
-        .from("tables")
-        .select("*")
-        .eq("id", id)
+    // Verify access to this table
+    if (user.role === "waiter") {
+      const { data: assignment } = await supabase
+        .from("waiter_tables")
+        .select("id")
+        .eq("staff_id", user.id)
+        .eq("table_id", id)
         .single();
 
-      if (!tableData) {
+      if (!assignment) {
         router.push("/waiter");
         return;
       }
+    }
 
-      // Fetch active session
-      const { data: sessionData } = await supabase
-        .from("sessions")
-        .select("*")
-        .eq("table_id", id)
-        .eq("status", "active")
-        .single();
+    // Fetch table details
+    const { data: tableData } = await supabase
+      .from("tables")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-      setTable({
-        ...tableData,
-        activeSession: sessionData || null,
-      });
+    if (!tableData) {
+      router.push("/waiter");
+      return;
+    }
 
-      // Fetch orders if there's an active session
-      if (sessionData) {
-        const { data: ordersData } = await supabase
-          .from("orders")
-          .select(`
-            *,
-            product:products(*)
-          `)
-          .eq("session_id", sessionData.id)
-          .order("created_at", { ascending: false });
+    // Fetch active session
+    const { data: sessionData } = await supabase
+      .from("sessions")
+      .select("*")
+      .eq("table_id", id)
+      .eq("status", "active")
+      .single();
 
-        setOrders((ordersData || []) as OrderWithProduct[]);
-      }
+    setTable({
+      ...tableData,
+      activeSession: sessionData || null,
+    });
 
-      // Fetch products and categories for adding orders
-      const { data: categoriesData } = await supabase
-        .from("categories")
-        .select("*")
-        .order("sort_order");
-
-      const { data: productsData } = await supabase
-        .from("products")
-        .select("*")
-        .eq("is_available", true)
-        .order("sort_order");
-
-      setCategories(categoriesData || []);
-      setProducts(productsData || []);
-
-      // Fetch pending waiter calls for this table
-      const extendedSupabase = getExtendedSupabase(supabase);
-      const { data: callsData } = await extendedSupabase
-        .from("waiter_calls")
-        .select("*")
-        .eq("table_id", id)
-        .in("status", ["pending", "acknowledged"])
+    // Fetch orders if there's an active session
+    if (sessionData) {
+      const { data: ordersData } = await supabase
+        .from("orders")
+        .select(`
+          *,
+          product:products(*)
+        `)
+        .eq("session_id", sessionData.id)
         .order("created_at", { ascending: false });
 
-      setWaiterCalls((callsData || []) as WaiterCall[]);
-      setIsLoading(false);
-    };
+      setOrders((ordersData || []) as OrderWithProduct[]);
+    } else {
+      setOrders([]);
+    }
 
+    // Fetch products and categories for adding orders
+    const { data: categoriesData } = await supabase
+      .from("categories")
+      .select("*")
+      .order("sort_order");
+
+    const { data: productsData } = await supabase
+      .from("products")
+      .select("*")
+      .eq("is_available", true)
+      .order("sort_order");
+
+    setCategories(categoriesData || []);
+    setProducts(productsData || []);
+
+    // Fetch pending waiter calls for this table
+    const { data: callsData } = await extendedSupabase
+      .from("waiter_calls")
+      .select("*")
+      .eq("table_id", id)
+      .in("status", ["pending", "acknowledged"])
+      .order("created_at", { ascending: false });
+
+    setWaiterCalls((callsData || []) as WaiterCall[]);
+    setIsLoading(false);
+  }, [user, id, router, supabase, extendedSupabase]);
+
+  // Keep fetchDataRef updated
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
+
+  // Initial fetch
+  useEffect(() => {
     fetchData();
+  }, [fetchData]);
 
-    // Set up real-time subscription for orders
-    const supabase = createClient();
+  // Set up real-time subscription (separate from fetchData to avoid re-subscriptions)
+  useEffect(() => {
     const subscription = supabase
       .channel(`waiter-orders-${id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        () => {
-          fetchData();
-        }
+        () => fetchDataRef.current()
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sessions" },
-        () => {
-          fetchData();
-        }
+        () => fetchDataRef.current()
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "waiter_calls" },
-        () => {
-          fetchData();
-        }
+        () => fetchDataRef.current()
       )
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [user, id, router]);
+  }, [supabase, id]);
 
   const [error, setError] = useState<string | null>(null);
   const [isStartingSession, setIsStartingSession] = useState(false);
 
-  const handleStartSession = async (isRodizio: boolean, numPeople: number) => {
+  const handleStartSession = useCallback(async (isRodizio: boolean, numPeople: number) => {
     if (!table) return;
 
     setIsStartingSession(true);
     setError(null);
 
     try {
-      const supabase = createClient();
       const { data: session, error: insertError } = await supabase
         .from("sessions")
         .insert({
@@ -204,12 +210,11 @@ export default function WaiterMesaPage() {
     } finally {
       setIsStartingSession(false);
     }
-  };
+  }, [table, supabase, logActivity]);
 
-  const handleAddOrder = async (product: Product) => {
+  const handleAddOrder = useCallback(async (product: Product) => {
     if (!table?.activeSession) return;
 
-    const supabase = createClient();
     await supabase.from("orders").insert({
       session_id: table.activeSession.id,
       product_id: product.id,
@@ -222,10 +227,9 @@ export default function WaiterMesaPage() {
     setOrderNote("");
     setQuantity(1);
     setShowAddOrder(false);
-  };
+  }, [table, supabase, quantity, orderNote]);
 
-  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    const supabase = createClient();
+  const handleUpdateOrderStatus = useCallback(async (orderId: string, status: string) => {
     await supabase.from("orders").update({ status: status as "pending" | "preparing" | "ready" | "delivered" | "cancelled" }).eq("id", orderId);
 
     // Log activity when marking order as delivered
@@ -241,22 +245,19 @@ export default function WaiterMesaPage() {
         });
       }
     }
-  };
+  }, [supabase, orders, table, logActivity]);
 
-  const handleCloseSession = async () => {
+  const handleCloseSession = useCallback(async () => {
     if (!table?.activeSession) return;
 
-    const supabase = createClient();
     await supabase
       .from("sessions")
       .update({ status: "pending_payment" })
       .eq("id", table.activeSession.id);
-  };
+  }, [table, supabase]);
 
-  const handleAcknowledgeCall = async (callId: string) => {
+  const handleAcknowledgeCall = useCallback(async (callId: string) => {
     if (!user) return;
-    const supabase = createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
     await extendedSupabase
       .from("waiter_calls")
       .update({
@@ -265,11 +266,9 @@ export default function WaiterMesaPage() {
         acknowledged_at: new Date().toISOString(),
       })
       .eq("id", callId);
-  };
+  }, [user, extendedSupabase]);
 
-  const handleCompleteCall = async (callId: string) => {
-    const supabase = createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+  const handleCompleteCall = useCallback(async (callId: string) => {
     await extendedSupabase
       .from("waiter_calls")
       .update({
@@ -277,7 +276,7 @@ export default function WaiterMesaPage() {
         completed_at: new Date().toISOString(),
       })
       .eq("id", callId);
-  };
+  }, [extendedSupabase]);
 
   if (authLoading || isLoading) {
     return (
@@ -411,19 +410,19 @@ export default function WaiterMesaPage() {
                       {call.call_type === "bill" && "💳"}
                       {call.call_type === "assistance" && "🔔"}
                       {call.call_type === "order" && "📝"}
-                      {call.call_type === "other" && "❓"}
+                      {call.call_type === "other" && (call.message?.includes("PRONTO") ? "✅" : "❓")}
                     </span>
                     <div>
                       <h3 className={`font-semibold ${
-                        call.status === "pending" ? "text-red-400" : "text-yellow-400"
+                        call.message?.includes("PRONTO") ? "text-green-400" : call.status === "pending" ? "text-red-400" : "text-yellow-400"
                       }`}>
                         {call.call_type === "bill" && "Cliente pede a conta"}
                         {call.call_type === "assistance" && "Cliente precisa de ajuda"}
                         {call.call_type === "order" && "Cliente quer fazer pedido"}
-                        {call.call_type === "other" && "Chamada do cliente"}
+                        {call.call_type === "other" && (call.message?.includes("PRONTO") ? "Pedido Pronto!" : "Chamada do cliente")}
                       </h3>
                       {call.message && (
-                        <p className="text-sm text-gray-300 mt-1">{call.message}</p>
+                        <p className={`text-sm mt-1 ${call.message.includes("PRONTO") ? "text-green-300 font-medium" : "text-gray-300"}`}>{call.message}</p>
                       )}
                       <p className="text-xs text-gray-500 mt-1">
                         {new Date(call.created_at).toLocaleTimeString("pt-PT", {

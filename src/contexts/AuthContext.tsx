@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -122,18 +123,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const isKitchen = user?.role === "kitchen";
   const isWaiter = user?.role === "waiter";
 
-  const value: AuthContextType = {
-    user,
-    isLoading,
-    isAuthenticated: !!user,
-    login,
-    logout,
-    refreshUser,
-    hasRole,
-    isAdmin,
-    isKitchen,
-    isWaiter,
-  };
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      isLoading,
+      isAuthenticated: !!user,
+      login,
+      logout,
+      refreshUser,
+      hasRole,
+      isAdmin,
+      isKitchen,
+      isWaiter,
+    }),
+    [user, isLoading, login, logout, refreshUser, hasRole, isAdmin, isKitchen, isWaiter]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -184,7 +188,7 @@ export function useRequireAuth(allowedRoles?: RoleName[]): AuthContextType {
         }
       }
     }
-  }, [auth.isLoading, auth.isAuthenticated, auth.hasRole, auth.user?.role, allowedRoles, router]);
+  }, [auth, allowedRoles, router]);
 
   return auth;
 }

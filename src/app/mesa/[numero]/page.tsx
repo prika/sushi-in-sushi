@@ -571,7 +571,7 @@ export default function MesaPage() {
     } finally {
       setIsSubmittingOrder(false);
     }
-  }, [session, cart, cartTotal, supabase]);
+  }, [session, cart, cartTotal, supabase, currentCustomer?.id, currentCustomer?.display_name]);
 
   // Request bill
   const requestBill = useCallback(async () => {

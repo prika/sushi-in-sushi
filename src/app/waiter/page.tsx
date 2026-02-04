@@ -5,11 +5,17 @@
 // - Testar real-time updates
 // - Confirmar fluxo de entregas
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRequireWaiter } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
-import type { Session, Table, WaiterCall, OrderWithProduct, SessionCustomer } from "@/types/database";
+import type {
+  Session,
+  Table,
+  WaiterCall,
+  OrderWithProduct,
+  SessionCustomer,
+} from "@/types/database";
 
 // Helper to bypass Supabase type checking for tables not in the generated types
 function getExtendedSupabase(supabase: ReturnType<typeof createClient>) {
@@ -36,181 +42,214 @@ export default function WaiterDashboard() {
   const { user, logout, isLoading: authLoading } = useRequireWaiter();
   const [tables, setTables] = useState<TableWithSession[]>([]);
   const [orders, setOrders] = useState<OrderWithTableInfo[]>([]);
-  const [waiterCalls, setWaiterCalls] = useState<(WaiterCall & { table_number: number })[]>([]);
+  const [waiterCalls, setWaiterCalls] = useState<
+    (WaiterCall & { table_number: number; order_id?: string | null })[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  // Use memoized supabase client to prevent real-time subscription issues
+  const supabase = useMemo(() => createClient(), []);
+  const extendedSupabase = useMemo(() => getExtendedSupabase(supabase), [supabase]);
+
+  // Ref for fetchData to avoid useEffect dependency issues
+  const fetchDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
+  const fetchData = useCallback(async () => {
     if (!user) return;
 
-    const fetchData = async () => {
-      try {
-        const supabase = createClient();
-        const extendedSupabase = getExtendedSupabase(supabase);
-        let tableList: Table[] = [];
-        let sessionIds: string[] = [];
+    try {
+      let tableList: Table[] = [];
+      let sessionIds: string[] = [];
 
-        // For waiters, fetch only their assigned tables
-        // For admins, fetch all tables
-        if (user.role === "waiter") {
-          const { data: assignments } = await supabase
-            .from("waiter_tables")
-            .select(`
-              table:tables(*)
-            `)
-            .eq("staff_id", user.id);
+      // For waiters, fetch only their assigned tables
+      // For admins, fetch all tables
+      if (user.role === "waiter") {
+        const { data: assignments } = await supabase
+          .from("waiter_tables")
+          .select(
+            `
+            table:tables(*)
+          `,
+          )
+          .eq("staff_id", user.id);
 
-          if (assignments) {
-            tableList = assignments
-              .filter((a) => a.table)
-              .map((a) => a.table as Table);
-          }
-        } else {
-          // Admin sees all tables
-          const { data } = await supabase
-            .from("tables")
-            .select("*")
-            .eq("is_active", true)
-            .order("number");
-
-          tableList = data || [];
+        if (assignments) {
+          tableList = assignments
+            .filter((a) => a.table)
+            .map((a) => a.table as Table);
         }
-
-        if (tableList.length === 0) {
-          setTables([]);
-          setOrders([]);
-          setWaiterCalls([]);
-          setIsLoading(false);
-          return;
-        }
-
-        const tableIds = tableList.map((t) => t.id);
-
-        // Fetch active sessions for these tables
-        const { data: sessions } = await supabase
-          .from("sessions")
+      } else {
+        // Admin sees all tables
+        const { data } = await supabase
+          .from("tables")
           .select("*")
-          .in("table_id", tableIds)
-          .eq("status", "active");
+          .eq("is_active", true)
+          .order("number");
 
-        // Get session IDs for orders fetch
-        sessionIds = (sessions || []).map((s) => s.id);
-
-        // Fetch session customers for active sessions
-        let sessionCustomersMap: Map<string, SessionCustomer[]> = new Map();
-        if (sessionIds.length > 0) {
-          const { data: customersData } = await extendedSupabase
-            .from("session_customers")
-            .select("*")
-            .in("session_id", sessionIds)
-            .order("created_at", { ascending: true });
-
-          if (customersData) {
-            (customersData as SessionCustomer[]).forEach((customer) => {
-              const existing = sessionCustomersMap.get(customer.session_id) || [];
-              sessionCustomersMap.set(customer.session_id, [...existing, customer]);
-            });
-          }
-        }
-
-        const tablesWithSessions = tableList.map((table) => {
-          const session = sessions?.find((s) => s.table_id === table.id);
-          return {
-            ...table,
-            activeSession: session ? {
-              ...session,
-              customers: sessionCustomersMap.get(session.id) || [],
-            } : null,
-          };
-        });
-
-        setTables(tablesWithSessions);
-
-        // Fetch all orders from active sessions (not delivered/cancelled)
-        if (sessionIds.length > 0) {
-          const { data: ordersData } = await supabase
-            .from("orders")
-            .select(`
-              *,
-              product:products(*)
-            `)
-            .in("session_id", sessionIds)
-            .in("status", ["pending", "preparing", "ready"])
-            .order("created_at", { ascending: true });
-
-          if (ordersData) {
-            const ordersWithTableInfo = ordersData.map((order) => {
-              const session = sessions?.find((s) => s.id === order.session_id);
-              const table = tableList.find((t) => t.id === session?.table_id);
-              // Find customer name if session_customer_id exists
-              const customers = sessionCustomersMap.get(order.session_id) || [];
-              const customer = customers.find((c) => c.id === order.session_customer_id);
-              return {
-                ...order,
-                table_number: table?.number || 0,
-                table_id: table?.id || "",
-                customer_name: customer?.display_name || undefined,
-              } as OrderWithTableInfo;
-            });
-            setOrders(ordersWithTableInfo);
-          }
-        } else {
-          setOrders([]);
-        }
-
-        // Fetch pending waiter calls for these tables
-        const { data: callsData } = await extendedSupabase
-          .from("waiter_calls")
-          .select("*")
-          .in("table_id", tableIds)
-          .in("status", ["pending", "acknowledged"])
-          .order("created_at", { ascending: false });
-
-        if (callsData) {
-          const callsWithTableNumber = (callsData as WaiterCall[]).map((call) => ({
-            ...call,
-            table_number: tableList.find((t) => t.id === call.table_id)?.number || 0,
-          }));
-          setWaiterCalls(callsWithTableNumber);
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setIsLoading(false);
+        tableList = data || [];
       }
-    };
 
+      if (tableList.length === 0) {
+        setTables([]);
+        setOrders([]);
+        setWaiterCalls([]);
+        setIsLoading(false);
+        return;
+      }
+
+      const tableIds = tableList.map((t) => t.id);
+
+      // Fetch active sessions for these tables
+      const { data: sessions } = await supabase
+        .from("sessions")
+        .select("*")
+        .in("table_id", tableIds)
+        .eq("status", "active");
+
+      // Get session IDs for orders fetch
+      sessionIds = (sessions || []).map((s) => s.id);
+
+      // Fetch session customers for active sessions
+      const sessionCustomersMap: Map<string, SessionCustomer[]> = new Map();
+      if (sessionIds.length > 0) {
+        const { data: customersData } = await extendedSupabase
+          .from("session_customers")
+          .select("*")
+          .in("session_id", sessionIds)
+          .order("created_at", { ascending: true });
+
+        if (customersData) {
+          (customersData as SessionCustomer[]).forEach((customer) => {
+            const existing =
+              sessionCustomersMap.get(customer.session_id) || [];
+            sessionCustomersMap.set(customer.session_id, [
+              ...existing,
+              customer,
+            ]);
+          });
+        }
+      }
+
+      const tablesWithSessions = tableList.map((table) => {
+        const session = sessions?.find((s) => s.table_id === table.id);
+        return {
+          ...table,
+          activeSession: session
+            ? {
+                ...session,
+                customers: sessionCustomersMap.get(session.id) || [],
+              }
+            : null,
+        };
+      });
+
+      setTables(tablesWithSessions);
+
+      // Fetch all orders from active sessions (not delivered/cancelled)
+      if (sessionIds.length > 0) {
+        const { data: ordersData } = await supabase
+          .from("orders")
+          .select(
+            `
+            *,
+            product:products(*)
+          `,
+          )
+          .in("session_id", sessionIds)
+          .in("status", ["pending", "preparing", "ready"])
+          .order("created_at", { ascending: true });
+
+        if (ordersData) {
+          const ordersWithTableInfo = ordersData.map((order) => {
+            const session = sessions?.find((s) => s.id === order.session_id);
+            const table = tableList.find((t) => t.id === session?.table_id);
+            // Find customer name if session_customer_id exists
+            // Cast to access session_customer_id which exists in the database but might not be in generated types
+            const orderWithCustomerId = order as typeof order & {
+              session_customer_id: string | null;
+            };
+            const customers = sessionCustomersMap.get(order.session_id) || [];
+            const customer = orderWithCustomerId.session_customer_id
+              ? customers.find(
+                  (c) => c.id === orderWithCustomerId.session_customer_id,
+                )
+              : null;
+            return {
+              ...order,
+              table_number: table?.number || 0,
+              table_id: table?.id || "",
+              customer_name: customer?.display_name || undefined,
+            } as OrderWithTableInfo;
+          });
+          setOrders(ordersWithTableInfo);
+        }
+      } else {
+        setOrders([]);
+      }
+
+      // Fetch pending waiter calls for these tables
+      const { data: callsData } = await extendedSupabase
+        .from("waiter_calls")
+        .select("*")
+        .in("table_id", tableIds)
+        .in("status", ["pending", "acknowledged"])
+        .order("created_at", { ascending: false });
+
+      if (callsData) {
+        const callsWithTableNumber = (
+          callsData as (WaiterCall & { order_id?: string | null })[]
+        ).map((call) => ({
+          ...call,
+          table_number:
+            tableList.find((t) => t.id === call.table_id)?.number || 0,
+        }));
+        setWaiterCalls(callsWithTableNumber);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, supabase, extendedSupabase]);
+
+  // Keep fetchDataRef updated
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
+
+  // Initial fetch
+  useEffect(() => {
     fetchData();
+  }, [fetchData]);
 
-    // Set up real-time subscription for sessions, orders, and waiter calls
-    const supabase = createClient();
+  // Set up real-time subscription (separate from fetchData to avoid re-subscriptions)
+  useEffect(() => {
     const subscription = supabase
       .channel("waiter-dashboard")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sessions" },
-        () => fetchData()
+        () => fetchDataRef.current(),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        () => fetchData()
+        () => fetchDataRef.current(),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "waiter_calls" },
-        () => fetchData()
+        () => fetchDataRef.current(),
       )
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [user]);
+  }, [supabase]);
 
-  const handleAcknowledgeCall = async (callId: string) => {
+  const handleAcknowledgeCall = useCallback(async (callId: string) => {
     if (!user) return;
-    const supabase = createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
     await extendedSupabase
       .from("waiter_calls")
       .update({
@@ -219,11 +258,10 @@ export default function WaiterDashboard() {
         acknowledged_at: new Date().toISOString(),
       })
       .eq("id", callId);
-  };
+  }, [user, extendedSupabase]);
 
-  const handleCompleteCall = async (callId: string) => {
-    const supabase = createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+  const handleCompleteCall = useCallback(async (callId: string, orderId?: string | null) => {
+    // Mark the waiter_call as completed
     await extendedSupabase
       .from("waiter_calls")
       .update({
@@ -231,15 +269,22 @@ export default function WaiterDashboard() {
         completed_at: new Date().toISOString(),
       })
       .eq("id", callId);
-  };
 
-  const handleMarkDelivered = async (orderId: string) => {
-    const supabase = createClient();
+    // If there's an associated order, mark it as delivered
+    if (orderId) {
+      await supabase
+        .from("orders")
+        .update({ status: "delivered" })
+        .eq("id", orderId);
+    }
+  }, [supabase, extendedSupabase]);
+
+  const handleMarkDelivered = useCallback(async (orderId: string) => {
     await supabase
       .from("orders")
       .update({ status: "delivered" })
       .eq("id", orderId);
-  };
+  }, [supabase]);
 
   if (authLoading || isLoading) {
     return (
@@ -251,7 +296,20 @@ export default function WaiterDashboard() {
 
   const activeTables = tables.filter((t) => t.activeSession);
   const availableTables = tables.filter((t) => !t.activeSession);
-  const pendingCalls = waiterCalls.filter((c) => c.status === "pending");
+
+  // Separate kitchen "ready" notifications from customer calls
+  const kitchenReadyNotifications = waiterCalls.filter(
+    (c) => c.call_type === "other" && c.message?.startsWith("Mesa"),
+  );
+  const customerCalls = waiterCalls.filter(
+    (c) => c.call_type !== "other" || !c.message?.startsWith("Mesa"),
+  );
+  const pendingCustomerCalls = customerCalls.filter(
+    (c) => c.status === "pending",
+  );
+  const pendingKitchenNotifications = kitchenReadyNotifications.filter(
+    (c) => c.status === "pending",
+  );
 
   // Group orders by status
   const readyOrders = orders.filter((o) => o.status === "ready");
@@ -259,9 +317,24 @@ export default function WaiterDashboard() {
   const pendingOrders = orders.filter((o) => o.status === "pending");
 
   const statusConfig = {
-    pending: { label: "Pendente", color: "text-orange-400", bg: "bg-orange-500/20", border: "border-orange-500/30" },
-    preparing: { label: "A Preparar", color: "text-blue-400", bg: "bg-blue-500/20", border: "border-blue-500/30" },
-    ready: { label: "Pronto", color: "text-green-400", bg: "bg-green-500/20", border: "border-green-500/30" },
+    pending: {
+      label: "Pendente",
+      color: "text-orange-400",
+      bg: "bg-orange-500/20",
+      border: "border-orange-500/30",
+    },
+    preparing: {
+      label: "A Preparar",
+      color: "text-blue-400",
+      bg: "bg-blue-500/20",
+      border: "border-blue-500/30",
+    },
+    ready: {
+      label: "Pronto",
+      color: "text-green-400",
+      bg: "bg-green-500/20",
+      border: "border-green-500/30",
+    },
   };
 
   return (
@@ -272,9 +345,14 @@ export default function WaiterDashboard() {
           <div className="flex items-center gap-4">
             <span className="text-2xl">🍣</span>
             <div>
-              <h1 className="text-lg font-bold text-white">Painel do Empregado</h1>
+              <h1 className="text-lg font-bold text-white">
+                Painel do Empregado
+              </h1>
               <p className="text-sm text-gray-400">
-                {user?.name} • {user?.location === "circunvalacao" ? "Circunvalação" : "Boavista"}
+                {user?.name} •{" "}
+                {user?.location === "circunvalacao"
+                  ? "Circunvalação"
+                  : "Boavista"}
               </p>
             </div>
           </div>
@@ -316,14 +394,19 @@ export default function WaiterDashboard() {
             <div className="flex flex-wrap gap-4 mb-6">
               <div className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] rounded-lg border border-gray-800">
                 <span className="text-gray-400 text-sm">Mesas:</span>
-                <span className="text-[#D4AF37] font-bold">{activeTables.length}</span>
+                <span className="text-[#D4AF37] font-bold">
+                  {activeTables.length}
+                </span>
                 <span className="text-gray-500">/</span>
                 <span className="text-white">{tables.length}</span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] rounded-lg border border-gray-800">
                 <span className="text-gray-400 text-sm">Pessoas:</span>
                 <span className="text-white font-bold">
-                  {activeTables.reduce((sum, t) => sum + (t.activeSession?.num_people || 0), 0)}
+                  {activeTables.reduce(
+                    (sum, t) => sum + (t.activeSession?.num_people || 0),
+                    0,
+                  )}
                 </span>
               </div>
               {readyOrders.length > 0 && (
@@ -335,14 +418,105 @@ export default function WaiterDashboard() {
               )}
             </div>
 
-            {/* Waiter Calls Alert */}
-            {waiterCalls.length > 0 && (
+            {/* Kitchen Ready Notifications - Separate Section */}
+            {kitchenReadyNotifications.length > 0 && (
+              <div className="mb-6 space-y-2">
+                <h2 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full ${pendingKitchenNotifications.length > 0 ? "bg-green-500 animate-pulse" : "bg-green-700"}`}
+                  />
+                  Prontos para Entregar ({kitchenReadyNotifications.length})
+                </h2>
+                {kitchenReadyNotifications.map((call) => {
+                  // Parse message: "Mesa X: Nx Product para CustomerName"
+                  const message = call.message || "";
+                  const mesaMatch = message.match(/^Mesa (\d+):/);
+                  const tableNum = mesaMatch ? mesaMatch[1] : "?";
+                  const restOfMessage = message.replace(/^Mesa \d+:\s*/, "");
+                  const paraMatch = restOfMessage.match(
+                    /^(.+?)\s+para\s+(.+)$/,
+                  );
+                  const productInfo = paraMatch ? paraMatch[1] : restOfMessage;
+                  const customerName = paraMatch ? paraMatch[2] : null;
+
+                  // Find the associated order - by order_id if available, or by session_id
+                  const associatedOrder = call.order_id
+                    ? orders.find(o => o.id === call.order_id)
+                    : orders.find(o => o.session_id === call.session_id && o.status === "ready");
+
+                  // Use order_id from call, or from the found order
+                  const orderIdToUse = call.order_id || associatedOrder?.id;
+
+                  return (
+                    <div
+                      key={call.id}
+                      className={`rounded-lg p-3 border ${
+                        call.status === "pending"
+                          ? "bg-green-500/20 border-green-500/50"
+                          : "bg-green-500/10 border-green-500/30"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <span className="text-lg flex-shrink-0">✅</span>
+                          <Link
+                            href={`/waiter/mesa/${call.table_id}`}
+                            className="text-xl font-bold text-green-400 hover:underline"
+                          >
+                            #{tableNum}
+                          </Link>
+                          <div className="flex-1 min-w-0">
+                            <span className="font-semibold text-white">
+                              {productInfo}
+                            </span>
+                            {/* Show order status badge */}
+                            {associatedOrder && (
+                              <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
+                                associatedOrder.status === "ready"
+                                  ? "bg-green-500/30 text-green-400"
+                                  : associatedOrder.status === "delivered"
+                                  ? "bg-gray-500/30 text-gray-400"
+                                  : "bg-blue-500/30 text-blue-400"
+                              }`}>
+                                {associatedOrder.status === "ready" ? "Pronto" :
+                                 associatedOrder.status === "delivered" ? "Entregue" :
+                                 associatedOrder.status === "preparing" ? "A preparar" : "Pendente"}
+                              </span>
+                            )}
+                            <br />
+                            {customerName && (
+                              <span className="text-sm">
+                                <span className="text-gray-400">para</span>{" "}
+                                <span className="text-[#D4AF37] font-medium">
+                                  {customerName}
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleCompleteCall(call.id, orderIdToUse)}
+                          className="px-3 py-1 text-xs bg-green-500/30 text-green-400 rounded hover:bg-green-500/40 transition-colors font-semibold"
+                        >
+                          Entregue
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Customer Calls Alert */}
+            {customerCalls.length > 0 && (
               <div className="mb-6 space-y-2">
                 <h2 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${pendingCalls.length > 0 ? "bg-red-500 animate-pulse" : "bg-yellow-500"}`} />
-                  Chamadas ({waiterCalls.length})
+                  <span
+                    className={`w-2 h-2 rounded-full ${pendingCustomerCalls.length > 0 ? "bg-red-500 animate-pulse" : "bg-yellow-500"}`}
+                  />
+                  Chamadas de Clientes ({customerCalls.length})
                 </h2>
-                {waiterCalls.map((call) => (
+                {customerCalls.map((call) => (
                   <div
                     key={call.id}
                     className={`rounded-lg p-3 border ${
@@ -352,27 +526,44 @@ export default function WaiterDashboard() {
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="text-lg flex-shrink-0">
                           {call.call_type === "bill" && "💳"}
                           {call.call_type === "assistance" && "🔔"}
                           {call.call_type === "order" && "📝"}
                           {call.call_type === "other" && "❓"}
                         </span>
-                        <Link
-                          href={`/waiter/mesa/${call.table_id}`}
-                          className={`font-semibold hover:underline ${
-                            call.status === "pending" ? "text-red-400" : "text-yellow-400"
-                          }`}
-                        >
-                          Mesa #{call.table_number}
-                        </Link>
-                        <span className="text-gray-400 text-sm">
-                          {call.call_type === "bill" && "pede a conta"}
-                          {call.call_type === "assistance" && "precisa de ajuda"}
-                          {call.call_type === "order" && "quer fazer pedido"}
-                          {call.call_type === "other" && "chamou"}
-                        </span>
+                        {call.call_type === "other" && call.message ? (
+                          <span
+                            className={`font-semibold ${
+                              call.status === "pending"
+                                ? "text-red-400"
+                                : "text-yellow-400"
+                            }`}
+                          >
+                            {call.message}
+                          </span>
+                        ) : (
+                          <>
+                            <Link
+                              href={`/waiter/mesa/${call.table_id}`}
+                              className={`font-semibold hover:underline ${
+                                call.status === "pending"
+                                  ? "text-red-400"
+                                  : "text-yellow-400"
+                              }`}
+                            >
+                              Mesa #{call.table_number}
+                            </Link>
+                            <span className="text-gray-400 text-sm">
+                              {call.call_type === "bill" && "pede a conta"}
+                              {call.call_type === "assistance" &&
+                                "precisa de ajuda"}
+                              {call.call_type === "order" &&
+                                "quer fazer pedido"}
+                            </span>
+                          </>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         {call.status === "pending" && (
@@ -425,11 +616,14 @@ export default function WaiterDashboard() {
                               </p>
                               {order.customer_name && (
                                 <p className="text-sm text-green-300">
-                                  <span className="text-gray-500">para</span> {order.customer_name}
+                                  <span className="text-gray-500">para</span>{" "}
+                                  {order.customer_name}
                                 </p>
                               )}
                               {order.notes && (
-                                <p className="text-sm text-gray-400">Nota: {order.notes}</p>
+                                <p className="text-sm text-gray-400">
+                                  Nota: {order.notes}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -471,11 +665,15 @@ export default function WaiterDashboard() {
                               <p className="text-white">
                                 {order.quantity}x {order.product.name}
                                 {order.customer_name && (
-                                  <span className="text-xs text-gray-400 ml-2">({order.customer_name})</span>
+                                  <span className="text-xs text-gray-400 ml-2">
+                                    ({order.customer_name})
+                                  </span>
                                 )}
                               </p>
                               {order.notes && (
-                                <p className="text-xs text-gray-500">Nota: {order.notes}</p>
+                                <p className="text-xs text-gray-500">
+                                  Nota: {order.notes}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -514,11 +712,15 @@ export default function WaiterDashboard() {
                               <p className="text-white">
                                 {order.quantity}x {order.product.name}
                                 {order.customer_name && (
-                                  <span className="text-xs text-gray-400 ml-2">({order.customer_name})</span>
+                                  <span className="text-xs text-gray-400 ml-2">
+                                    ({order.customer_name})
+                                  </span>
                                 )}
                               </p>
                               {order.notes && (
-                                <p className="text-xs text-gray-500">Nota: {order.notes}</p>
+                                <p className="text-xs text-gray-500">
+                                  Nota: {order.notes}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -546,7 +748,9 @@ export default function WaiterDashboard() {
 
             {/* Tables Section - Secondary */}
             <section>
-              <h2 className="text-lg font-semibold text-white mb-4">Minhas Mesas</h2>
+              <h2 className="text-lg font-semibold text-white mb-4">
+                Minhas Mesas
+              </h2>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {tables.map((table) => {
@@ -554,7 +758,9 @@ export default function WaiterDashboard() {
                     ? new Date(table.activeSession.started_at)
                     : null;
                   const minutesElapsed = sessionStarted
-                    ? Math.floor((Date.now() - sessionStarted.getTime()) / 60000)
+                    ? Math.floor(
+                        (Date.now() - sessionStarted.getTime()) / 60000,
+                      )
                     : 0;
 
                   return (
@@ -568,9 +774,13 @@ export default function WaiterDashboard() {
                       }`}
                     >
                       <div className="flex items-start justify-between mb-2">
-                        <span className={`text-2xl font-bold ${
-                          table.activeSession ? "text-[#D4AF37]" : "text-white"
-                        }`}>
+                        <span
+                          className={`text-2xl font-bold ${
+                            table.activeSession
+                              ? "text-[#D4AF37]"
+                              : "text-white"
+                          }`}
+                        >
                           #{table.number}
                         </span>
                         {table.activeSession ? (
@@ -584,50 +794,82 @@ export default function WaiterDashboard() {
                         )}
                       </div>
 
-                      <p className="text-sm text-gray-400 mb-2 truncate">{table.name}</p>
+                      <p className="text-sm text-gray-400 mb-2 truncate">
+                        {table.name}
+                      </p>
 
                       {table.activeSession && (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <svg
+                              className="w-4 h-4 text-gray-500"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
                             </svg>
-                            <span className="text-sm text-white">{table.activeSession.num_people} pessoas</span>
+                            <span className="text-sm text-white">
+                              {table.activeSession.num_people} pessoas
+                            </span>
                           </div>
 
                           {/* Customer Names */}
-                          {table.activeSession.customers && table.activeSession.customers.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {table.activeSession.customers.slice(0, 3).map((customer) => (
-                                <span
-                                  key={customer.id}
-                                  className={`px-2 py-0.5 text-xs rounded-full ${
-                                    customer.is_session_host
-                                      ? "bg-[#D4AF37]/30 text-[#D4AF37]"
-                                      : "bg-gray-700 text-gray-300"
-                                  }`}
-                                >
-                                  {customer.display_name}
-                                </span>
-                              ))}
-                              {table.activeSession.customers.length > 3 && (
-                                <span className="px-2 py-0.5 text-xs bg-gray-700 text-gray-400 rounded-full">
-                                  +{table.activeSession.customers.length - 3}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          {table.activeSession.customers &&
+                            table.activeSession.customers.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {table.activeSession.customers
+                                  .slice(0, 3)
+                                  .map((customer) => (
+                                    <span
+                                      key={customer.id}
+                                      className={`px-2 py-0.5 text-xs rounded-full ${
+                                        customer.is_session_host
+                                          ? "bg-[#D4AF37]/30 text-[#D4AF37]"
+                                          : "bg-gray-700 text-gray-300"
+                                      }`}
+                                    >
+                                      {customer.display_name}
+                                    </span>
+                                  ))}
+                                {table.activeSession.customers.length > 3 && (
+                                  <span className="px-2 py-0.5 text-xs bg-gray-700 text-gray-400 rounded-full">
+                                    +{table.activeSession.customers.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            )}
 
                           <div className="flex items-center gap-2">
-                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <svg
+                              className="w-4 h-4 text-gray-500"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
                             </svg>
-                            <span className="text-sm text-gray-400">{minutesElapsed} min</span>
+                            <span className="text-sm text-gray-400">
+                              {minutesElapsed} min
+                            </span>
                           </div>
 
                           {table.activeSession.notes && (
                             <div className="pt-2 border-t border-gray-700">
-                              <p className="text-xs text-gray-400 truncate" title={table.activeSession.notes}>
+                              <p
+                                className="text-xs text-gray-400 truncate"
+                                title={table.activeSession.notes}
+                              >
                                 📝 {table.activeSession.notes}
                               </p>
                             </div>
@@ -650,7 +892,9 @@ export default function WaiterDashboard() {
 
                       {!table.activeSession && (
                         <div className="text-center py-2">
-                          <span className="text-sm text-gray-500">Toque para iniciar</span>
+                          <span className="text-sm text-gray-500">
+                            Toque para iniciar
+                          </span>
                         </div>
                       )}
                     </Link>
