@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { SessionTimeoutWarning } from "@/components/auth/SessionTimeoutWarning";
 
 const navigation = [
   {
@@ -255,6 +256,9 @@ export default function AdminLayout({
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
+
+      {/* Session timeout warning */}
+      <SessionTimeoutWarning />
     </div>
   );
 }

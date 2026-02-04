@@ -1,9 +1,6 @@
-import type { Metadata } from "next";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Cozinha - Sushi in Sushi",
-  description: "Dashboard da cozinha",
-};
+import { SessionTimeoutWarning } from "@/components/auth/SessionTimeoutWarning";
 
 export default function CozinhaLayout({
   children,
@@ -13,6 +10,7 @@ export default function CozinhaLayout({
   return (
     <div className="min-h-screen bg-[#111] text-white">
       {children}
+      <SessionTimeoutWarning />
     </div>
   );
 }
