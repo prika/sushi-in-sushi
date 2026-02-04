@@ -5,6 +5,8 @@ import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import type { Product, Category, Session, Order, OrderStatus, SessionCustomer, SessionCustomerInsert } from "@/types/database";
+import { useMesaLocale } from "@/contexts/MesaLocaleContext";
+import { MesaLanguageSwitcher } from "@/components/mesa/MesaLanguageSwitcher";
 
 type Step = "welcome" | "menu" | "tracking";
 type OrderType = "rodizio" | "carta" | null;
@@ -29,15 +31,16 @@ interface GroupedOrders {
   orders: OrderWithProduct[];
 }
 
-const STATUS_CONFIG: Record<OrderStatus, { icon: string; label: string; color: string }> = {
-  pending: { icon: "⏳", label: "Na fila", color: "text-yellow-500" },
-  preparing: { icon: "🔥", label: "A preparar", color: "text-orange-500" },
-  ready: { icon: "✅", label: "Pronto", color: "text-green-500" },
-  delivered: { icon: "✓", label: "Entregue", color: "text-gray-400" },
-  cancelled: { icon: "✕", label: "Cancelado", color: "text-red-500" },
+const STATUS_ICONS: Record<OrderStatus, { icon: string; color: string }> = {
+  pending: { icon: "⏳", color: "text-yellow-500" },
+  preparing: { icon: "🔥", color: "text-orange-500" },
+  ready: { icon: "✅", color: "text-green-500" },
+  delivered: { icon: "✓", color: "text-gray-400" },
+  cancelled: { icon: "✕", color: "text-red-500" },
 };
 
 export default function MesaPage() {
+  const { t } = useMesaLocale();
   const params = useParams();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -177,7 +180,7 @@ export default function MesaPage() {
         }
       } catch (err) {
         console.error("Error fetching products:", err);
-        setError("Erro ao carregar o menu. Por favor, tente novamente.");
+        setError(t("mesa.errors.loadMenu"));
       } finally {
         setIsLoadingProducts(false);
       }
@@ -312,7 +315,7 @@ export default function MesaPage() {
           .single();
 
         if (tableErrorFallback) {
-          throw new Error("Mesa não encontrada. Por favor, contacte um empregado.");
+          throw new Error(t("mesa.errors.tableNotFound"));
         }
 
         setTableId(tableDataFallback.id);
@@ -353,7 +356,7 @@ export default function MesaPage() {
       setStep("menu");
     } catch (err) {
       console.error("Error starting session:", err);
-      setError(err instanceof Error ? err.message : "Erro ao iniciar sessão. Por favor, tente novamente.");
+      setError(err instanceof Error ? err.message : t("mesa.errors.startSession"));
     } finally {
       setIsStartingSession(false);
     }
@@ -510,7 +513,7 @@ export default function MesaPage() {
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
       console.error("Error registering customer:", err);
-      setError("Erro ao registar. Por favor, tente novamente.");
+      setError(t("mesa.errors.register"));
     }
   }, [session, customerForm, sessionCustomers.length, supabase]);
 
@@ -561,13 +564,13 @@ export default function MesaPage() {
 
       // Show success message
       const customerName = currentCustomer?.display_name;
-      setSuccessMessage(customerName ? `${customerName}, pedido enviado!` : "Pedido enviado para a cozinha!");
+      setSuccessMessage(customerName ? `${customerName}, ${t("mesa.success.orderSent").toLowerCase()}` : t("mesa.success.orderSent"));
       setTimeout(() => setSuccessMessage(null), 3000);
 
       setStep("tracking");
     } catch (err) {
       console.error("Error submitting order:", err);
-      setError("Erro ao enviar pedido. Por favor, tente novamente.");
+      setError(t("mesa.errors.submitOrder"));
     } finally {
       setIsSubmittingOrder(false);
     }
@@ -591,11 +594,11 @@ export default function MesaPage() {
       setSession(prev => prev ? { ...prev, status: "pending_payment" } : null);
       setBillRequested(true);
       setShowBillModal(false);
-      setSuccessMessage("Um funcionário virá até si em breve.");
+      setSuccessMessage(t("mesa.success.billRequested"));
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
       console.error("Error requesting bill:", err);
-      setError("Erro ao pedir conta. Por favor, tente novamente.");
+      setError(t("mesa.errors.requestBill"));
     } finally {
       setIsRequestingBill(false);
     }
@@ -628,10 +631,10 @@ export default function MesaPage() {
 
       const messages = {
         assistance: waiterName
-          ? `${waiterName} foi notificado(a) e virá até si em breve.`
-          : "Um funcionário foi notificado e virá até si em breve.",
-        bill: "A conta foi pedida. Um funcionário virá até si em breve.",
-        order: "Um funcionário foi notificado para ajudar com o pedido.",
+          ? `${waiterName} ${t("mesa.success.staffCalled").toLowerCase()}`
+          : t("mesa.success.staffCalled"),
+        bill: t("mesa.success.billRequested"),
+        order: t("mesa.success.staffCalledOrder"),
       };
 
       setSuccessMessage(messages[type]);
@@ -643,7 +646,7 @@ export default function MesaPage() {
       }, 120000);
     } catch (err) {
       console.error("Error calling waiter:", err);
-      setError("Erro ao chamar funcionário. Por favor, tente novamente.");
+      setError(t("mesa.errors.callStaff"));
     } finally {
       setIsCallingWaiter(false);
     }
@@ -705,6 +708,11 @@ export default function MesaPage() {
       {/* Welcome Step */}
       {step === "welcome" && (
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-6">
+          {/* Language Switcher */}
+          <div className="absolute top-4 right-4">
+            <MesaLanguageSwitcher />
+          </div>
+
           {/* Compact Header with Logo and Table Number */}
           <div className="flex items-center gap-4 mb-6">
             <div className="w-14 h-14 relative">
@@ -721,7 +729,7 @@ export default function MesaPage() {
                 SUSHI IN SUSHI
               </h1>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 uppercase">Mesa</span>
+                <span className="text-xs text-gray-500 uppercase">{t("mesa.table")}</span>
                 <span className="text-xl font-bold text-[#D4AF37]">{mesaNumero}</span>
               </div>
             </div>
@@ -738,7 +746,7 @@ export default function MesaPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400">O seu empregado</p>
+                    <p className="text-xs text-gray-400">{t("mesa.yourWaiter")}</p>
                     <p className="text-sm font-semibold text-white">{waiterName}</p>
                   </div>
                 </div>
@@ -753,8 +761,8 @@ export default function MesaPage() {
                         : "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
                   }`}
                 >
-                  {waiterCallStatus === "pending" ? "A chamar..." :
-                   waiterCallStatus === "acknowledged" ? "A caminho!" : "Chamar"}
+                  {waiterCallStatus === "pending" ? t("mesa.status.pending") + "..." :
+                   waiterCallStatus === "acknowledged" ? "A caminho!" : t("mesa.call")}
                 </button>
               </div>
             </div>
@@ -762,7 +770,7 @@ export default function MesaPage() {
 
           <div className="w-full max-w-sm mb-8">
             <p className="text-sm text-gray-400 text-center mb-4">
-              Escolha a modalidade
+              {t("mesa.chooseMode")}
             </p>
 
             <div className="space-y-3">
@@ -778,7 +786,7 @@ export default function MesaPage() {
                   <div className="text-left">
                     <p className="font-semibold text-lg">Rodízio</p>
                     <p className="text-sm text-gray-400">
-                      {isLunch ? "Almoço" : "Jantar"} • Sushi à vontade
+                      {isLunch ? t("mesa.lunch") : t("mesa.dinner")} • {t("mesa.allYouCanEat")}
                     </p>
                   </div>
                   <div className="text-right">
@@ -800,11 +808,11 @@ export default function MesaPage() {
               >
                 <div className="flex justify-between items-center">
                   <div className="text-left">
-                    <p className="font-semibold text-lg">À Carta</p>
-                    <p className="text-sm text-gray-400">Escolha os seus pratos</p>
+                    <p className="font-semibold text-lg">{t("mesa.alaCarte")}</p>
+                    <p className="text-sm text-gray-400">{t("mesa.alaCarteDesc")}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-400">Preços variados</p>
+                    <p className="text-sm text-gray-400">{t("mesa.variedPrices")}</p>
                   </div>
                 </div>
               </button>
@@ -812,7 +820,7 @@ export default function MesaPage() {
           </div>
 
           <div className="w-full max-w-sm mb-10">
-            <p className="text-sm text-gray-400 text-center mb-4">Número de pessoas</p>
+            <p className="text-sm text-gray-400 text-center mb-4">{t("mesa.numPeople")}</p>
             <div className="flex items-center justify-center gap-4">
               <button
                 onClick={() => setNumPessoas(Math.max(1, numPessoas - 1))}
@@ -849,16 +857,16 @@ export default function MesaPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                A iniciar...
+                {t("mesa.starting")}
               </span>
             ) : (
-              "Começar Pedido"
+              t("mesa.startOrder")
             )}
           </button>
 
           {orderType === "rodizio" && (
             <p className="mt-4 text-sm text-gray-400">
-              Total estimado: <span className="text-[#D4AF37] font-semibold">€{rodizioPrice * numPessoas}</span>
+              {t("mesa.estimatedTotal")} <span className="text-[#D4AF37] font-semibold">€{rodizioPrice * numPessoas}</span>
             </p>
           )}
         </div>
@@ -901,7 +909,7 @@ export default function MesaPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                   <span className="max-w-[60px] truncate">
-                    {currentCustomer?.display_name || "Entrar"}
+                    {currentCustomer?.display_name || t("mesa.login")}
                   </span>
                 </button>
 
@@ -953,7 +961,7 @@ export default function MesaPage() {
                 </svg>
               </div>
             ) : categories.length === 0 ? (
-              <p className="text-gray-400 text-center py-20">Menu não disponível de momento.</p>
+              <p className="text-gray-400 text-center py-20">{t("mesa.menuUnavailable")}</p>
             ) : (
               <div className="px-4 py-4">
                 {categories.map(category => (
@@ -1074,7 +1082,7 @@ export default function MesaPage() {
                 onClick={() => setIsCartOpen(true)}
                 className="w-full py-4 rounded-xl bg-[#D4AF37] text-black font-bold text-lg hover:bg-[#C4A030] transition-colors flex items-center justify-center gap-2"
               >
-                <span>Ver Pedido</span>
+                <span>{t("mesa.viewOrder")}</span>
                 <span className="bg-black/20 px-3 py-1 rounded-full">
                   €{getFinalTotal().toFixed(2)}
                 </span>
@@ -1096,7 +1104,7 @@ export default function MesaPage() {
                 </div>
 
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
-                  <h2 className="text-xl font-semibold">O Seu Pedido</h2>
+                  <h2 className="text-xl font-semibold">{t("mesa.yourOrder")}</h2>
                   <button
                     onClick={() => setIsCartOpen(false)}
                     className="p-2 -mr-2 text-gray-400 hover:text-white"
@@ -1109,7 +1117,7 @@ export default function MesaPage() {
 
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                   {cart.length === 0 ? (
-                    <p className="text-gray-400 text-center py-8">O carrinho está vazio</p>
+                    <p className="text-gray-400 text-center py-8">{t("mesa.cartEmpty")}</p>
                   ) : (
                     <div className="space-y-4">
                       {cart.map(item => (
@@ -1144,7 +1152,7 @@ export default function MesaPage() {
                               <div className="flex items-center justify-between mt-2">
                                 <div>
                                   {orderType === "rodizio" && item.product.is_rodizio ? (
-                                    <span className="text-green-500 text-sm">Incluído</span>
+                                    <span className="text-green-500 text-sm">{t("mesa.included")}</span>
                                   ) : (
                                     <span className="text-[#D4AF37] font-semibold">
                                       €{(item.product.price * item.quantity).toFixed(2)}
@@ -1174,7 +1182,7 @@ export default function MesaPage() {
                                   <div className="flex gap-2">
                                     <input
                                       type="text"
-                                      placeholder="Sem wasabi, extra gengibre..."
+                                      placeholder={t("mesa.notePlaceholder")}
                                       defaultValue={item.notes || ""}
                                       className="flex-1 bg-gray-800 text-sm px-3 py-2 rounded-lg border border-gray-700 focus:border-[#D4AF37] focus:outline-none"
                                       onBlur={(e) => {
@@ -1207,7 +1215,7 @@ export default function MesaPage() {
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                         </svg>
-                                        Adicionar nota
+                                        {t("mesa.addNote")}
                                       </span>
                                     )}
                                   </button>
@@ -1226,18 +1234,18 @@ export default function MesaPage() {
                     <div className="space-y-2">
                       {orderType === "rodizio" && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Rodízio ({numPessoas} pessoas)</span>
+                          <span className="text-gray-400">{t("mesa.rodizioFor", { count: numPessoas })}</span>
                           <span>€{(rodizioPrice * numPessoas).toFixed(2)}</span>
                         </div>
                       )}
                       {cartTotal > 0 && orderType === "rodizio" && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Extras</span>
+                          <span className="text-gray-400">{t("mesa.extras")}</span>
                           <span>€{cartTotal.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-800">
-                        <span>Total</span>
+                        <span>{t("mesa.total")}</span>
                         <span className="text-[#D4AF37]">€{getFinalTotal().toFixed(2)}</span>
                       </div>
                     </div>
@@ -1253,14 +1261,14 @@ export default function MesaPage() {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                           </svg>
-                          A enviar...
+                          {t("mesa.sending")}
                         </>
                       ) : (
                         <>
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                           </svg>
-                          Enviar para Cozinha
+                          {t("mesa.sendToKitchen")}
                         </>
                       )}
                     </button>
@@ -1293,7 +1301,7 @@ export default function MesaPage() {
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Pedir
+                {t("mesa.order")}
               </button>
             </div>
           </div>
@@ -1310,12 +1318,12 @@ export default function MesaPage() {
             ) : sessionOrders.length === 0 ? (
               <div className="text-center py-20">
                 <div className="text-6xl mb-4">🍽️</div>
-                <p className="text-gray-400 mb-2">Ainda não fez nenhum pedido</p>
+                <p className="text-gray-400 mb-2">{t("mesa.noOrdersYet")}</p>
                 <button
                   onClick={() => setStep("menu")}
                   className="text-[#D4AF37] font-semibold hover:underline"
                 >
-                  Ver menu →
+                  {t("mesa.viewMenuLink")}
                 </button>
               </div>
             ) : (
@@ -1331,7 +1339,8 @@ export default function MesaPage() {
                     {/* Orders in group */}
                     <div className="space-y-2">
                       {group.orders.map(order => {
-                        const statusConfig = STATUS_CONFIG[order.status];
+                        const statusConfig = STATUS_ICONS[order.status];
+                        const statusLabel = t(`mesa.status.${order.status}`);
 
                         return (
                           <div
@@ -1352,7 +1361,7 @@ export default function MesaPage() {
                               </div>
                             </div>
                             <div className={`text-sm font-medium ${statusConfig.color}`}>
-                              {statusConfig.label}
+                              {statusLabel}
                             </div>
                           </div>
                         );
@@ -1370,7 +1379,7 @@ export default function MesaPage() {
             {session && (
               <div className="px-4 py-4 border-b border-gray-800">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Total da sessão</span>
+                  <span className="text-gray-400">{t("mesa.sessionTotal")}</span>
                   <span className="text-2xl font-bold text-[#D4AF37]">
                     €{session.total_amount.toFixed(2)}
                   </span>
@@ -1388,7 +1397,7 @@ export default function MesaPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">O seu empregado</p>
+                    <p className="text-xs text-gray-500">{t("mesa.yourWaiter")}</p>
                     <p className="text-sm font-medium text-white">{waiterName}</p>
                   </div>
                 </div>
@@ -1403,8 +1412,8 @@ export default function MesaPage() {
                         : "bg-[#D4AF37]/20 text-[#D4AF37] hover:bg-[#D4AF37]/30"
                   }`}
                 >
-                  {waiterCallStatus === "pending" ? "A chamar..." :
-                   waiterCallStatus === "acknowledged" ? "A caminho!" : "Chamar"}
+                  {waiterCallStatus === "pending" ? t("mesa.status.pending") + "..." :
+                   waiterCallStatus === "acknowledged" ? "A caminho!" : t("mesa.call")}
                 </button>
               </div>
             )}
@@ -1425,8 +1434,8 @@ export default function MesaPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                {waiterCallStatus === "pending" ? "A chamar..." :
-                 waiterCallStatus === "acknowledged" ? "A caminho!" : "Chamar Empregado"}
+                {waiterCallStatus === "pending" ? t("mesa.status.pending") + "..." :
+                 waiterCallStatus === "acknowledged" ? "A caminho!" : t("mesa.callStaff")}
               </button>
 
               <button
@@ -1443,14 +1452,14 @@ export default function MesaPage() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Conta Pedida
+                    {t("mesa.requestBill")}
                   </>
                 ) : (
                   <>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
-                    Pedir Conta
+                    {t("mesa.requestBill")}
                   </>
                 )}
               </button>
@@ -1468,15 +1477,15 @@ export default function MesaPage() {
           />
 
           <div className="relative bg-[#1A1A1A] rounded-2xl p-6 max-w-sm w-full animate-scale-up">
-            <h3 className="text-xl font-semibold mb-2">Pedir Conta</h3>
+            <h3 className="text-xl font-semibold mb-2">{t("mesa.requestBill")}</h3>
             <p className="text-gray-400 mb-6">
-              Confirma que pretende pedir a conta? Um funcionário virá até à sua mesa.
+              {t("mesa.confirmBill")}
             </p>
 
             {session && (
               <div className="bg-gray-900 rounded-xl p-4 mb-6">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Total a pagar</span>
+                  <span className="text-gray-400">{t("mesa.totalToPay")}</span>
                   <span className="text-2xl font-bold text-[#D4AF37]">
                     €{session.total_amount.toFixed(2)}
                   </span>
@@ -1489,7 +1498,7 @@ export default function MesaPage() {
                 onClick={() => setShowBillModal(false)}
                 className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
               >
-                Cancelar
+                {t("mesa.cancel")}
               </button>
               <button
                 onClick={requestBill}
@@ -1502,7 +1511,7 @@ export default function MesaPage() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                 ) : (
-                  "Confirmar"
+                  t("mesa.confirm")
                 )}
               </button>
             </div>
@@ -1519,11 +1528,11 @@ export default function MesaPage() {
           />
 
           <div className="relative bg-[#1A1A1A] rounded-2xl p-6 max-w-sm w-full animate-scale-up">
-            <h3 className="text-xl font-semibold mb-2">Chamar Empregado</h3>
+            <h3 className="text-xl font-semibold mb-2">{t("mesa.callStaff")}</h3>
             <p className="text-gray-400 mb-6">
               {waiterName
-                ? `${waiterName} será notificado(a) imediatamente.`
-                : "Um funcionário será notificado imediatamente."}
+                ? `${waiterName} ${t("mesa.staffNotified").toLowerCase()}`
+                : t("mesa.staffNotified")}
             </p>
 
             <div className="space-y-3 mb-6">
@@ -1538,8 +1547,8 @@ export default function MesaPage() {
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🙋</span>
                   <div>
-                    <p className="font-semibold">Preciso de Ajuda</p>
-                    <p className="text-sm text-gray-400">Assistência geral</p>
+                    <p className="font-semibold">{t("mesa.needHelp")}</p>
+                    <p className="text-sm text-gray-400">{t("mesa.generalAssistance")}</p>
                   </div>
                 </div>
               </button>
@@ -1555,8 +1564,8 @@ export default function MesaPage() {
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">📝</span>
                   <div>
-                    <p className="font-semibold">Ajuda com Pedido</p>
-                    <p className="text-sm text-gray-400">Dúvidas sobre o menu</p>
+                    <p className="font-semibold">{t("mesa.orderHelp")}</p>
+                    <p className="text-sm text-gray-400">{t("mesa.menuQuestions")}</p>
                   </div>
                 </div>
               </button>
@@ -1567,7 +1576,7 @@ export default function MesaPage() {
                 onClick={() => setShowCallWaiterModal(false)}
                 className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
               >
-                Cancelar
+                {t("mesa.cancel")}
               </button>
               <button
                 onClick={() => callWaiter(callType)}
@@ -1580,7 +1589,7 @@ export default function MesaPage() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                 ) : (
-                  "Chamar"
+                  t("mesa.call")
                 )}
               </button>
             </div>
@@ -1600,7 +1609,7 @@ export default function MesaPage() {
             {/* Header */}
             <div className="sticky top-0 bg-[#1A1A1A] px-6 pt-6 pb-4 border-b border-gray-800">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold">Identificar-se</h3>
+                <h3 className="text-xl font-semibold">{t("mesa.identify")}</h3>
                 <button
                   onClick={() => setShowCustomerModal(false)}
                   className="p-2 -mr-2 text-gray-400 hover:text-white"
@@ -1611,7 +1620,7 @@ export default function MesaPage() {
                 </button>
               </div>
               <p className="text-sm text-gray-400 mt-1">
-                Personalize a sua experiência e acompanhe os seus pedidos
+                {t("mesa.customizeExperience")}
               </p>
             </div>
 
@@ -1619,7 +1628,7 @@ export default function MesaPage() {
               {/* Existing customers in session */}
               {sessionCustomers.length > 0 && (
                 <div className="mb-6">
-                  <p className="text-sm text-gray-400 mb-3">Quem está a pedir?</p>
+                  <p className="text-sm text-gray-400 mb-3">{t("mesa.whoIsOrdering")}</p>
                   <div className="flex flex-wrap gap-2">
                     {sessionCustomers.map((customer) => (
                       <button
@@ -1633,14 +1642,14 @@ export default function MesaPage() {
                       >
                         {customer.display_name}
                         {customer.is_session_host && (
-                          <span className="ml-1 text-xs opacity-70">(anfitrião)</span>
+                          <span className="ml-1 text-xs opacity-70">{t("mesa.host")}</span>
                         )}
                       </button>
                     ))}
                   </div>
                   <div className="flex items-center gap-3 my-4">
                     <div className="flex-1 h-px bg-gray-700" />
-                    <span className="text-xs text-gray-500">ou adicionar nova pessoa</span>
+                    <span className="text-xs text-gray-500">{t("mesa.addNewPerson")}</span>
                     <div className="flex-1 h-px bg-gray-700" />
                   </div>
                 </div>
@@ -1651,13 +1660,13 @@ export default function MesaPage() {
                 {/* Display Name - Required */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Como quer ser tratado(a)? *
+                    {t("mesa.howToAddress")}
                   </label>
                   <input
                     type="text"
                     value={customerForm.display_name}
                     onChange={(e) => setCustomerForm(prev => ({ ...prev, display_name: e.target.value }))}
-                    placeholder="Ex: João, Maria, Sr. Silva..."
+                    placeholder={t("mesa.namePlaceholder")}
                     className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl focus:border-[#D4AF37] focus:outline-none transition-colors"
                     autoFocus
                   />
@@ -1668,9 +1677,9 @@ export default function MesaPage() {
                   <div className="flex items-start gap-3">
                     <span className="text-2xl">🎁</span>
                     <div>
-                      <p className="text-sm font-medium text-[#D4AF37]">Ganhe vantagens exclusivas!</p>
+                      <p className="text-sm font-medium text-[#D4AF37]">{t("mesa.exclusiveBenefits")}</p>
                       <p className="text-xs text-gray-400 mt-1">
-                        Preencha os dados adicionais e receba ofertas especiais no seu aniversário e promoções exclusivas.
+                        {t("mesa.benefitsDesc")}
                       </p>
                     </div>
                   </div>
@@ -1679,7 +1688,7 @@ export default function MesaPage() {
                 {/* Optional Fields - Collapsible */}
                 <details className="group">
                   <summary className="flex items-center justify-between cursor-pointer py-2 text-sm text-gray-400 hover:text-white transition-colors">
-                    <span>Dados adicionais (opcional)</span>
+                    <span>{t("mesa.additionalData")}</span>
                     <svg className="w-5 h-5 transform group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -1688,55 +1697,55 @@ export default function MesaPage() {
                   <div className="space-y-4 pt-4">
                     {/* Full Name */}
                     <div>
-                      <label className="block text-sm text-gray-400 mb-1.5">Nome completo</label>
+                      <label className="block text-sm text-gray-400 mb-1.5">{t("mesa.fullName")}</label>
                       <input
                         type="text"
                         value={customerForm.full_name}
                         onChange={(e) => setCustomerForm(prev => ({ ...prev, full_name: e.target.value }))}
-                        placeholder="João Silva"
+                        placeholder={t("mesa.fullNamePlaceholder")}
                         className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
                       />
                     </div>
 
                     {/* Email */}
                     <div>
-                      <label className="block text-sm text-gray-400 mb-1.5">Email</label>
+                      <label className="block text-sm text-gray-400 mb-1.5">{t("mesa.email")}</label>
                       <input
                         type="email"
                         value={customerForm.email}
                         onChange={(e) => setCustomerForm(prev => ({ ...prev, email: e.target.value }))}
-                        placeholder="joao@email.com"
+                        placeholder={t("mesa.emailPlaceholder")}
                         className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
                       />
                     </div>
 
                     {/* Phone */}
                     <div>
-                      <label className="block text-sm text-gray-400 mb-1.5">Telemóvel</label>
+                      <label className="block text-sm text-gray-400 mb-1.5">{t("mesa.phone")}</label>
                       <input
                         type="tel"
                         value={customerForm.phone}
                         onChange={(e) => setCustomerForm(prev => ({ ...prev, phone: e.target.value }))}
-                        placeholder="912 345 678"
+                        placeholder={t("mesa.phonePlaceholder")}
                         className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
                       />
                     </div>
 
                     {/* Birth Date */}
                     <div>
-                      <label className="block text-sm text-gray-400 mb-1.5">Data de nascimento</label>
+                      <label className="block text-sm text-gray-400 mb-1.5">{t("mesa.birthDate")}</label>
                       <input
                         type="date"
                         value={customerForm.birth_date}
                         onChange={(e) => setCustomerForm(prev => ({ ...prev, birth_date: e.target.value }))}
                         className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Receba uma surpresa no seu aniversário!</p>
+                      <p className="text-xs text-gray-500 mt-1">{t("mesa.birthdaySurprise")}</p>
                     </div>
 
                     {/* Preferred Contact */}
                     <div>
-                      <label className="block text-sm text-gray-400 mb-2">Contacto preferencial</label>
+                      <label className="block text-sm text-gray-400 mb-2">{t("mesa.preferredContact")}</label>
                       <div className="flex gap-2">
                         {[
                           { value: "email", label: "Email" },
@@ -1781,7 +1790,7 @@ export default function MesaPage() {
                         </div>
                       </div>
                       <span className="text-sm text-gray-400">
-                        Quero receber promoções e novidades por email/SMS
+                        {t("mesa.receivePromotions")}
                       </span>
                     </label>
                   </div>
@@ -1795,7 +1804,7 @@ export default function MesaPage() {
                   disabled={!customerForm.display_name.trim()}
                   className="w-full py-4 rounded-xl bg-[#D4AF37] text-black font-bold text-lg hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {sessionCustomers.length === 0 ? "Começar a Pedir" : "Adicionar Pessoa"}
+                  {sessionCustomers.length === 0 ? t("mesa.startOrdering") : t("mesa.addPerson")}
                 </button>
 
                 {currentCustomer && (
@@ -1803,7 +1812,7 @@ export default function MesaPage() {
                     onClick={() => setShowCustomerModal(false)}
                     className="w-full mt-3 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
                   >
-                    Continuar como {currentCustomer.display_name}
+                    {t("mesa.continueAs", { name: currentCustomer.display_name })}
                   </button>
                 )}
               </div>
