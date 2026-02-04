@@ -188,6 +188,80 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, type: "confirmation_email" });
     }
 
+    // Check if it's a day-before reminder email
+    const { data: dayBeforeReservation } = await extendedSupabase
+      .from("reservations")
+      .select("id")
+      .eq("day_before_reminder_id", emailId)
+      .single();
+
+    if (dayBeforeReservation) {
+      const updateData: Record<string, unknown> = {
+        day_before_reminder_status: status,
+      };
+
+      if (type === "email.delivered") {
+        updateData.day_before_reminder_delivered_at = created_at;
+      } else if (type === "email.opened") {
+        updateData.day_before_reminder_opened_at = created_at;
+      }
+
+      await extendedSupabase
+        .from("reservations")
+        .update(updateData)
+        .eq("id", dayBeforeReservation.id);
+
+      // Update the email event with reservation ID
+      await extendedSupabase
+        .from("email_events")
+        .update({
+          reservation_id: dayBeforeReservation.id,
+          email_type: "day_before_reminder",
+        })
+        .eq("email_id", emailId)
+        .eq("event_type", status);
+
+      console.log(`✅ Updated day-before reminder status for reservation ${dayBeforeReservation.id}`);
+      return NextResponse.json({ success: true, type: "day_before_reminder" });
+    }
+
+    // Check if it's a same-day reminder email
+    const { data: sameDayReservation } = await extendedSupabase
+      .from("reservations")
+      .select("id")
+      .eq("same_day_reminder_id", emailId)
+      .single();
+
+    if (sameDayReservation) {
+      const updateData: Record<string, unknown> = {
+        same_day_reminder_status: status,
+      };
+
+      if (type === "email.delivered") {
+        updateData.same_day_reminder_delivered_at = created_at;
+      } else if (type === "email.opened") {
+        updateData.same_day_reminder_opened_at = created_at;
+      }
+
+      await extendedSupabase
+        .from("reservations")
+        .update(updateData)
+        .eq("id", sameDayReservation.id);
+
+      // Update the email event with reservation ID
+      await extendedSupabase
+        .from("email_events")
+        .update({
+          reservation_id: sameDayReservation.id,
+          email_type: "same_day_reminder",
+        })
+        .eq("email_id", emailId)
+        .eq("event_type", status);
+
+      console.log(`✅ Updated same-day reminder status for reservation ${sameDayReservation.id}`);
+      return NextResponse.json({ success: true, type: "same_day_reminder" });
+    }
+
     // Email not found in reservations (might be restaurant notification)
     console.log(`ℹ️ Email ${emailId} not linked to a customer reservation (might be restaurant notification)`);
     return NextResponse.json({ success: true, type: "untracked" });

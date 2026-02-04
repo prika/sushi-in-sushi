@@ -7,6 +7,8 @@ import {
   getReservationConfirmedEmail,
   getFarewellEmail,
   getCancellationEmail,
+  getDayBeforeReminderEmail,
+  getSameDayReminderEmail,
 } from "./templates";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -285,6 +287,78 @@ export async function sendCancellationEmail(reservation: Reservation, cancellati
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+export async function sendDayBeforeReminderEmail(reservation: Reservation, wasteFeePerPiece: number = 2.50) {
+  const emailTemplate = getDayBeforeReminderEmail(reservation, wasteFeePerPiece);
+
+  if (!isEmailConfigured()) {
+    logEmail(reservation.email, emailTemplate.subject, "Day-Before Reminder");
+    console.log(
+      "⚠️  Email not sent: Configure RESEND_API_KEY and FROM_EMAIL with a verified domain",
+    );
+    return { success: false, error: "Email not configured", emailId: null };
+  }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      to: reservation.email,
+      subject: emailTemplate.subject,
+      html: emailTemplate.html,
+    });
+
+    if (error) {
+      console.error("Error sending day-before reminder:", error);
+      return { success: false, error: error.message, emailId: null };
+    }
+
+    console.log(`✅ Day-before reminder sent to ${reservation.email}`);
+    return { success: true, error: null, emailId: data?.id || null };
+  } catch (error) {
+    console.error("Error sending day-before reminder:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      emailId: null,
+    };
+  }
+}
+
+export async function sendSameDayReminderEmail(reservation: Reservation, wasteFeePerPiece: number = 2.50) {
+  const emailTemplate = getSameDayReminderEmail(reservation, wasteFeePerPiece);
+
+  if (!isEmailConfigured()) {
+    logEmail(reservation.email, emailTemplate.subject, "Same-Day Reminder");
+    console.log(
+      "⚠️  Email not sent: Configure RESEND_API_KEY and FROM_EMAIL with a verified domain",
+    );
+    return { success: false, error: "Email not configured", emailId: null };
+  }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      to: reservation.email,
+      subject: emailTemplate.subject,
+      html: emailTemplate.html,
+    });
+
+    if (error) {
+      console.error("Error sending same-day reminder:", error);
+      return { success: false, error: error.message, emailId: null };
+    }
+
+    console.log(`✅ Same-day reminder sent to ${reservation.email}`);
+    return { success: true, error: null, emailId: data?.id || null };
+  } catch (error) {
+    console.error("Error sending same-day reminder:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      emailId: null,
     };
   }
 }

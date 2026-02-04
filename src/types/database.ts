@@ -742,6 +742,18 @@ export type Reservation = {
   confirmation_email_delivered_at: string | null;
   confirmation_email_opened_at: string | null;
   confirmation_email_status: EmailStatus | null;
+  // Email tracking - day before reminder
+  day_before_reminder_id: string | null;
+  day_before_reminder_sent_at: string | null;
+  day_before_reminder_delivered_at: string | null;
+  day_before_reminder_opened_at: string | null;
+  day_before_reminder_status: EmailStatus | null;
+  // Email tracking - same day reminder (2h before)
+  same_day_reminder_id: string | null;
+  same_day_reminder_sent_at: string | null;
+  same_day_reminder_delivered_at: string | null;
+  same_day_reminder_opened_at: string | null;
+  same_day_reminder_status: EmailStatus | null;
   created_at: string;
   updated_at: string;
 };
@@ -910,3 +922,21 @@ export type OrderWithProductAndCustomer = OrderWithProduct & {
   session_customer_id: string | null;
   customer_name?: string | null;
 };
+
+// =============================================
+// RESERVATION SETTINGS TYPES
+// =============================================
+
+export type ReservationSettings = {
+  id: number;
+  day_before_reminder_enabled: boolean;
+  day_before_reminder_hours: number;
+  same_day_reminder_enabled: boolean;
+  same_day_reminder_hours: number;
+  rodizio_waste_policy_enabled: boolean;
+  rodizio_waste_fee_per_piece: number;
+  updated_at: string;
+  updated_by: string | null;
+};
+
+export type ReservationSettingsUpdate = Partial<Omit<ReservationSettings, "id" | "updated_at">>;

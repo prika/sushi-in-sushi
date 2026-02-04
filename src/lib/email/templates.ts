@@ -951,6 +951,397 @@ ${getEmailHead("Obrigado pela sua visita")}
   };
 }
 
+// Rodízio waste policy section for reminder emails
+function getRodizioWastePolicy(feePerPiece: number = 2.50): string {
+  const formattedFee = feePerPiece.toFixed(2).replace('.', ',');
+  return `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top: 30px; background: linear-gradient(135deg, #2d2510 0%, #3d3218 100%); border-radius: 16px; border: 1px solid #D4AF37;">
+      <tr>
+        <td style="padding: 25px 30px;">
+          <p style="margin: 0 0 15px; font-family: ${fontSans}; color: #D4AF37; font-size: 20px; font-weight: 700;">
+            🍣 Política Anti-Desperdício - Rodízio
+          </p>
+          <p style="margin: 0 0 12px; font-family: ${fontSans}; color: #fff; font-size: 16px; line-height: 1.7;">
+            No nosso sistema de Rodízio All You Can Eat, comprometemo-nos com a sustentabilidade e a redução do desperdício alimentar.
+          </p>
+          <ul style="margin: 15px 0; padding-left: 20px; font-family: ${fontSans}; color: #ccc; font-size: 15px; line-height: 1.8;">
+            <li style="margin-bottom: 8px;">
+              Faça os seus pedidos de forma consciente - pode sempre pedir mais!
+            </li>
+            <li style="margin-bottom: 8px;">
+              Comida não consumida poderá ser cobrada: <strong style="color: #D4AF37;">${formattedFee}€ por peça de sushi</strong> deixada no prato
+            </li>
+            <li style="margin-bottom: 8px;">
+              Esta política ajuda-nos a manter preços justos e a reduzir o impacto ambiental
+            </li>
+          </ul>
+          <p style="margin: 0; font-family: ${fontSans}; color: #888; font-size: 14px;">
+            Obrigado pela sua compreensão e colaboração! 💚
+          </p>
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
+export function getDayBeforeReminderEmail(reservation: Reservation, wasteFeePerPiece: number = 2.50) {
+  const location = locationDetails[reservation.location];
+  const rodizioSection = reservation.is_rodizio ? getRodizioWastePolicy(wasteFeePerPiece) : '';
+
+  return {
+    subject: `🍣 Lembrete: A sua reserva é amanhã! - ${formatDate(reservation.reservation_date)}`,
+    html: `
+<!DOCTYPE html>
+<html>
+${getEmailHead("Lembrete de Reserva")}
+<body style="margin: 0; padding: 0; font-family: ${fontSans}; background-color: #0a0a0a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0a0a0a;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #1a1a1a; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding: 55px 45px 45px; text-align: center; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-bottom: 2px solid #D4AF37;">
+              <img src="${LOGO_URL}" alt="Sushi in Sushi" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="padding: 0 18px;">
+                    <span style="color: #D4AF37; font-size: 32px;">⏰</span>
+                  </td>
+                  <td>
+                    <p style="margin: 0; font-family: ${fontSans}; color: #D4AF37; font-size: 22px; letter-spacing: 5px; text-transform: uppercase; font-weight: 600;">Lembrete</p>
+                  </td>
+                  <td style="padding: 0 18px;">
+                    <span style="color: #D4AF37; font-size: 32px;">⏰</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Greeting -->
+          <tr>
+            <td style="padding: 50px 50px 40px;">
+              <p style="margin: 0 0 24px; font-family: ${fontSans}; color: #fff; font-size: 36px; font-weight: 400;">
+                Olá <strong style="font-weight: 700;">${reservation.first_name}</strong>! 👋
+              </p>
+              <p style="margin: 0; font-family: ${fontSans}; color: #b0b0b0; font-size: 22px; line-height: 1.8;">
+                Queremos lembrar que a sua reserva no <strong style="color: #D4AF37;">Sushi in Sushi</strong> é <strong style="color: #fff;">amanhã</strong>! Estamos ansiosos por recebê-lo.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Reservation Card -->
+          <tr>
+            <td style="padding: 0 50px 45px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #1f1f1f 0%, #2a2a2a 100%); border-radius: 20px; overflow: hidden; border: 1px solid #333;">
+
+                <!-- Card Header -->
+                <tr>
+                  <td style="padding: 28px 35px; background: linear-gradient(90deg, #D4AF37 0%, #c9a432 100%); text-align: center;">
+                    <p style="margin: 0; font-family: ${fontSans}; color: #000; font-size: 24px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;">
+                      📅 A sua Reserva
+                    </p>
+                  </td>
+                </tr>
+
+                <!-- Date & Time -->
+                <tr>
+                  <td style="padding: 40px 35px; text-align: center; border-bottom: 1px solid #333;">
+                    <p style="margin: 0 0 10px; font-family: ${fontSans}; color: #888; font-size: 18px; text-transform: uppercase; letter-spacing: 3px;">Amanhã</p>
+                    <p style="margin: 0 0 8px; font-family: ${fontSans}; color: #fff; font-size: 32px; font-weight: 600;">${formatDate(reservation.reservation_date)}</p>
+                    <p style="margin: 0; font-family: ${fontSans}; color: #D4AF37; font-size: 56px; font-weight: 700;">${reservation.reservation_time}</p>
+                  </td>
+                </tr>
+
+                <!-- Details -->
+                <tr>
+                  <td style="padding: 35px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding: 22px 0; border-bottom: 1px solid #333;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="width: 55px; vertical-align: middle;"><span style="font-size: 34px;">👥</span></td>
+                              <td style="vertical-align: middle;">
+                                <p style="margin: 0; font-family: ${fontSans}; color: #888; font-size: 17px; text-transform: uppercase; letter-spacing: 2px;">Pessoas</p>
+                                <p style="margin: 6px 0 0; font-family: ${fontSans}; color: #fff; font-size: 26px; font-weight: 700;">${reservation.party_size} pessoa${reservation.party_size > 1 ? 's' : ''}</p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 22px 0; border-bottom: 1px solid #333;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="width: 55px; vertical-align: middle;"><span style="font-size: 34px;">📍</span></td>
+                              <td style="vertical-align: middle;">
+                                <p style="margin: 0; font-family: ${fontSans}; color: #888; font-size: 17px; text-transform: uppercase; letter-spacing: 2px;">Restaurante</p>
+                                <p style="margin: 6px 0 0; font-family: ${fontSans}; color: #fff; font-size: 24px; font-weight: 600;">${location.name}</p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 22px 0;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="width: 55px; vertical-align: middle;"><span style="font-size: 34px;">🍣</span></td>
+                              <td style="vertical-align: middle;">
+                                <p style="margin: 0; font-family: ${fontSans}; color: #888; font-size: 17px; text-transform: uppercase; letter-spacing: 2px;">Serviço</p>
+                                <p style="margin: 6px 0 0; font-family: ${fontSans}; color: #D4AF37; font-size: 26px; font-weight: 700;">${reservation.is_rodizio ? "Rodízio All You Can Eat" : "À Carta"}</p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+
+                    ${rodizioSection}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Location & Map -->
+          <tr>
+            <td style="padding: 0 50px 50px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #252525; border-radius: 20px; overflow: hidden;">
+                <tr>
+                  <td>
+                    <a href="${location.mapsUrl}" target="_blank" style="display: block; text-decoration: none;">
+                      <img src="${getStaticMapUrl(location.coordinates.lat, location.coordinates.lng)}" alt="Mapa - ${location.name}" width="100%" style="display: block; width: 100%; height: auto; border-radius: 20px 20px 0 0;" />
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 0;">
+                    <a href="${location.mapsUrl}" target="_blank" style="display: block; padding: 18px 35px; background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%); font-family: ${fontSans}; color: #fff; font-size: 20px; font-weight: 600; text-decoration: none; text-align: center;">
+                      📍 Abrir no Google Maps → Obter Direções
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 30px 35px; text-align: center;">
+                    <p style="margin: 0 0 8px; font-family: ${fontSans}; color: #D4AF37; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">${location.name.replace("Sushi in Sushi - ", "")}</p>
+                    <p style="margin: 0 0 25px; font-family: ${fontSans}; color: #fff; font-size: 20px; line-height: 1.5;">${location.address}</p>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding-right: 8px;" width="50%">
+                          <a href="tel:${location.phone.replace(/\s/g, "")}" style="display: block; padding: 16px 10px; background: linear-gradient(135deg, #D4AF37 0%, #b8962e 100%); border-radius: 12px; font-family: ${fontSans}; color: #000; font-size: 18px; font-weight: 700; text-decoration: none; text-align: center;">
+                            📞 Ligar
+                          </a>
+                        </td>
+                        <td style="padding-left: 8px;" width="50%">
+                          <a href="mailto:${location.email}" style="display: block; padding: 16px 10px; background: #333; border: 1px solid #D4AF37; border-radius: 12px; font-family: ${fontSans}; color: #D4AF37; font-size: 18px; font-weight: 700; text-decoration: none; text-align: center;">
+                            ✉️ Email
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Info Note -->
+          <tr>
+            <td style="padding: 0 50px 40px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #1f1f1f; border-radius: 14px; border: 1px dashed #444;">
+                <tr>
+                  <td style="padding: 25px 30px; text-align: center;">
+                    <p style="margin: 0; font-family: ${fontSans}; color: #888; font-size: 20px; line-height: 1.7;">
+                      ℹ️ Se precisar de <strong style="color: #fff;">alterar</strong> ou <strong style="color: #fff;">cancelar</strong> a sua reserva, por favor contacte-nos o mais rapidamente possível.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 40px 50px; background: linear-gradient(180deg, #151515 0%, #0a0a0a 100%); text-align: center; border-top: 2px solid #D4AF37;">
+              <p style="margin: 0 0 12px; font-family: ${fontSans}; color: #D4AF37; font-size: 28px; font-weight: 700;">Até amanhã!</p>
+              <p style="margin: 0 0 25px; font-family: ${fontSans}; color: #666; font-size: 18px;">Sushi in Sushi - A autêntica experiência japonesa</p>
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="padding: 0 10px;"><span style="font-size: 28px;">🍣</span></td>
+                  <td style="padding: 0 10px;"><span style="font-size: 28px;">🥢</span></td>
+                  <td style="padding: 0 10px;"><span style="font-size: 28px;">🍱</span></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `,
+  };
+}
+
+export function getSameDayReminderEmail(reservation: Reservation, wasteFeePerPiece: number = 2.50) {
+  const location = locationDetails[reservation.location];
+  const rodizioSection = reservation.is_rodizio ? getRodizioWastePolicy(wasteFeePerPiece) : '';
+
+  return {
+    subject: `⏰ Daqui a 2 horas! A sua reserva no Sushi in Sushi`,
+    html: `
+<!DOCTYPE html>
+<html>
+${getEmailHead("Lembrete - Daqui a 2 horas")}
+<body style="margin: 0; padding: 0; font-family: ${fontSans}; background-color: #0a0a0a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0a0a0a;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #1a1a1a; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
+
+          <!-- Header with Urgent Badge -->
+          <tr>
+            <td style="padding: 55px 45px 45px; text-align: center; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-bottom: 2px solid #f59e0b;">
+              <img src="${LOGO_URL}" alt="Sushi in Sushi" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 50px; padding: 18px 40px;">
+                <tr>
+                  <td>
+                    <p style="margin: 0; font-family: ${fontSans}; color: #000; font-size: 24px; font-weight: 700; letter-spacing: 2px;">⏰ DAQUI A 2 HORAS!</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Greeting -->
+          <tr>
+            <td style="padding: 50px 50px 40px;">
+              <p style="margin: 0 0 24px; font-family: ${fontSans}; color: #fff; font-size: 36px; font-weight: 400;">
+                Olá <strong style="font-weight: 700;">${reservation.first_name}</strong>! 🎉
+              </p>
+              <p style="margin: 0; font-family: ${fontSans}; color: #b0b0b0; font-size: 22px; line-height: 1.8;">
+                A sua experiência gastronómica no <strong style="color: #D4AF37;">Sushi in Sushi</strong> começa em breve! Não se atrase - a mesa está reservada para si.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Countdown Card -->
+          <tr>
+            <td style="padding: 0 50px 45px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #451a03 0%, #78350f 100%); border-radius: 20px; overflow: hidden; border: 2px solid #f59e0b;">
+                <tr>
+                  <td style="padding: 40px 35px; text-align: center;">
+                    <p style="margin: 0 0 10px; font-family: ${fontSans}; color: #fed7aa; font-size: 18px; text-transform: uppercase; letter-spacing: 3px;">A sua reserva é às</p>
+                    <p style="margin: 0; font-family: ${fontSans}; color: #fff; font-size: 72px; font-weight: 700;">${reservation.reservation_time}</p>
+                    <p style="margin: 20px 0 0; font-family: ${fontSans}; color: #fbbf24; font-size: 24px; font-weight: 600;">${formatDate(reservation.reservation_date)}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Quick Details -->
+          <tr>
+            <td style="padding: 0 50px 45px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background: linear-gradient(135deg, #1f1f1f 0%, #2a2a2a 100%); border-radius: 20px; overflow: hidden; border: 1px solid #333;">
+                <tr>
+                  <td style="padding: 35px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding: 15px 0; border-bottom: 1px solid #333;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="width: 50px;"><span style="font-size: 30px;">👥</span></td>
+                              <td style="font-family: ${fontSans}; color: #888; font-size: 18px;">Pessoas</td>
+                              <td style="text-align: right; font-family: ${fontSans}; color: #fff; font-size: 24px; font-weight: 700;">${reservation.party_size}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 15px 0; border-bottom: 1px solid #333;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="width: 50px;"><span style="font-size: 30px;">📍</span></td>
+                              <td style="font-family: ${fontSans}; color: #888; font-size: 18px;">Local</td>
+                              <td style="text-align: right; font-family: ${fontSans}; color: #fff; font-size: 20px; font-weight: 600;">${location.name.replace("Sushi in Sushi - ", "")}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 15px 0;">
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td style="width: 50px;"><span style="font-size: 30px;">🍣</span></td>
+                              <td style="font-family: ${fontSans}; color: #888; font-size: 18px;">Serviço</td>
+                              <td style="text-align: right; font-family: ${fontSans}; color: #D4AF37; font-size: 22px; font-weight: 700;">${reservation.is_rodizio ? "Rodízio" : "À Carta"}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+
+                    ${rodizioSection}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Get Directions CTA -->
+          <tr>
+            <td style="padding: 0 50px 50px;">
+              <a href="${location.mapsUrl}" target="_blank" style="display: block; padding: 24px 40px; background: linear-gradient(135deg, #D4AF37 0%, #b8962e 100%); border-radius: 16px; font-family: ${fontSans}; color: #000; font-size: 24px; font-weight: 700; text-decoration: none; text-align: center;">
+                🗺️ Obter Direções no Google Maps
+              </a>
+            </td>
+          </tr>
+
+          <!-- Address Quick Info -->
+          <tr>
+            <td style="padding: 0 50px 45px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #252525; border-radius: 16px; overflow: hidden;">
+                <tr>
+                  <td style="padding: 25px 30px; text-align: center;">
+                    <p style="margin: 0 0 10px; font-family: ${fontSans}; color: #D4AF37; font-size: 18px; font-weight: 700;">${location.name}</p>
+                    <p style="margin: 0 0 15px; font-family: ${fontSans}; color: #fff; font-size: 18px;">${location.address}</p>
+                    <a href="tel:${location.phone.replace(/\s/g, "")}" style="font-family: ${fontSans}; color: #22c55e; font-size: 20px; font-weight: 600; text-decoration: none;">📞 ${location.phone}</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 40px 50px; background: linear-gradient(180deg, #151515 0%, #0a0a0a 100%); text-align: center; border-top: 2px solid #D4AF37;">
+              <p style="margin: 0 0 12px; font-family: ${fontSans}; color: #D4AF37; font-size: 28px; font-weight: 700;">Até já!</p>
+              <p style="margin: 0 0 25px; font-family: ${fontSans}; color: #666; font-size: 18px;">Estamos ansiosos por recebê-lo</p>
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="padding: 0 10px;"><span style="font-size: 28px;">🍣</span></td>
+                  <td style="padding: 0 10px;"><span style="font-size: 28px;">🥢</span></td>
+                  <td style="padding: 0 10px;"><span style="font-size: 28px;">🍱</span></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `,
+  };
+}
+
 export function getCancellationEmail(reservation: Reservation, cancellationReason: string) {
   const location = locationDetails[reservation.location];
 
