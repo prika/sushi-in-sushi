@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import {
   sendDayBeforeReminderEmail,
   sendSameDayReminderEmail,
@@ -12,13 +12,6 @@ const CRON_SECRET = process.env.CRON_SECRET;
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // 60 seconds max for Vercel
 
-// Helper to get typed supabase query
-function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
-  };
-}
-
 export async function GET(request: NextRequest) {
   // Verify authorization
   const authHeader = request.headers.get("authorization");
@@ -27,8 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
-  const extendedSupabase = getExtendedSupabase(supabase);
+  const supabase = createAdminClient();
   const now = new Date();
 
   const results = {
@@ -39,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Get reminder settings from database
-    const { data: settingsData } = await extendedSupabase
+    const { data: settingsData } = await supabase
       .from("reservation_settings")
       .select("*")
       .eq("id", 1)
@@ -68,7 +60,7 @@ export async function GET(request: NextRequest) {
       const targetDate = targetDateTime.toISOString().split("T")[0];
 
       // Find reservations for the target date that haven't received day-before reminder
-      const { data: dayBeforeReservations, error: dbError1 } = await extendedSupabase
+      const { data: dayBeforeReservations, error: dbError1 } = await supabase
         .from("reservations")
         .select("*")
         .eq("reservation_date", targetDate)
@@ -83,7 +75,7 @@ export async function GET(request: NextRequest) {
           const result = await sendDayBeforeReminderEmail(reservation, wasteFee);
 
           if (result.success && result.emailId) {
-            await extendedSupabase
+            await supabase
               .from("reservations")
               .update({
                 day_before_reminder_id: result.emailId,
@@ -121,7 +113,7 @@ export async function GET(request: NextRequest) {
       const maxTimeStr = maxTime.toTimeString().slice(0, 8);
 
       // Find today's reservations within the time window
-      const { data: sameDayReservations, error: dbError2 } = await extendedSupabase
+      const { data: sameDayReservations, error: dbError2 } = await supabase
         .from("reservations")
         .select("*")
         .eq("reservation_date", todayDate)
@@ -138,7 +130,7 @@ export async function GET(request: NextRequest) {
           const result = await sendSameDayReminderEmail(reservation, wasteFee);
 
           if (result.success && result.emailId) {
-            await extendedSupabase
+            await supabase
               .from("reservations")
               .update({
                 same_day_reminder_id: result.emailId,

@@ -35,6 +35,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS reservation_settings_updated_at ON reservation_settings;
 CREATE TRIGGER reservation_settings_updated_at
   BEFORE UPDATE ON reservation_settings
   FOR EACH ROW
@@ -43,6 +44,66 @@ CREATE TRIGGER reservation_settings_updated_at
 COMMENT ON TABLE reservation_settings IS 'Singleton table for reservation reminder settings (configurable via admin panel)';
 COMMENT ON COLUMN reservation_settings.day_before_reminder_hours IS 'Hours before reservation to send day-before reminder (default: 24)';
 COMMENT ON COLUMN reservation_settings.same_day_reminder_hours IS 'Hours before reservation to send same-day reminder (default: 2)';
+
+-- =============================================
+-- ROW LEVEL SECURITY
+-- =============================================
+
+-- Enable RLS on reservation_settings
+ALTER TABLE reservation_settings ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (for idempotency)
+DROP POLICY IF EXISTS "Admins can read reservation settings" ON reservation_settings;
+DROP POLICY IF EXISTS "Admins can update reservation settings" ON reservation_settings;
+DROP POLICY IF EXISTS "Service role can read reservation settings" ON reservation_settings;
+DROP POLICY IF EXISTS "Service role can update reservation settings" ON reservation_settings;
+
+-- Policy: Admins can read settings
+CREATE POLICY "Admins can read reservation settings"
+ON reservation_settings FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM staff s
+    JOIN roles r ON s.role_id = r.id
+    WHERE s.id = auth.uid()
+    AND r.name = 'admin'
+  )
+);
+
+-- Policy: Admins can update settings
+CREATE POLICY "Admins can update reservation settings"
+ON reservation_settings FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM staff s
+    JOIN roles r ON s.role_id = r.id
+    WHERE s.id = auth.uid()
+    AND r.name = 'admin'
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM staff s
+    JOIN roles r ON s.role_id = r.id
+    WHERE s.id = auth.uid()
+    AND r.name = 'admin'
+  )
+);
+
+-- Policy: Service role can read settings (for cron job)
+CREATE POLICY "Service role can read reservation settings"
+ON reservation_settings FOR SELECT
+TO service_role
+USING (true);
+
+-- Policy: Service role can update settings (for system operations)
+CREATE POLICY "Service role can update reservation settings"
+ON reservation_settings FOR UPDATE
+TO service_role
+USING (true)
+WITH CHECK (true);
 
 -- =============================================
 -- RESERVATION EMAIL TRACKING COLUMNS
