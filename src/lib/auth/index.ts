@@ -40,5 +40,32 @@ export {
   getWaiterTables,
 } from "./waiter";
 
+// Security features
+export {
+  checkRateLimit,
+  resetRateLimit,
+  logAuthEvent,
+  getAuthEventsForStaff,
+  getFailedLoginAttempts,
+  updateStaffLoginInfo,
+  isAccountLocked,
+  getSessionConfig,
+  enrollMfa,
+  verifyMfa,
+  getMfaFactors,
+  unenrollMfa,
+  isMfaRequired,
+  secureLogin,
+} from "./security";
+export type {
+  AuthEventType,
+  RateLimitResult,
+  AuditLogEntry,
+  SessionConfig,
+  MfaEnrollmentResult,
+  SecureLoginOptions,
+  SecureLoginResult,
+} from "./security";
+
 // Legacy support (for backward compatibility)
 export type { RoleName as UserRole } from "@/types/database";

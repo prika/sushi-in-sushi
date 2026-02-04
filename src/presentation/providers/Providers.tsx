@@ -9,6 +9,7 @@
 
 import { ReactNode } from 'react';
 import { DependencyProvider } from '../contexts/DependencyContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -18,5 +19,9 @@ interface ProvidersProps {
  * Agrupa todos os providers da aplicação
  */
 export function Providers({ children }: ProvidersProps) {
-  return <DependencyProvider>{children}</DependencyProvider>;
+  return (
+    <DependencyProvider>
+      <AuthProvider>{children}</AuthProvider>
+    </DependencyProvider>
+  );
 }

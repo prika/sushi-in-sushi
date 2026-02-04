@@ -5,6 +5,10 @@ import { jwtVerify } from "jose";
 import { routing } from "./i18n/routing";
 import type { RoleName } from "@/types/database";
 import { AUTH_COOKIE_NAME, AUTH_SECRET_KEY } from "@/lib/config/constants";
+import { updateSession, getStaffFromAuth } from "@/lib/supabase/middleware";
+
+// Feature flag for Supabase Auth
+const USE_SUPABASE_AUTH = process.env.NEXT_PUBLIC_USE_SUPABASE_AUTH === "true";
 
 const SECRET_KEY = new TextEncoder().encode(AUTH_SECRET_KEY);
 
@@ -26,7 +30,8 @@ interface AuthPayload {
   location: string | null;
 }
 
-async function verifyAuth(request: NextRequest): Promise<{
+// Legacy JWT authentication
+async function verifyAuthLegacy(request: NextRequest): Promise<{
   authenticated: boolean;
   user?: AuthPayload;
 }> {
@@ -53,7 +58,41 @@ async function verifyAuth(request: NextRequest): Promise<{
   }
 }
 
-function getRouteConfig(pathname: string): { roles: RoleName[]; redirect: string } | null {
+// Supabase Auth authentication
+async function verifyAuthSupabase(request: NextRequest): Promise<{
+  authenticated: boolean;
+  user?: AuthPayload;
+  response: NextResponse;
+}> {
+  const { supabase, user, response } = await updateSession(request);
+
+  if (!user) {
+    return { authenticated: false, response };
+  }
+
+  // Get staff profile linked to this auth user
+  const staff = await getStaffFromAuth(supabase, user.id);
+
+  if (!staff) {
+    return { authenticated: false, response };
+  }
+
+  return {
+    authenticated: true,
+    user: {
+      id: staff.id,
+      email: staff.email,
+      name: staff.name,
+      role: staff.role as RoleName,
+      location: staff.location,
+    },
+    response,
+  };
+}
+
+function getRouteConfig(
+  pathname: string
+): { roles: RoleName[]; redirect: string } | null {
   // Check each route prefix
   for (const [route, config] of Object.entries(ROUTE_CONFIG)) {
     if (pathname.startsWith(route)) {
@@ -83,34 +122,60 @@ export async function middleware(request: NextRequest) {
   const routeConfig = getRouteConfig(pathname);
 
   if (routeConfig) {
-    const { authenticated, user } = await verifyAuth(request);
+    if (USE_SUPABASE_AUTH) {
+      // Use Supabase Auth
+      const { authenticated, user, response } =
+        await verifyAuthSupabase(request);
 
-    // Not authenticated - redirect to login
-    if (!authenticated || !user) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      if (!authenticated || !user) {
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set("redirect", pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+
+      if (!routeConfig.roles.includes(user.role)) {
+        const redirectTo = getDefaultRedirectForRole(user.role);
+        return NextResponse.redirect(new URL(redirectTo, request.url));
+      }
+
+      return response;
+    } else {
+      // Use legacy JWT auth
+      const { authenticated, user } = await verifyAuthLegacy(request);
+
+      if (!authenticated || !user) {
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set("redirect", pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+
+      if (!routeConfig.roles.includes(user.role)) {
+        const redirectTo = getDefaultRedirectForRole(user.role);
+        return NextResponse.redirect(new URL(redirectTo, request.url));
+      }
+
+      return NextResponse.next();
     }
-
-    // Check if user has required role
-    if (!routeConfig.roles.includes(user.role)) {
-      // Redirect to appropriate dashboard based on their actual role
-      const redirectTo = getDefaultRedirectForRole(user.role);
-      return NextResponse.redirect(new URL(redirectTo, request.url));
-    }
-
-    // User has access - allow through
-    return NextResponse.next();
   }
 
   // For login page, redirect if already authenticated
   if (pathname === "/login") {
-    const { authenticated, user } = await verifyAuth(request);
-    if (authenticated && user) {
-      const redirectTo = getDefaultRedirectForRole(user.role);
-      return NextResponse.redirect(new URL(redirectTo, request.url));
+    if (USE_SUPABASE_AUTH) {
+      const { authenticated, user, response } =
+        await verifyAuthSupabase(request);
+      if (authenticated && user) {
+        const redirectTo = getDefaultRedirectForRole(user.role);
+        return NextResponse.redirect(new URL(redirectTo, request.url));
+      }
+      return response;
+    } else {
+      const { authenticated, user } = await verifyAuthLegacy(request);
+      if (authenticated && user) {
+        const redirectTo = getDefaultRedirectForRole(user.role);
+        return NextResponse.redirect(new URL(redirectTo, request.url));
+      }
+      return NextResponse.next();
     }
-    return NextResponse.next();
   }
 
   // Apply intl middleware for other routes (excluding non-i18n routes)

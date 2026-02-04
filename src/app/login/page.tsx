@@ -3,15 +3,38 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import { useAuth } from "@/contexts/AuthContext";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { login, user, isAuthenticated } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect helper
+  const getRedirectForRole = (role: string) => {
+    switch (role) {
+      case "admin":
+        return "/admin";
+      case "kitchen":
+        return "/cozinha";
+      case "waiter":
+        return "/waiter";
+      default:
+        return "/";
+    }
+  };
+
+  // If already authenticated, redirect
+  if (isAuthenticated && user) {
+    const redirectTo = searchParams.get("redirect") || getRedirectForRole(user.role);
+    router.push(redirectTo);
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,39 +42,24 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const result = await login(email, password);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Credenciais inválidas");
+      if (!result.success) {
+        setError(result.error || "Credenciais inválidas");
         return;
       }
 
-      // Check for redirect parameter
+      // Login successful - the AuthContext will update the user
+      // and the useEffect above will handle the redirect
+      // But we can also trigger a refresh to speed things up
       const redirectTo = searchParams.get("redirect");
-
-      // Redirect based on role or redirect parameter
       if (redirectTo) {
         router.push(redirectTo);
       } else {
-        switch (data.user.role) {
-          case "admin":
-            router.push("/admin");
-            break;
-          case "kitchen":
-            router.push("/cozinha");
-            break;
-          case "waiter":
-            router.push("/waiter");
-            break;
-          default:
-            router.push("/");
-        }
+        // Wait a moment for the user state to update, then redirect
+        setTimeout(() => {
+          router.refresh();
+        }, 100);
       }
     } catch {
       setError("Erro ao fazer login. Tente novamente.");
