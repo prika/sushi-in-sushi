@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSound } from "@/hooks/useSound";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { useToast } from "@/components/ui";
 import type { OrderStatus } from "@/types/database";
 
 interface KitchenOrder {
@@ -60,6 +61,7 @@ export default function CozinhaPage() {
     showNotification,
   } = useSound();
   const { logActivity } = useActivityLog();
+  const { showToast } = useToast();
 
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -212,10 +214,12 @@ export default function CozinhaPage() {
     const timer = setInterval(() => {
       // Only refresh if there are no recent local updates
       if (recentlyUpdatedOrdersRef.current.size === 0) {
-        console.log("Auto-refresh: fetching orders");
+        console.info("Auto-refreshing orders");
         fetchOrders();
       } else {
-        console.log("Auto-refresh: skipped, recent local updates pending");
+        console.info(
+          "Auto-refresh skipped because there are recent local updates",
+        );
       }
     }, 60000);
     return () => clearInterval(timer);
@@ -233,8 +237,7 @@ export default function CozinhaPage() {
           table: "orders",
         },
         async (payload) => {
-          console.log("New order:", payload);
-
+          console.info("New order realtime update:", payload);
           // Fetch the complete order with relations
           const { data } = await supabase
             .from("orders")
@@ -290,18 +293,23 @@ export default function CozinhaPage() {
 
           // Skip if we just updated this order locally
           if (recentlyUpdatedOrdersRef.current.has(orderId)) {
-            console.log(
-              "[Kitchen RT] Skipping - order was updated locally:",
-              orderId,
+            console.info(
+              "[Kitchen] Skipping order update because it was recently updated locally",
             );
             return;
           }
-
-          console.log("[Kitchen RT] Processing update:", orderId, "->", newStatus);
+          console.info(
+            "[Kitchen] Processing order update:",
+            orderId,
+            "->",
+            newStatus,
+          );
 
           // If status changed to delivered or cancelled, remove from list
           if (newStatus === "delivered" || newStatus === "cancelled") {
-            console.log("[Kitchen RT] Removing order (delivered/cancelled):", orderId);
+            console.info(
+              "[Kitchen] Removing order from list because it was delivered or cancelled",
+            );
             setOrders((prev) => prev.filter((order) => order.id !== orderId));
             return;
           }
@@ -309,7 +317,12 @@ export default function CozinhaPage() {
           // If status is still pending/preparing/ready, update the order in place
           // Use the payload data directly instead of fetching to avoid race conditions
           if (["pending", "preparing", "ready"].includes(newStatus)) {
-            console.log("[Kitchen RT] Updating order status in place:", orderId, "->", newStatus);
+            console.info(
+              "[Kitchen] Updating order in place:",
+              orderId,
+              "->",
+              newStatus,
+            );
             setOrders((prev) => {
               const exists = prev.some((order) => order.id === orderId);
               if (exists) {
@@ -322,7 +335,9 @@ export default function CozinhaPage() {
               } else {
                 // Order doesn't exist in our list - it might be a new order from another location
                 // In this case, do a full refresh to get the complete data
-                console.log("[Kitchen RT] Order not found locally, triggering refresh");
+                console.info(
+                  "[Kitchen] Order doesn't exist in our list - doing a full refresh",
+                );
                 fetchOrdersRef.current();
                 return prev;
               }
@@ -386,12 +401,16 @@ export default function CozinhaPage() {
           message: message,
         });
 
-        console.log(
-          `Notified waiter ${order.waiter_name || "unknown"} for order ready:`,
-          message,
+        console.info(
+          "[Kitchen] Notified waiter:",
+          order.waiter_name || "",
+          "for order:",
+          order.id,
         );
+        showToast("success", `Empregado ${order.waiter_name || ""} notificado`);
       } catch (err) {
         console.error("Error notifying waiter:", err);
+        showToast("error", "Erro ao notificar empregado");
       }
     },
     [supabase],
@@ -400,12 +419,18 @@ export default function CozinhaPage() {
   // Transition functions
   const updateOrderStatus = useCallback(
     async (order: KitchenOrder, newStatus: OrderStatus) => {
-      console.log(`[Kitchen] Updating order ${order.id}: ${order.status} -> ${newStatus}`);
-
+      console.info(
+        "[Kitchen] Updating order status:",
+        order.id,
+        "->",
+        newStatus,
+      );
       try {
         // Mark this order as recently updated to skip real-time re-fetch
         recentlyUpdatedOrdersRef.current.add(order.id);
-        console.log(`[Kitchen] Added ${order.id} to ref, current size: ${recentlyUpdatedOrdersRef.current.size}`);
+        console.info(
+          `[Kitchen] Added order ${order.id} to ref, current size: ${recentlyUpdatedOrdersRef.current.size}`,
+        );
 
         // Update local state first (optimistic update)
         setOrders((prev) => {
@@ -414,7 +439,9 @@ export default function CozinhaPage() {
             .filter((o) =>
               newStatus === "delivered" ? o.id !== order.id : true,
             );
-          console.log(`[Kitchen] Optimistic update: ${prev.length} orders -> ${updated.length} orders`);
+          console.info(
+            `[Kitchen] Optimistic update: ${prev.length} orders -> ${updated.length} orders`,
+          );
           return updated;
         });
 
@@ -425,13 +452,11 @@ export default function CozinhaPage() {
           .eq("id", order.id);
 
         if (error) {
-          console.error(`[Kitchen] DB update error for ${order.id}:`, error);
           // Revert optimistic update on error
           recentlyUpdatedOrdersRef.current.delete(order.id);
+          showToast("error", "Erro ao atualizar pedido");
           throw error;
         }
-
-        console.log(`[Kitchen] DB update success for ${order.id}`);
 
         // Notify waiter when order is ready
         if (newStatus === "ready") {
@@ -452,7 +477,6 @@ export default function CozinhaPage() {
         // Clean up the ref after a delay (longer to handle slow network/multiple events)
         setTimeout(() => {
           recentlyUpdatedOrdersRef.current.delete(order.id);
-          console.log(`[Kitchen] Removed ${order.id} from ref after timeout`);
         }, 10000);
       } catch (err) {
         console.error("[Kitchen] Error updating order:", err);
@@ -460,7 +484,7 @@ export default function CozinhaPage() {
         fetchOrdersRef.current();
       }
     },
-    [supabase, notifyWaiter, logActivity],
+    [supabase, notifyWaiter, logActivity, showToast],
   );
 
   // Get time color
@@ -780,7 +804,9 @@ function Column({
                       {order.customer_name && (
                         <p className="text-sm text-gray-400">
                           <span className="text-gray-500">para</span>{" "}
-                          <span className="text-[#D4AF37]">{order.customer_name}</span>
+                          <span className="text-[#D4AF37]">
+                            {order.customer_name}
+                          </span>
                         </p>
                       )}
                       {order.notes && (

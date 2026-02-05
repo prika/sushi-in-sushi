@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type {
-  TableFullStatus,
-  TableStatus,
-  Session,
-} from "@/types/database";
+import type { TableFullStatus, TableStatus, Session } from "@/types/database";
 
 interface UseTableManagementOptions {
   location?: string;
@@ -20,25 +16,25 @@ interface UseTableManagementReturn {
   changeTableStatus: (
     tableId: string,
     newStatus: TableStatus,
-    reason?: string
+    reason?: string,
   ) => Promise<{ success: boolean; error?: string }>;
   markTableInactive: (
     tableId: string,
-    reason: string
+    reason: string,
   ) => Promise<{ success: boolean; error?: string }>;
   reactivateTable: (
-    tableId: string
+    tableId: string,
   ) => Promise<{ success: boolean; error?: string }>;
   startWalkInSession: (
     tableId: string,
     isRodizio: boolean,
-    numPeople: number
+    numPeople: number,
   ) => Promise<{ success: boolean; session?: Session; error?: string }>;
   requestBill: (
-    sessionId: string
+    sessionId: string,
   ) => Promise<{ success: boolean; error?: string }>;
   closeSession: (
-    sessionId: string
+    sessionId: string,
   ) => Promise<{ success: boolean; error?: string }>;
 }
 
@@ -46,15 +42,21 @@ interface UseTableManagementReturn {
 function getSupabaseQuery(supabase: ReturnType<typeof createClient>) {
   return supabase as unknown as {
     from: (table: string) => {
-      select: (fields: string) => ReturnType<ReturnType<typeof createClient>["from"]>["select"];
-      insert: (data: Record<string, unknown>) => ReturnType<ReturnType<typeof createClient>["from"]>["insert"];
-      update: (data: Record<string, unknown>) => ReturnType<ReturnType<typeof createClient>["from"]>["update"];
+      select: (
+        fields: string,
+      ) => ReturnType<ReturnType<typeof createClient>["from"]>["select"];
+      insert: (
+        data: Record<string, unknown>,
+      ) => ReturnType<ReturnType<typeof createClient>["from"]>["insert"];
+      update: (
+        data: Record<string, unknown>,
+      ) => ReturnType<ReturnType<typeof createClient>["from"]>["update"];
     };
   };
 }
 
 export function useTableManagement(
-  options: UseTableManagementOptions = {}
+  options: UseTableManagementOptions = {},
 ): UseTableManagementReturn {
   const { location, refreshInterval = 30000, enableRealtime = true } = options;
 
@@ -73,7 +75,8 @@ export function useTableManagement(
         viewQuery = viewQuery.eq("location", location);
       }
 
-      const { data: viewData, error: viewError } = await viewQuery.order("number");
+      const { data: viewData, error: viewError } =
+        await viewQuery.order("number");
 
       // Also fetch waiter assignments
       const { data: waiterData } = await extendedSupabase
@@ -81,10 +84,12 @@ export function useTableManagement(
         .select("table_id, staff_id, staff_name");
 
       const waiterMap = new Map(
-        (waiterData || []).map((w: { table_id: string; staff_id: string; staff_name: string }) => [
-          w.table_id,
-          { waiter_id: w.staff_id, waiter_name: w.staff_name },
-        ])
+        (waiterData || []).map(
+          (w: { table_id: string; staff_id: string; staff_name: string }) => [
+            w.table_id,
+            { waiter_id: w.staff_id, waiter_name: w.staff_name },
+          ],
+        ),
       );
 
       if (!viewError && viewData) {
@@ -108,33 +113,30 @@ export function useTableManagement(
         tablesQuery = tablesQuery.eq("location", location);
       }
 
-      const { data: tablesData, error: tablesError } = await tablesQuery.order("number");
+      const { data: tablesData, error: tablesError } =
+        await tablesQuery.order("number");
 
       if (tablesError) throw tablesError;
 
       // Map to TableFullStatus format
-      const mappedTables: TableFullStatus[] = (tablesData || []).map(
-        (t) => ({
-          ...t,
-          status: "available" as TableStatus,
-          session_id: null,
-          session_started: null,
-          is_rodizio: null,
-          session_people: null,
-          session_total: null,
-          status_label: "Livre",
-          minutes_occupied: null,
-          ...(waiterMap.get(t.id) || {}),
-        })
-      );
+      const mappedTables: TableFullStatus[] = (tablesData || []).map((t) => ({
+        ...t,
+        status: "available" as TableStatus,
+        session_id: null,
+        session_started: null,
+        is_rodizio: null,
+        session_people: null,
+        session_total: null,
+        status_label: "Livre",
+        minutes_occupied: null,
+        ...(waiterMap.get(t.id) || {}),
+      }));
 
       setTables(mappedTables);
       setError(null);
     } catch (err) {
       console.error("Error fetching tables:", err);
-      setError(
-        err instanceof Error ? err.message : "Erro ao carregar mesas"
-      );
+      setError(err instanceof Error ? err.message : "Erro ao carregar mesas");
     } finally {
       setIsLoading(false);
     }
@@ -164,7 +166,7 @@ export function useTableManagement(
         { event: "*", schema: "public", table: "tables" },
         () => {
           fetchTables();
-        }
+        },
       )
       .subscribe();
 
@@ -175,7 +177,7 @@ export function useTableManagement(
         { event: "*", schema: "public", table: "sessions" },
         () => {
           fetchTables();
-        }
+        },
       )
       .subscribe();
 
@@ -190,7 +192,7 @@ export function useTableManagement(
     oldStatus: TableStatus | null,
     newStatus: TableStatus,
     reason?: string,
-    sessionId?: string
+    sessionId?: string,
   ) => {
     try {
       const historyEntry = {
@@ -207,14 +209,14 @@ export function useTableManagement(
       await extendedSupabase.from("table_status_history").insert(historyEntry);
     } catch {
       // Ignore errors if table doesn't exist yet
-      console.log("table_status_history not available yet");
+      console.error("table_status_history not available yet");
     }
   };
 
   const changeTableStatus = async (
     tableId: string,
     newStatus: TableStatus,
-    reason?: string
+    reason?: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       // Get current status
@@ -245,7 +247,7 @@ export function useTableManagement(
 
   const markTableInactive = async (
     tableId: string,
-    reason: string
+    reason: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       // Check if table has active session
@@ -266,7 +268,7 @@ export function useTableManagement(
   };
 
   const reactivateTable = async (
-    tableId: string
+    tableId: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       const extendedSupabase = getSupabaseQuery(supabase);
@@ -285,7 +287,7 @@ export function useTableManagement(
         tableId,
         (table?.status as TableStatus) || null,
         "available",
-        "Mesa reativada"
+        "Mesa reativada",
       );
       await fetchTables();
 
@@ -300,7 +302,7 @@ export function useTableManagement(
   const startWalkInSession = async (
     tableId: string,
     isRodizio: boolean,
-    numPeople: number
+    numPeople: number,
   ): Promise<{ success: boolean; session?: Session; error?: string }> => {
     try {
       // Check if table is available
@@ -342,7 +344,7 @@ export function useTableManagement(
         (table?.status as TableStatus) || "available",
         "occupied",
         "Sessão iniciada (walk-in)",
-        session.id
+        session.id,
       );
 
       await fetchTables();
@@ -356,7 +358,7 @@ export function useTableManagement(
   };
 
   const requestBill = async (
-    sessionId: string
+    sessionId: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       const extendedSupabase = getSupabaseQuery(supabase);
@@ -381,7 +383,7 @@ export function useTableManagement(
   };
 
   const closeSession = async (
-    sessionId: string
+    sessionId: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       const { error: updateError } = await supabase

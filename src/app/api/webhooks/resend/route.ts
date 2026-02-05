@@ -27,7 +27,9 @@ interface ResendWebhookEvent {
 }
 
 // Helper to get typed supabase query
-function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>) {
+function getExtendedSupabase(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+) {
   return supabase as unknown as {
     from: (table: string) => ReturnType<typeof supabase.from>;
   };
@@ -37,11 +39,13 @@ function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>)
 function verifyWebhookSignature(
   payload: string,
   signature: string | null,
-  webhookSecret: string | undefined
+  webhookSecret: string | undefined,
 ): boolean {
   if (!webhookSecret || !signature) {
     // If no secret configured, skip verification (not recommended for production)
-    console.warn("⚠️ Resend webhook secret not configured - skipping signature verification");
+    console.warn(
+      "⚠️ Resend webhook secret not configured - skipping signature verification",
+    );
     return true;
   }
 
@@ -53,7 +57,7 @@ function verifyWebhookSignature(
 
     return crypto.timingSafeEqual(
       Buffer.from(signature),
-      Buffer.from(expectedSignature)
+      Buffer.from(expectedSignature),
     );
   } catch {
     return false;
@@ -99,7 +103,7 @@ export async function POST(request: NextRequest) {
     const emailId = data.email_id;
     const status = mapEventToStatus(type);
 
-    console.log(`📧 Resend webhook: ${type} for email ${emailId}`);
+    console.info(`📧 Resend webhook: ${type} for email ${emailId}`);
 
     const supabase = await createClient();
     const extendedSupabase = getExtendedSupabase(supabase);
@@ -147,7 +151,9 @@ export async function POST(request: NextRequest) {
         .eq("email_id", emailId)
         .eq("event_type", status);
 
-      console.log(`✅ Updated customer email status for reservation ${customerReservation.id}`);
+      console.info(
+        `✅ Updated customer email status for reservation ${customerReservation.id}`,
+      );
       return NextResponse.json({ success: true, type: "customer_email" });
     }
 
@@ -184,7 +190,9 @@ export async function POST(request: NextRequest) {
         .eq("email_id", emailId)
         .eq("event_type", status);
 
-      console.log(`✅ Updated confirmation email status for reservation ${confirmationReservation.id}`);
+      console.info(
+        `✅ Updated confirmation email status for reservation ${confirmationReservation.id}`,
+      );
       return NextResponse.json({ success: true, type: "confirmation_email" });
     }
 
@@ -221,7 +229,9 @@ export async function POST(request: NextRequest) {
         .eq("email_id", emailId)
         .eq("event_type", status);
 
-      console.log(`✅ Updated day-before reminder status for reservation ${dayBeforeReservation.id}`);
+      console.info(
+        `✅ Updated day-before reminder status for reservation ${dayBeforeReservation.id}`,
+      );
       return NextResponse.json({ success: true, type: "day_before_reminder" });
     }
 
@@ -258,18 +268,22 @@ export async function POST(request: NextRequest) {
         .eq("email_id", emailId)
         .eq("event_type", status);
 
-      console.log(`✅ Updated same-day reminder status for reservation ${sameDayReservation.id}`);
+      console.info(
+        `✅ Updated same-day reminder status for reservation ${sameDayReservation.id}`,
+      );
       return NextResponse.json({ success: true, type: "same_day_reminder" });
     }
 
     // Email not found in reservations (might be restaurant notification)
-    console.log(`ℹ️ Email ${emailId} not linked to a customer reservation (might be restaurant notification)`);
+    console.info(
+      `ℹ️ Email ${emailId} not linked to a customer reservation (might be restaurant notification)`,
+    );
     return NextResponse.json({ success: true, type: "untracked" });
   } catch (error) {
     console.error("Error processing Resend webhook:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

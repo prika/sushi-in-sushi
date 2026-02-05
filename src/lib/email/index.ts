@@ -27,7 +27,7 @@ const TEST_EMAIL_OVERRIDE = process.env.TEST_EMAIL_OVERRIDE;
 // Helper to get the actual recipient email (respects test override)
 const getRecipientEmail = (originalEmail: string): string => {
   if (TEST_EMAIL_OVERRIDE) {
-    console.log(`📧 [TEST MODE] Redirecting email from ${originalEmail} to ${TEST_EMAIL_OVERRIDE}`);
+    console.info(`📧 [TEST MODE] Redirecting email from ${originalEmail} to ${TEST_EMAIL_OVERRIDE}`);
     return TEST_EMAIL_OVERRIDE;
   }
   return originalEmail;
@@ -89,7 +89,7 @@ const isEmailConfigured = () => {
 
 // Log email instead of sending (for development/debugging)
 const logEmail = (to: string, subject: string, type: string) => {
-  console.log(`
+  console.info(`
 📧 EMAIL ${process.env.NODE_ENV === "production" ? "WOULD BE SENT" : "(dev mode - not sent)"}:
    To: ${to}
    Subject: ${subject}
@@ -115,7 +115,7 @@ export async function sendReservationEmails(reservation: Reservation) {
       "Restaurant Notification",
     );
 
-    console.log(
+    console.info(
       "⚠️  Emails not sent: Configure RESEND_API_KEY and FROM_EMAIL with a verified domain",
     );
     results.customerEmail.error = "Email not configured";
@@ -138,7 +138,7 @@ export async function sendReservationEmails(reservation: Reservation) {
       results.customerEmail.error = error.message;
     } else {
       results.customerEmail.success = true;
-      console.log(`✅ Customer email sent to ${reservation.email}`);
+      console.info(`✅ Customer email sent to ${reservation.email}`);
 
       // Update reservation with email tracking info
       if (data?.id) {
@@ -174,7 +174,7 @@ export async function sendReservationEmails(reservation: Reservation) {
       results.restaurantEmail.error = error.message;
     } else {
       results.restaurantEmail.success = true;
-      console.log(`✅ Restaurant email sent to ${toEmail}`);
+      console.info(`✅ Restaurant email sent to ${toEmail}`);
     }
   } catch (error) {
     console.error("Error sending restaurant email:", error);
@@ -191,7 +191,7 @@ export async function sendReservationConfirmedEmail(reservation: Reservation) {
   // Check if email is properly configured
   if (!isEmailConfigured()) {
     logEmail(reservation.email, emailTemplate.subject, "Reservation Confirmed");
-    console.log(
+    console.info(
       "⚠️  Email not sent: Configure RESEND_API_KEY and FROM_EMAIL with a verified domain",
     );
     return { success: false, error: "Email not configured", emailId: null };
@@ -219,7 +219,7 @@ export async function sendReservationConfirmedEmail(reservation: Reservation) {
       );
     }
 
-    console.log(`✅ Confirmation email sent to ${reservation.email}`);
+    console.info(`✅ Confirmation email sent to ${reservation.email}`);
     return { success: true, error: null, emailId: data?.id || null };
   } catch (error) {
     console.error("Error sending confirmation email:", error);
@@ -237,7 +237,7 @@ export async function sendFarewellEmail(reservation: Reservation) {
   // Check if email is properly configured
   if (!isEmailConfigured()) {
     logEmail(reservation.email, emailTemplate.subject, "Farewell");
-    console.log(
+    console.info(
       "⚠️  Email not sent: Configure RESEND_API_KEY and FROM_EMAIL with a verified domain",
     );
     return { success: false, error: "Email not configured" };
@@ -256,7 +256,7 @@ export async function sendFarewellEmail(reservation: Reservation) {
       return { success: false, error: error.message };
     }
 
-    console.log(`✅ Farewell email sent to ${reservation.email}`);
+    console.info(`✅ Farewell email sent to ${reservation.email}`);
     return { success: true, error: null };
   } catch (error) {
     console.error("Error sending farewell email:", error);
@@ -273,7 +273,7 @@ export async function sendCancellationEmail(reservation: Reservation, cancellati
   // Check if email is properly configured
   if (!isEmailConfigured()) {
     logEmail(reservation.email, emailTemplate.subject, "Cancellation");
-    console.log(
+    console.info(
       "⚠️  Email not sent: Configure RESEND_API_KEY and FROM_EMAIL with a verified domain",
     );
     return { success: false, error: "Email not configured" };
@@ -292,7 +292,7 @@ export async function sendCancellationEmail(reservation: Reservation, cancellati
       return { success: false, error: error.message };
     }
 
-    console.log(`✅ Cancellation email sent to ${reservation.email}`);
+    console.info(`✅ Cancellation email sent to ${reservation.email}`);
     return { success: true, error: null };
   } catch (error) {
     console.error("Error sending cancellation email:", error);
@@ -308,7 +308,7 @@ export async function sendDayBeforeReminderEmail(reservation: Reservation, waste
 
   if (!isEmailConfigured()) {
     logEmail(reservation.email, emailTemplate.subject, "Day-Before Reminder");
-    console.log(
+    console.info(
       "⚠️  Email not sent: Configure RESEND_API_KEY and FROM_EMAIL with a verified domain",
     );
     return { success: false, error: "Email not configured", emailId: null };
@@ -327,7 +327,7 @@ export async function sendDayBeforeReminderEmail(reservation: Reservation, waste
       return { success: false, error: error.message, emailId: null };
     }
 
-    console.log(`✅ Day-before reminder sent to ${reservation.email}`);
+    console.info(`✅ Day-before reminder sent to ${reservation.email}`);
     return { success: true, error: null, emailId: data?.id || null };
   } catch (error) {
     console.error("Error sending day-before reminder:", error);
@@ -344,7 +344,7 @@ export async function sendSameDayReminderEmail(reservation: Reservation, wasteFe
 
   if (!isEmailConfigured()) {
     logEmail(reservation.email, emailTemplate.subject, "Same-Day Reminder");
-    console.log(
+    console.info(
       "⚠️  Email not sent: Configure RESEND_API_KEY and FROM_EMAIL with a verified domain",
     );
     return { success: false, error: "Email not configured", emailId: null };
@@ -363,7 +363,7 @@ export async function sendSameDayReminderEmail(reservation: Reservation, wasteFe
       return { success: false, error: error.message, emailId: null };
     }
 
-    console.log(`✅ Same-day reminder sent to ${reservation.email}`);
+    console.info(`✅ Same-day reminder sent to ${reservation.email}`);
     return { success: true, error: null, emailId: data?.id || null };
   } catch (error) {
     console.error("Error sending same-day reminder:", error);

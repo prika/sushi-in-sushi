@@ -4,6 +4,42 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+// Types for export data
+interface SessionOrder {
+  id: string;
+  quantity: number;
+  unit_price: number | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+  products: { name: string }[] | null;
+}
+
+interface SessionWithOrders {
+  id: string;
+  created_at: string;
+  closed_at: string | null;
+  status: string;
+  tables: { number: number }[] | null;
+  orders: SessionOrder[];
+}
+
+interface ExportRow {
+  sessao_id: string;
+  mesa: number | string;
+  sessao_inicio: string;
+  sessao_fim: string;
+  sessao_estado: string;
+  pedido_id: string;
+  produto: string;
+  quantidade: number;
+  preco_unitario: number;
+  preco_total: number;
+  pedido_estado: string;
+  notas: string;
+  pedido_hora: string;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const format = searchParams.get("format") || "csv";
@@ -65,13 +101,15 @@ export async function GET(request: NextRequest) {
   }
 
   // Transform data for export
-  const exportData = sessions.flatMap((session: any) => {
+  const exportData: ExportRow[] = (sessions as unknown as SessionWithOrders[]).flatMap((session) => {
     const orders = session.orders || [];
+    const tableNumber = session.tables?.[0]?.number || "";
+
     if (orders.length === 0) {
       // Return session with no orders
       return [{
         sessao_id: session.id,
-        mesa: session.tables?.number || "",
+        mesa: tableNumber,
         sessao_inicio: session.created_at,
         sessao_fim: session.closed_at || "",
         sessao_estado: session.status,
@@ -86,14 +124,14 @@ export async function GET(request: NextRequest) {
       }];
     }
 
-    return orders.map((order: any) => ({
+    return orders.map((order) => ({
       sessao_id: session.id,
-      mesa: session.tables?.number || "",
+      mesa: tableNumber,
       sessao_inicio: session.created_at,
       sessao_fim: session.closed_at || "",
       sessao_estado: session.status,
       pedido_id: order.id,
-      produto: order.products?.name || "",
+      produto: order.products?.[0]?.name || "",
       quantidade: order.quantity,
       preco_unitario: order.unit_price || 0,
       preco_total: (order.quantity * (order.unit_price || 0)),
@@ -131,7 +169,7 @@ export async function GET(request: NextRequest) {
 
   const csvRows = [
     headers.join(";"),
-    ...exportData.map((row: any) =>
+    ...exportData.map((row) =>
       [
         row.sessao_id,
         row.mesa,

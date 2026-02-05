@@ -1,4 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/types/database";
+
+// Use the actual database row type for activity_log
+type ActivityLogRow = Database["public"]["Tables"]["activity_log"]["Row"];
 
 // =============================================
 // TYPES
@@ -79,7 +83,15 @@ export type EntityType =
   | "waiter_call"
   | "export";
 
-export interface ActivityLogOptions {
+// Activity log entry with optional staff info (for joined queries)
+export interface ActivityLogRowWithStaff extends ActivityLogRow {
+  staff?: {
+    name: string;
+    email: string;
+  } | null;
+}
+
+export interface ActivityLogRowOptions {
   staffId?: string;
   action: ActivityAction | string;
   entityType?: EntityType | string;
@@ -95,7 +107,7 @@ export interface ActivityLogOptions {
 /**
  * Log an activity in the activity log
  */
-export async function logActivity(options: ActivityLogOptions): Promise<void>;
+export async function logActivity(options: ActivityLogRowOptions): Promise<void>;
 export async function logActivity(
   staffId: string,
   action: string,
@@ -104,7 +116,7 @@ export async function logActivity(
   details?: Record<string, unknown>
 ): Promise<void>;
 export async function logActivity(
-  staffIdOrOptions: string | ActivityLogOptions,
+  staffIdOrOptions: string | ActivityLogRowOptions,
   action?: string,
   entityType?: string,
   entityId?: string,
@@ -307,10 +319,10 @@ export async function logAuthActivity(
 /**
  * Get recent activity for a staff member
  */
-export async function getStaffActivityLog(
+export async function getStaffActivityLogRow(
   staffId: string,
   limit: number = 50
-): Promise<any[]> {
+): Promise<ActivityLogRow[]> {
   try {
     const supabase = await createClient();
 
@@ -339,7 +351,7 @@ export async function getEntityActivityLog(
   entityType: EntityType,
   entityId: string,
   limit: number = 50
-): Promise<any[]> {
+): Promise<ActivityLogRowWithStaff[]> {
   try {
     const supabase = await createClient();
 
@@ -373,7 +385,7 @@ export async function getRecentActivityLog(
     staffId?: string;
     since?: Date;
   }
-): Promise<any[]> {
+): Promise<ActivityLogRowWithStaff[]> {
   try {
     const supabase = await createClient();
 

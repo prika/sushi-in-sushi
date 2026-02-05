@@ -3,11 +3,24 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, Button } from "@/components/ui";
-import type { SessionStatus } from "@/types/database";
+import type { SessionStatus, OrderStatus } from "@/types/database";
 
 type PeriodType = "today" | "week" | "month" | "custom";
 type FormatType = "csv" | "json";
 type StatusFilter = "all" | SessionStatus;
+
+// Types for preview data
+interface SessionOrder {
+  id: string;
+  quantity: number;
+  unit_price: number | null;
+  status: OrderStatus;
+}
+
+interface SessionWithOrders {
+  id: string;
+  orders: SessionOrder[] | null;
+}
 
 export default function ExportarPage() {
   const [period, setPeriod] = useState<PeriodType>("today");
@@ -80,10 +93,11 @@ export default function ExportarPage() {
       const { data: sessions } = await sessionsQuery;
 
       if (sessions) {
-        const allOrders = sessions.flatMap((s: any) => s.orders || []);
+        const typedSessions = sessions as unknown as SessionWithOrders[];
+        const allOrders = typedSessions.flatMap((s) => s.orders || []);
         const total = allOrders
-          .filter((o: any) => o.status !== "cancelled")
-          .reduce((sum: number, o: any) => sum + o.quantity * (o.unit_price || 0), 0);
+          .filter((o) => o.status !== "cancelled")
+          .reduce((sum, o) => sum + o.quantity * (o.unit_price || 0), 0);
 
         setPreview({
           sessions: sessions.length,

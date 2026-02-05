@@ -56,7 +56,9 @@ export async function GET(request: NextRequest) {
     // ===============================================
     if (settings.day_before_reminder_enabled) {
       // Calculate the target date based on configured hours
-      const targetDateTime = new Date(now.getTime() + settings.day_before_reminder_hours * 60 * 60 * 1000);
+      const targetDateTime = new Date(
+        now.getTime() + settings.day_before_reminder_hours * 60 * 60 * 1000,
+      );
       const targetDate = targetDateTime.toISOString().split("T")[0];
 
       // Find reservations for the target date that haven't received day-before reminder
@@ -71,8 +73,13 @@ export async function GET(request: NextRequest) {
         console.error("Error fetching day-before reservations:", dbError1);
       } else if (dayBeforeReservations) {
         for (const reservation of dayBeforeReservations as Reservation[]) {
-          const wasteFee = settings.rodizio_waste_policy_enabled ? settings.rodizio_waste_fee_per_piece : 0;
-          const result = await sendDayBeforeReminderEmail(reservation, wasteFee);
+          const wasteFee = settings.rodizio_waste_policy_enabled
+            ? settings.rodizio_waste_fee_per_piece
+            : 0;
+          const result = await sendDayBeforeReminderEmail(
+            reservation,
+            wasteFee,
+          );
 
           if (result.success && result.emailId) {
             await supabase
@@ -85,15 +92,19 @@ export async function GET(request: NextRequest) {
               .eq("id", reservation.id);
 
             results.dayBeforeReminders.sent++;
-            console.log(`✅ Day-before reminder sent for reservation ${reservation.id}`);
+            console.info(
+              `✅ Day-before reminder sent for reservation ${reservation.id}`,
+            );
           } else {
             results.dayBeforeReminders.errors++;
-            console.error(`❌ Failed to send day-before reminder for ${reservation.id}: ${result.error}`);
+            console.error(
+              `❌ Failed to send day-before reminder for ${reservation.id}: ${result.error}`,
+            );
           }
         }
       }
     } else {
-      console.log("ℹ️ Day-before reminders disabled in settings");
+      console.info("ℹ️ Day-before reminders disabled in settings");
       results.dayBeforeReminders.skipped = -1; // Indicates disabled
     }
 
@@ -106,7 +117,9 @@ export async function GET(request: NextRequest) {
       // Calculate target time window based on configured hours
       const hoursAhead = settings.same_day_reminder_hours;
       const minTime = new Date(now.getTime() + hoursAhead * 60 * 60 * 1000);
-      const maxTime = new Date(now.getTime() + (hoursAhead + 1) * 60 * 60 * 1000);
+      const maxTime = new Date(
+        now.getTime() + (hoursAhead + 1) * 60 * 60 * 1000,
+      );
 
       // Format times for comparison (HH:MM:SS)
       const minTimeStr = minTime.toTimeString().slice(0, 8);
@@ -126,7 +139,9 @@ export async function GET(request: NextRequest) {
         console.error("Error fetching same-day reservations:", dbError2);
       } else if (sameDayReservations) {
         for (const reservation of sameDayReservations as Reservation[]) {
-          const wasteFee = settings.rodizio_waste_policy_enabled ? settings.rodizio_waste_fee_per_piece : 0;
+          const wasteFee = settings.rodizio_waste_policy_enabled
+            ? settings.rodizio_waste_fee_per_piece
+            : 0;
           const result = await sendSameDayReminderEmail(reservation, wasteFee);
 
           if (result.success && result.emailId) {
@@ -140,19 +155,23 @@ export async function GET(request: NextRequest) {
               .eq("id", reservation.id);
 
             results.sameDayReminders.sent++;
-            console.log(`✅ Same-day reminder sent for reservation ${reservation.id}`);
+            console.info(
+              `✅ Same-day reminder sent for reservation ${reservation.id}`,
+            );
           } else {
             results.sameDayReminders.errors++;
-            console.error(`❌ Failed to send same-day reminder for ${reservation.id}: ${result.error}`);
+            console.error(
+              `❌ Failed to send same-day reminder for ${reservation.id}: ${result.error}`,
+            );
           }
         }
       }
     } else {
-      console.log("ℹ️ Same-day reminders disabled in settings");
+      console.info("ℹ️ Same-day reminders disabled in settings");
       results.sameDayReminders.skipped = -1; // Indicates disabled
     }
 
-    console.log("📧 Reminder cron completed:", results);
+    console.info("📧 Reminder cron completed:", results);
     return NextResponse.json({
       success: true,
       timestamp: now.toISOString(),
@@ -167,7 +186,7 @@ export async function GET(request: NextRequest) {
         timestamp: now.toISOString(),
         results,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

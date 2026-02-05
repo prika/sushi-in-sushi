@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
-import type { ReservationSettings, ReservationSettingsUpdate } from "@/types/database";
+import type {
+  ReservationSettings,
+  ReservationSettingsUpdate,
+} from "@/types/database";
 
 // Helper to get typed supabase query
-function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>) {
+function getExtendedSupabase(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+) {
   return supabase as unknown as {
     from: (table: string) => ReturnType<typeof supabase.from>;
   };
@@ -50,7 +55,7 @@ export async function GET() {
     console.error("Error in GET reservation-settings:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -86,20 +91,24 @@ export async function PATCH(request: NextRequest) {
 
         // Validate hours are positive integers
         if (field.endsWith("_hours") && typeof value === "number") {
-          if (value < 1 || value > 168) { // Max 1 week
+          if (value < 1 || value > 168) {
+            // Max 1 week
             return NextResponse.json(
               { error: `${field} must be between 1 and 168 hours` },
-              { status: 400 }
+              { status: 400 },
             );
           }
         }
 
         // Validate fee is positive
-        if (field === "rodizio_waste_fee_per_piece" && typeof value === "number") {
+        if (
+          field === "rodizio_waste_fee_per_piece" &&
+          typeof value === "number"
+        ) {
           if (value < 0) {
             return NextResponse.json(
               { error: "Waste fee cannot be negative" },
-              { status: 400 }
+              { status: 400 },
             );
           }
         }
@@ -122,17 +131,17 @@ export async function PATCH(request: NextRequest) {
       console.error("Error updating reservation settings:", error);
       return NextResponse.json(
         { error: "Failed to update settings" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    console.log(`✅ Reservation settings updated by ${auth.email}`);
+    console.info(`✅ Reservation settings updated by ${auth.email}`);
     return NextResponse.json(data as ReservationSettings);
   } catch (error) {
     console.error("Error in PATCH reservation-settings:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

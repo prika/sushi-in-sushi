@@ -46,8 +46,8 @@ export function useSound() {
 
     // Reset and play
     audioRef.current.currentTime = 0;
-    audioRef.current.play().catch((err) => {
-      console.log("Could not play sound:", err);
+    audioRef.current.play().catch(() => {
+      console.error("Failed to play new order sound");
     });
   }, []);
 

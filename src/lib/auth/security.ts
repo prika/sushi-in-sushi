@@ -14,6 +14,12 @@
 import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import type {
+  RateLimitCheckResult,
+  AuthAuditLogEntry,
+  AuthSessionConfigRow,
+  StaffLockedInfo,
+} from "@/types/supabase-rpc";
 
 // =============================================
 // TYPES
@@ -117,10 +123,9 @@ export async function checkRateLimit(
   }
 
   try {
-    const supabase = await createClient();
+    const supabase = await createClient() as any;
 
-    // Use type assertion to call RPC function that may not be in generated types
-    const { data, error } = await (supabase as any).rpc("check_rate_limit", {
+    const { data, error } = await supabase.rpc("check_rate_limit", {
       p_identifier: identifier,
       p_identifier_type: identifierType,
       p_max_attempts: maxAttempts,
@@ -139,7 +144,7 @@ export async function checkRateLimit(
       };
     }
 
-    const result = data?.[0];
+    const result = (data as RateLimitCheckResult[] | null)?.[0];
     return {
       allowed: result?.allowed ?? true,
       attemptsRemaining: result?.attempts_remaining ?? maxAttempts,
@@ -165,8 +170,8 @@ export async function resetRateLimit(
   identifierType: "ip" | "email" = "ip"
 ): Promise<void> {
   try {
-    const supabase = await createClient();
-    await (supabase as any).rpc("reset_rate_limit", {
+    const supabase = await createClient() as any;
+    await supabase.rpc("reset_rate_limit", {
       p_identifier: identifier,
       p_identifier_type: identifierType,
     });
@@ -186,9 +191,9 @@ export async function resetRateLimit(
  */
 export async function logAuthEvent(entry: AuditLogEntry): Promise<string | null> {
   try {
-    const supabase = await createClient();
+    const supabase = await createClient() as any;
 
-    const { data, error } = await (supabase as any).rpc("log_auth_event", {
+    const { data, error } = await supabase.rpc("log_auth_event", {
       p_event_type: entry.eventType,
       p_staff_id: entry.staffId ?? null,
       p_auth_user_id: entry.authUserId ?? null,
@@ -217,12 +222,13 @@ export async function logAuthEvent(entry: AuditLogEntry): Promise<string | null>
 export async function getAuthEventsForStaff(
   staffId: string,
   limit: number = 50
-): Promise<any[]> {
+): Promise<AuthAuditLogEntry[]> {
   try {
     const supabase = await createClient();
 
-    const { data, error } = await (supabase as any)
-      .from("auth_audit_log")
+    // auth_audit_log table may not exist (requires migration 013)
+    const { data, error } = await supabase
+      .from("auth_audit_log" as "activity_log") // Type workaround for optional table
       .select("*")
       .eq("staff_id", staffId)
       .order("created_at", { ascending: false })
@@ -232,7 +238,7 @@ export async function getAuthEventsForStaff(
       return [];
     }
 
-    return data ?? [];
+    return (data as unknown as AuthAuditLogEntry[]) ?? [];
   } catch {
     return [];
   }
@@ -249,8 +255,9 @@ export async function getFailedLoginAttempts(
     const supabase = await createClient();
     const since = new Date(Date.now() - sinceMinutes * 60 * 1000).toISOString();
 
-    const { count, error } = await (supabase as any)
-      .from("auth_audit_log")
+    // auth_audit_log table may not exist (requires migration 013)
+    const { count, error } = await supabase
+      .from("auth_audit_log" as "activity_log") // Type workaround for optional table
       .select("*", { count: "exact", head: true })
       .eq("email", email)
       .eq("event_type", "login_failed")
