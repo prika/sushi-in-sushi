@@ -954,3 +954,41 @@ export type ReservationSettings = {
 };
 
 export type ReservationSettingsUpdate = Partial<Omit<ReservationSettings, "id" | "updated_at">>;
+
+// =============================================
+// STAFF TIME OFF TYPES
+// =============================================
+
+export type StaffTimeOffType = "vacation" | "sick" | "personal" | "other";
+export type StaffTimeOffStatus = "pending" | "approved" | "rejected";
+
+export type StaffTimeOff = {
+  id: number;
+  staff_id: string;
+  start_date: string;
+  end_date: string;
+  type: StaffTimeOffType;
+  reason: string | null;
+  status: StaffTimeOffStatus;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StaffTimeOffInsert = {
+  staff_id: string;
+  start_date: string;
+  end_date: string;
+  type?: StaffTimeOffType;
+  reason?: string | null;
+  status?: StaffTimeOffStatus;
+};
+
+export type StaffTimeOffUpdate = Partial<Omit<StaffTimeOff, "id" | "staff_id" | "created_at">>;
+
+export type StaffTimeOffWithStaff = StaffTimeOff & {
+  staff_name: string;
+  staff_email: string;
+  approved_by_name: string | null;
+};

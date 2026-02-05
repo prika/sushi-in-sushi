@@ -77,7 +77,7 @@ sushi/
 └── src/__tests__/                # Testes unitários
 ```
 
-**Tamanho Total:** ~33.600 linhas de código
+**Tamanho Total:**
 
 ### 1.4 Funcionalidades Principais
 

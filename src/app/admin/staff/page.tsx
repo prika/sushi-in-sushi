@@ -4,15 +4,25 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import StaffCalendar from "@/components/calendar/StaffCalendar";
 import type {
   StaffWithRole,
   Role,
   Table,
   RoleName,
   Location,
+  Staff,
 } from "@/types/database";
 
+type TabId = "staff" | "calendar";
+
+const tabs: { id: TabId; label: string; icon: string }[] = [
+  { id: "staff", label: "Funcionarios", icon: "👥" },
+  { id: "calendar", label: "Calendario de Ausencias", icon: "📅" },
+];
+
 export default function StaffManagementPage() {
+  const [activeTab, setActiveTab] = useState<TabId>("staff");
   const [staff, setStaff] = useState<StaffWithRole[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
@@ -367,63 +377,88 @@ export default function StaffManagementPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Gestão de Funcionários
-          </h1>
-          <p className="text-gray-500">
-            Gerir utilizadores e permissões do sistema
-          </p>
-        </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Novo Funcionário
-        </button>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Gestao de Funcionarios
+        </h1>
+        <p className="text-gray-500">
+          Gerir utilizadores e permissoes do sistema
+        </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-          <p className="text-sm text-gray-500">Total</p>
-          <p className="text-2xl font-bold text-gray-900">{staff.length}</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-          <p className="text-sm text-gray-500">Administradores</p>
-          <p className="text-2xl font-bold text-red-500">
-            {staff.filter((s) => s.role?.name === "admin").length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-          <p className="text-sm text-gray-500">Cozinha</p>
-          <p className="text-2xl font-bold text-orange-500">
-            {staff.filter((s) => s.role?.name === "kitchen").length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-          <p className="text-sm text-gray-500">Empregados</p>
-          <p className="text-2xl font-bold text-blue-500">
-            {staff.filter((s) => s.role?.name === "waiter").length}
-          </p>
-        </div>
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="flex gap-4">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? "border-[#D4AF37] text-[#D4AF37]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <span>{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {/* Staff List */}
+      {/* Tab Content */}
+      {activeTab === "staff" && (
+        <div className="space-y-6">
+          {/* Header with Button */}
+          <div className="flex items-center justify-end">
+            <button
+              onClick={() => handleOpenModal()}
+              className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Novo Funcionario
+            </button>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+              <p className="text-sm text-gray-500">Total</p>
+              <p className="text-2xl font-bold text-gray-900">{staff.length}</p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+              <p className="text-sm text-gray-500">Administradores</p>
+              <p className="text-2xl font-bold text-red-500">
+                {staff.filter((s) => s.role?.name === "admin").length}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+              <p className="text-sm text-gray-500">Cozinha</p>
+              <p className="text-2xl font-bold text-orange-500">
+                {staff.filter((s) => s.role?.name === "kitchen").length}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+              <p className="text-sm text-gray-500">Empregados</p>
+              <p className="text-2xl font-bold text-blue-500">
+                {staff.filter((s) => s.role?.name === "waiter").length}
+              </p>
+            </div>
+          </div>
+
+          {/* Staff List */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -587,7 +622,14 @@ export default function StaffManagementPage() {
             ))}
           </tbody>
         </table>
-      </div>
+          </div>
+        </div>
+      )}
+
+      {/* Calendar Tab */}
+      {activeTab === "calendar" && (
+        <StaffCalendar staffList={staff as unknown as Staff[]} />
+      )}
 
       {/* Create/Edit Modal */}
       {showModal && (

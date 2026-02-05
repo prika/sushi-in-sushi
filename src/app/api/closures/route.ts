@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { verifyAuth } from "@/lib/auth";
 import type { RestaurantClosureInsert } from "@/types/database";
 
 // Helper to get typed supabase query for tables not in generated types
@@ -63,31 +64,24 @@ export async function GET(request: NextRequest) {
 // POST - Create new closure (admin only)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
-
-    // Check if user is admin
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const auth = await verifyAuth();
+    if (!auth) {
       return NextResponse.json(
         { error: "Não autorizado" },
         { status: 401 }
       );
     }
 
-    // Verify admin role
-    const { data: staffData } = await extendedSupabase
-      .from("staff")
-      .select("*, roles(*)")
-      .eq("id", user.id)
-      .single();
-
-    if (!staffData || (staffData as { roles: { name: string } }).roles?.name !== "admin") {
+    // Only admins can create closures
+    if (auth.role !== "admin") {
       return NextResponse.json(
         { error: "Apenas administradores podem gerir dias de folga" },
         { status: 403 }
       );
     }
+
+    const supabase = await createClient();
+    const extendedSupabase = getExtendedSupabase(supabase);
 
     const body: RestaurantClosureInsert = await request.json();
 
@@ -112,7 +106,7 @@ export async function POST(request: NextRequest) {
       closure_date: body.is_recurring && !body.closure_date
         ? "1970-01-01" // Placeholder for recurring
         : body.closure_date,
-      created_by: user.id,
+      created_by: auth.id,
     };
 
     const { data, error } = await extendedSupabase
@@ -144,8 +138,21 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove closure (admin only)
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+    const auth = await verifyAuth();
+    if (!auth) {
+      return NextResponse.json(
+        { error: "Não autorizado" },
+        { status: 401 }
+      );
+    }
+
+    // Only admins can delete closures
+    if (auth.role !== "admin") {
+      return NextResponse.json(
+        { error: "Apenas administradores podem gerir dias de folga" },
+        { status: 403 }
+      );
+    }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -157,28 +164,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check if user is admin
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: "Não autorizado" },
-        { status: 401 }
-      );
-    }
-
-    // Verify admin role
-    const { data: staffData } = await extendedSupabase
-      .from("staff")
-      .select("*, roles(*)")
-      .eq("id", user.id)
-      .single();
-
-    if (!staffData || (staffData as { roles: { name: string } }).roles?.name !== "admin") {
-      return NextResponse.json(
-        { error: "Apenas administradores podem gerir dias de folga" },
-        { status: 403 }
-      );
-    }
+    const supabase = await createClient();
+    const extendedSupabase = getExtendedSupabase(supabase);
 
     const { error } = await extendedSupabase
       .from("restaurant_closures")
