@@ -543,23 +543,35 @@ src/components/mesa/MesaLanguageSwitcher.tsx  # UI selector
 **Objetivo:** Finalizar migração para Clean Architecture
 
 #### Tarefas:
-- [ ] **3.1** Migrar hooks legados
-  - `useCart` → domain/application
-  - `useSession` → domain/application
-  - `useOrders` → domain/application
+- [x] **3.1** Migrar hooks legados
+  - ~~`useCart`~~ (não existia como hook separado)
+  - `useSession` → `useSessionManagement` ✓
+  - `useOrders` → `useKitchenOrders` + `useSessionOrders` ✓
+  - `useTableManagement` → `presentation/hooks/useTableManagement` ✓
+  - `useActivityLog` → `presentation/hooks/useActivityLog` ✓
 
-- [ ] **3.2** Migrar components legados
-  - Identificar components com lógica de negócio
-  - Extrair para use-cases
-  - Components apenas presentation
+- [x] **3.2** Migrar components legados (3 componentes refatorados)
 
-- [ ] **3.3** Remover código legado
-  - Eliminar `src/hooks/` antigo
-  - Consolidar em `src/presentation/`
+  **StaffCalendar.tsx** ✓
+  - Criado `useStaffTimeOff()` hook
+  - Lógica de fetch/create/delete extraída para hook
 
-- [ ] **3.4** Documentar arquitetura
-  - Atualizar CLAUDE.md
-  - Criar guia de contribuição
+  **ReservationForm.tsx** ✓
+  - Criado `useReservation()` hook
+  - Closure check e time slots extraídos para hook
+
+  **TableDetailModal.tsx** ✓
+  - Já usa callbacks do `useTableManagement` (props pattern acceptable)
+
+  *35 componentes seguem SOLID corretamente*
+
+- [x] **3.3** Remover código legado
+  - `src/hooks/` consolidado (apenas `useSessionTimeout`, `useSound` mantidos como utilitários)
+  - Hooks migrados para `src/presentation/hooks/`
+
+- [x] **3.4** Documentar arquitetura
+  - CLAUDE.md atualizado com nova arquitetura
+  - Hooks e Use Cases documentados
 
 #### Entregáveis:
 - Arquitetura SOLID completa

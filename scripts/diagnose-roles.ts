@@ -100,8 +100,9 @@ async function diagnose() {
   } else {
     console.log(`✅ Staff with roles:\n`);
     staffWithRoles.forEach((s) => {
-      const role = s.role as { id: number; name: string } | null;
-      const roleName = role ? role.name : "⚠️ NO ROLE";
+      const roleData = s.role as unknown;
+      const role = Array.isArray(roleData) ? roleData[0] : roleData;
+      const roleName = role && typeof role === 'object' && 'name' in role ? (role as { name: string }).name : "⚠️ NO ROLE";
       console.log(`   ${s.name}: ${roleName} (role_id: ${s.role_id})`);
     });
   }

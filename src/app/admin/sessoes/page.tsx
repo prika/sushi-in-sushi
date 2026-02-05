@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, Button, Modal, Badge } from "@/components/ui";
-import { useActivityLog } from "@/hooks/useActivityLog";
+import { useActivityLog } from "@/presentation/hooks";
 import type { SessionStatus } from "@/types/database";
 
 interface OrderItem {

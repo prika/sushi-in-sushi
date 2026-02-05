@@ -43,8 +43,10 @@ async function testAndFix() {
     console.log("✅ Staff query works with service role key");
     console.log(`   Found ${staffData?.length} staff members:\n`);
     staffData?.forEach((s) => {
-      const role = s.role as { id: number; name: string } | null;
-      console.log(`   - ${s.name}: ${role?.name || "NO ROLE"}`);
+      const roleData = s.role as unknown;
+      const role = Array.isArray(roleData) ? roleData[0] : roleData;
+      const roleName = role && typeof role === 'object' && 'name' in role ? (role as { name: string }).name : null;
+      console.log(`   - ${s.name}: ${roleName || "NO ROLE"}`);
     });
   }
 
@@ -62,9 +64,15 @@ async function testAndFix() {
   // Check current RLS policies on staff table
   console.log("\n📋 Checking RLS policies on staff table...");
 
-  const { data: policies, error: polErr } = await supabase
-    .rpc("get_policies_for_table", { table_name: "staff" })
-    .catch(() => ({ data: null, error: { message: "RPC not available" } }));
+  let policies = null;
+  let polErr = null;
+  try {
+    const result = await supabase.rpc("get_policies_for_table", { table_name: "staff" });
+    policies = result.data;
+    polErr = result.error;
+  } catch {
+    polErr = { message: "RPC not available" };
+  }
 
   if (polErr || !policies) {
     console.log("   Cannot query policies via RPC");

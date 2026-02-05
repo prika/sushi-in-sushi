@@ -1,12 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { ReservationInsert, Reservation } from "@/types/database";
+import { SupabaseReservationRepository } from "@/infrastructure/repositories/SupabaseReservationRepository";
+import { SupabaseRestaurantClosureRepository } from "@/infrastructure/repositories/SupabaseRestaurantClosureRepository";
+import {
+  GetAllReservationsUseCase,
+  CreateReservationUseCase,
+} from "@/application/use-cases/reservations";
+import type { ReservationFilter, CreateReservationData, Reservation } from "@/domain/entities/Reservation";
+import type { Location } from "@/domain/value-objects/Location";
 import { sendReservationEmails } from "@/lib/email";
+import type { Reservation as LegacyReservation } from "@/types/database";
 
-// Helper to get typed supabase query for tables not in generated types
-function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
+// Helper to map domain entity to legacy format for emails
+function mapToLegacyReservation(reservation: Reservation): LegacyReservation {
+  return {
+    id: reservation.id,
+    first_name: reservation.firstName,
+    last_name: reservation.lastName,
+    email: reservation.email,
+    phone: reservation.phone,
+    reservation_date: reservation.reservationDate,
+    reservation_time: reservation.reservationTime,
+    party_size: reservation.partySize,
+    location: reservation.location,
+    table_id: reservation.tableId,
+    is_rodizio: reservation.isRodizio,
+    special_requests: reservation.specialRequests,
+    occasion: reservation.occasion,
+    status: reservation.status,
+    confirmed_by: reservation.confirmedBy,
+    confirmed_at: reservation.confirmedAt?.toISOString() || null,
+    cancelled_at: reservation.cancelledAt?.toISOString() || null,
+    cancellation_reason: reservation.cancellationReason,
+    session_id: reservation.sessionId,
+    seated_at: reservation.seatedAt?.toISOString() || null,
+    marketing_consent: reservation.marketingConsent,
+    // Email tracking fields (not stored in domain entity)
+    customer_email_id: null,
+    customer_email_sent_at: null,
+    customer_email_delivered_at: null,
+    customer_email_opened_at: null,
+    customer_email_status: null,
+    confirmation_email_id: null,
+    confirmation_email_sent_at: null,
+    confirmation_email_delivered_at: null,
+    confirmation_email_opened_at: null,
+    confirmation_email_status: null,
+    day_before_reminder_id: null,
+    day_before_reminder_sent_at: null,
+    day_before_reminder_delivered_at: null,
+    day_before_reminder_opened_at: null,
+    day_before_reminder_status: null,
+    same_day_reminder_id: null,
+    same_day_reminder_sent_at: null,
+    same_day_reminder_delivered_at: null,
+    same_day_reminder_opened_at: null,
+    same_day_reminder_status: null,
+    created_at: reservation.createdAt.toISOString(),
+    updated_at: reservation.updatedAt.toISOString(),
   };
 }
 
@@ -14,59 +65,70 @@ function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>)
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+    const repository = new SupabaseReservationRepository(supabase);
+    const getAllReservations = new GetAllReservationsUseCase(repository);
+
     const { searchParams } = new URL(request.url);
 
     const date = searchParams.get("date");
-    const location = searchParams.get("location");
+    const location = searchParams.get("location") as Location | null;
     const status = searchParams.get("status");
 
-    let query = extendedSupabase
-      .from("reservations_with_details")
-      .select("*")
-      .order("reservation_date", { ascending: true })
-      .order("reservation_time", { ascending: true });
+    const filter: ReservationFilter = {};
 
     if (date) {
-      query = query.eq("reservation_date", date);
+      filter.date = date;
     }
     if (location) {
-      query = query.eq("location", location);
+      filter.location = location;
     }
     if (status) {
-      query = query.eq("status", status);
+      filter.status = status as ReservationFilter["status"];
     }
 
-    const { data, error } = await query;
+    const result = await getAllReservations.execute(filter);
 
-    if (error) {
-      // Fallback to direct table query if view doesn't exist
-      let fallbackQuery = extendedSupabase
-        .from("reservations")
-        .select("*")
-        .order("reservation_date", { ascending: true })
-        .order("reservation_time", { ascending: true });
-
-      if (date) {
-        fallbackQuery = fallbackQuery.eq("reservation_date", date);
-      }
-      if (location) {
-        fallbackQuery = fallbackQuery.eq("location", location);
-      }
-      if (status) {
-        fallbackQuery = fallbackQuery.eq("status", status);
-      }
-
-      const { data: fallbackData, error: fallbackError } = await fallbackQuery;
-
-      if (fallbackError) {
-        throw fallbackError;
-      }
-
-      return NextResponse.json(fallbackData || []);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json(data || []);
+    // Map to database format for backwards compatibility
+    const data = result.data.map((reservation) => ({
+      id: reservation.id,
+      first_name: reservation.firstName,
+      last_name: reservation.lastName,
+      email: reservation.email,
+      phone: reservation.phone,
+      reservation_date: reservation.reservationDate,
+      reservation_time: reservation.reservationTime,
+      party_size: reservation.partySize,
+      location: reservation.location,
+      table_id: reservation.tableId,
+      is_rodizio: reservation.isRodizio,
+      special_requests: reservation.specialRequests,
+      occasion: reservation.occasion,
+      status: reservation.status,
+      confirmed_by: reservation.confirmedBy,
+      confirmed_at: reservation.confirmedAt?.toISOString() || null,
+      cancelled_at: reservation.cancelledAt?.toISOString() || null,
+      cancellation_reason: reservation.cancellationReason,
+      session_id: reservation.sessionId,
+      seated_at: reservation.seatedAt?.toISOString() || null,
+      marketing_consent: reservation.marketingConsent,
+      created_at: reservation.createdAt.toISOString(),
+      updated_at: reservation.updatedAt.toISOString(),
+      // Additional fields from details view
+      table_number: reservation.tableNumber,
+      table_name: reservation.tableName,
+      confirmed_by_name: reservation.confirmedByName,
+      customer_name: reservation.customerName,
+      status_label: reservation.statusLabel,
+    }));
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching reservations:", error);
     return NextResponse.json(
@@ -79,33 +141,27 @@ export async function GET(request: NextRequest) {
 // POST - Create new reservation (public)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
-    const body: ReservationInsert = await request.json();
+    const body = await request.json();
 
-    // Validate required fields
-    const requiredFields = [
-      "first_name",
-      "last_name",
-      "email",
-      "phone",
-      "reservation_date",
-      "reservation_time",
-      "party_size",
-      "location",
-    ];
+    // Validate required fields (support both camelCase and snake_case)
+    const firstName = body.firstName || body.first_name;
+    const lastName = body.lastName || body.last_name;
+    const email = body.email;
+    const phone = body.phone;
+    const reservationDate = body.reservationDate || body.reservation_date;
+    const reservationTime = body.reservationTime || body.reservation_time;
+    const partySize = body.partySize || body.party_size;
+    const location = body.location as Location;
 
-    for (const field of requiredFields) {
-      if (!body[field as keyof ReservationInsert]) {
-        return NextResponse.json(
-          { error: `Campo obrigatório em falta: ${field}` },
-          { status: 400 }
-        );
-      }
+    if (!firstName || !lastName || !email || !phone || !reservationDate || !reservationTime || !partySize || !location) {
+      return NextResponse.json(
+        { error: "Campos obrigatórios em falta" },
+        { status: 400 }
+      );
     }
 
     // Validate party size
-    if (body.party_size < 1 || body.party_size > 20) {
+    if (partySize < 1 || partySize > 20) {
       return NextResponse.json(
         { error: "Número de pessoas deve ser entre 1 e 20" },
         { status: 400 }
@@ -113,11 +169,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate date is not in the past
-    const reservationDate = new Date(body.reservation_date);
+    const parsedDate = new Date(reservationDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (reservationDate < today) {
+    if (parsedDate < today) {
       return NextResponse.json(
         { error: "Não é possível reservar para datas passadas" },
         { status: 400 }
@@ -125,9 +181,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate time is not in the past (for same-day reservations)
-    if (reservationDate.getTime() === today.getTime()) {
+    if (parsedDate.getTime() === today.getTime()) {
       const now = new Date();
-      const [hours, minutes] = body.reservation_time.split(":").map(Number);
+      const [hours, minutes] = reservationTime.split(":").map(Number);
       const reservationDateTime = new Date();
       reservationDateTime.setHours(hours, minutes, 0, 0);
 
@@ -142,87 +198,84 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if the date is a closed day
-    const dayOfWeek = reservationDate.getDay();
-
-    // Check for specific date closure
-    const { data: specificClosure } = await extendedSupabase
-      .from("restaurant_closures")
-      .select("reason")
-      .eq("closure_date", body.reservation_date)
-      .or(`location.eq.${body.location},location.is.null`)
-      .or("is_recurring.eq.false,is_recurring.is.null")
-      .limit(1)
-      .maybeSingle();
-
-    if (specificClosure) {
-      const reason = specificClosure.reason ? ` (${specificClosure.reason})` : "";
-      return NextResponse.json(
-        { error: `O restaurante está fechado nesta data${reason}. Por favor escolha outra data.` },
-        { status: 400 }
-      );
-    }
-
-    // Check for recurring weekly closure
-    const { data: recurringClosure } = await extendedSupabase
-      .from("restaurant_closures")
-      .select("reason")
-      .eq("is_recurring", true)
-      .eq("recurring_day_of_week", dayOfWeek)
-      .or(`location.eq.${body.location},location.is.null`)
-      .limit(1)
-      .maybeSingle();
-
-    if (recurringClosure) {
-      const reason = recurringClosure.reason ? ` (${recurringClosure.reason})` : "";
-      return NextResponse.json(
-        { error: `O restaurante não abre neste dia da semana${reason}. Por favor escolha outra data.` },
-        { status: 400 }
-      );
-    }
-
     // Validate location
-    if (!["circunvalacao", "boavista"].includes(body.location)) {
+    if (!["circunvalacao", "boavista"].includes(location)) {
       return NextResponse.json(
         { error: "Localização inválida" },
         { status: 400 }
       );
     }
 
-    // Create reservation
-    const { data, error } = await extendedSupabase
-      .from("reservations")
-      .insert({
-        first_name: body.first_name.trim(),
-        last_name: body.last_name.trim(),
-        email: body.email.toLowerCase().trim(),
-        phone: body.phone.trim(),
-        reservation_date: body.reservation_date,
-        reservation_time: body.reservation_time,
-        party_size: body.party_size,
-        location: body.location,
-        is_rodizio: body.is_rodizio ?? true,
-        special_requests: body.special_requests?.trim() || null,
-        occasion: body.occasion || null,
-        marketing_consent: body.marketing_consent ?? false,
-        status: "pending",
-      })
-      .select()
-      .single();
+    const supabase = await createClient();
+    const reservationRepository = new SupabaseReservationRepository(supabase);
+    const closureRepository = new SupabaseRestaurantClosureRepository(supabase);
+    const createReservation = new CreateReservationUseCase(reservationRepository, closureRepository);
 
-    if (error) {
-      console.error("Error creating reservation:", error);
-      throw error;
+    // Build CreateReservationData
+    const reservationData: CreateReservationData = {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.toLowerCase().trim(),
+      phone: phone.trim(),
+      reservationDate,
+      reservationTime,
+      partySize,
+      location,
+      isRodizio: body.isRodizio ?? body.is_rodizio ?? true,
+      specialRequests: (body.specialRequests || body.special_requests)?.trim() || null,
+      occasion: body.occasion || null,
+      marketingConsent: body.marketingConsent ?? body.marketing_consent ?? false,
+    };
+
+    const result = await createReservation.execute(reservationData);
+
+    if (!result.success) {
+      if (result.code === "RESTAURANT_CLOSED") {
+        return NextResponse.json(
+          { error: result.error },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
     }
+
+    const reservation = result.data;
 
     // Send confirmation emails (don't block on this)
-    if (data) {
-      sendReservationEmails(data as Reservation).catch((emailError) => {
-        console.error("Error sending reservation emails:", emailError);
-      });
-    }
+    const legacyReservation = mapToLegacyReservation(reservation);
+    sendReservationEmails(legacyReservation).catch((emailError) => {
+      console.error("Error sending reservation emails:", emailError);
+    });
 
-    return NextResponse.json(data, { status: 201 });
+    // Return in database format for backwards compatibility
+    return NextResponse.json({
+      id: reservation.id,
+      first_name: reservation.firstName,
+      last_name: reservation.lastName,
+      email: reservation.email,
+      phone: reservation.phone,
+      reservation_date: reservation.reservationDate,
+      reservation_time: reservation.reservationTime,
+      party_size: reservation.partySize,
+      location: reservation.location,
+      table_id: reservation.tableId,
+      is_rodizio: reservation.isRodizio,
+      special_requests: reservation.specialRequests,
+      occasion: reservation.occasion,
+      status: reservation.status,
+      confirmed_by: reservation.confirmedBy,
+      confirmed_at: reservation.confirmedAt?.toISOString() || null,
+      cancelled_at: reservation.cancelledAt?.toISOString() || null,
+      cancellation_reason: reservation.cancellationReason,
+      session_id: reservation.sessionId,
+      seated_at: reservation.seatedAt?.toISOString() || null,
+      marketing_consent: reservation.marketingConsent,
+      created_at: reservation.createdAt.toISOString(),
+      updated_at: reservation.updatedAt.toISOString(),
+    }, { status: 201 });
   } catch (error) {
     console.error("Error creating reservation:", error);
     return NextResponse.json(

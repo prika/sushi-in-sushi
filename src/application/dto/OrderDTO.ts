@@ -93,3 +93,34 @@ export interface OrderCountsDTO {
   total: number;
   active: number;
 }
+
+/**
+ * DTO para pedido de sessão (mesa)
+ */
+export interface SessionOrderDTO {
+  id: string;
+  sessionId: string;
+  quantity: number;
+  unitPrice: number;
+  notes: string | null;
+  status: OrderStatus;
+  createdAt: string;
+  product: {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+  };
+  subtotal: number;
+}
+
+/**
+ * DTO para resumo de pedidos da sessão
+ */
+export interface SessionOrdersSummaryDTO {
+  orders: SessionOrderDTO[];
+  counts: OrderCountsDTO;
+  totals: {
+    subtotal: number;
+    itemCount: number;
+  };
+}

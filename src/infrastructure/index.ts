@@ -9,3 +9,4 @@
 
 export * from './repositories';
 export * from './realtime';
+export * from './services';

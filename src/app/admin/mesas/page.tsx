@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Table, TableFullStatus, TableStatus } from "@/types/database";
+import type { Table, TableStatus } from "@/types/database";
+import type { TableDTO } from "@/application/use-cases/tables/GetAllTablesUseCase";
 import { generateQRCodeToCanvas, buildTableOrderURLByNumber } from "@/lib/qrcode";
 import { TableMap } from "@/components/admin/TableMap";
 import { TableDetailModal } from "@/components/admin/TableDetailModal";
-import { useTableManagement } from "@/hooks/useTableManagement";
+import { useTableManagement } from "@/presentation/hooks";
 
 const LOCATION_LABELS: Record<string, string> = {
   circunvalacao: "Circunvalação",
@@ -33,7 +34,7 @@ export default function MesasPage() {
 
   // Map tab state
   const [selectedLocation, setSelectedLocation] = useState<string>("circunvalacao");
-  const [selectedTableForDetail, setSelectedTableForDetail] = useState<TableFullStatus | null>(null);
+  const [selectedTableForDetail, setSelectedTableForDetail] = useState<TableDTO | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   // Table management hook
@@ -46,7 +47,7 @@ export default function MesasPage() {
     reactivateTable,
     requestBill,
     closeSession,
-  } = useTableManagement({ location: selectedLocation, refreshInterval: 15000 });
+  } = useTableManagement({ location: selectedLocation as "circunvalacao" | "boavista", refreshInterval: 15000 });
 
   useEffect(() => {
     fetchTables();
@@ -245,7 +246,7 @@ export default function MesasPage() {
     };
   };
 
-  const handleTableClick = (table: TableFullStatus) => {
+  const handleTableClick = (table: TableDTO) => {
     setSelectedTableForDetail(table);
     setShowDetailModal(true);
   };

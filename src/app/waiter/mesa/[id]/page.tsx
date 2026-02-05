@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useRequireWaiter } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
-import { useActivityLog } from "@/hooks/useActivityLog";
+import { useActivityLog } from "@/presentation/hooks";
 import type { Table, Session, OrderWithProduct, Product, Category, WaiterCall } from "@/types/database";
 
 // Helper to bypass Supabase type checking for tables not in the generated types

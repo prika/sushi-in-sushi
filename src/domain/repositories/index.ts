@@ -7,3 +7,8 @@ export * from './IProductRepository';
 export * from './ICategoryRepository';
 export * from './ISessionRepository';
 export * from './ITableRepository';
+export * from './IStaffRepository';
+export * from './IReservationRepository';
+export * from './IRestaurantClosureRepository';
+export * from './IWaiterCallRepository';
+export * from './ICustomerRepository';

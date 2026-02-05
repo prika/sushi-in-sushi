@@ -1,57 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
-import type { RestaurantClosureInsert } from "@/types/database";
-
-// Helper to get typed supabase query for tables not in generated types
-function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
-    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
-  };
-}
+import { SupabaseRestaurantClosureRepository } from "@/infrastructure/repositories/SupabaseRestaurantClosureRepository";
+import {
+  GetAllClosuresUseCase,
+  CreateClosureUseCase,
+  DeleteClosureUseCase,
+} from "@/application/use-cases/closures";
+import type { ClosureFilter, CreateClosureData } from "@/domain/entities/RestaurantClosure";
+import type { Location } from "@/domain/value-objects/Location";
 
 // GET - List closures
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+    const repository = new SupabaseRestaurantClosureRepository(supabase);
+    const getAllClosures = new GetAllClosuresUseCase(repository);
+
     const { searchParams } = new URL(request.url);
 
-    const location = searchParams.get("location");
+    const location = searchParams.get("location") as Location | null;
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const includeRecurring = searchParams.get("includeRecurring") !== "false";
 
-    let query = extendedSupabase
-      .from("restaurant_closures")
-      .select("*")
-      .order("closure_date", { ascending: true });
+    const filter: ClosureFilter = {};
 
     if (location) {
-      // Include closures for this location or all locations (NULL)
-      query = query.or(`location.eq.${location},location.is.null`);
+      filter.location = location;
     }
-
     if (startDate) {
-      query = query.gte("closure_date", startDate);
+      filter.dateFrom = startDate;
     }
-
     if (endDate) {
-      query = query.lte("closure_date", endDate);
+      filter.dateTo = endDate;
     }
-
     if (!includeRecurring) {
-      query = query.or("is_recurring.eq.false,is_recurring.is.null");
+      filter.isRecurring = false;
     }
 
-    const { data, error } = await query;
+    const result = await getAllClosures.execute(filter);
 
-    if (error) {
-      throw error;
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json(data || []);
+    // Map to database format for backwards compatibility
+    const data = result.data.map((closure) => ({
+      id: closure.id,
+      closure_date: closure.closureDate,
+      location: closure.location,
+      reason: closure.reason,
+      is_recurring: closure.isRecurring,
+      recurring_day_of_week: closure.recurringDayOfWeek,
+      created_by: closure.createdBy,
+      created_at: closure.createdAt.toISOString(),
+      updated_at: closure.updatedAt.toISOString(),
+    }));
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching closures:", error);
     return NextResponse.json(
@@ -81,49 +91,65 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+    const repository = new SupabaseRestaurantClosureRepository(supabase);
+    const createClosure = new CreateClosureUseCase(repository);
 
-    const body: RestaurantClosureInsert = await request.json();
+    const body = await request.json();
 
     // Validate required fields
-    if (!body.closure_date && !body.is_recurring) {
+    if (!body.closure_date && !body.closureDate && !body.is_recurring && !body.isRecurring) {
       return NextResponse.json(
         { error: "Data de fecho é obrigatória" },
         { status: 400 }
       );
     }
 
-    if (body.is_recurring && (body.recurring_day_of_week === undefined || body.recurring_day_of_week === null)) {
+    const isRecurring = body.is_recurring ?? body.isRecurring ?? false;
+    const recurringDayOfWeek = body.recurring_day_of_week ?? body.recurringDayOfWeek;
+
+    if (isRecurring && (recurringDayOfWeek === undefined || recurringDayOfWeek === null)) {
       return NextResponse.json(
         { error: "Dia da semana é obrigatório para fechos recorrentes" },
         { status: 400 }
       );
     }
 
-    // For recurring closures, set a placeholder date if not provided
-    const closureData = {
-      ...body,
-      closure_date: body.is_recurring && !body.closure_date
-        ? "1970-01-01" // Placeholder for recurring
-        : body.closure_date,
-      created_by: auth.id,
+    // Build CreateClosureData from request body (supporting both camelCase and snake_case)
+    const closureData: CreateClosureData = {
+      closureDate: body.closureDate || body.closure_date || (isRecurring ? "1970-01-01" : ""),
+      location: body.location || null,
+      reason: body.reason || null,
+      isRecurring,
+      recurringDayOfWeek: isRecurring ? recurringDayOfWeek : null,
     };
 
-    const { data, error } = await extendedSupabase
-      .from("restaurant_closures")
-      .insert(closureData)
-      .select()
-      .single();
+    const result = await createClosure.execute(closureData, auth.id);
 
-    if (error) {
-      if (error.code === "23505") { // Unique violation
+    if (!result.success) {
+      if (result.error.includes("duplicate") || result.error.includes("já existe")) {
         return NextResponse.json(
           { error: "Já existe um fecho para esta data/localização" },
           { status: 409 }
         );
       }
-      throw error;
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
     }
+
+    // Map to database format for backwards compatibility
+    const data = {
+      id: result.data.id,
+      closure_date: result.data.closureDate,
+      location: result.data.location,
+      reason: result.data.reason,
+      is_recurring: result.data.isRecurring,
+      recurring_day_of_week: result.data.recurringDayOfWeek,
+      created_by: result.data.createdBy,
+      created_at: result.data.createdAt.toISOString(),
+      updated_at: result.data.updatedAt.toISOString(),
+    };
 
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
@@ -165,15 +191,16 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+    const repository = new SupabaseRestaurantClosureRepository(supabase);
+    const deleteClosure = new DeleteClosureUseCase(repository);
 
-    const { error } = await extendedSupabase
-      .from("restaurant_closures")
-      .delete()
-      .eq("id", parseInt(id));
+    const result = await deleteClosure.execute(parseInt(id));
 
-    if (error) {
-      throw error;
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({ success: true });

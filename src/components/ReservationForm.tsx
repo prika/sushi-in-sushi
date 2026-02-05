@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useReservation, type ReservationFormData } from "@/presentation/hooks/useReservation";
 import type { Location, ReservationOccasion } from "@/types/database";
 
-interface ReservationFormProps {
-  onSuccess?: () => void;
-  defaultLocation?: Location;
-}
+// =============================================
+// CONSTANTS
+// =============================================
 
 const OCCASIONS: { value: ReservationOccasion | ""; label: string }[] = [
   { value: "", label: "Selecione (opcional)" },
@@ -16,21 +16,14 @@ const OCCASIONS: { value: ReservationOccasion | ""; label: string }[] = [
   { value: "other", label: "Outro" },
 ];
 
-const TIME_SLOTS = [
-  "12:00",
-  "12:30",
-  "13:00",
-  "13:30",
-  "14:00",
-  "14:30",
-  "19:00",
-  "19:30",
-  "20:00",
-  "20:30",
-  "21:00",
-  "21:30",
-  "22:00",
-];
+// =============================================
+// COMPONENT
+// =============================================
+
+interface ReservationFormProps {
+  onSuccess?: () => void;
+  defaultLocation?: Location;
+}
 
 export function ReservationForm({
   onSuccess,
@@ -39,10 +32,8 @@ export function ReservationForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [closureWarning, setClosureWarning] = useState<string | null>(null);
-  const [isCheckingClosure, setIsCheckingClosure] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ReservationFormData>({
     first_name: "",
     last_name: "",
     email: "",
@@ -50,88 +41,34 @@ export function ReservationForm({
     reservation_date: "",
     reservation_time: "",
     party_size: 2,
-    location: defaultLocation as Location,
+    location: defaultLocation,
     is_rodizio: true,
     special_requests: "",
-    occasion: "" as ReservationOccasion | "",
+    occasion: "",
     marketing_consent: false,
   });
 
-  // Check if date is closed when date or location changes
-  useEffect(() => {
-    const checkClosure = async () => {
-      if (!formData.reservation_date || !formData.location) {
-        setClosureWarning(null);
-        return;
-      }
-
-      setIsCheckingClosure(true);
-      try {
-        const response = await fetch(
-          `/api/closures/check?date=${formData.reservation_date}&location=${formData.location}`
-        );
-        const data = await response.json();
-
-        if (data.isClosed) {
-          setClosureWarning(data.reason || "O restaurante está fechado nesta data");
-        } else {
-          setClosureWarning(null);
-        }
-      } catch (err) {
-        console.error("Error checking closure:", err);
-        setClosureWarning(null);
-      } finally {
-        setIsCheckingClosure(false);
-      }
-    };
-
-    checkClosure();
-  }, [formData.reservation_date, formData.location]);
-
-  // Filter time slots based on current time (for same-day reservations)
-  const getAvailableTimeSlots = () => {
-    if (!formData.reservation_date) return TIME_SLOTS;
-
-    const today = new Date().toISOString().split("T")[0];
-    if (formData.reservation_date !== today) return TIME_SLOTS;
-
-    const now = new Date();
-    const bufferMinutes = 30; // 30 minutes buffer
-
-    return TIME_SLOTS.filter((slot) => {
-      const [hours, minutes] = slot.split(":").map(Number);
-      const slotTime = new Date();
-      slotTime.setHours(hours, minutes, 0, 0);
-      const bufferTime = new Date(now.getTime() + bufferMinutes * 60 * 1000);
-      return slotTime > bufferTime;
-    });
-  };
-
-  const availableTimeSlots = getAvailableTimeSlots();
+  // Use the hook for business logic
+  const {
+    closureWarning,
+    isCheckingClosure,
+    availableTimeSlots,
+    createReservation,
+  } = useReservation({
+    date: formData.reservation_date,
+    location: formData.location,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
-    try {
-      const response = await fetch("/api/reservations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          occasion: formData.occasion || null,
-        }),
-      });
+    const result = await createReservation(formData);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Erro ao criar reserva");
-      }
-
+    if (result.success) {
       setSuccess(true);
       onSuccess?.();
-
       // Reset form
       setFormData({
         first_name: "",
@@ -147,11 +84,11 @@ export function ReservationForm({
         occasion: "",
         marketing_consent: false,
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao criar reserva");
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      setError(result.error || "Erro ao criar reserva");
     }
+
+    setIsSubmitting(false);
   };
 
   const minDate = new Date().toISOString().split("T")[0];

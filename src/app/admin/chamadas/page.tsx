@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { WaiterCallWithDetails, Location } from "@/types/database";
+import { useWaiterCalls } from "@/presentation/hooks/useWaiterCalls";
+import type { WaiterCallWithDetails, WaiterCallStatus, WaiterCallType } from "@/domain/entities/WaiterCall";
+import type { Location } from "@/domain/value-objects/Location";
 
-const CALL_TYPE_CONFIG = {
+const CALL_TYPE_CONFIG: Record<WaiterCallType, { icon: string; label: string; color: string }> = {
   assistance: { icon: "🙋", label: "Ajuda", color: "bg-blue-500" },
   bill: { icon: "💳", label: "Conta", color: "bg-green-500" },
   order: { icon: "📝", label: "Pedido", color: "bg-orange-500" },
   other: { icon: "❓", label: "Outro", color: "bg-gray-500" },
 };
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<WaiterCallStatus, { label: string; color: string; bg: string }> = {
   pending: {
     label: "Pendente",
     color: "text-yellow-500",
@@ -34,61 +36,43 @@ const STATUS_CONFIG = {
   },
 };
 
-const LOCATION_LABELS: Record<string, string> = {
+const LOCATION_LABELS: Record<Location, string> = {
   circunvalacao: "Circunvalação",
   boavista: "Boavista",
 };
 
-// Helper to bypass Supabase type checking
-function getExtendedSupabase(supabase: ReturnType<typeof createClient>) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
-  };
-}
-
 export default function ChamadasPage() {
-  const [calls, setCalls] = useState<WaiterCallWithDetails[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedLocation, setSelectedLocation] = useState<string>("all");
+  const [selectedLocation, setSelectedLocation] = useState<Location | "all">("all");
   const [showCompleted, setShowCompleted] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Build filter based on state
+  const filter = useMemo(() => {
+    const f: { location?: Location; status?: WaiterCallStatus } = {};
+    if (selectedLocation !== "all") {
+      f.location = selectedLocation;
+    }
+    return f;
+  }, [selectedLocation]);
+
+  // Use the waiterCalls hook
+  const { calls: allCalls, isLoading, acknowledge, complete, refresh } = useWaiterCalls({
+    filter,
+    autoLoad: true,
+  });
+
+  // Filter calls based on showCompleted state
+  const calls = useMemo(() => {
+    if (showCompleted) {
+      return allCalls;
+    }
+    return allCalls.filter(c => c.status === "pending" || c.status === "acknowledged");
+  }, [allCalls, showCompleted]);
+
   const supabase = createClient();
 
-  // Fetch calls
-  const fetchCalls = useCallback(async () => {
-    const extendedSupabase = getExtendedSupabase(supabase);
-
-    let query = extendedSupabase
-      .from("waiter_calls_with_details")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (selectedLocation !== "all") {
-      query = query.eq("location", selectedLocation);
-    }
-
-    if (!showCompleted) {
-      query = query.in("status", ["pending", "acknowledged"]);
-    }
-
-    const { data, error } = await query.limit(50);
-
-    if (error) {
-      console.error("Error fetching calls:", error);
-      return;
-    }
-
-    setCalls(data as WaiterCallWithDetails[]);
-    setIsLoading(false);
-  }, [supabase, selectedLocation, showCompleted]);
-
-  useEffect(() => {
-    fetchCalls();
-  }, [fetchCalls]);
-
-  // Real-time subscription for new calls
+  // Real-time subscription for notifications only (sound and browser notifications)
   useEffect(() => {
     const channel = supabase
       .channel("waiter-calls-realtime")
@@ -119,7 +103,8 @@ export default function ChamadasPage() {
             }
           }
 
-          fetchCalls();
+          // Refresh data when any change occurs
+          refresh();
         },
       )
       .subscribe();
@@ -127,7 +112,7 @@ export default function ChamadasPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, soundEnabled, fetchCalls]);
+  }, [supabase, soundEnabled, refresh]);
 
   // Request notification permission
   useEffect(() => {
@@ -136,49 +121,19 @@ export default function ChamadasPage() {
     }
   }, []);
 
-  // Acknowledge call
-  const acknowledgeCall = async (callId: string) => {
-    const extendedSupabase = getExtendedSupabase(supabase);
-
-    const { error } = await extendedSupabase
-      .from("waiter_calls")
-      .update({
-        status: "acknowledged",
-        acknowledged_at: new Date().toISOString(),
-      })
-      .eq("id", callId);
-
-    if (error) {
-      console.error("Error acknowledging call:", error);
-      return;
-    }
-
-    fetchCalls();
+  // Acknowledge call (staffId would come from auth context in real app)
+  const handleAcknowledge = async (callId: string) => {
+    // TODO: Get actual staff ID from auth context
+    await acknowledge(callId, "current-staff-id");
   };
 
   // Complete call
-  const completeCall = async (callId: string) => {
-    const extendedSupabase = getExtendedSupabase(supabase);
-
-    const { error } = await extendedSupabase
-      .from("waiter_calls")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", callId);
-
-    if (error) {
-      console.error("Error completing call:", error);
-      return;
-    }
-
-    fetchCalls();
+  const handleComplete = async (callId: string) => {
+    await complete(callId);
   };
 
   // Format time ago
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatTimeAgo = (date: Date) => {
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
@@ -248,7 +203,7 @@ export default function ChamadasPage() {
 
           {/* Refresh */}
           <button
-            onClick={fetchCalls}
+            onClick={refresh}
             className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
             title="Atualizar"
           >
@@ -365,8 +320,8 @@ export default function ChamadasPage() {
                 <CallCard
                   key={call.id}
                   call={call}
-                  onAcknowledge={() => acknowledgeCall(call.id)}
-                  onComplete={() => completeCall(call.id)}
+                  onAcknowledge={() => handleAcknowledge(call.id)}
+                  onComplete={() => handleComplete(call.id)}
                   formatTimeAgo={formatTimeAgo}
                 />
               ))}
@@ -381,7 +336,7 @@ export default function ChamadasPage() {
                 <CallCard
                   key={call.id}
                   call={call}
-                  onComplete={() => completeCall(call.id)}
+                  onComplete={() => handleComplete(call.id)}
                   formatTimeAgo={formatTimeAgo}
                 />
               ))}
@@ -419,9 +374,9 @@ function CallCard({
   call: WaiterCallWithDetails;
   onAcknowledge?: () => void;
   onComplete?: () => void;
-  formatTimeAgo: (date: string) => string;
+  formatTimeAgo: (date: Date) => string;
 }) {
-  const typeConfig = CALL_TYPE_CONFIG[call.call_type] || CALL_TYPE_CONFIG.other;
+  const typeConfig = CALL_TYPE_CONFIG[call.callType] || CALL_TYPE_CONFIG.other;
   const statusConfig = STATUS_CONFIG[call.status];
 
   return (
@@ -447,7 +402,7 @@ function CallCard({
             {/* Table info */}
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xl font-bold text-gray-900">
-                Mesa {call.table_number}
+                Mesa {call.tableNumber}
               </span>
               <span
                 className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.color}`}
@@ -464,9 +419,9 @@ function CallCard({
             </div>
 
             {/* Waiter info */}
-            {call.assigned_waiter_name && (
+            {call.assignedWaiterName && (
               <p className="text-sm text-blue-600 mt-1">
-                Empregado: {call.assigned_waiter_name}
+                Empregado: {call.assignedWaiterName}
               </p>
             )}
 
@@ -481,7 +436,7 @@ function CallCard({
 
         <div className="text-right">
           <p className="text-sm text-gray-500 mb-2">
-            {formatTimeAgo(call.created_at)}
+            {formatTimeAgo(call.createdAt)}
           </p>
 
           {/* Action buttons */}

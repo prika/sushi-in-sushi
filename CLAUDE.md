@@ -43,7 +43,8 @@ src/
 │
 ├── infrastructure/          # Camada de Infraestrutura (implementações)
 │   ├── repositories/        # Implementações Supabase dos repositórios
-│   └── realtime/            # Handlers de real-time
+│   ├── realtime/            # Handlers de real-time
+│   └── services/            # Implementações de serviços (ApiActivityLogger)
 │
 ├── presentation/            # Camada de Apresentação (React)
 │   ├── contexts/            # DependencyContext (injeção de dependências)
@@ -107,7 +108,8 @@ npx supabase db reset
 - `customers` - Programa de fidelização
 - `waiter_tables` - Atribuições empregado-mesa
 - `waiter_calls` - Chamadas de assistência
-- `restaurant_closures` - Dias de fecho
+- `restaurant_closures` - Dias de fecho do restaurante
+- `staff_time_off` - Férias e folgas dos funcionários
 
 ### Enums Importantes
 - **SessionStatus:** active, pending_payment, paid, closed
@@ -159,14 +161,31 @@ npx supabase db reset
 
 **Hooks disponíveis (nova arquitetura):**
 - `useKitchenOrders()` - Pedidos para a cozinha com real-time
+- `useSessionOrders()` - Pedidos de uma sessão específica
+- `useActivityLog()` - Logging de atividades
 - `useProducts()` - Catálogo de produtos
+
+**Use Cases disponíveis:**
+- **Orders:** GetKitchenOrdersUseCase, GetSessionOrdersUseCase, UpdateOrderStatusUseCase, CreateOrderUseCase
+- **Sessions:** StartSessionUseCase, CloseSessionUseCase, RequestBillUseCase, GetActiveSessionsUseCase
+- **Tables:** GetAllTablesUseCase, GetTableByIdUseCase, UpdateTableStatusUseCase, GetWaiterTablesUseCase
+
+**Domain Services:**
+- `OrderService` - Lógica de negócio de pedidos
+- `SessionService` - Lógica de negócio de sessões
+- `TableService` - Lógica de negócio de mesas
 
 **Para usar nos componentes:**
 ```typescript
-import { useKitchenOrders } from '@/presentation/hooks';
+import { useKitchenOrders, useSessionOrders } from '@/presentation/hooks';
 
 function KitchenPage() {
-  const { orders, updateStatus, isLoading } = useKitchenOrders();
+  const { orders, byStatus, updateStatus, isLoading } = useKitchenOrders();
+  // ...
+}
+
+function SessionPage({ sessionId }: { sessionId: string }) {
+  const { orders, totals, createOrder } = useSessionOrders({ sessionId });
   // ...
 }
 ```

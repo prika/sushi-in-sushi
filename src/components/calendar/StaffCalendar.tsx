@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Button, Modal } from "@/components/ui";
-import type { StaffTimeOffWithStaff, StaffTimeOffType, Staff, RestaurantClosure } from "@/types/database";
+import { useStaffTimeOff, type StaffTimeOffFormData } from "@/presentation/hooks/useStaffTimeOff";
+import type { StaffTimeOffWithStaff, StaffTimeOffType, Staff } from "@/types/database";
 
 // =============================================
 // CONSTANTS
@@ -29,32 +30,10 @@ const TYPE_COLORS: Record<StaffTimeOffType, { bg: string; text: string; border: 
   other: { bg: "bg-gray-100", text: "text-gray-800", border: "border-gray-300" },
 };
 
-const DAY_LABELS: Record<number, string> = {
-  0: "Domingo",
-  1: "Segunda-feira",
-  2: "Terca-feira",
-  3: "Quarta-feira",
-  4: "Quinta-feira",
-  5: "Sexta-feira",
-  6: "Sabado",
-};
-
 const LOCATION_LABELS: Record<string, string> = {
   circunvalacao: "Circunvalacao",
   boavista: "Boavista",
 };
-
-// =============================================
-// TYPES
-// =============================================
-
-interface FormData {
-  staff_id: string;
-  start_date: string;
-  end_date: string;
-  type: StaffTimeOffType;
-  reason: string;
-}
 
 // =============================================
 // HELPER FUNCTIONS
@@ -66,17 +45,11 @@ function getDaysInMonth(year: number, month: number): number {
 
 function getFirstDayOfMonth(year: number, month: number): number {
   const day = new Date(year, month, 1).getDay();
-  // Convert Sunday=0 to Monday=0 format
   return day === 0 ? 6 : day - 1;
 }
 
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
-}
-
-function isDateInRange(date: Date, startDate: string, endDate: string): boolean {
-  const d = formatDate(date);
-  return d >= startDate && d <= endDate;
 }
 
 // =============================================
@@ -91,15 +64,12 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  const [timeOffs, setTimeOffs] = useState<StaffTimeOffWithStaff[]>([]);
-  const [weeklyClosures, setWeeklyClosures] = useState<RestaurantClosure[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [selectedTimeOff, setSelectedTimeOff] = useState<StaffTimeOffWithStaff | null>(null);
 
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<StaffTimeOffFormData>({
     staff_id: "",
     start_date: formatDate(today),
     end_date: formatDate(today),
@@ -107,47 +77,15 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
     reason: "",
   });
 
-  // Fetch time off entries and weekly closures
-  const fetchTimeOffs = useCallback(async () => {
-    try {
-      const [timeOffResponse, closuresResponse] = await Promise.all([
-        fetch(`/api/staff-time-off?month=${currentMonth + 1}&year=${currentYear}`),
-        fetch("/api/closures"),
-      ]);
-
-      if (!timeOffResponse.ok) throw new Error("Erro ao carregar ausencias");
-      const timeOffData = await timeOffResponse.json();
-      setTimeOffs(timeOffData);
-
-      if (closuresResponse.ok) {
-        const closuresData = await closuresResponse.json();
-        // Filter to only get recurring weekly closures
-        setWeeklyClosures(closuresData.filter((c: RestaurantClosure) => c.is_recurring));
-      }
-    } catch (err) {
-      console.error("Error fetching data:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentMonth, currentYear]);
-
-  useEffect(() => {
-    fetchTimeOffs();
-  }, [fetchTimeOffs]);
-
-  // Check if a day is a weekly closure day
-  const isWeeklyClosureDay = (day: number): boolean => {
-    const date = new Date(currentYear, currentMonth, day);
-    const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
-    return weeklyClosures.some((c) => c.recurring_day_of_week === dayOfWeek);
-  };
-
-  // Get weekly closure info for a day
-  const getWeeklyClosureInfo = (day: number): RestaurantClosure | undefined => {
-    const date = new Date(currentYear, currentMonth, day);
-    const dayOfWeek = date.getDay();
-    return weeklyClosures.find((c) => c.recurring_day_of_week === dayOfWeek);
-  };
+  // Use the hook for data management
+  const {
+    isLoading,
+    createTimeOff,
+    deleteTimeOff,
+    getTimeOffsForDay,
+    isWeeklyClosureDay,
+    getWeeklyClosureInfo,
+  } = useStaffTimeOff({ month: currentMonth, year: currentYear });
 
   // Navigation
   const goToPreviousMonth = () => {
@@ -177,43 +115,26 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setError(null);
+    setFormError(null);
 
-    try {
-      const response = await fetch("/api/staff-time-off", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+    const result = await createTimeOff(formData);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Erro ao criar");
-      }
-
-      await fetchTimeOffs();
+    if (result.success) {
       setShowModal(false);
       resetForm();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro desconhecido");
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      setFormError(result.error || "Erro ao criar ausencia");
     }
+
+    setIsSubmitting(false);
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Tem a certeza que deseja remover esta ausencia?")) return;
 
-    try {
-      const response = await fetch(`/api/staff-time-off/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) throw new Error("Erro ao remover");
-      await fetchTimeOffs();
+    const result = await deleteTimeOff(id);
+    if (result.success) {
       setSelectedTimeOff(null);
-    } catch (err) {
-      console.error("Error deleting time off:", err);
     }
   };
 
@@ -225,20 +146,13 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
       type: "vacation",
       reason: "",
     });
-    setError(null);
-  };
-
-  // Get time offs for a specific day
-  const getTimeOffsForDay = (day: number): StaffTimeOffWithStaff[] => {
-    const date = new Date(currentYear, currentMonth, day);
-    return timeOffs.filter((to) => isDateInRange(date, to.start_date, to.end_date));
+    setFormError(null);
   };
 
   // Render calendar
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
 
-  // Create array of days with empty slots for alignment
   const calendarDays: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) {
     calendarDays.push(null);
@@ -247,7 +161,6 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
     calendarDays.push(i);
   }
 
-  // Check if a day is today
   const isToday = (day: number): boolean => {
     return (
       day === today.getDate() &&
@@ -489,9 +402,9 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
             />
           </div>
 
-          {error && (
+          {formError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-              {error}
+              {formError}
             </div>
           )}
 
