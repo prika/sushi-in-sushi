@@ -45,7 +45,9 @@ sushi/
 │   │   ├── admin/                # Dashboard administrativo
 │   │   ├── cozinha/              # Display da cozinha
 │   │   ├── waiter/               # Interface empregados
-│   │   ├── mesa/[numero]/        # Sistema de pedidos por QR
+│   │   ├── mesa/                 # Sistema de pedidos por QR
+│   │   │   ├── layout.tsx        # Layout com MesaProviders
+│   │   │   └── [numero]/page.tsx # Página principal (60+ strings traduzidas)
 │   │   └── api/                  # API Routes
 │   ├── domain/                   # Camada de Domínio (SOLID)
 │   │   ├── entities/             # Order, Product, Session, Table
@@ -61,10 +63,15 @@ sushi/
 │   │   ├── contexts/             # DependencyContext
 │   │   └── hooks/                # useKitchenOrders, useProducts
 │   ├── components/               # Componentes React (legado)
+│   │   └── mesa/                 # Componentes da app mesa
+│   │       ├── MesaLanguageSwitcher.tsx  # Seletor de idioma dropdown
+│   │       └── MesaProviders.tsx         # Wrapper de providers
+│   ├── contexts/                 # React Contexts
+│   │   └── MesaLocaleContext.tsx # i18n para mesa (browser detect, localStorage)
 │   ├── hooks/                    # Hooks legados
 │   ├── lib/                      # Utilitários e clientes
 │   ├── types/                    # TypeScript types
-│   └── messages/                 # Traduções i18n
+│   └── messages/                 # Traduções i18n (pt, en, fr, de, it, es)
 ├── supabase/
 │   └── migrations/               # 14 migrações SQL
 └── src/__tests__/                # Testes unitários
@@ -79,6 +86,11 @@ sushi/
 - Sessões de refeição com múltiplos participantes
 - Suporte a dispositivos múltiplos na mesma mesa
 - Carrinho partilhado via localStorage
+- **Sistema de i18n dedicado** com:
+  - Deteção automática do idioma do browser
+  - Persistência da preferência em localStorage
+  - Seletor de idioma dropdown integrado
+  - 60+ strings traduzidas em 6 idiomas
 
 #### Menu Digital
 - Categorias e produtos com imagens
@@ -121,6 +133,31 @@ sushi/
 | de | Deutsch |
 | it | Italiano |
 | es | Español |
+
+#### Sistema de i18n da App Mesa (Cliente)
+
+A aplicação mesa (QR code para clientes) possui um sistema de traduções dedicado e independente do next-intl usado nas páginas públicas:
+
+**Arquitetura:**
+```
+src/contexts/MesaLocaleContext.tsx     # Context com t() function
+src/components/mesa/MesaProviders.tsx  # Wrapper de providers
+src/components/mesa/MesaLanguageSwitcher.tsx  # UI selector
+```
+
+**Funcionalidades:**
+- **Deteção automática:** Usa `navigator.language` para detetar idioma do browser
+- **Persistência:** Guarda preferência em `localStorage` (key: `mesa-locale`)
+- **Função t():** Tradução com suporte a parâmetros (`t('key', { param: value })`)
+- **Fallback:** Se chave não existir, retorna a própria chave
+
+**Strings traduzidas (60+):**
+- Estados de pedidos (pending, preparing, ready, delivered)
+- Mensagens de erro e sucesso
+- Labels de formulários
+- Botões e ações
+- Modais (chamar empregado, confirmar pedido)
+- Navegação e headers
 
 ### 1.6 Localizações
 
@@ -464,8 +501,9 @@ sushi/
 #### Strategic
 9. Audit completo de RLS
 10. Error tracking (Sentry)
-11. Traduzir admin panel
-12. Analytics dashboard
+11. ~~Traduzir app mesa~~ ✅ **CONCLUÍDO** (60+ strings em 6 idiomas)
+12. Traduzir admin panel
+13. Analytics dashboard
 
 ---
 
@@ -624,17 +662,23 @@ sushi/
   - Configurar alertas
   - Dashboard de erros
 
-- [ ] **6.2** Traduzir admin panel
+- [x] **6.2** ~~Traduzir app mesa (cliente)~~ ✅ **CONCLUÍDO**
+  - MesaLocaleContext.tsx com deteção automática de idioma
+  - MesaLanguageSwitcher.tsx para seleção manual
+  - 60+ strings traduzidas em 6 idiomas (PT, EN, FR, DE, IT, ES)
+  - Persistência em localStorage
+
+- [ ] **6.3** Traduzir admin panel
   - Extrair strings para messages/
   - Traduzir para 6 idiomas
   - Selector de idioma no admin
 
-- [ ] **6.3** Analytics dashboard
+- [ ] **6.4** Analytics dashboard
   - Métricas de vendas
   - Gráficos por período
   - KPIs do restaurante
 
-- [ ] **6.4** Melhorias UX
+- [ ] **6.5** Melhorias UX
   - Dark mode no admin
   - Notificações push
   - PWA para mobile
@@ -698,9 +742,10 @@ O projeto **Sushi in Sushi** está bem estruturado e em processo de modernizaç�
 
 - Arquitetura SOLID em progresso
 - Testes de domain/application
-- i18n completo (6 idiomas)
+- i18n completo (6 idiomas) nas páginas públicas e app mesa
 - Real-time com Supabase
 - Múltiplas localizações
+- Sistema de traduções dedicado para clientes (MesaLocaleContext)
 
 As áreas que requerem atenção imediata são:
 
@@ -713,4 +758,4 @@ Com a implementação das fases propostas, o projeto estará pronto para produç
 
 ---
 
-*Documento gerado em 2026-02-04*
+*Última atualização: 2026-02-05 - Adicionado sistema i18n da app mesa*

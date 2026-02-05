@@ -21,6 +21,18 @@ const RESTAURANT_EMAILS: Record<string, string> = {
 
 const FROM_EMAIL = process.env.FROM_EMAIL;
 
+// Test email override - when set, ALL emails are sent to this address
+const TEST_EMAIL_OVERRIDE = process.env.TEST_EMAIL_OVERRIDE;
+
+// Helper to get the actual recipient email (respects test override)
+const getRecipientEmail = (originalEmail: string): string => {
+  if (TEST_EMAIL_OVERRIDE) {
+    console.log(`📧 [TEST MODE] Redirecting email from ${originalEmail} to ${TEST_EMAIL_OVERRIDE}`);
+    return TEST_EMAIL_OVERRIDE;
+  }
+  return originalEmail;
+};
+
 // Helper to update reservation with email tracking info
 async function updateReservationEmailTracking(
   reservationId: string,
@@ -116,7 +128,7 @@ export async function sendReservationEmails(reservation: Reservation) {
     const customerEmail = getCustomerConfirmationEmail(reservation);
     const { data, error } = await resend.emails.send({
       from: `Sushi in Sushi <${FROM_EMAIL}>`,
-      to: reservation.email,
+      to: getRecipientEmail(reservation.email),
       subject: customerEmail.subject,
       html: customerEmail.html,
     });
@@ -152,7 +164,7 @@ export async function sendReservationEmails(reservation: Reservation) {
 
     const { error } = await resend.emails.send({
       from: `Reservas Online <${FROM_EMAIL}>`,
-      to: toEmail,
+      to: getRecipientEmail(toEmail),
       subject: restaurantEmail.subject,
       html: restaurantEmail.html,
     });
@@ -188,7 +200,7 @@ export async function sendReservationConfirmedEmail(reservation: Reservation) {
   try {
     const { data, error } = await resend.emails.send({
       from: `Sushi in Sushi <${FROM_EMAIL}>`,
-      to: reservation.email,
+      to: getRecipientEmail(reservation.email),
       subject: emailTemplate.subject,
       html: emailTemplate.html,
     });
@@ -234,7 +246,7 @@ export async function sendFarewellEmail(reservation: Reservation) {
   try {
     const { error } = await resend.emails.send({
       from: `Sushi in Sushi <${FROM_EMAIL}>`,
-      to: reservation.email,
+      to: getRecipientEmail(reservation.email),
       subject: emailTemplate.subject,
       html: emailTemplate.html,
     });
@@ -270,7 +282,7 @@ export async function sendCancellationEmail(reservation: Reservation, cancellati
   try {
     const { error } = await resend.emails.send({
       from: `Sushi in Sushi <${FROM_EMAIL}>`,
-      to: reservation.email,
+      to: getRecipientEmail(reservation.email),
       subject: emailTemplate.subject,
       html: emailTemplate.html,
     });
@@ -305,7 +317,7 @@ export async function sendDayBeforeReminderEmail(reservation: Reservation, waste
   try {
     const { data, error } = await resend.emails.send({
       from: `Sushi in Sushi <${FROM_EMAIL}>`,
-      to: reservation.email,
+      to: getRecipientEmail(reservation.email),
       subject: emailTemplate.subject,
       html: emailTemplate.html,
     });
@@ -341,7 +353,7 @@ export async function sendSameDayReminderEmail(reservation: Reservation, wasteFe
   try {
     const { data, error } = await resend.emails.send({
       from: `Sushi in Sushi <${FROM_EMAIL}>`,
-      to: reservation.email,
+      to: getRecipientEmail(reservation.email),
       subject: emailTemplate.subject,
       html: emailTemplate.html,
     });

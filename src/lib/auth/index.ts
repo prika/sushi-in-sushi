@@ -11,6 +11,8 @@ export type { TokenPayload } from "./token";
 
 // Cookie management
 export { getAuthUser, setAuthCookie, clearAuthCookie, getCookieName } from "./cookie";
+// Alias for backward compatibility
+export { getAuthUser as verifyAuth } from "./cookie";
 
 // Login
 export { login } from "./login";

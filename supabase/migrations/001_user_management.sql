@@ -210,6 +210,18 @@ WHERE NOT EXISTS (
     SELECT 1 FROM staff WHERE email = 'cozinha.boavista@sushinsushi.pt'
 );
 
+-- Insert default waiter user
+INSERT INTO staff (email, name, password_hash, role_id, location)
+SELECT
+    'empregado@sushinsushi.pt',
+    'Empregado Circunvalação',
+    'empregado123', -- TODO: Replace with bcrypt hash in production
+    (SELECT id FROM roles WHERE name = 'waiter'),
+    'circunvalacao'
+WHERE NOT EXISTS (
+    SELECT 1 FROM staff WHERE email = 'empregado@sushinsushi.pt'
+);
+
 -- =============================================
 -- VIEWS FOR COMMON QUERIES
 -- =============================================

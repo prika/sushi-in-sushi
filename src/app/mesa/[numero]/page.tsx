@@ -686,7 +686,7 @@ export default function MesaPage() {
   }, [tableId, waiterName, supabase]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <main className="min-h-screen flex flex-col">
       {/* Error Toast */}
       {error && (
         <div className="fixed top-4 left-4 right-4 z-[60] bg-red-500/90 text-white px-4 py-3 rounded-xl flex items-center justify-between">
@@ -931,14 +931,15 @@ export default function MesaPage() {
 
             <div
               ref={tabsRef}
-              className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide border-b border-gray-800"
+              className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide border-b border-gray-800 categories"
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {categories.map(category => (
                 <button
                   key={category.id}
                   onClick={() => scrollToCategory(category.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap transition-all ${
+                  data-testid="category"
+                  className={`category flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap transition-all ${
                     activeCategory === category.id
                       ? "bg-[#D4AF37] text-black font-semibold"
                       : "bg-gray-800 text-gray-300 hover:bg-gray-700"
@@ -952,7 +953,7 @@ export default function MesaPage() {
           </div>
 
           {/* Menu Content */}
-          <div className="flex-1 overflow-y-auto pb-28">
+          <div className="flex-1 overflow-y-auto pb-28" data-testid="menu">
             {isLoadingProducts ? (
               <div className="flex items-center justify-center py-20">
                 <svg className="animate-spin h-10 w-10 text-[#D4AF37]" viewBox="0 0 24 24">
@@ -963,7 +964,7 @@ export default function MesaPage() {
             ) : categories.length === 0 ? (
               <p className="text-gray-400 text-center py-20">{t("mesa.menuUnavailable")}</p>
             ) : (
-              <div className="px-4 py-4">
+              <div className="px-4 py-4 products" data-testid="categories">
                 {categories.map(category => (
                   <div
                     key={category.id}
@@ -1848,6 +1849,6 @@ export default function MesaPage() {
           display: none;
         }
       `}</style>
-    </div>
+    </main>
   );
 }

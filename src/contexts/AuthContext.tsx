@@ -90,29 +90,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Get Supabase client (singleton)
   const supabase = useMemo(() => createClient(), []);
 
-  // Fetch staff profile from Supabase
+  // Fetch staff profile from Supabase using RPC functions (SECURITY DEFINER)
+  // This bypasses RLS issues with the roles table
   const fetchStaffProfile = useCallback(
-    async (authUserId: string): Promise<AuthUser | null> => {
-      const { data: staff, error } = await supabase
-        .from("staff")
-        .select(
-          `
-          id,
-          name,
-          email,
-          location,
-          is_active,
-          roles!inner (
-            name
-          )
-        `
-        )
-        .eq("auth_user_id", authUserId)
-        .eq("is_active", true)
-        .single();
+    async (_authUserId: string): Promise<AuthUser | null> => {
+      // Use get_current_staff() RPC which is SECURITY DEFINER
+      const { data: staffArray, error: staffError } = await (supabase as any).rpc("get_current_staff");
 
-      if (error || !staff) {
-        console.error("Error fetching staff profile:", error);
+      if (staffError || !staffArray || staffArray.length === 0) {
+        console.error("Error fetching staff profile:", staffError);
+        return null;
+      }
+
+      const staff = staffArray[0];
+
+      // Get role name using RPC function
+      const { data: roleName, error: roleError } = await (supabase as any).rpc("get_current_staff_role");
+
+      if (roleError || !roleName) {
+        console.error("Error fetching staff role:", roleError);
         return null;
       }
 
@@ -120,7 +116,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         id: staff.id,
         name: staff.name,
         email: staff.email,
-        role: (staff.roles as { name: string }).name as RoleName,
+        role: roleName as RoleName,
         location: staff.location as Location | null,
       };
     },

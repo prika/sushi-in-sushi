@@ -3,6 +3,11 @@
 -- Migration: 011_supabase_auth_integration.sql
 -- =============================================
 
+-- 0. Drop views that depend on staff table (they use SELECT *)
+-- These will be recreated after the column is added
+DROP VIEW IF EXISTS staff_with_roles CASCADE;
+DROP VIEW IF EXISTS waiter_assignments CASCADE;
+
 -- 1. Add auth_user_id column to link staff to auth.users
 ALTER TABLE staff ADD COLUMN IF NOT EXISTS auth_user_id UUID UNIQUE
   REFERENCES auth.users(id) ON DELETE SET NULL;
@@ -61,6 +66,39 @@ RETURNS BOOLEAN AS $$
     AND is_active = true
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- =============================================
+-- RECREATE VIEWS
+-- =============================================
+
+-- Recreate staff_with_roles view (from 001_user_management.sql)
+CREATE OR REPLACE VIEW staff_with_roles AS
+SELECT
+    s.*,
+    r.name as role_name,
+    r.description as role_description
+FROM staff s
+JOIN roles r ON s.role_id = r.id;
+
+-- Recreate waiter_assignments view (from 001_user_management.sql)
+CREATE OR REPLACE VIEW waiter_assignments AS
+SELECT
+    wt.id,
+    wt.assigned_at,
+    s.id as staff_id,
+    s.name as staff_name,
+    s.email as staff_email,
+    t.id as table_id,
+    t.number as table_number,
+    t.name as table_name,
+    t.location as table_location
+FROM waiter_tables wt
+JOIN staff s ON wt.staff_id = s.id
+JOIN tables t ON wt.table_id = t.id;
+
+-- Grant permissions on recreated views
+GRANT SELECT ON staff_with_roles TO authenticated;
+GRANT SELECT ON waiter_assignments TO authenticated;
 
 -- =============================================
 -- COMMENTS

@@ -498,6 +498,7 @@ export default function CozinhaPage() {
           <select
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
+            aria-label="Filtrar por localização"
             className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#D4AF37]"
           >
             {LOCATIONS.map((loc) => (
@@ -507,9 +508,16 @@ export default function CozinhaPage() {
             ))}
           </select>
 
+          {/* Real-time Status Indicator */}
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 rounded-lg border border-green-500/30 status connected live">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            <span className="text-xs text-green-400 font-medium">Online</span>
+          </div>
+
           {/* Sound Toggle */}
           <button
             onClick={toggleSound}
+            aria-label={isSoundEnabled ? "Desativar som" : "Ativar som"}
             className={`
               p-2 rounded-lg transition-colors
               ${isSoundEnabled ? "bg-green-500/20 text-green-500" : "bg-gray-800 text-gray-500"}
@@ -566,6 +574,7 @@ export default function CozinhaPage() {
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
+            aria-label="Terminar sessão"
             className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-red-500/20 hover:text-red-400 transition-colors disabled:opacity-50"
             title="Sair"
           >

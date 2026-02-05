@@ -5,23 +5,40 @@
 
 import { test, expect } from '@playwright/test';
 
+// Helper function to open the reservation modal
+async function openReservationModal(page: import('@playwright/test').Page) {
+  await page.goto('/');
+  // Wait for page to load
+  await page.waitForLoadState('networkidle');
+  // Scroll to contact section and click the reservation button (ShimmerButton with CalendarDays icon)
+  const contactSection = page.locator('#contacto');
+  if (await contactSection.isVisible()) {
+    await contactSection.scrollIntoViewIfNeeded();
+  }
+  // Click the first shimmer button in contact section (it's the reservation button)
+  const reservationBtn = page.locator('#contacto button').first();
+  await reservationBtn.click();
+  // Wait for modal to open
+  await page.waitForSelector('form input[name="first_name"]', { timeout: 10000 });
+}
+
 test.describe('Fluxo de Reserva - Cliente', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/reservas');
+    await openReservationModal(page);
   });
 
   test('página de reservas carrega corretamente', async ({ page }) => {
-    // Check main elements are visible
-    await expect(page.locator('h1, h2').first()).toBeVisible();
+    // Check main elements are visible - modal should have form
+    await expect(page.locator('h2:has-text("Reservar")').first()).toBeVisible();
     await expect(page.locator('form')).toBeVisible();
   });
 
   test('formulário tem todos os campos obrigatórios', async ({ page }) => {
     // Check required fields exist
-    await expect(page.locator('input[name="first_name"], [data-testid="first_name"]')).toBeVisible();
-    await expect(page.locator('input[name="last_name"], [data-testid="last_name"]')).toBeVisible();
-    await expect(page.locator('input[name="email"], [data-testid="email"]')).toBeVisible();
-    await expect(page.locator('input[name="phone"], [data-testid="phone"]')).toBeVisible();
+    await expect(page.locator('input[name="first_name"]')).toBeVisible();
+    await expect(page.locator('input[name="last_name"]')).toBeVisible();
+    await expect(page.locator('input[name="email"]')).toBeVisible();
+    await expect(page.locator('input[name="phone"]')).toBeVisible();
   });
 
   test('submissão de formulário vazio mostra erros', async ({ page }) => {
@@ -85,7 +102,7 @@ test.describe('Fluxo de Reserva - Cliente', () => {
 
 test.describe('Fluxo de Reserva - Sucesso', () => {
   test('reserva completa com dados válidos', async ({ page }) => {
-    await page.goto('/reservas');
+    await openReservationModal(page);
 
     // Get future date
     const tomorrow = new Date();
@@ -133,7 +150,7 @@ test.describe('Fluxo de Reserva - Sucesso', () => {
 
 test.describe('Aviso de Dias Fechados', () => {
   test('mostra aviso quando dia está fechado', async ({ page }) => {
-    await page.goto('/reservas');
+    await openReservationModal(page);
 
     // This test would need to know a closed day
     // For now, just verify the page handles date selection

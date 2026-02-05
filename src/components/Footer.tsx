@@ -45,7 +45,7 @@ export function Footer() {
               className="object-contain"
             />
           </div>
-          <p className="text-muted text-sm tracking-wider uppercase">
+          <p className="text-gray-400 text-sm tracking-wider uppercase">
             {t("tagline")}
           </p>
         </div>
@@ -58,7 +58,7 @@ export function Footer() {
               href={social.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-12 h-12 flex items-center justify-center rounded-full border border-white/10 text-muted hover:text-gold hover:border-gold transition-all duration-300"
+              className="w-12 h-12 flex items-center justify-center rounded-full border border-white/10 text-gray-400 hover:text-gold hover:border-gold transition-all duration-300"
               aria-label={social.name}
             >
               <social.icon size={20} />
@@ -72,7 +72,7 @@ export function Footer() {
             <a
               key={link.href}
               href={link.href}
-              className="text-sm text-muted hover:text-white transition-colors duration-200"
+              className="text-sm text-gray-400 hover:text-white transition-colors duration-200"
             >
               {link.label}
             </a>
@@ -80,7 +80,7 @@ export function Footer() {
         </div>
 
         {/* Copyright */}
-        <p className="text-center text-muted-foreground text-sm">
+        <p className="text-center text-gray-400 text-sm">
           {t("copyright", { year: new Date().getFullYear() })}
         </p>
       </div>

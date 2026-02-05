@@ -6,6 +6,7 @@
 import { test as base, expect, Page, BrowserContext } from '@playwright/test';
 
 // Test user credentials - should match your test database/environment
+// These match the passwords in the database migration (001_user_management.sql)
 export const TEST_USERS = {
   admin: {
     email: process.env.TEST_ADMIN_EMAIL || 'admin@sushinsushi.pt',
@@ -68,7 +69,8 @@ async function performLogin(page: Page, email: string, password: string): Promis
 }
 
 /**
- * Helper function to perform login via API (faster)
+ * Helper function to perform login via legacy API (faster, uses FALLBACK_USERS)
+ * This bypasses Supabase Auth and uses the staff table + fallback credentials
  */
 async function performApiLogin(
   page: Page,
@@ -76,21 +78,32 @@ async function performApiLogin(
   password: string
 ): Promise<boolean> {
   try {
+    // Use the legacy login endpoint that supports FALLBACK_USERS
     const response = await page.request.post('/api/auth/login', {
       data: { email, password },
     });
 
     if (!response.ok()) {
+      const errorData = await response.json().catch(() => ({}));
+      console.log('API login failed:', response.status(), errorData);
       return false;
     }
 
     // Refresh the page to pick up cookies
     await page.goto('/');
     return true;
-  } catch {
+  } catch (error) {
+    console.error('API login error:', error);
     return false;
   }
 }
+
+// Map roles to their redirect paths
+const ROLE_REDIRECTS: Record<UserRole, string> = {
+  admin: '/admin',
+  kitchen: '/cozinha',
+  waiter: '/waiter',
+};
 
 /**
  * Extended test with authentication fixtures
@@ -106,12 +119,17 @@ export const test = base.extend<AuthFixtures>({
 
       // Try API login first (faster)
       const apiSuccess = await performApiLogin(page, user.email, user.password);
-      if (!apiSuccess) {
-        // Fall back to UI login
-        const uiSuccess = await performLogin(page, user.email, user.password);
-        if (!uiSuccess) {
-          throw new Error(`Failed to login as ${role}`);
-        }
+      if (apiSuccess) {
+        // Navigate to the appropriate page after API login
+        const redirectPath = ROLE_REDIRECTS[role];
+        await page.goto(redirectPath);
+        return;
+      }
+
+      // Fall back to UI login (handles redirect automatically)
+      const uiSuccess = await performLogin(page, user.email, user.password);
+      if (!uiSuccess) {
+        throw new Error(`Failed to login as ${role}`);
       }
     };
 
@@ -124,10 +142,18 @@ export const test = base.extend<AuthFixtures>({
     const page = await context.newPage();
 
     const user = TEST_USERS.admin;
-    const success = await performLogin(page, user.email, user.password);
+    // Try API login first (uses FALLBACK_USERS, bypasses Supabase Auth)
+    let success = await performApiLogin(page, user.email, user.password);
+
+    if (success) {
+      // Navigate to admin after API login
+      await page.goto('/admin');
+    } else {
+      // Fall back to UI login
+      success = await performLogin(page, user.email, user.password);
+    }
 
     if (!success) {
-      // If login fails, still provide the page but log a warning
       console.warn('Admin login failed - tests may fail if authentication is required');
     }
 
@@ -141,7 +167,13 @@ export const test = base.extend<AuthFixtures>({
     const page = await context.newPage();
 
     const user = TEST_USERS.kitchen;
-    const success = await performLogin(page, user.email, user.password);
+    let success = await performApiLogin(page, user.email, user.password);
+
+    if (success) {
+      await page.goto('/cozinha');
+    } else {
+      success = await performLogin(page, user.email, user.password);
+    }
 
     if (!success) {
       console.warn('Kitchen login failed - tests may fail if authentication is required');
@@ -157,7 +189,13 @@ export const test = base.extend<AuthFixtures>({
     const page = await context.newPage();
 
     const user = TEST_USERS.waiter;
-    const success = await performLogin(page, user.email, user.password);
+    let success = await performApiLogin(page, user.email, user.password);
+
+    if (success) {
+      await page.goto('/waiter');
+    } else {
+      success = await performLogin(page, user.email, user.password);
+    }
 
     if (!success) {
       console.warn('Waiter login failed - tests may fail if authentication is required');
@@ -173,7 +211,13 @@ export const test = base.extend<AuthFixtures>({
     const page = await context.newPage();
 
     const user = TEST_USERS.admin;
-    await performLogin(page, user.email, user.password);
+    let success = await performApiLogin(page, user.email, user.password);
+
+    if (success) {
+      await page.goto('/admin');
+    } else {
+      await performLogin(page, user.email, user.password);
+    }
 
     await use(page);
     await context.close();

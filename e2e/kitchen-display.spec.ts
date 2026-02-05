@@ -194,8 +194,8 @@ test.describe('Cozinha - Real-time Updates', () => {
     await kitchenPage.waitForLoadState('networkidle');
 
     // Look for real-time connection indicator or just verify page is functional
-    const connectionIndicator = kitchenPage.locator('[class*="connected"], [class*="live"], [class*="online"], [class*="status"]');
-    const pageContent = kitchenPage.locator('main, body');
+    const connectionIndicator = kitchenPage.locator('[class*="connected"], [class*="live"], [class*="online"]').first();
+    const pageContent = kitchenPage.locator('main').first();
 
     // Either has connection indicator or page loaded successfully
     const hasIndicator = await connectionIndicator.isVisible().catch(() => false);

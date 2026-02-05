@@ -13,24 +13,24 @@ describe('Cron: Reservation Reminders', () => {
 
   describe('Autorização', () => {
     it('rejeita pedido sem CRON_SECRET', () => {
-      const authHeader = '';
-      const expectedSecret = 'test-secret';
+      const authHeader: string = '';
+      const expectedSecret: string = 'test-secret';
 
       const isAuthorized = authHeader === `Bearer ${expectedSecret}`;
       expect(isAuthorized).toBe(false);
     });
 
     it('rejeita pedido com secret inválido', () => {
-      const authHeader = 'Bearer wrong-secret';
-      const expectedSecret = 'test-secret';
+      const authHeader: string = 'Bearer wrong-secret';
+      const expectedSecret: string = 'test-secret';
 
       const isAuthorized = authHeader === `Bearer ${expectedSecret}`;
       expect(isAuthorized).toBe(false);
     });
 
     it('aceita pedido com secret válido', () => {
-      const authHeader = 'Bearer test-secret';
-      const expectedSecret = 'test-secret';
+      const authHeader: string = 'Bearer test-secret';
+      const expectedSecret: string = 'test-secret';
 
       const isAuthorized = authHeader === `Bearer ${expectedSecret}`;
       expect(isAuthorized).toBe(true);

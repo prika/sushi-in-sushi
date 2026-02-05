@@ -208,11 +208,16 @@ describe('Segurança - CRON Secret', () => {
   });
 
   it('rejeita header inválido', () => {
-    const secret = 'my-secure-cron-secret';
+    const secret: string = 'my-secure-cron-secret';
+    const expectedHeader = `Bearer ${secret}`;
 
-    expect(`Bearer wrong` === `Bearer ${secret}`).toBe(false);
-    expect(`Basic ${secret}` === `Bearer ${secret}`).toBe(false);
-    expect('' === `Bearer ${secret}`).toBe(false);
+    const wrongBearer: string = 'Bearer wrong';
+    const basicAuth: string = `Basic ${secret}`;
+    const emptyHeader: string = '';
+
+    expect(wrongBearer === expectedHeader).toBe(false);
+    expect(basicAuth === expectedHeader).toBe(false);
+    expect(emptyHeader === expectedHeader).toBe(false);
   });
 });
 

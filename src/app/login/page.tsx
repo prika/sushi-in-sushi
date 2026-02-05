@@ -110,6 +110,7 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
+            aria-label={showPassword ? "Ocultar palavra-passe" : "Mostrar palavra-passe"}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
           >
             {showPassword ? (
@@ -202,7 +203,7 @@ export default function LoginPage() {
           <h1 className="text-xl font-light tracking-[0.2em] text-[#D4AF37]">
             SUSHI IN SUSHI
           </h1>
-          <p className="text-gray-500 text-sm mt-2">Área Restrita</p>
+          <p className="text-gray-400 text-sm mt-2">Área Restrita</p>
         </div>
 
         {/* Login Form */}
@@ -220,7 +221,7 @@ export default function LoginPage() {
         <div className="text-center mt-6">
           <a
             href="/"
-            className="text-gray-500 text-sm hover:text-[#D4AF37] transition-colors"
+            className="text-gray-400 text-sm hover:text-[#D4AF37] transition-colors"
           >
             Voltar ao site
           </a>

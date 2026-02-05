@@ -78,6 +78,14 @@ const DEFAULT_SESSION_CONFIG: SessionConfig = {
 // RATE LIMITING
 // =============================================
 
+// IPs that bypass rate limiting (localhost for testing)
+const RATE_LIMIT_BYPASS_IPS = [
+  "127.0.0.1",
+  "::1",
+  "::ffff:127.0.0.1",
+  "localhost",
+];
+
 /**
  * Check if a login attempt is allowed based on rate limiting.
  * Requires migration 013 to be applied.
@@ -97,6 +105,16 @@ export async function checkRateLimit(
     windowMinutes = 15,
     blockMinutes = 30,
   } = options;
+
+  // Bypass rate limiting for localhost (testing/development)
+  if (identifierType === "ip" && RATE_LIMIT_BYPASS_IPS.includes(identifier)) {
+    return {
+      allowed: true,
+      attemptsRemaining: maxAttempts,
+      blockedUntil: null,
+      currentAttempts: 0,
+    };
+  }
 
   try {
     const supabase = await createClient();

@@ -105,7 +105,7 @@ describe('StartSessionUseCase', () => {
       });
 
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && result.data) {
         expect(result.data.id).toBe('session-1');
         expect(result.data.status).toBe('active');
       }
