@@ -1,3 +1,20 @@
+// =============================================================================
+// IMPORT SHARED TYPES FROM DOMAIN (Single source of truth)
+// =============================================================================
+import type { SessionStatus as DomainSessionStatus } from "@/domain/value-objects/SessionStatus";
+import type { OrderStatus as DomainOrderStatus } from "@/domain/value-objects/OrderStatus";
+import type { Location as DomainLocation } from "@/domain/value-objects/Location";
+import type { TableStatus as DomainTableStatus } from "@/domain/value-objects/TableStatus";
+
+// Re-export domain types for backwards compatibility
+export type SessionStatus = DomainSessionStatus;
+export type OrderStatus = DomainOrderStatus;
+export type Location = DomainLocation;
+export type TableStatus = DomainTableStatus;
+
+// =============================================================================
+// SUPABASE JSON TYPE
+// =============================================================================
 export type Json =
   | string
   | number
@@ -436,10 +453,8 @@ export type Database = {
   };
 };
 
-// Enum types
-export type SessionStatus = "active" | "pending_payment" | "paid" | "closed";
-export type OrderStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled";
-export type TableStatus = "available" | "reserved" | "occupied" | "inactive";
+// Note: SessionStatus, OrderStatus, TableStatus, Location are now imported from domain/value-objects
+// and re-exported at the top of this file for backwards compatibility
 
 // Generic helper type for table rows
 export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"];
@@ -529,8 +544,7 @@ export type Role = {
   description: string;
 };
 
-// Location type
-export type Location = "circunvalacao" | "boavista";
+// Note: Location is imported from domain/value-objects and re-exported at the top of this file
 
 // Staff types
 export type Staff = {

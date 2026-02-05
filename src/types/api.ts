@@ -1,10 +1,23 @@
 /**
  * API and hook-related types
+ *
+ * Note: Auth types (TokenPayload, LoginResult, AuthContextType) are defined in:
+ * - @/lib/auth/token (TokenPayload)
+ * - @/lib/auth/login (LoginResult)
+ * - @/contexts/AuthContext (AuthContextType, LoginResult with MFA)
+ *
+ * Note: QRCodeOptions is defined in @/lib/qrcode
  */
 
-import type { Product, Order as DbOrder, Session, Table, OrderStatus } from "./database";
+import type { Session, Table, OrderStatus, OrderWithProduct } from "./database";
 
-// Cart types
+// Re-export OrderWithProduct from database for backwards compatibility
+export type { OrderWithProduct };
+
+// =============================================================================
+// CART TYPES
+// =============================================================================
+
 export interface CartItem {
   productId: string;
   name: string;
@@ -18,10 +31,11 @@ export interface UseCartOptions {
   persist?: boolean;
 }
 
-// Order types for hooks
-export interface OrderWithProduct extends DbOrder {
-  product: Product;
-}
+// =============================================================================
+// ORDER HOOK TYPES
+// =============================================================================
+
+// Note: OrderWithProduct is imported from ./database and re-exported
 
 export interface UseOrdersOptions {
   sessionId: string;
@@ -33,7 +47,10 @@ export interface GroupedOrders {
   orders: OrderWithProduct[];
 }
 
-// Session types for hooks
+// =============================================================================
+// SESSION HOOK TYPES
+// =============================================================================
+
 export interface SessionData extends Session {
   table?: Table;
 }
@@ -43,48 +60,10 @@ export interface UseSessionOptions {
   location: string;
 }
 
-// Auth types
-export interface TokenPayload {
-  staffId: string;
-  email: string;
-  role: string;
-  name: string;
-  location: string | null;
-  exp?: number;
-}
+// =============================================================================
+// TABLE TYPES FOR ADMIN
+// =============================================================================
 
-export interface LoginResult {
-  success: boolean;
-  user?: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    location: string | null;
-  };
-  error?: string;
-}
-
-export interface AuthContextType {
-  user: LoginResult["user"] | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<LoginResult>;
-  logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
-}
-
-// QR Code types
-export interface QRCodeOptions {
-  width?: number;
-  margin?: number;
-  color?: {
-    dark?: string;
-    light?: string;
-  };
-}
-
-// Table types for admin
 export interface TableData {
   id: string;
   number: number;
@@ -93,7 +72,10 @@ export interface TableData {
   is_active: boolean;
 }
 
-// Status config for UI
+// =============================================================================
+// UI STATUS CONFIG
+// =============================================================================
+
 export interface StatusConfig {
   icon: string;
   label: string;

@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import type { TableLocation } from "@/types/tables";
+import type { Location } from "@/types";
 import { APP_URL } from "@/lib/config/constants";
 
 export interface QRCodeOptions {
@@ -59,7 +59,7 @@ export async function generateQRCodeToCanvas(
  */
 export function buildTableOrderURL(
   token: string,
-  location: TableLocation,
+  location: Location,
 ): string {
   return `${APP_URL}/pedido/${location}/${token}`;
 }
@@ -69,7 +69,7 @@ export function buildTableOrderURL(
  */
 export function buildTableOrderURLByNumber(
   tableNumber: number,
-  location: TableLocation,
+  location: Location,
 ): string {
   return `${APP_URL}/mesa/${tableNumber}?loc=${location}`;
 }
