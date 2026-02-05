@@ -537,31 +537,6 @@ src/components/mesa/MesaLanguageSwitcher.tsx  # UI selector
 
 ---
 
-### Fase 2: Estabilização
-
-**Objetivo:** Melhorar qualidade do código e type safety
-
-#### Tarefas:
-- [ ] **2.1** Remover console.logs
-  - Configurar ESLint `no-console: error`
-  - Substituir por logger estruturado (opcional)
-
-- [ ] **2.2** Corrigir type safety
-  - Eliminar todos os `any` types
-  - Adicionar tipos explícitos em exports
-  - Tipar respostas de API
-
-- [ ] **2.3** Consolidar types
-  - Criar `src/types/index.ts` centralizado
-  - Organizar por namespace (Database, API, Domain)
-  - Remover duplicações
-
-#### Entregáveis:
-- Zero `any` types
-- TypeScript strict sem erros
-- Types organizados
-
----
 
 ### Fase 3: Completar Arquitetura SOLID
 
@@ -667,11 +642,6 @@ src/components/mesa/MesaLanguageSwitcher.tsx  # UI selector
   - MesaLanguageSwitcher.tsx para seleção manual
   - 60+ strings traduzidas em 6 idiomas (PT, EN, FR, DE, IT, ES)
   - Persistência em localStorage
-
-- [ ] **6.3** Traduzir admin panel
-  - Extrair strings para messages/
-  - Traduzir para 6 idiomas
-  - Selector de idioma no admin
 
 - [ ] **6.4** Analytics dashboard
   - Métricas de vendas

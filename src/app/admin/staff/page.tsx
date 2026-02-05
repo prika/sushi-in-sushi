@@ -3,20 +3,44 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { StaffWithRole, Role, Table, RoleName, Location } from "@/types/database";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import type {
+  StaffWithRole,
+  Role,
+  Table,
+  RoleName,
+  Location,
+} from "@/types/database";
 
 export default function StaffManagementPage() {
   const [staff, setStaff] = useState<StaffWithRole[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
-  const [waiterAssignments, setWaiterAssignments] = useState<Record<string, string[]>>({});
+  const [waiterAssignments, setWaiterAssignments] = useState<
+    Record<string, string[]>
+  >({});
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffWithRole | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [assigningWaiter, setAssigningWaiter] = useState<StaffWithRole | null>(null);
+  const [assigningWaiter, setAssigningWaiter] = useState<StaffWithRole | null>(
+    null,
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
 
   // Form state
   const [formData, setFormData] = useState({
@@ -40,15 +64,19 @@ export default function StaffManagementPage() {
       // Fetch staff with roles
       const { data: staffData, error: staffError } = await supabase
         .from("staff")
-        .select(`
+        .select(
+          `
           *,
           role:roles(*)
-        `)
+        `,
+        )
         .order("created_at", { ascending: false });
 
       if (staffError) {
         console.error("Staff table error:", staffError);
-        setDbError("As tabelas de gestão de funcionários ainda não foram criadas. Execute a migração SQL no Supabase.");
+        setDbError(
+          "As tabelas de gestão de funcionários ainda não foram criadas. Execute a migração SQL no Supabase.",
+        );
         setIsLoading(false);
         return;
       }
@@ -87,12 +115,23 @@ export default function StaffManagementPage() {
       setWaiterAssignments(assignments);
     } catch (error) {
       console.error("Error fetching data:", error);
-      setDbError("Erro ao carregar dados. Verifique se as tabelas foram criadas no Supabase.");
+      setDbError(
+        "Erro ao carregar dados. Verifique se as tabelas foram criadas no Supabase.",
+      );
     }
     setIsLoading(false);
   };
 
   const handleOpenModal = (staffMember?: StaffWithRole) => {
+    // Ensure roles are loaded before opening modal for new staff
+    const staffRoles = roles.filter((r) => r.name !== "customer");
+    if (!staffMember && staffRoles.length === 0) {
+      alert(
+        "Aguarde o carregamento dos dados antes de criar um novo funcionário.",
+      );
+      return;
+    }
+
     if (staffMember) {
       setEditingStaff(staffMember);
       setFormData({
@@ -106,11 +145,14 @@ export default function StaffManagementPage() {
       });
     } else {
       setEditingStaff(null);
+      // Filter out customer role and get the first valid staff role
+      const staffRoles = roles.filter((r) => r.name !== "customer");
+      const defaultRoleId = staffRoles[0]?.id || 0;
       setFormData({
         email: "",
         name: "",
         password: "",
-        role_id: roles[0]?.id || 0,
+        role_id: defaultRoleId,
         location: "",
         phone: "",
         is_active: true,
@@ -122,6 +164,16 @@ export default function StaffManagementPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate role_id is valid
+    const validRoleIds = roles
+      .filter((r) => r.name !== "customer")
+      .map((r) => r.id);
+    if (!formData.role_id || !validRoleIds.includes(formData.role_id)) {
+      alert("Por favor, selecione um role válido para o funcionário.");
+      return;
+    }
+
     const supabase = createClient();
 
     if (editingStaff) {
@@ -140,13 +192,19 @@ export default function StaffManagementPage() {
         updateData.password_hash = formData.password; // TODO: Hash with bcrypt
       }
 
-      await supabase
+      const { error } = await supabase
         .from("staff")
         .update(updateData)
         .eq("id", editingStaff.id);
+
+      if (error) {
+        console.error("Error updating staff:", error);
+        alert(`Erro ao atualizar funcionário: ${error.message}`);
+        return;
+      }
     } else {
       // Create new staff
-      await supabase.from("staff").insert({
+      const { error } = await supabase.from("staff").insert({
         email: formData.email.toLowerCase(),
         name: formData.name,
         password_hash: formData.password, // TODO: Hash with bcrypt
@@ -155,20 +213,46 @@ export default function StaffManagementPage() {
         phone: formData.phone || null,
         is_active: formData.is_active,
       });
+
+      if (error) {
+        console.error("Error creating staff:", error);
+        alert(`Erro ao criar funcionário: ${error.message}`);
+        return;
+      }
     }
 
     setShowModal(false);
     fetchData();
   };
 
-  const handleDelete = async (staffMember: StaffWithRole) => {
-    if (!confirm(`Tem certeza que deseja eliminar ${staffMember.name}?`)) {
-      return;
-    }
+  const handleDelete = (staffMember: StaffWithRole) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Eliminar Funcionário",
+      message: `Tem certeza que deseja eliminar ${staffMember.name}? Esta ação não pode ser revertida.`,
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
 
-    const supabase = createClient();
-    await supabase.from("staff").delete().eq("id", staffMember.id);
-    fetchData();
+        const supabase = createClient();
+        const { error } = await supabase
+          .from("staff")
+          .delete()
+          .eq("id", staffMember.id);
+
+        if (error) {
+          console.error("Error deleting staff:", error);
+          setConfirmDialog({
+            isOpen: true,
+            title: "Erro ao Eliminar",
+            message: `Não foi possível eliminar o funcionário: ${error.message}`,
+            onConfirm: () => setConfirmDialog((prev) => ({ ...prev, isOpen: false })),
+          });
+          return;
+        }
+
+        fetchData();
+      },
+    });
   };
 
   const handleToggleActive = async (staffMember: StaffWithRole) => {
@@ -231,7 +315,7 @@ export default function StaffManagementPage() {
       case "kitchen":
         return "Cozinha";
       case "waiter":
-        return "Empregado";
+        return "Atendente";
       case "customer":
         return "Cliente";
       default:
@@ -251,17 +335,27 @@ export default function StaffManagementPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestão de Funcionários</h1>
-          <p className="text-gray-500">Gerir utilizadores e permissões do sistema</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Gestão de Funcionários
+          </h1>
+          <p className="text-gray-500">
+            Gerir utilizadores e permissões do sistema
+          </p>
         </div>
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
           <div className="flex items-start gap-4">
             <div className="text-yellow-500 text-2xl">⚠️</div>
             <div>
-              <h3 className="font-semibold text-yellow-800 mb-2">Configuração Necessária</h3>
+              <h3 className="font-semibold text-yellow-800 mb-2">
+                Configuração Necessária
+              </h3>
               <p className="text-yellow-700 mb-4">{dbError}</p>
               <p className="text-sm text-yellow-600">
-                Execute o ficheiro <code className="bg-yellow-100 px-2 py-1 rounded">supabase/migrations/001_user_management.sql</code> no SQL Editor do Supabase.
+                Execute o ficheiro{" "}
+                <code className="bg-yellow-100 px-2 py-1 rounded">
+                  supabase/migrations/001_user_management.sql
+                </code>{" "}
+                no SQL Editor do Supabase.
               </p>
             </div>
           </div>
@@ -275,15 +369,29 @@ export default function StaffManagementPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestão de Funcionários</h1>
-          <p className="text-gray-500">Gerir utilizadores e permissões do sistema</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Gestão de Funcionários
+          </h1>
+          <p className="text-gray-500">
+            Gerir utilizadores e permissões do sistema
+          </p>
         </div>
         <button
           onClick={() => handleOpenModal()}
           className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           Novo Funcionário
         </button>
@@ -298,19 +406,19 @@ export default function StaffManagementPage() {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500">Administradores</p>
           <p className="text-2xl font-bold text-red-500">
-            {staff.filter((s) => s.role.name === "admin").length}
+            {staff.filter((s) => s.role?.name === "admin").length}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500">Cozinha</p>
           <p className="text-2xl font-bold text-orange-500">
-            {staff.filter((s) => s.role.name === "kitchen").length}
+            {staff.filter((s) => s.role?.name === "kitchen").length}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500">Empregados</p>
           <p className="text-2xl font-bold text-blue-500">
-            {staff.filter((s) => s.role.name === "waiter").length}
+            {staff.filter((s) => s.role?.name === "waiter").length}
           </p>
         </div>
       </div>
@@ -351,20 +459,24 @@ export default function StaffManagementPage() {
                     >
                       {staffMember.name}
                     </Link>
-                    <div className="text-sm text-gray-500">{staffMember.email}</div>
+                    <div className="text-sm text-gray-500">
+                      {staffMember.email}
+                    </div>
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(staffMember.role.name)}`}>
-                    {getRoleLabel(staffMember.role.name)}
+                  <span
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(staffMember.role?.name || "")}`}
+                  >
+                    {getRoleLabel(staffMember.role?.name || "")}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-500">
                   {staffMember.location === "circunvalacao"
                     ? "Circunvalação"
                     : staffMember.location === "boavista"
-                    ? "Boavista"
-                    : "-"}
+                      ? "Boavista"
+                      : "-"}
                 </td>
                 <td className="px-6 py-4">
                   <button
@@ -390,19 +502,44 @@ export default function StaffManagementPage() {
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
                       title="Ver Detalhes"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
                       </svg>
                     </Link>
-                    {staffMember.role.name === "waiter" && (
+                    {staffMember.role?.name === "waiter" && (
                       <button
                         onClick={() => handleOpenAssignModal(staffMember)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
                         title="Atribuir Mesas"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                          />
                         </svg>
                       </button>
                     )}
@@ -411,8 +548,18 @@ export default function StaffManagementPage() {
                       className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
                       title="Editar"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
                       </svg>
                     </button>
                     <button
@@ -420,8 +567,18 @@ export default function StaffManagementPage() {
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                       title="Eliminar"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -444,8 +601,18 @@ export default function StaffManagementPage() {
                 onClick={() => setShowModal(false)}
                 className="p-2 text-gray-400 hover:text-gray-600"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -458,7 +625,9 @@ export default function StaffManagementPage() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                   required
                 />
@@ -471,7 +640,9 @@ export default function StaffManagementPage() {
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                   required
                 />
@@ -485,7 +656,9 @@ export default function StaffManagementPage() {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
                     className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                     required={!editingStaff}
                   />
@@ -495,13 +668,38 @@ export default function StaffManagementPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   >
                     {showPassword ? (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                        />
                       </svg>
                     ) : (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
                       </svg>
                     )}
                   </button>
@@ -514,7 +712,12 @@ export default function StaffManagementPage() {
                 </label>
                 <select
                   value={formData.role_id}
-                  onChange={(e) => setFormData({ ...formData, role_id: parseInt(e.target.value) })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      role_id: parseInt(e.target.value),
+                    })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                   required
                 >
@@ -534,7 +737,12 @@ export default function StaffManagementPage() {
                 </label>
                 <select
                   value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value as Location | "" })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      location: e.target.value as Location | "",
+                    })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                 >
                   <option value="">Todas as localizações</option>
@@ -550,7 +758,9 @@ export default function StaffManagementPage() {
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                 />
               </div>
@@ -560,7 +770,9 @@ export default function StaffManagementPage() {
                   type="checkbox"
                   id="is_active"
                   checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, is_active: e.target.checked })
+                  }
                   className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
                 />
                 <label htmlFor="is_active" className="text-sm text-gray-700">
@@ -603,8 +815,18 @@ export default function StaffManagementPage() {
                 onClick={() => setShowAssignModal(false)}
                 className="p-2 text-gray-400 hover:text-gray-600"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -612,7 +834,9 @@ export default function StaffManagementPage() {
             <div className="p-6 max-h-96 overflow-y-auto">
               <div className="grid grid-cols-3 gap-3">
                 {tables.map((table) => {
-                  const isAssigned = (waiterAssignments[assigningWaiter.id] || []).includes(table.id);
+                  const isAssigned = (
+                    waiterAssignments[assigningWaiter.id] || []
+                  ).includes(table.id);
                   return (
                     <button
                       key={table.id}
@@ -623,7 +847,9 @@ export default function StaffManagementPage() {
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                     >
-                      <div className={`text-xl font-bold ${isAssigned ? "text-[#D4AF37]" : "text-gray-700"}`}>
+                      <div
+                        className={`text-xl font-bold ${isAssigned ? "text-[#D4AF37]" : "text-gray-700"}`}
+                      >
                         #{table.number}
                       </div>
                       <div className="text-xs text-gray-500">{table.name}</div>
@@ -644,6 +870,18 @@ export default function StaffManagementPage() {
           </div>
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

@@ -407,13 +407,13 @@ export default function CozinhaPage() {
           "for order:",
           order.id,
         );
-        showToast("success", `Empregado ${order.waiter_name || ""} notificado`);
+        showToast("success", `Atendente ${order.waiter_name || ""} notificado`);
       } catch (err) {
         console.error("Error notifying waiter:", err);
-        showToast("error", "Erro ao notificar empregado");
+        showToast("error", "Erro ao notificar atendente");
       }
     },
-    [supabase],
+    [supabase, showToast],
   );
 
   // Transition functions

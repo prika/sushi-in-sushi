@@ -96,7 +96,7 @@ export default function StaffDetailPage() {
     const labels: Record<RoleName, string> = {
       admin: "Administrador",
       kitchen: "Cozinha",
-      waiter: "Empregado",
+      waiter: "Atendente",
       customer: "Cliente",
     };
     return labels[roleName] || roleName;
@@ -205,9 +205,9 @@ export default function StaffDetailPage() {
               <p className="text-gray-500">{staff.email}</p>
               <div className="flex items-center gap-2 mt-2">
                 <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(staff.role.name)}`}
+                  className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(staff.role?.name || "")}`}
                 >
-                  {getRoleLabel(staff.role.name)}
+                  {getRoleLabel(staff.role?.name || "")}
                 </span>
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -245,7 +245,7 @@ export default function StaffDetailPage() {
       </Card>
 
       {/* Assigned Tables (for waiters) */}
-      {staff.role.name === "waiter" && (
+      {staff.role?.name === "waiter" && (
         <Card
           variant="light"
           header={

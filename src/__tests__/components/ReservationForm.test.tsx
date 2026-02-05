@@ -98,9 +98,9 @@ describe('ReservationForm', () => {
       expect(screen.getByText('Número de Pessoas *')).toBeInTheDocument();
       // Default value is 2
       expect(screen.getByText('2')).toBeInTheDocument();
-      // +/- buttons
-      expect(screen.getByRole('button', { name: '-' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: '+' })).toBeInTheDocument();
+      // +/- buttons (using aria-labels)
+      expect(screen.getByRole('button', { name: 'Diminuir número de pessoas' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Aumentar número de pessoas' })).toBeInTheDocument();
     });
 
     it('renderiza campo de ocasião', () => {
@@ -148,7 +148,7 @@ describe('ReservationForm', () => {
     it('incrementa número de pessoas ao clicar +', () => {
       render(<ReservationForm />);
 
-      const plusButton = screen.getByRole('button', { name: '+' });
+      const plusButton = screen.getByRole('button', { name: 'Aumentar número de pessoas' });
       fireEvent.click(plusButton);
 
       expect(screen.getByText('3')).toBeInTheDocument();
@@ -157,7 +157,7 @@ describe('ReservationForm', () => {
     it('decrementa número de pessoas ao clicar -', () => {
       render(<ReservationForm />);
 
-      const minusButton = screen.getByRole('button', { name: '-' });
+      const minusButton = screen.getByRole('button', { name: 'Diminuir número de pessoas' });
       fireEvent.click(minusButton);
 
       expect(screen.getByText('1')).toBeInTheDocument();
@@ -166,7 +166,7 @@ describe('ReservationForm', () => {
     it('não permite menos de 1 pessoa', () => {
       render(<ReservationForm />);
 
-      const minusButton = screen.getByRole('button', { name: '-' });
+      const minusButton = screen.getByRole('button', { name: 'Diminuir número de pessoas' });
 
       // Click twice (from 2 -> 1 -> still 1)
       fireEvent.click(minusButton);
@@ -178,7 +178,7 @@ describe('ReservationForm', () => {
     it('não permite mais de 20 pessoas', () => {
       render(<ReservationForm />);
 
-      const plusButton = screen.getByRole('button', { name: '+' });
+      const plusButton = screen.getByRole('button', { name: 'Aumentar número de pessoas' });
 
       // Click many times
       for (let i = 0; i < 25; i++) {
