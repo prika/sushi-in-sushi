@@ -1,8 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, Button, Modal } from "@/components/ui";
-import type { ReservationSettings, RestaurantClosure, Location } from "@/types/database";
+import type {
+  ReservationSettings,
+  RestaurantClosure,
+  Location,
+  Table,
+  TableStatus,
+  SessionStatus,
+  OrderStatus,
+} from "@/types/database";
+import type { TableDTO } from "@/application/use-cases/tables/GetAllTablesUseCase";
+import { createClient } from "@/lib/supabase/client";
+import {
+  generateQRCodeToCanvas,
+  buildTableOrderURLByNumber,
+} from "@/lib/qrcode";
+import { TableMap } from "@/components/admin/TableMap";
+import { TableDetailModal } from "@/components/admin/TableDetailModal";
+import { useTableManagement } from "@/presentation/hooks";
 
 // =============================================
 // CONSTANTS
@@ -23,7 +40,7 @@ const LOCATION_LABELS: Record<string, string> = {
   boavista: "Boavista",
 };
 
-type TabId = "notifications" | "weekly-closures";
+type TabId = "notifications" | "weekly-closures" | "export" | "tables";
 
 // =============================================
 // NOTIFICATIONS TAB COMPONENT
@@ -33,7 +50,10 @@ function NotificationsTab() {
   const [settings, setSettings] = useState<ReservationSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   // Form state
   const [dayBeforeEnabled, setDayBeforeEnabled] = useState(true);
@@ -89,7 +109,10 @@ function NotificationsTab() {
       if (response.ok) {
         const data = await response.json();
         setSettings(data);
-        setMessage({ type: "success", text: "Definicoes guardadas com sucesso!" });
+        setMessage({
+          type: "success",
+          text: "Definicoes guardadas com sucesso!",
+        });
       } else {
         const error = await response.json();
         setMessage({ type: "error", text: error.error || "Erro ao guardar" });
@@ -131,7 +154,9 @@ function NotificationsTab() {
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <span className="text-2xl">📅</span>
-              <h3 className="text-lg font-semibold text-gray-900">Lembrete Dia Anterior</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Lembrete Dia Anterior
+              </h3>
             </div>
             <p className="mt-2 text-gray-600 text-sm">
               Envia um email de lembrete ao cliente antes da data da reserva.
@@ -159,7 +184,9 @@ function NotificationsTab() {
                 min="1"
                 max="168"
                 value={dayBeforeHours}
-                onChange={(e) => setDayBeforeHours(parseInt(e.target.value) || 24)}
+                onChange={(e) =>
+                  setDayBeforeHours(parseInt(e.target.value) || 24)
+                }
                 className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
               />
               <span className="text-gray-600">horas antes</span>
@@ -177,7 +204,9 @@ function NotificationsTab() {
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <span className="text-2xl">⏰</span>
-              <h3 className="text-lg font-semibold text-gray-900">Lembrete No Proprio Dia</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Lembrete No Proprio Dia
+              </h3>
             </div>
             <p className="mt-2 text-gray-600 text-sm">
               Envia um email de lembrete urgente algumas horas antes da reserva.
@@ -223,10 +252,13 @@ function NotificationsTab() {
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <span className="text-2xl">🍣</span>
-              <h3 className="text-lg font-semibold text-gray-900">Politica Anti-Desperdicio (Rodizio)</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Politica Anti-Desperdicio (Rodizio)
+              </h3>
             </div>
             <p className="mt-2 text-gray-600 text-sm">
-              Inclui aviso sobre a politica de desperdicio nos emails de lembrete para reservas de rodizio.
+              Inclui aviso sobre a politica de desperdicio nos emails de
+              lembrete para reservas de rodizio.
             </p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
@@ -257,7 +289,8 @@ function NotificationsTab() {
               <span className="text-gray-600">EUR por peca</span>
             </div>
             <p className="mt-2 text-xs text-gray-500">
-              Este valor sera mostrado no email de lembrete para reservas de rodizio
+              Este valor sera mostrado no email de lembrete para reservas de
+              rodizio
             </p>
           </div>
         )}
@@ -266,19 +299,41 @@ function NotificationsTab() {
       {/* Info Box */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
         <div className="flex gap-3">
-          <svg className="w-6 h-6 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="w-6 h-6 text-blue-500 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <div>
-            <h4 className="font-medium text-blue-900">Como funcionam os lembretes</h4>
+            <h4 className="font-medium text-blue-900">
+              Como funcionam os lembretes
+            </h4>
             <p className="mt-1 text-sm text-blue-800">
-              Os emails de lembrete sao enviados automaticamente pelo sistema. O cron job executa varias vezes por dia
-              (9h, 11h, 13h, 15h, 17h, 19h, 21h) para verificar reservas que precisam de lembrete.
+              Os emails de lembrete sao enviados automaticamente pelo sistema. O
+              cron job executa varias vezes por dia (9h, 11h, 13h, 15h, 17h,
+              19h, 21h) para verificar reservas que precisam de lembrete.
             </p>
             <ul className="mt-3 text-sm text-blue-700 space-y-1">
-              <li>- <strong>Lembrete dia anterior:</strong> Enviado quando faltam X horas para a reserva (configuravel)</li>
-              <li>- <strong>Lembrete no dia:</strong> Enviado X horas antes da hora da reserva (configuravel)</li>
-              <li>- Os emails incluem detalhes da reserva, mapa e informacoes de contacto</li>
+              <li>
+                - <strong>Lembrete dia anterior:</strong> Enviado quando faltam
+                X horas para a reserva (configuravel)
+              </li>
+              <li>
+                - <strong>Lembrete no dia:</strong> Enviado X horas antes da
+                hora da reserva (configuravel)
+              </li>
+              <li>
+                - Os emails incluem detalhes da reserva, mapa e informacoes de
+                contacto
+              </li>
             </ul>
           </div>
         </div>
@@ -298,7 +353,8 @@ function NotificationsTab() {
       {/* Last Updated */}
       {settings?.updated_at && (
         <p className="text-sm text-gray-500 text-right">
-          Ultima atualizacao: {new Date(settings.updated_at).toLocaleString("pt-PT")}
+          Ultima atualizacao:{" "}
+          {new Date(settings.updated_at).toLocaleString("pt-PT")}
         </p>
       )}
     </div>
@@ -382,7 +438,8 @@ function WeeklyClosuresTab() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Tem a certeza que deseja remover este dia de folga semanal?")) return;
+    if (!confirm("Tem a certeza que deseja remover este dia de folga semanal?"))
+      return;
 
     try {
       const response = await fetch(`/api/closures?id=${id}`, {
@@ -418,8 +475,18 @@ function WeeklyClosuresTab() {
       {/* Add Button */}
       <div className="flex justify-end">
         <Button variant="primary" onClick={() => setShowModal(true)}>
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg
+            className="w-5 h-5 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           Adicionar Dia de Folga
         </Button>
@@ -430,17 +497,39 @@ function WeeklyClosuresTab() {
         variant="light"
         header={
           <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <svg
+              className="w-5 h-5 text-[#D4AF37]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
             </svg>
-            <h3 className="font-semibold text-gray-900">Dias de Folga Semanais</h3>
+            <h3 className="font-semibold text-gray-900">
+              Dias de Folga Semanais
+            </h3>
           </div>
         }
       >
         {closures.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <svg
+              className="w-12 h-12 mx-auto text-gray-300 mb-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
             </svg>
             Nenhum dia de folga semanal configurado
           </div>
@@ -473,8 +562,18 @@ function WeeklyClosuresTab() {
                   onClick={() => handleDelete(closure.id)}
                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
                   </svg>
                 </button>
               </div>
@@ -486,17 +585,31 @@ function WeeklyClosuresTab() {
       {/* Info Box */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
         <div className="flex gap-3">
-          <svg className="w-6 h-6 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="w-6 h-6 text-blue-500 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <div>
-            <h4 className="font-medium text-blue-900">Como funcionam os dias de folga</h4>
+            <h4 className="font-medium text-blue-900">
+              Como funcionam os dias de folga
+            </h4>
             <p className="mt-1 text-sm text-blue-800">
-              Os dias de folga semanais aplicam-se a todas as semanas. Nestes dias, o sistema de reservas
-              estara bloqueado para a localizacao configurada (ou ambas).
+              Os dias de folga semanais aplicam-se a todas as semanas. Nestes
+              dias, o sistema de reservas estara bloqueado para a localizacao
+              configurada (ou ambas).
             </p>
             <p className="mt-2 text-sm text-blue-700">
-              Para feriados ou dias especificos, utilize a pagina &quot;Folgas&quot; no menu lateral.
+              Para feriados ou dias especificos, utilize a pagina
+              &quot;Folgas&quot; no menu lateral.
             </p>
           </div>
         </div>
@@ -519,7 +632,12 @@ function WeeklyClosuresTab() {
             </label>
             <select
               value={formData.recurring_day_of_week}
-              onChange={(e) => setFormData({ ...formData, recurring_day_of_week: parseInt(e.target.value) })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  recurring_day_of_week: parseInt(e.target.value),
+                })
+              }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             >
               {Object.entries(DAY_LABELS).map(([value, label]) => (
@@ -537,7 +655,12 @@ function WeeklyClosuresTab() {
             </label>
             <select
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value as Location | "" })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  location: e.target.value as Location | "",
+                })
+              }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             >
               <option value="">Ambas localizacoes</option>
@@ -554,7 +677,9 @@ function WeeklyClosuresTab() {
             <input
               type="text"
               value={formData.reason}
-              onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, reason: e.target.value })
+              }
               placeholder="Ex: Dia de descanso semanal"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             />
@@ -589,25 +714,1147 @@ function WeeklyClosuresTab() {
 }
 
 // =============================================
+// EXPORT TAB COMPONENT
+// =============================================
+
+type PeriodType = "today" | "week" | "month" | "custom";
+type FormatType = "csv" | "json";
+type StatusFilter = "all" | SessionStatus;
+
+interface SessionOrder {
+  id: string;
+  quantity: number;
+  unit_price: number | null;
+  status: OrderStatus;
+}
+
+interface SessionWithOrders {
+  id: string;
+  orders: SessionOrder[] | null;
+}
+
+function ExportTab() {
+  const [period, setPeriod] = useState<PeriodType>("today");
+  const [format, setFormat] = useState<FormatType>("csv");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [customDateStart, setCustomDateStart] = useState<string>("");
+  const [customDateEnd, setCustomDateEnd] = useState<string>("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [preview, setPreview] = useState<{
+    sessions: number;
+    orders: number;
+    total: number;
+  } | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  const getDateRange = useCallback(() => {
+    let startDate: Date;
+    let endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    switch (period) {
+      case "today":
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case "week":
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case "month":
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case "custom":
+        startDate = customDateStart ? new Date(customDateStart) : new Date();
+        endDate = customDateEnd ? new Date(customDateEnd) : new Date();
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      default:
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+    }
+
+    return { startDate, endDate };
+  }, [period, customDateStart, customDateEnd]);
+
+  useEffect(() => {
+    const fetchPreview = async () => {
+      setIsLoadingPreview(true);
+      const supabase = createClient();
+      const { startDate, endDate } = getDateRange();
+
+      let sessionsQuery = supabase
+        .from("sessions")
+        .select(`
+          *,
+          orders (*)
+        `)
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString());
+
+      if (statusFilter !== "all") {
+        sessionsQuery = sessionsQuery.eq("status", statusFilter);
+      }
+
+      const { data: sessions } = await sessionsQuery;
+
+      if (sessions) {
+        const typedSessions = sessions as unknown as SessionWithOrders[];
+        const allOrders = typedSessions.flatMap((s) => s.orders || []);
+        const total = allOrders
+          .filter((o) => o.status !== "cancelled")
+          .reduce((sum, o) => sum + o.quantity * (o.unit_price || 0), 0);
+
+        setPreview({
+          sessions: sessions.length,
+          orders: allOrders.length,
+          total,
+        });
+      }
+
+      setIsLoadingPreview(false);
+    };
+
+    fetchPreview();
+  }, [getDateRange, statusFilter]);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+
+    try {
+      const { startDate, endDate } = getDateRange();
+
+      const params = new URLSearchParams({
+        format,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      });
+
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter);
+      }
+
+      const response = await fetch(`/api/export?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error("Export failed");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `export-${new Date().toISOString().split("T")[0]}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Export error:", error);
+    }
+
+    setIsExporting(false);
+  };
+
+  const periodOptions: { value: PeriodType; label: string }[] = [
+    { value: "today", label: "Hoje" },
+    { value: "week", label: "Ultimos 7 dias" },
+    { value: "month", label: "Ultimo mes" },
+    { value: "custom", label: "Periodo personalizado" },
+  ];
+
+  const formatOptions: {
+    value: FormatType;
+    label: string;
+    description: string;
+  }[] = [
+    { value: "csv", label: "CSV", description: "Compativel com Excel" },
+    { value: "json", label: "JSON", description: "Dados estruturados" },
+  ];
+
+  const statusOptions: { value: StatusFilter; label: string }[] = [
+    { value: "all", label: "Todas as sessoes" },
+    { value: "active", label: "Apenas ativas" },
+    { value: "pending_payment", label: "Conta pedida" },
+    { value: "paid", label: "Pagas" },
+    { value: "closed", label: "Apenas fechadas" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <Card
+        variant="light"
+        header={<h2 className="text-lg font-semibold">Periodo</h2>}
+      >
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {periodOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setPeriod(option.value)}
+              className={`p-4 rounded-lg border-2 transition-colors ${
+                period === option.value
+                  ? "border-[#D4AF37] bg-[#D4AF37]/10"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <span
+                className={`font-medium ${
+                  period === option.value ? "text-[#D4AF37]" : "text-gray-700"
+                }`}
+              >
+                {option.label}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {period === "custom" && (
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Data inicio
+              </label>
+              <input
+                type="date"
+                value={customDateStart}
+                onChange={(e) => setCustomDateStart(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-900 focus:border-[#D4AF37] focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Data fim
+              </label>
+              <input
+                type="date"
+                value={customDateEnd}
+                onChange={(e) => setCustomDateEnd(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-gray-900 focus:border-[#D4AF37] focus:outline-none"
+              />
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Card
+        variant="light"
+        header={<h2 className="text-lg font-semibold">Filtros</h2>}
+      >
+        <div>
+          <label className="block text-sm text-gray-600 mb-2">
+            Estado das sessoes
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 focus:border-[#D4AF37] focus:outline-none"
+          >
+            {statusOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </Card>
+
+      <Card
+        variant="light"
+        header={<h2 className="text-lg font-semibold">Formato</h2>}
+      >
+        <div className="grid md:grid-cols-2 gap-4">
+          {formatOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setFormat(option.value)}
+              className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                format === option.value
+                  ? "border-[#D4AF37] bg-[#D4AF37]/10"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <span
+                className={`font-medium ${
+                  format === option.value ? "text-[#D4AF37]" : "text-gray-700"
+                }`}
+              >
+                {option.label}
+              </span>
+              <p className="text-sm text-gray-500 mt-1">{option.description}</p>
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      <Card
+        variant="light"
+        header={<h2 className="text-lg font-semibold">Pre-visualizacao</h2>}
+      >
+        {isLoadingPreview ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D4AF37]" />
+          </div>
+        ) : preview ? (
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <p className="text-3xl font-bold text-gray-900">
+                {preview.sessions}
+              </p>
+              <p className="text-sm text-gray-500">Sessoes</p>
+            </div>
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <p className="text-3xl font-bold text-gray-900">
+                {preview.orders}
+              </p>
+              <p className="text-sm text-gray-500">Pedidos</p>
+            </div>
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <p className="text-3xl font-bold text-[#D4AF37]">
+                {preview.total.toFixed(2)}€
+              </p>
+              <p className="text-sm text-gray-500">Total</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-center text-gray-500 py-8">
+            Nenhum dado encontrado
+          </p>
+        )}
+      </Card>
+
+      <div className="flex justify-end">
+        <Button
+          variant="primary"
+          size="lg"
+          onClick={handleExport}
+          isLoading={isExporting}
+          disabled={!preview || preview.sessions === 0}
+        >
+          <svg
+            className="w-5 h-5 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          Exportar {format.toUpperCase()}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// =============================================
+// TABLE MANAGEMENT TAB
+// =============================================
+
+type TableTabType = "config" | "map";
+
+function TableManagementTab() {
+  const [activeTableTab, setActiveTableTab] = useState<TableTabType>("map");
+  const [tables, setTables] = useState<(Table & { waiter_name?: string | null })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [editingTable, setEditingTable] = useState<Table | null>(null);
+  const [selectedTableForQR, setSelectedTableForQR] = useState<Table | null>(null);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [formData, setFormData] = useState({
+    number: 1,
+    name: "",
+    location: "circunvalacao",
+    is_active: true,
+  });
+
+  const [selectedLocation, setSelectedLocation] = useState<string>("circunvalacao");
+  const [selectedTableForDetail, setSelectedTableForDetail] = useState<TableDTO | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
+  const {
+    tables: mapTables,
+    isLoading: mapIsLoading,
+    refresh: refreshMap,
+    startWalkInSession,
+    markTableInactive,
+    reactivateTable,
+    requestBill,
+    closeSession,
+  } = useTableManagement({ location: selectedLocation as "circunvalacao" | "boavista", refreshInterval: 15000 });
+
+  useEffect(() => {
+    fetchTables();
+  }, []);
+
+  useEffect(() => {
+    if (showQRModal && selectedTableForQR && qrCanvasRef.current) {
+      const url = buildTableOrderURLByNumber(
+        selectedTableForQR.number,
+        selectedTableForQR.location as "circunvalacao" | "boavista"
+      );
+      generateQRCodeToCanvas(qrCanvasRef.current, url, { width: 250 });
+    }
+  }, [showQRModal, selectedTableForQR]);
+
+  const fetchTables = async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("tables")
+      .select("*")
+      .order("number");
+
+    const extendedSupabase = supabase as unknown as {
+      from: (table: string) => {
+        select: (fields: string) => ReturnType<ReturnType<typeof createClient>["from"]>["select"];
+      };
+    };
+    const { data: waiterData } = await extendedSupabase
+      .from("waiter_assignments")
+      .select("table_id, staff_name");
+
+    const waiterMap = new Map<string, string>(
+      (waiterData || []).map((w: { table_id: string; staff_name: string }) => [
+        w.table_id,
+        w.staff_name,
+      ])
+    );
+
+    const tablesWithWaiter = (data || []).map((table) => ({
+      ...table,
+      waiter_name: waiterMap.get(table.id) || null,
+    }));
+
+    setTables(tablesWithWaiter);
+    setIsLoading(false);
+  };
+
+  const handleOpenModal = (table?: Table) => {
+    if (table) {
+      setEditingTable(table);
+      setFormData({
+        number: table.number,
+        name: table.name,
+        location: table.location,
+        is_active: table.is_active,
+      });
+    } else {
+      setEditingTable(null);
+      const nextNumber = tables.length > 0 ? Math.max(...tables.map(t => t.number)) + 1 : 1;
+      setFormData({
+        number: nextNumber,
+        name: `Mesa ${nextNumber}`,
+        location: "circunvalacao",
+        is_active: true,
+      });
+    }
+    setShowModal(true);
+  };
+
+  const handleOpenQRModal = (table: Table) => {
+    setSelectedTableForQR(table);
+    setShowQRModal(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const supabase = createClient();
+
+    if (editingTable) {
+      await supabase
+        .from("tables")
+        .update(formData)
+        .eq("id", editingTable.id);
+    } else {
+      await supabase.from("tables").insert(formData);
+    }
+
+    setShowModal(false);
+    fetchTables();
+  };
+
+  const handleDelete = async (table: Table) => {
+    if (!confirm(`Tem certeza que deseja eliminar ${table.name}?`)) return;
+
+    const supabase = createClient();
+    await supabase.from("tables").delete().eq("id", table.id);
+    fetchTables();
+  };
+
+  const handleToggleActive = async (table: Table) => {
+    const supabase = createClient();
+    await supabase
+      .from("tables")
+      .update({ is_active: !table.is_active })
+      .eq("id", table.id);
+    fetchTables();
+  };
+
+  const handlePrintQR = (table: Table) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow || !qrCanvasRef.current) return;
+
+    const content = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>QR Code - ${table.name}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            @page { size: A6 portrait; margin: 10mm; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              padding: 20px;
+              text-align: center;
+            }
+            .logo { font-size: 48px; margin-bottom: 8px; }
+            .restaurant-name {
+              font-size: 20px;
+              font-weight: 600;
+              color: #333;
+              margin-bottom: 24px;
+              letter-spacing: 1px;
+            }
+            .qr-container {
+              background: white;
+              padding: 16px;
+              border-radius: 12px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+              margin-bottom: 24px;
+            }
+            .qr-image { width: 180px; height: 180px; }
+            .table-label {
+              font-size: 12px;
+              color: #666;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              margin-bottom: 4px;
+            }
+            .table-number {
+              font-size: 56px;
+              font-weight: 700;
+              color: #D4AF37;
+              line-height: 1;
+            }
+            .location {
+              font-size: 14px;
+              color: #888;
+              margin-top: 8px;
+            }
+            .scan-text {
+              font-size: 13px;
+              color: #666;
+              margin-top: 24px;
+              padding: 8px 16px;
+              background: #f5f5f5;
+              border-radius: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="logo">🍣</div>
+          <div class="restaurant-name">SUSHI IN SUSHI</div>
+          <div class="qr-container">
+            <img class="qr-image" src="${qrCanvasRef.current.toDataURL()}" alt="QR Code" />
+          </div>
+          <div class="table-label">Mesa</div>
+          <div class="table-number">${table.number}</div>
+          <div class="location">${LOCATION_LABELS[table.location]}</div>
+          <div class="scan-text">Escaneie para fazer o pedido</div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.print();
+    };
+  };
+
+  const handleTableClick = (table: TableDTO) => {
+    setSelectedTableForDetail(table);
+    setShowDetailModal(true);
+  };
+
+  const handleDetailModalClose = () => {
+    setShowDetailModal(false);
+    setSelectedTableForDetail(null);
+  };
+
+  const getStatusCounts = () => {
+    const counts = {
+      available: 0,
+      reserved: 0,
+      occupied: 0,
+      inactive: 0,
+    };
+    mapTables.forEach((t) => {
+      const status = (t.status as TableStatus) || "available";
+      counts[status]++;
+    });
+    return counts;
+  };
+
+  const statusCounts = getStatusCounts();
+
+  const handlePrintAllQRs = (location?: string) => {
+    const tablesToPrint = location
+      ? tables.filter(t => t.location === location && t.is_active)
+      : tables.filter(t => t.is_active);
+
+    if (tablesToPrint.length === 0) {
+      alert("Não há mesas ativas para imprimir.");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const tablesHtml = tablesToPrint.map(table => `
+      <div class="qr-card">
+        <div class="logo">🍣</div>
+        <div class="restaurant-name">SUSHI IN SUSHI</div>
+        <div class="qr-container">
+          <img class="qr-image" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+            `${window.location.origin}/mesa/${table.number}?loc=${table.location}`
+          )}&format=png&margin=10" alt="QR Code" />
+        </div>
+        <div class="table-label">Mesa</div>
+        <div class="table-number">${table.number}</div>
+        <div class="location">${LOCATION_LABELS[table.location]}</div>
+        <div class="scan-text">Escaneie para fazer o pedido</div>
+      </div>
+    `).join("");
+
+    const content = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>QR Codes - Mesas</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            @page { size: A6 portrait; margin: 10mm; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+            .qr-card {
+              page-break-after: always;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              padding: 20px;
+              text-align: center;
+            }
+            .qr-card:last-child { page-break-after: auto; }
+            .logo { font-size: 48px; margin-bottom: 8px; }
+            .restaurant-name {
+              font-size: 20px;
+              font-weight: 600;
+              color: #333;
+              margin-bottom: 24px;
+              letter-spacing: 1px;
+            }
+            .qr-container {
+              background: white;
+              padding: 16px;
+              border-radius: 12px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+              margin-bottom: 24px;
+            }
+            .qr-image { width: 180px; height: 180px; }
+            .table-label {
+              font-size: 12px;
+              color: #666;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              margin-bottom: 4px;
+            }
+            .table-number {
+              font-size: 56px;
+              font-weight: 700;
+              color: #D4AF37;
+              line-height: 1;
+            }
+            .location {
+              font-size: 14px;
+              color: #888;
+              margin-top: 8px;
+            }
+            .scan-text {
+              font-size: 13px;
+              color: #666;
+              margin-top: 24px;
+              padding: 8px 16px;
+              background: #f5f5f5;
+              border-radius: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          ${tablesHtml}
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.print();
+    };
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin h-8 w-8 border-2 border-[#D4AF37] border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  const circunvalacaoTables = tables.filter(t => t.location === "circunvalacao");
+  const boavistaTables = tables.filter(t => t.location === "boavista");
+
+  const TableCard = ({ table }: { table: Table & { waiter_name?: string | null } }) => (
+    <div
+      className={`relative p-4 rounded-xl border-2 text-center ${
+        table.is_active
+          ? "border-green-200 bg-green-50"
+          : "border-gray-200 bg-gray-50 opacity-50"
+      }`}
+    >
+      <div className="text-2xl font-bold text-gray-900">#{table.number}</div>
+      <div className="text-xs text-gray-500 truncate">{table.name}</div>
+      {table.waiter_name && (
+        <div className="flex items-center justify-center gap-1 mt-1 text-xs text-blue-600">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span className="truncate max-w-[80px]">{table.waiter_name}</span>
+        </div>
+      )}
+      <div className="flex justify-center gap-1 mt-2">
+        <button
+          onClick={() => handleOpenQRModal(table)}
+          className="p-1 text-gray-400 hover:text-[#D4AF37]"
+          title="Ver QR Code"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+          </svg>
+        </button>
+        <button
+          onClick={() => handleOpenModal(table)}
+          className="p-1 text-gray-400 hover:text-blue-600"
+          title="Editar"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </button>
+        <button
+          onClick={() => handleToggleActive(table)}
+          className={`p-1 ${table.is_active ? "text-green-600" : "text-gray-400"}`}
+          title={table.is_active ? "Desativar" : "Ativar"}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </button>
+        <button
+          onClick={() => handleDelete(table)}
+          className="p-1 text-gray-400 hover:text-red-600"
+          title="Eliminar"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Sub-tabs */}
+      <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => setActiveTableTab("map")}
+          className={`px-6 py-3 font-medium text-sm transition-colors ${
+            activeTableTab === "map"
+              ? "text-[#D4AF37] border-b-2 border-[#D4AF37]"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Mapa em Tempo Real
+        </button>
+        <button
+          onClick={() => setActiveTableTab("config")}
+          className={`px-6 py-3 font-medium text-sm transition-colors ${
+            activeTableTab === "config"
+              ? "text-[#D4AF37] border-b-2 border-[#D4AF37]"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Configuracao
+        </button>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2">
+        {activeTableTab === "config" && (
+          <>
+            <button
+              onClick={() => handlePrintAllQRs()}
+              className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              Imprimir QRs
+            </button>
+            <button
+              onClick={() => handleOpenModal()}
+              className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nova Mesa
+            </button>
+          </>
+        )}
+        {activeTableTab === "map" && (
+          <button
+            onClick={() => refreshMap()}
+            className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Atualizar
+          </button>
+        )}
+      </div>
+
+      {/* Map Tab */}
+      {activeTableTab === "map" && (
+        <>
+          <div className="flex items-center justify-between">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setSelectedLocation("circunvalacao")}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  selectedLocation === "circunvalacao"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Circunvalacao
+              </button>
+              <button
+                onClick={() => setSelectedLocation("boavista")}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  selectedLocation === "boavista"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Boavista
+              </button>
+            </div>
+
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-1">
+                <span className="text-green-500">🟢</span>
+                <span className="text-gray-600">{statusCounts.available} Livres</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-yellow-500">🟡</span>
+                <span className="text-gray-600">{statusCounts.reserved} Reservadas</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-red-500">🔴</span>
+                <span className="text-gray-600">{statusCounts.occupied} Ocupadas</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500">⚫</span>
+                <span className="text-gray-600">{statusCounts.inactive} Inativas</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <TableMap
+              tables={mapTables}
+              onTableClick={handleTableClick}
+              isLoading={mapIsLoading}
+            />
+          </div>
+
+          <TableDetailModal
+            table={selectedTableForDetail}
+            isOpen={showDetailModal}
+            onClose={handleDetailModalClose}
+            onStatusChange={refreshMap}
+            onStartSession={startWalkInSession}
+            onMarkInactive={markTableInactive}
+            onReactivate={reactivateTable}
+            onRequestBill={requestBill}
+            onCloseSession={closeSession}
+          />
+        </>
+      )}
+
+      {/* Config Tab */}
+      {activeTableTab === "config" && (
+        <>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-blue-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 className="font-semibold text-blue-900">Circunvalacao</h2>
+                <button
+                  onClick={() => handlePrintAllQRs("circunvalacao")}
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Imprimir todos
+                </button>
+              </div>
+              <div className="p-4">
+                {circunvalacaoTables.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">Nenhuma mesa</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3">
+                    {circunvalacaoTables.map((table) => (
+                      <TableCard key={table.id} table={table} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-purple-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 className="font-semibold text-purple-900">Boavista</h2>
+                <button
+                  onClick={() => handlePrintAllQRs("boavista")}
+                  className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Imprimir todos
+                </button>
+              </div>
+              <div className="p-4">
+                {boavistaTables.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">Nenhuma mesa</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3">
+                    {boavistaTables.map((table) => (
+                      <TableCard key={table.id} table={table} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modals */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editingTable ? "Editar Mesa" : "Nova Mesa"}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Numero
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.number}
+                  onChange={(e) => setFormData({ ...formData, number: parseInt(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Localizacao
+                </label>
+                <select
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  required
+                >
+                  <option value="circunvalacao">Circunvalacao</option>
+                  <option value="boavista">Boavista</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="is_active"
+                  checked={formData.is_active}
+                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                  className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
+                />
+                <label htmlFor="is_active" className="text-sm text-gray-700">
+                  Mesa ativa
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030]"
+                >
+                  {editingTable ? "Guardar" : "Criar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showQRModal && selectedTableForQR && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowQRModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-sm text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="text-4xl mb-2">🍣</div>
+              <h3 className="text-xl font-bold mb-4">Sushi in Sushi</h3>
+
+              <div className="bg-gray-50 rounded-xl p-4 mb-4 inline-block">
+                <canvas
+                  ref={qrCanvasRef}
+                  style={{ width: 200, height: 200 }}
+                />
+              </div>
+
+              <div className="text-sm text-gray-500 uppercase tracking-wider">Mesa</div>
+              <div className="text-5xl font-bold text-[#D4AF37] mb-1">{selectedTableForQR.number}</div>
+              <div className="text-sm text-gray-500 mb-4">{LOCATION_LABELS[selectedTableForQR.location]}</div>
+
+              <div className="text-xs text-gray-400 mb-6 break-all px-4">
+                {buildTableOrderURLByNumber(
+                  selectedTableForQR.number,
+                  selectedTableForQR.location as "circunvalacao" | "boavista"
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowQRModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Fechar
+                </button>
+                <button
+                  onClick={() => window.open(buildTableOrderURLByNumber(
+                    selectedTableForQR.number,
+                    selectedTableForQR.location as "circunvalacao" | "boavista"
+                  ), "_blank")}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Testar
+                </button>
+                <button
+                  onClick={() => handlePrintQR(selectedTableForQR)}
+                  className="flex-1 px-4 py-2 bg-black text-white font-semibold rounded-lg hover:bg-gray-800"
+                >
+                  Imprimir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================
 // MAIN SETTINGS PAGE
 // =============================================
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>("notifications");
 
-  const tabs: { id: TabId; label: string; icon: string }[] = [
-    { id: "notifications", label: "Notificacoes", icon: "🔔" },
-    { id: "weekly-closures", label: "Dias de Folga Semanal", icon: "📅" },
+  const tabs: { id: TabId; label: string }[] = [
+    { id: "notifications", label: "Notificacoes" },
+    { id: "weekly-closures", label: "Dias de Folga Semanal" },
+    { id: "export", label: "Exportar" },
+    { id: "tables", label: "Gestao de Mesas" },
   ];
 
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Definicoes</h2>
-        <p className="mt-1 text-gray-600">
-          Configure as definicoes do sistema de reservas
-        </p>
+        <h2 className="text-2xl font-bold text-gray-900">Definições</h2>
+        <p className="mt-1 text-gray-600">Configure as definições do sistema</p>
       </div>
 
       {/* Tabs */}
@@ -618,14 +1865,14 @@ export default function SettingsPage() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`
-                py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
-                ${activeTab === tab.id
-                  ? "border-[#D4AF37] text-[#D4AF37]"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                ${
+                  activeTab === tab.id
+                    ? "border-[#D4AF37] text-[#D4AF37]"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }
               `}
             >
-              <span>{tab.icon}</span>
               {tab.label}
             </button>
           ))}
@@ -636,6 +1883,8 @@ export default function SettingsPage() {
       <div className="pt-2">
         {activeTab === "notifications" && <NotificationsTab />}
         {activeTab === "weekly-closures" && <WeeklyClosuresTab />}
+        {activeTab === "export" && <ExportTab />}
+        {activeTab === "tables" && <TableManagementTab />}
       </div>
     </div>
   );
