@@ -4,7 +4,7 @@
  * useWaiterCalls - Hook para gestão de chamadas de empregado
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { SupabaseWaiterCallRepository } from '@/infrastructure/repositories/SupabaseWaiterCallRepository';
 import {
   WaiterCall,
@@ -46,14 +46,29 @@ export function useWaiterCalls(options: UseWaiterCallsOptions = {}): UseWaiterCa
   const [isLoading, setIsLoading] = useState(autoLoad);
   const [error, setError] = useState<string | null>(null);
 
-  // Create repository and use-cases
-  const repository = new SupabaseWaiterCallRepository();
-  const getAllCalls = new GetAllWaiterCallsUseCase(repository);
-  const getPendingCalls = new GetPendingWaiterCallsUseCase(repository);
-  const createCall = new CreateWaiterCallUseCase(repository);
-  const acknowledgeCall = new AcknowledgeWaiterCallUseCase(repository);
-  const completeCall = new CompleteWaiterCallUseCase(repository);
-  const cancelCall = new CancelWaiterCallUseCase(repository);
+  // Create repository and use-cases (stable instances via useRef - zero re-renders)
+  const useCasesRef = useRef<{
+    getAllCalls: GetAllWaiterCallsUseCase;
+    getPendingCalls: GetPendingWaiterCallsUseCase;
+    createCall: CreateWaiterCallUseCase;
+    acknowledgeCall: AcknowledgeWaiterCallUseCase;
+    completeCall: CompleteWaiterCallUseCase;
+    cancelCall: CancelWaiterCallUseCase;
+  }>();
+
+  if (!useCasesRef.current) {
+    const repo = new SupabaseWaiterCallRepository();
+    useCasesRef.current = {
+      getAllCalls: new GetAllWaiterCallsUseCase(repo),
+      getPendingCalls: new GetPendingWaiterCallsUseCase(repo),
+      createCall: new CreateWaiterCallUseCase(repo),
+      acknowledgeCall: new AcknowledgeWaiterCallUseCase(repo),
+      completeCall: new CompleteWaiterCallUseCase(repo),
+      cancelCall: new CancelWaiterCallUseCase(repo),
+    };
+  }
+
+  const { getAllCalls, getPendingCalls, createCall, acknowledgeCall, completeCall, cancelCall } = useCasesRef.current;
 
   const fetchCalls = useCallback(async () => {
     setIsLoading(true);
@@ -74,7 +89,7 @@ export function useWaiterCalls(options: UseWaiterCallsOptions = {}): UseWaiterCa
     } finally {
       setIsLoading(false);
     }
-  }, [filter, pendingOnly, location]);
+  }, [filter, pendingOnly, location, getAllCalls, getPendingCalls]);
 
   const create = useCallback(async (data: CreateWaiterCallData): Promise<WaiterCall | null> => {
     setError(null);
@@ -85,7 +100,7 @@ export function useWaiterCalls(options: UseWaiterCallsOptions = {}): UseWaiterCa
     }
     setError(result.error);
     return null;
-  }, [fetchCalls]);
+  }, [createCall, fetchCalls]);
 
   const acknowledge = useCallback(async (id: string, staffId: string): Promise<WaiterCall | null> => {
     setError(null);
@@ -96,7 +111,7 @@ export function useWaiterCalls(options: UseWaiterCallsOptions = {}): UseWaiterCa
     }
     setError(result.error);
     return null;
-  }, [fetchCalls]);
+  }, [acknowledgeCall, fetchCalls]);
 
   const complete = useCallback(async (id: string): Promise<WaiterCall | null> => {
     setError(null);
@@ -107,7 +122,7 @@ export function useWaiterCalls(options: UseWaiterCallsOptions = {}): UseWaiterCa
     }
     setError(result.error);
     return null;
-  }, [fetchCalls]);
+  }, [completeCall, fetchCalls]);
 
   const cancel = useCallback(async (id: string): Promise<WaiterCall | null> => {
     setError(null);
@@ -118,7 +133,7 @@ export function useWaiterCalls(options: UseWaiterCallsOptions = {}): UseWaiterCa
     }
     setError(result.error);
     return null;
-  }, [fetchCalls]);
+  }, [cancelCall, fetchCalls]);
 
   useEffect(() => {
     if (autoLoad) {

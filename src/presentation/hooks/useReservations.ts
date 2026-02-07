@@ -4,7 +4,7 @@
  * useReservations - Hook para gestão de reservas
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { SupabaseReservationRepository } from '@/infrastructure/repositories/SupabaseReservationRepository';
 import { SupabaseRestaurantClosureRepository } from '@/infrastructure/repositories/SupabaseRestaurantClosureRepository';
 import {
@@ -53,19 +53,36 @@ export function useReservations(options: UseReservationsOptions = {}): UseReserv
   const [isLoading, setIsLoading] = useState(autoLoad);
   const [error, setError] = useState<string | null>(null);
 
-  // Create repositories and use-cases
-  const reservationRepository = new SupabaseReservationRepository();
-  const closureRepository = new SupabaseRestaurantClosureRepository();
+  // Create repositories and use-cases (stable instances via useRef - zero re-renders)
+  const useCasesRef = useRef<{
+    getAllReservations: GetAllReservationsUseCase;
+    getReservationById: GetReservationByIdUseCase;
+    createReservation: CreateReservationUseCase;
+    updateReservation: UpdateReservationUseCase;
+    confirmReservation: ConfirmReservationUseCase;
+    cancelReservation: CancelReservationUseCase;
+    markSeatedUseCase: MarkReservationSeatedUseCase;
+    markNoShowUseCase: MarkReservationNoShowUseCase;
+    deleteReservation: DeleteReservationUseCase;
+  }>();
 
-  const getAllReservations = new GetAllReservationsUseCase(reservationRepository);
-  const getReservationById = new GetReservationByIdUseCase(reservationRepository);
-  const createReservation = new CreateReservationUseCase(reservationRepository, closureRepository);
-  const updateReservation = new UpdateReservationUseCase(reservationRepository);
-  const confirmReservation = new ConfirmReservationUseCase(reservationRepository);
-  const cancelReservation = new CancelReservationUseCase(reservationRepository);
-  const markSeatedUseCase = new MarkReservationSeatedUseCase(reservationRepository);
-  const markNoShowUseCase = new MarkReservationNoShowUseCase(reservationRepository);
-  const deleteReservation = new DeleteReservationUseCase(reservationRepository);
+  if (!useCasesRef.current) {
+    const reservationRepo = new SupabaseReservationRepository();
+    const closureRepo = new SupabaseRestaurantClosureRepository();
+    useCasesRef.current = {
+      getAllReservations: new GetAllReservationsUseCase(reservationRepo),
+      getReservationById: new GetReservationByIdUseCase(reservationRepo),
+      createReservation: new CreateReservationUseCase(reservationRepo, closureRepo),
+      updateReservation: new UpdateReservationUseCase(reservationRepo),
+      confirmReservation: new ConfirmReservationUseCase(reservationRepo),
+      cancelReservation: new CancelReservationUseCase(reservationRepo),
+      markSeatedUseCase: new MarkReservationSeatedUseCase(reservationRepo),
+      markNoShowUseCase: new MarkReservationNoShowUseCase(reservationRepo),
+      deleteReservation: new DeleteReservationUseCase(reservationRepo),
+    };
+  }
+
+  const { getAllReservations, getReservationById, createReservation, updateReservation, confirmReservation, cancelReservation, markSeatedUseCase, markNoShowUseCase, deleteReservation } = useCasesRef.current;
 
   const fetchReservations = useCallback(async () => {
     setIsLoading(true);
@@ -83,7 +100,7 @@ export function useReservations(options: UseReservationsOptions = {}): UseReserv
     } finally {
       setIsLoading(false);
     }
-  }, [filter]);
+  }, [filter, getAllReservations]);
 
   const getById = useCallback(async (id: string): Promise<Reservation | null> => {
     const result = await getReservationById.execute(id);
@@ -92,7 +109,7 @@ export function useReservations(options: UseReservationsOptions = {}): UseReserv
     }
     setError(result.error);
     return null;
-  }, []);
+  }, [getReservationById]);
 
   const create = useCallback(async (data: CreateReservationData): Promise<Reservation | null> => {
     setError(null);
@@ -103,7 +120,7 @@ export function useReservations(options: UseReservationsOptions = {}): UseReserv
     }
     setError(result.error);
     return null;
-  }, [fetchReservations]);
+  }, [createReservation, fetchReservations]);
 
   const update = useCallback(async (id: string, data: UpdateReservationData): Promise<Reservation | null> => {
     setError(null);
@@ -114,7 +131,7 @@ export function useReservations(options: UseReservationsOptions = {}): UseReserv
     }
     setError(result.error);
     return null;
-  }, [fetchReservations]);
+  }, [updateReservation, fetchReservations]);
 
   const confirm = useCallback(async (id: string, confirmedBy: string): Promise<Reservation | null> => {
     setError(null);
@@ -125,7 +142,7 @@ export function useReservations(options: UseReservationsOptions = {}): UseReserv
     }
     setError(result.error);
     return null;
-  }, [fetchReservations]);
+  }, [confirmReservation, fetchReservations]);
 
   const cancel = useCallback(async (id: string, reason?: string): Promise<Reservation | null> => {
     setError(null);
@@ -136,7 +153,7 @@ export function useReservations(options: UseReservationsOptions = {}): UseReserv
     }
     setError(result.error);
     return null;
-  }, [fetchReservations]);
+  }, [cancelReservation, fetchReservations]);
 
   const markSeated = useCallback(async (id: string, sessionId: string): Promise<Reservation | null> => {
     setError(null);
@@ -147,7 +164,7 @@ export function useReservations(options: UseReservationsOptions = {}): UseReserv
     }
     setError(result.error);
     return null;
-  }, [fetchReservations]);
+  }, [markSeatedUseCase, fetchReservations]);
 
   const markNoShow = useCallback(async (id: string): Promise<Reservation | null> => {
     setError(null);
@@ -158,7 +175,7 @@ export function useReservations(options: UseReservationsOptions = {}): UseReserv
     }
     setError(result.error);
     return null;
-  }, [fetchReservations]);
+  }, [markNoShowUseCase, fetchReservations]);
 
   const remove = useCallback(async (id: string): Promise<boolean> => {
     setError(null);
@@ -169,7 +186,7 @@ export function useReservations(options: UseReservationsOptions = {}): UseReserv
     }
     setError(result.error);
     return false;
-  }, [fetchReservations]);
+  }, [deleteReservation, fetchReservations]);
 
   useEffect(() => {
     if (autoLoad) {

@@ -105,8 +105,11 @@ CREATE POLICY "Admin can delete reservations" ON reservations
 -- VIEWS
 -- =============================================
 
+-- Drop existing view first to avoid column name conflicts
+DROP VIEW IF EXISTS reservations_with_details CASCADE;
+
 -- Reservations with table info
-CREATE OR REPLACE VIEW reservations_with_details AS
+CREATE VIEW reservations_with_details AS
 SELECT
     r.*,
     t.number as table_number,

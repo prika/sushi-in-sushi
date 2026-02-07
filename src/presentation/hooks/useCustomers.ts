@@ -4,7 +4,7 @@
  * useCustomers - Hook para gestão de clientes (programa de fidelização)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { SupabaseCustomerRepository } from '@/infrastructure/repositories/SupabaseCustomerRepository';
 import {
   Customer,
@@ -48,15 +48,31 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRes
   const [isLoading, setIsLoading] = useState(autoLoad);
   const [error, setError] = useState<string | null>(null);
 
-  // Create repository and use-cases
-  const repository = new SupabaseCustomerRepository();
-  const getAllCustomers = new GetAllCustomersUseCase(repository);
-  const getCustomerById = new GetCustomerByIdUseCase(repository);
-  const createCustomer = new CreateCustomerUseCase(repository);
-  const updateCustomer = new UpdateCustomerUseCase(repository);
-  const deleteCustomer = new DeleteCustomerUseCase(repository);
-  const addPointsUseCase = new AddCustomerPointsUseCase(repository);
-  const recordVisitUseCase = new RecordCustomerVisitUseCase(repository);
+  // Create repository and use-cases (stable instances via useRef - zero re-renders)
+  const useCasesRef = useRef<{
+    getAllCustomers: GetAllCustomersUseCase;
+    getCustomerById: GetCustomerByIdUseCase;
+    createCustomer: CreateCustomerUseCase;
+    updateCustomer: UpdateCustomerUseCase;
+    deleteCustomer: DeleteCustomerUseCase;
+    addPointsUseCase: AddCustomerPointsUseCase;
+    recordVisitUseCase: RecordCustomerVisitUseCase;
+  }>();
+
+  if (!useCasesRef.current) {
+    const repo = new SupabaseCustomerRepository();
+    useCasesRef.current = {
+      getAllCustomers: new GetAllCustomersUseCase(repo),
+      getCustomerById: new GetCustomerByIdUseCase(repo),
+      createCustomer: new CreateCustomerUseCase(repo),
+      updateCustomer: new UpdateCustomerUseCase(repo),
+      deleteCustomer: new DeleteCustomerUseCase(repo),
+      addPointsUseCase: new AddCustomerPointsUseCase(repo),
+      recordVisitUseCase: new RecordCustomerVisitUseCase(repo),
+    };
+  }
+
+  const { getAllCustomers, getCustomerById, createCustomer, updateCustomer, deleteCustomer, addPointsUseCase, recordVisitUseCase } = useCasesRef.current;
 
   const fetchCustomers = useCallback(async () => {
     setIsLoading(true);
@@ -74,7 +90,7 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRes
     } finally {
       setIsLoading(false);
     }
-  }, [filter]);
+  }, [filter, getAllCustomers]);
 
   const getById = useCallback(async (id: string): Promise<CustomerWithHistory | null> => {
     const result = await getCustomerById.execute(id);
@@ -83,7 +99,7 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRes
     }
     setError(result.error);
     return null;
-  }, []);
+  }, [getCustomerById]);
 
   const create = useCallback(async (data: CreateCustomerData): Promise<Customer | null> => {
     setError(null);
@@ -94,7 +110,7 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRes
     }
     setError(result.error);
     return null;
-  }, [fetchCustomers]);
+  }, [createCustomer, fetchCustomers]);
 
   const update = useCallback(async (id: string, data: UpdateCustomerData): Promise<Customer | null> => {
     setError(null);
@@ -105,7 +121,7 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRes
     }
     setError(result.error);
     return null;
-  }, [fetchCustomers]);
+  }, [updateCustomer, fetchCustomers]);
 
   const remove = useCallback(async (id: string): Promise<boolean> => {
     setError(null);
@@ -116,7 +132,7 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRes
     }
     setError(result.error);
     return false;
-  }, [fetchCustomers]);
+  }, [deleteCustomer, fetchCustomers]);
 
   const addPoints = useCallback(async (id: string, points: number): Promise<Customer | null> => {
     setError(null);
@@ -127,7 +143,7 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRes
     }
     setError(result.error);
     return null;
-  }, [fetchCustomers]);
+  }, [addPointsUseCase, fetchCustomers]);
 
   const recordVisit = useCallback(async (id: string, spent: number): Promise<Customer | null> => {
     setError(null);
@@ -138,7 +154,7 @@ export function useCustomers(options: UseCustomersOptions = {}): UseCustomersRes
     }
     setError(result.error);
     return null;
-  }, [fetchCustomers]);
+  }, [recordVisitUseCase, fetchCustomers]);
 
   useEffect(() => {
     if (autoLoad) {

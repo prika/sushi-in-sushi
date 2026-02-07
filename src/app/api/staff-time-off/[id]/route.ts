@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
-import type { StaffTimeOffUpdate } from "@/types/database";
-
-// Helper to get typed supabase query for tables not in generated types
-function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
-  };
-}
+import { SupabaseStaffTimeOffRepository } from "@/infrastructure/repositories/SupabaseStaffTimeOffRepository";
+import {
+  UpdateStaffTimeOffUseCase,
+  DeleteStaffTimeOffUseCase,
+} from "@/application/use-cases/staff-time-off";
+import type { UpdateStaffTimeOffData } from "@/domain/entities/StaffTimeOff";
 
 // PATCH - Update time off entry
 export async function PATCH(
@@ -31,52 +29,88 @@ export async function PATCH(
 
     const { id } = await params;
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
-    const body: StaffTimeOffUpdate = await request.json();
+    const repository = new SupabaseStaffTimeOffRepository(supabase);
+    const updateStaffTimeOff = new UpdateStaffTimeOffUseCase(repository);
 
-    // Validate dates if both provided
-    if (body.start_date && body.end_date) {
-      if (new Date(body.end_date) < new Date(body.start_date)) {
-        return NextResponse.json(
-          { error: "Data de fim deve ser igual ou posterior a data de inicio" },
-          { status: 400 }
-        );
+    const body = await request.json();
+
+    // Build UpdateStaffTimeOffData from request body (supporting both camelCase and snake_case)
+    const updateData: UpdateStaffTimeOffData = {};
+
+    if (body.startDate !== undefined || body.start_date !== undefined) {
+      updateData.startDate = body.startDate || body.start_date;
+    }
+    if (body.endDate !== undefined || body.end_date !== undefined) {
+      updateData.endDate = body.endDate || body.end_date;
+    }
+    if (body.type !== undefined) {
+      updateData.type = body.type;
+    }
+    if (body.reason !== undefined) {
+      updateData.reason = body.reason;
+    }
+    if (body.status !== undefined) {
+      updateData.status = body.status;
+      // If status is being changed to approved, record the approver
+      if (body.status === "approved") {
+        updateData.approvedBy = auth.id;
       }
     }
 
-    // Update the entry
-    const updateData: Record<string, unknown> = { ...body };
+    const result = await updateStaffTimeOff.execute({
+      id: parseInt(id),
+      data: updateData,
+    });
 
-    // If status is being changed to approved, record the approver
-    if (body.status === "approved") {
-      updateData.approved_by = auth.id;
-      updateData.approved_at = new Date().toISOString();
+    if (!result.success) {
+      if (result.code === 'NOT_FOUND') {
+        return NextResponse.json(
+          { error: result.error },
+          { status: 404 }
+        );
+      }
+      if (result.code === 'OVERLAP') {
+        return NextResponse.json(
+          { error: result.error },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
     }
 
-    const { data, error } = await extendedSupabase
-      .from("staff_time_off")
-      .update(updateData)
-      .eq("id", parseInt(id))
-      .select(`
-        *,
-        staff:staff_id(id, name, email),
-        approver:approved_by(id, name)
-      `)
-      .single();
+    // Fetch the updated time off with staff details
+    const updatedTimeOff = await repository.findById(result.data.id);
 
-    if (error) {
-      console.error("Error updating time off:", error);
-      throw error;
+    if (!updatedTimeOff) {
+      return NextResponse.json(
+        { error: "Erro ao obter ausência atualizada" },
+        { status: 500 }
+      );
     }
 
-    const transformedData = {
-      ...data,
-      staff_name: (data as { staff: { name: string } | null }).staff?.name || "Unknown",
-      staff_email: (data as { staff: { email: string } | null }).staff?.email || "",
-      approved_by_name: (data as { approver: { name: string } | null }).approver?.name || null,
+    // Map to database format for backwards compatibility
+    const data = {
+      id: updatedTimeOff.id,
+      staff_id: updatedTimeOff.staffId,
+      start_date: updatedTimeOff.startDate,
+      end_date: updatedTimeOff.endDate,
+      type: updatedTimeOff.type,
+      reason: updatedTimeOff.reason,
+      status: updatedTimeOff.status,
+      approved_by: updatedTimeOff.approvedBy,
+      approved_at: updatedTimeOff.approvedAt?.toISOString() || null,
+      created_at: updatedTimeOff.createdAt.toISOString(),
+      updated_at: updatedTimeOff.updatedAt.toISOString(),
+      staff: updatedTimeOff.staff,
+      approver: updatedTimeOff.approver || null,
+      staff_name: updatedTimeOff.staff.name,
+      approved_by_name: updatedTimeOff.approver?.name || null,
     };
 
-    return NextResponse.json(transformedData);
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Error in PATCH staff-time-off:", error);
     return NextResponse.json(
@@ -107,16 +141,22 @@ export async function DELETE(
 
     const { id } = await params;
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+    const repository = new SupabaseStaffTimeOffRepository(supabase);
+    const deleteStaffTimeOff = new DeleteStaffTimeOffUseCase(repository);
 
-    const { error } = await extendedSupabase
-      .from("staff_time_off")
-      .delete()
-      .eq("id", parseInt(id));
+    const result = await deleteStaffTimeOff.execute({ id: parseInt(id) });
 
-    if (error) {
-      console.error("Error deleting time off:", error);
-      throw error;
+    if (!result.success) {
+      if (result.code === 'NOT_FOUND') {
+        return NextResponse.json(
+          { error: result.error },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({ success: true });

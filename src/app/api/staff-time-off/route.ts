@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
-import type { StaffTimeOffInsert } from "@/types/database";
-
-// Helper to get typed supabase query for tables not in generated types
-function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
-  };
-}
+import { SupabaseStaffTimeOffRepository } from "@/infrastructure/repositories/SupabaseStaffTimeOffRepository";
+import {
+  GetAllStaffTimeOffUseCase,
+  CreateStaffTimeOffUseCase,
+} from "@/application/use-cases/staff-time-off";
+import type { StaffTimeOffFilter, CreateStaffTimeOffData } from "@/domain/entities/StaffTimeOff";
 
 // GET - List staff time off entries
 export async function GET(request: NextRequest) {
@@ -19,60 +17,63 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+    const repository = new SupabaseStaffTimeOffRepository(supabase);
+    const getAllStaffTimeOff = new GetAllStaffTimeOffUseCase(repository);
+
     const { searchParams } = new URL(request.url);
 
-    const staffId = searchParams.get("staff_id");
-    const month = searchParams.get("month");
-    const year = searchParams.get("year");
-    const status = searchParams.get("status");
+    const staffIdParam = searchParams.get("staff_id");
+    const monthParam = searchParams.get("month");
+    const yearParam = searchParams.get("year");
+    const statusParam = searchParams.get("status");
+    const typeParam = searchParams.get("type");
 
-    let query = extendedSupabase
-      .from("staff_time_off")
-      .select(`
-        *,
-        staff:staff_id(id, name, email),
-        approver:approved_by(id, name)
-      `)
-      .order("start_date", { ascending: true });
+    const filter: StaffTimeOffFilter = {};
 
-    if (staffId) {
-      query = query.eq("staff_id", parseInt(staffId));
+    if (staffIdParam) {
+      filter.staffId = staffIdParam;
+    }
+    if (statusParam) {
+      filter.status = statusParam as StaffTimeOffFilter['status'];
+    }
+    if (typeParam) {
+      filter.type = typeParam as StaffTimeOffFilter['type'];
+    }
+    if (monthParam && yearParam) {
+      filter.month = parseInt(monthParam) - 1; // JS months are 0-indexed
+      filter.year = parseInt(yearParam);
     }
 
-    if (status) {
-      query = query.eq("status", status);
+    const result = await getAllStaffTimeOff.execute({ filter });
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 500 }
+      );
     }
 
-    // Filter by month/year if provided
-    if (month && year) {
-      const startOfMonth = `${year}-${month.padStart(2, "0")}-01`;
-      const endOfMonth = new Date(parseInt(year), parseInt(month), 0)
-        .toISOString()
-        .split("T")[0];
-
-      // Get entries that overlap with the month
-      query = query
-        .lte("start_date", endOfMonth)
-        .gte("end_date", startOfMonth);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Error fetching staff time off:", error);
-      throw error;
-    }
-
-    // Transform data to include staff name
-    const transformedData = (data || []).map((item: Record<string, unknown>) => ({
-      ...item,
-      staff_name: (item.staff as { name: string } | null)?.name || "Unknown",
-      staff_email: (item.staff as { email: string } | null)?.email || "",
-      approved_by_name: (item.approver as { name: string } | null)?.name || null,
+    // Map to database format for backwards compatibility
+    const data = result.data.map((timeOff) => ({
+      id: timeOff.id,
+      staff_id: timeOff.staffId,
+      start_date: timeOff.startDate,
+      end_date: timeOff.endDate,
+      type: timeOff.type,
+      reason: timeOff.reason,
+      status: timeOff.status,
+      approved_by: timeOff.approvedBy,
+      approved_at: timeOff.approvedAt?.toISOString() || null,
+      created_at: timeOff.createdAt.toISOString(),
+      updated_at: timeOff.updatedAt.toISOString(),
+      staff: timeOff.staff,
+      approver: timeOff.approver || null,
+      staff_name: timeOff.staff.name,
+      staff_email: timeOff.staff.name, // Note: email not available in entity
+      approved_by_name: timeOff.approver?.name || null,
     }));
 
-    return NextResponse.json(transformedData);
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Error in GET staff-time-off:", error);
     return NextResponse.json(
@@ -99,64 +100,65 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
-    const body: StaffTimeOffInsert = await request.json();
+    const repository = new SupabaseStaffTimeOffRepository(supabase);
+    const createStaffTimeOff = new CreateStaffTimeOffUseCase(repository);
 
-    // Validate required fields
-    if (!body.staff_id) {
-      return NextResponse.json(
-        { error: "ID do funcionario e obrigatorio" },
-        { status: 400 }
-      );
-    }
+    const body = await request.json();
 
-    if (!body.start_date || !body.end_date) {
-      return NextResponse.json(
-        { error: "Datas de inicio e fim sao obrigatorias" },
-        { status: 400 }
-      );
-    }
-
-    // Validate dates
-    if (new Date(body.end_date) < new Date(body.start_date)) {
-      return NextResponse.json(
-        { error: "Data de fim deve ser igual ou posterior a data de inicio" },
-        { status: 400 }
-      );
-    }
-
-    // Create with approved status and current admin as approver
-    const timeOffData = {
-      ...body,
+    // Build CreateStaffTimeOffData from request body (supporting both camelCase and snake_case)
+    const timeOffData: CreateStaffTimeOffData = {
+      staffId: body.staffId || body.staff_id,
+      startDate: body.startDate || body.start_date,
+      endDate: body.endDate || body.end_date,
       type: body.type || "vacation",
-      status: "approved",
-      approved_by: auth.id,
-      approved_at: new Date().toISOString(),
+      reason: body.reason || null,
     };
 
-    const { data, error } = await extendedSupabase
-      .from("staff_time_off")
-      .insert(timeOffData)
-      .select(`
-        *,
-        staff:staff_id(id, name, email),
-        approver:approved_by(id, name)
-      `)
-      .single();
+    const result = await createStaffTimeOff.execute(timeOffData);
 
-    if (error) {
-      console.error("Error creating time off:", error);
-      throw error;
+    if (!result.success) {
+      if (result.code === 'OVERLAP') {
+        return NextResponse.json(
+          { error: result.error },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
     }
 
-    const transformedData = {
-      ...data,
-      staff_name: (data as { staff: { name: string } | null }).staff?.name || "Unknown",
-      staff_email: (data as { staff: { email: string } | null }).staff?.email || "",
-      approved_by_name: (data as { approver: { name: string } | null }).approver?.name || null,
+    // Fetch the created time off with staff details
+    const createdTimeOff = await repository.findById(result.data.id);
+
+    if (!createdTimeOff) {
+      return NextResponse.json(
+        { error: "Erro ao obter ausência criada" },
+        { status: 500 }
+      );
+    }
+
+    // Map to database format for backwards compatibility
+    const data = {
+      id: createdTimeOff.id,
+      staff_id: createdTimeOff.staffId,
+      start_date: createdTimeOff.startDate,
+      end_date: createdTimeOff.endDate,
+      type: createdTimeOff.type,
+      reason: createdTimeOff.reason,
+      status: createdTimeOff.status,
+      approved_by: createdTimeOff.approvedBy,
+      approved_at: createdTimeOff.approvedAt?.toISOString() || null,
+      created_at: createdTimeOff.createdAt.toISOString(),
+      updated_at: createdTimeOff.updatedAt.toISOString(),
+      staff: createdTimeOff.staff,
+      approver: createdTimeOff.approver || null,
+      staff_name: createdTimeOff.staff.name,
+      approved_by_name: createdTimeOff.approver?.name || null,
     };
 
-    return NextResponse.json(transformedData, { status: 201 });
+    return NextResponse.json(data, { status: 201 });
   } catch (error) {
     console.error("Error in POST staff-time-off:", error);
     return NextResponse.json(

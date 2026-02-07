@@ -2,6 +2,7 @@
  * Presentation Hooks - Exportações centralizadas
  */
 
+// Original hooks
 export * from './useKitchenOrders';
 export * from './useSessionOrders';
 export * from './useSessionManagement';
@@ -15,3 +16,7 @@ export * from './useReservations';
 export * from './useClosures';
 export * from './useWaiterCalls';
 export * from './useCustomers';
+
+// Optimized hooks with React Query (Phase 3 - Performance Optimization)
+export * from './useProductsOptimized';
+export * from './useKitchenOrdersOptimized';

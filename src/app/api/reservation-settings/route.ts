@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
-import type {
-  ReservationSettings,
-  ReservationSettingsUpdate,
-} from "@/types/database";
-
-// Helper to get typed supabase query
-function getExtendedSupabase(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
-  };
-}
+import { SupabaseReservationSettingsRepository } from "@/infrastructure/repositories/SupabaseReservationSettingsRepository";
+import {
+  GetReservationSettingsUseCase,
+  UpdateReservationSettingsUseCase,
+} from "@/application/use-cases/reservation-settings";
+import type { UpdateReservationSettingsData } from "@/domain/entities/ReservationSettings";
 
 // GET - Fetch reservation settings
 export async function GET() {
@@ -25,32 +18,32 @@ export async function GET() {
     }
 
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+    const repository = new SupabaseReservationSettingsRepository(supabase);
+    const getReservationSettings = new GetReservationSettingsUseCase(repository);
 
-    const { data, error } = await extendedSupabase
-      .from("reservation_settings")
-      .select("*")
-      .eq("id", 1)
-      .single();
+    const result = await getReservationSettings.execute();
 
-    if (error) {
-      console.error("Error fetching reservation settings:", error);
-      // Return default settings if table doesn't exist or no data
-      const defaultSettings: ReservationSettings = {
-        id: 1,
-        day_before_reminder_enabled: true,
-        day_before_reminder_hours: 24,
-        same_day_reminder_enabled: true,
-        same_day_reminder_hours: 2,
-        rodizio_waste_policy_enabled: true,
-        rodizio_waste_fee_per_piece: 2.5,
-        updated_at: new Date().toISOString(),
-        updated_by: null,
-      };
-      return NextResponse.json(defaultSettings);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json(data as ReservationSettings);
+    // Map to database format for backwards compatibility
+    const data = {
+      id: result.data.id,
+      day_before_reminder_enabled: result.data.dayBeforeReminderEnabled,
+      day_before_reminder_hours: result.data.dayBeforeReminderHours,
+      same_day_reminder_enabled: result.data.sameDayReminderEnabled,
+      same_day_reminder_hours: result.data.sameDayReminderHours,
+      rodizio_waste_policy_enabled: result.data.rodizioWastePolicyEnabled,
+      rodizio_waste_fee_per_piece: result.data.rodizioWasteFeePerPiece,
+      updated_at: result.data.updatedAt.toISOString(),
+      updated_by: result.data.updatedBy,
+    };
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Error in GET reservation-settings:", error);
     return NextResponse.json(
@@ -69,74 +62,61 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body: ReservationSettingsUpdate = await request.json();
-
-    // Validate the update data
-    const allowedFields = [
-      "day_before_reminder_enabled",
-      "day_before_reminder_hours",
-      "same_day_reminder_enabled",
-      "same_day_reminder_hours",
-      "rodizio_waste_policy_enabled",
-      "rodizio_waste_fee_per_piece",
-    ];
-
-    const updateData: Record<string, unknown> = {
-      updated_by: auth.id,
-    };
-
-    for (const field of allowedFields) {
-      if (field in body) {
-        const value = body[field as keyof ReservationSettingsUpdate];
-
-        // Validate hours are positive integers
-        if (field.endsWith("_hours") && typeof value === "number") {
-          if (value < 1 || value > 168) {
-            // Max 1 week
-            return NextResponse.json(
-              { error: `${field} must be between 1 and 168 hours` },
-              { status: 400 },
-            );
-          }
-        }
-
-        // Validate fee is positive
-        if (
-          field === "rodizio_waste_fee_per_piece" &&
-          typeof value === "number"
-        ) {
-          if (value < 0) {
-            return NextResponse.json(
-              { error: "Waste fee cannot be negative" },
-              { status: 400 },
-            );
-          }
-        }
-
-        updateData[field] = value;
-      }
-    }
+    const body = await request.json();
 
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+    const repository = new SupabaseReservationSettingsRepository(supabase);
+    const updateReservationSettings = new UpdateReservationSettingsUseCase(repository);
 
-    const { data, error } = await extendedSupabase
-      .from("reservation_settings")
-      .update(updateData)
-      .eq("id", 1)
-      .select()
-      .single();
+    // Build UpdateReservationSettingsData (supporting both camelCase and snake_case)
+    const updateData: UpdateReservationSettingsData = {};
 
-    if (error) {
-      console.error("Error updating reservation settings:", error);
+    if (body.dayBeforeReminderEnabled !== undefined || body.day_before_reminder_enabled !== undefined) {
+      updateData.dayBeforeReminderEnabled = body.dayBeforeReminderEnabled ?? body.day_before_reminder_enabled;
+    }
+    if (body.dayBeforeReminderHours !== undefined || body.day_before_reminder_hours !== undefined) {
+      updateData.dayBeforeReminderHours = body.dayBeforeReminderHours ?? body.day_before_reminder_hours;
+    }
+    if (body.sameDayReminderEnabled !== undefined || body.same_day_reminder_enabled !== undefined) {
+      updateData.sameDayReminderEnabled = body.sameDayReminderEnabled ?? body.same_day_reminder_enabled;
+    }
+    if (body.sameDayReminderHours !== undefined || body.same_day_reminder_hours !== undefined) {
+      updateData.sameDayReminderHours = body.sameDayReminderHours ?? body.same_day_reminder_hours;
+    }
+    if (body.rodizioWastePolicyEnabled !== undefined || body.rodizio_waste_policy_enabled !== undefined) {
+      updateData.rodizioWastePolicyEnabled = body.rodizioWastePolicyEnabled ?? body.rodizio_waste_policy_enabled;
+    }
+    if (body.rodizioWasteFeePerPiece !== undefined || body.rodizio_waste_fee_per_piece !== undefined) {
+      updateData.rodizioWasteFeePerPiece = body.rodizioWasteFeePerPiece ?? body.rodizio_waste_fee_per_piece;
+    }
+
+    const result = await updateReservationSettings.execute({
+      data: updateData,
+      updatedBy: auth.id,
+    });
+
+    if (!result.success) {
       return NextResponse.json(
-        { error: "Failed to update settings" },
-        { status: 500 },
+        { error: result.error },
+        { status: 400 }
       );
     }
 
+    // Map to database format for backwards compatibility
+    const data = {
+      id: result.data.id,
+      day_before_reminder_enabled: result.data.dayBeforeReminderEnabled,
+      day_before_reminder_hours: result.data.dayBeforeReminderHours,
+      same_day_reminder_enabled: result.data.sameDayReminderEnabled,
+      same_day_reminder_hours: result.data.sameDayReminderHours,
+      rodizio_waste_policy_enabled: result.data.rodizioWastePolicyEnabled,
+      rodizio_waste_fee_per_piece: result.data.rodizioWasteFeePerPiece,
+      updated_at: result.data.updatedAt.toISOString(),
+      updated_by: result.data.updatedBy,
+    };
+
     console.info(`✅ Reservation settings updated by ${auth.email}`);
-    return NextResponse.json(data as ReservationSettings);
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Error in PATCH reservation-settings:", error);
     return NextResponse.json(

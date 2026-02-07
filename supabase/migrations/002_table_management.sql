@@ -26,7 +26,7 @@ ALTER TABLE sessions ADD COLUMN IF NOT EXISTS time_ordering INTEGER;  -- segundo
 -- 3. Tabela de histórico de estados das mesas (auditoria)
 CREATE TABLE IF NOT EXISTS table_status_history (
   id SERIAL PRIMARY KEY,
-  table_id UUID NOT NULL REFERENCES tables(id) ON DELETE CASCADE,
+  table_id INTEGER NOT NULL REFERENCES tables(id) ON DELETE CASCADE,
   old_status VARCHAR(20),
   new_status VARCHAR(20),
   changed_by UUID REFERENCES staff(id),

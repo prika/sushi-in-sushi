@@ -31,6 +31,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_closures_updated_at ON restaurant_closures;
 CREATE TRIGGER trigger_closures_updated_at
     BEFORE UPDATE ON restaurant_closures
     FOR EACH ROW

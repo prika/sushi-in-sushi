@@ -11,6 +11,7 @@ import { ReactNode } from 'react';
 import { DependencyProvider } from '../contexts/DependencyContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/components/ui/Toast';
+import { QueryProvider } from './QueryProvider';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -21,10 +22,12 @@ interface ProvidersProps {
  */
 export function Providers({ children }: ProvidersProps) {
   return (
-    <DependencyProvider>
-      <AuthProvider>
-        <ToastProvider>{children}</ToastProvider>
-      </AuthProvider>
-    </DependencyProvider>
+    <QueryProvider>
+      <DependencyProvider>
+        <AuthProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </AuthProvider>
+      </DependencyProvider>
+    </QueryProvider>
   );
 }
