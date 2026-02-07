@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui";
+import ReservationsCalendar from "@/components/calendar/ReservationsCalendar";
 import {
   Calendar,
   Clock,
@@ -85,9 +86,8 @@ const occasionLabels: Record<string, string> = {
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<string | "all">(
-    new Date().toISOString().split("T")[0]
-  );
+  const [viewMode, setViewMode] = useState<"future" | "date">("future");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState<Location | "">("");
   const [statusFilter, setStatusFilter] = useState<ReservationStatus | "">("");
   const [selectedReservation, setSelectedReservation] =
@@ -110,9 +110,16 @@ export default function ReservationsPage() {
       .order("reservation_date", { ascending: true })
       .order("reservation_time", { ascending: true });
 
-    if (selectedDate && selectedDate !== "all") {
+    // Apply date filter based on view mode
+    if (viewMode === "future") {
+      // Show today onwards
+      const today = new Date().toISOString().split("T")[0];
+      query = query.gte("reservation_date", today);
+    } else if (selectedDate) {
+      // Show specific date (from calendar click)
       query = query.eq("reservation_date", selectedDate);
     }
+
     if (locationFilter) {
       query = query.eq("location", locationFilter);
     }
@@ -131,7 +138,7 @@ export default function ReservationsPage() {
 
     setReservations((data as Reservation[]) || []);
     setIsLoading(false);
-  }, [selectedDate, locationFilter, statusFilter]);
+  }, [viewMode, selectedDate, locationFilter, statusFilter]);
 
   useEffect(() => {
     fetchReservations();
@@ -183,13 +190,6 @@ export default function ReservationsPage() {
     }
   };
 
-  const changeDate = (days: number) => {
-    if (selectedDate === "all") return;
-    const date = new Date(selectedDate);
-    date.setDate(date.getDate() + days);
-    setSelectedDate(date.toISOString().split("T")[0]);
-  };
-
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString("pt-PT", {
@@ -199,12 +199,17 @@ export default function ReservationsPage() {
     });
   };
 
-  // Group reservations by date and time when viewing all, or just by time for single date
-  const groupedReservations = reservations.reduce(
+  // Separate pending from rest
+  const pendingReservations = reservations.filter(r => r.status === 'pending');
+  const upcomingReservations = reservations.filter(r => r.status !== 'pending');
+
+  // Group upcoming reservations by date and time
+  const groupedReservations = upcomingReservations.reduce(
     (acc, reservation) => {
-      const key = selectedDate === "all"
-        ? `${reservation.reservation_date}|${reservation.reservation_time}`
-        : reservation.reservation_time;
+      const dateKey = reservation.reservation_date;
+      const timeKey = reservation.reservation_time;
+      const key = `${dateKey}|${timeKey}`;
+
       if (!acc[key]) {
         acc[key] = [];
       }
@@ -214,7 +219,14 @@ export default function ReservationsPage() {
     {} as Record<string, Reservation[]>
   );
 
-  const timeSlots = Object.keys(groupedReservations).sort();
+  // Sort time slots chronologically
+  const timeSlots = Object.keys(groupedReservations).sort((a, b) => {
+    const [dateA, timeA] = a.split("|");
+    const [dateB, timeB] = b.split("|");
+    return dateA === dateB
+      ? timeA.localeCompare(timeB)
+      : dateA.localeCompare(dateB);
+  });
 
   // Stats
   const stats = {
@@ -238,52 +250,8 @@ export default function ReservationsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div>
         <h1 className="text-2xl font-bold text-gray-900">Reservas</h1>
-
-        {/* Date Navigation */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => changeDate(-1)}
-            disabled={selectedDate === "all"}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <input
-            type="date"
-            value={selectedDate === "all" ? "" : selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value || "all")}
-            className="px-4 py-2 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-          />
-          <button
-            onClick={() => changeDate(1)}
-            disabled={selectedDate === "all"}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <ChevronRight size={20} />
-          </button>
-          <button
-            onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])}
-            className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-              selectedDate !== "all" && selectedDate === new Date().toISOString().split("T")[0]
-                ? "bg-[#D4AF37] text-white"
-                : "text-[#D4AF37] hover:bg-[#D4AF37]/10"
-            }`}
-          >
-            Hoje
-          </button>
-          <button
-            onClick={() => setSelectedDate("all")}
-            className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-              selectedDate === "all"
-                ? "bg-[#D4AF37] text-white"
-                : "text-[#D4AF37] hover:bg-[#D4AF37]/10"
-            }`}
-          >
-            Todas
-          </button>
-        </div>
       </div>
 
       {/* Error Message */}
@@ -298,26 +266,29 @@ export default function ReservationsPage() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-gray-100">
-          <p className="text-sm text-gray-500">Total</p>
-          <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100">
+          <p className="text-xs text-yellow-600 flex items-center gap-1">
+            {stats.pending > 0 && <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />}
+            Pendentes
+          </p>
+          <p className="text-xl font-bold text-yellow-700 mt-0.5">{stats.pending}</p>
         </div>
-        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
-          <p className="text-sm text-yellow-600">Pendentes</p>
-          <p className="text-2xl font-bold text-yellow-700">{stats.pending}</p>
+        <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+          <p className="text-xs text-green-600">Confirmadas</p>
+          <p className="text-xl font-bold text-green-700 mt-0.5">{stats.confirmed}</p>
         </div>
-        <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-          <p className="text-sm text-green-600">Confirmadas</p>
-          <p className="text-2xl font-bold text-green-700">{stats.confirmed}</p>
+        <div className="bg-white p-3 rounded-lg border border-gray-100">
+          <p className="text-xs text-gray-500">Total</p>
+          <p className="text-xl font-bold text-gray-900 mt-0.5">{stats.total}</p>
         </div>
-        <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-          <p className="text-sm text-red-600">Canceladas</p>
-          <p className="text-2xl font-bold text-red-700">{stats.cancelled}</p>
+        <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+          <p className="text-xs text-red-600">Canceladas</p>
+          <p className="text-xl font-bold text-red-700 mt-0.5">{stats.cancelled}</p>
         </div>
-        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-          <p className="text-sm text-blue-600">Total Pessoas</p>
-          <p className="text-2xl font-bold text-blue-700">{stats.totalGuests}</p>
+        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+          <p className="text-xs text-blue-600">Total Pessoas</p>
+          <p className="text-xl font-bold text-blue-700 mt-0.5">{stats.totalGuests}</p>
         </div>
       </div>
 
@@ -351,68 +322,144 @@ export default function ReservationsPage() {
             <option value="completed">Concluída</option>
             <option value="no_show">Não Compareceu</option>
           </select>
+          <div className="flex gap-2 ml-auto">
+            <button
+              onClick={() => {
+                setViewMode("future");
+                setSelectedDate(null);
+              }}
+              className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                viewMode === "future"
+                  ? "bg-[#D4AF37] text-white"
+                  : "text-[#D4AF37] hover:bg-[#D4AF37]/10 border border-[#D4AF37]/20"
+              }`}
+            >
+              Próximas
+            </button>
+            <button
+              onClick={() => setViewMode("date")}
+              className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                viewMode === "date"
+                  ? "bg-[#D4AF37] text-white"
+                  : "text-[#D4AF37] hover:bg-[#D4AF37]/10 border border-[#D4AF37]/20"
+              }`}
+            >
+              Por Data
+            </button>
+          </div>
         </div>
       </Card>
 
-      {/* Date Title */}
-      <h2 className="text-lg font-semibold text-gray-800 capitalize">
-        {selectedDate === "all" ? "Todas as Reservas" : formatDate(selectedDate)}
-      </h2>
+      {/* Main Content: 2-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      {/* Reservations List */}
-      {timeSlots.length === 0 ? (
-        <Card variant="light">
-          <div className="text-center py-12">
-            <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">
-              {selectedDate === "all"
-                ? "Nenhuma reserva encontrada"
-                : "Nenhuma reserva para esta data"}
-            </p>
-            {!fetchError && (
-              <p className="text-xs text-gray-400 mt-2">
-                Se acabou de executar a migração, faça refresh à página.
-              </p>
+        {/* LEFT: Reservations List (2/3 width) */}
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* Pending Section (Always Visible) */}
+          {pendingReservations.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+                <h2 className="text-lg font-semibold text-yellow-700">
+                  Pendentes de Confirmação ({pendingReservations.length})
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingReservations.map((reservation) => (
+                  <ReservationCard
+                    key={reservation.id}
+                    reservation={reservation}
+                    isPending={true}
+                    onClick={() => setSelectedReservation(reservation)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Upcoming Reservations */}
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-gray-800">
+              {viewMode === "future"
+                ? "Próximas Reservas"
+                : selectedDate
+                  ? `Reservas - ${formatDate(selectedDate)}`
+                  : "Selecione uma data no calendário"
+              }
+            </h2>
+
+            {timeSlots.length === 0 ? (
+              <Card variant="light">
+                <div className="text-center py-12">
+                  <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">
+                    {viewMode === "future"
+                      ? "Nenhuma reserva próxima (apenas pendentes acima)"
+                      : selectedDate
+                        ? "Nenhuma reserva para esta data (ver pendentes acima)"
+                        : "Selecione uma data no calendário"}
+                  </p>
+                  {!fetchError && !selectedDate && (
+                    <p className="text-xs text-gray-400 mt-2">
+                      Use o calendário à direita para ver reservas de datas específicas
+                    </p>
+                  )}
+                </div>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {timeSlots.map((slot) => {
+                  const [date, time] = slot.split("|");
+                  return (
+                    <div key={slot}>
+                      <div className="flex items-center gap-2 mb-3">
+                        {viewMode === "future" && (
+                          <>
+                            <Calendar size={18} className="text-[#D4AF37]" />
+                            <span className="text-sm font-medium text-gray-600">
+                              {formatDate(date)}
+                            </span>
+                            <span className="text-gray-300">|</span>
+                          </>
+                        )}
+                        <Clock size={18} className="text-[#D4AF37]" />
+                        <h3 className="text-lg font-semibold text-gray-800">{time}</h3>
+                        <span className="text-sm text-gray-400">
+                          ({groupedReservations[slot].length} reserva
+                          {groupedReservations[slot].length !== 1 ? "s" : ""})
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {groupedReservations[slot].map((reservation) => (
+                          <ReservationCard
+                            key={reservation.id}
+                            reservation={reservation}
+                            isPending={false}
+                            onClick={() => setSelectedReservation(reservation)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
-        </Card>
-      ) : (
-        <div className="space-y-6">
-          {timeSlots.map((slot) => {
-            const [date, time] = selectedDate === "all" ? slot.split("|") : [null, slot];
-            return (
-              <div key={slot}>
-                <div className="flex items-center gap-2 mb-3">
-                  {selectedDate === "all" && date && (
-                    <>
-                      <Calendar size={18} className="text-[#D4AF37]" />
-                      <span className="text-sm font-medium text-gray-600">
-                        {formatDate(date)}
-                      </span>
-                      <span className="text-gray-300">|</span>
-                    </>
-                  )}
-                  <Clock size={18} className="text-[#D4AF37]" />
-                  <h3 className="text-lg font-semibold text-gray-800">{time}</h3>
-                  <span className="text-sm text-gray-400">
-                    ({groupedReservations[slot].length} reserva
-                    {groupedReservations[slot].length !== 1 ? "s" : ""})
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {groupedReservations[slot].map((reservation) => (
-                    <ReservationCard
-                      key={reservation.id}
-                      reservation={reservation}
-                      onClick={() => setSelectedReservation(reservation)}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
         </div>
-      )}
+
+        {/* RIGHT: Calendar (1/3 width on large screens) */}
+        <div className="lg:col-span-1">
+          <ReservationsCalendar
+            reservations={reservations}
+            selectedDate={selectedDate}
+            onDateSelect={(date) => {
+              setSelectedDate(date);
+              setViewMode("date");
+            }}
+          />
+        </div>
+      </div>
 
       {/* Reservation Detail Modal */}
       {selectedReservation && (
@@ -429,19 +476,36 @@ export default function ReservationsPage() {
 
 function ReservationCard({
   reservation,
+  isPending = false,
   onClick,
 }: {
   reservation: Reservation;
+  isPending?: boolean;
   onClick: () => void;
 }) {
   const config = statusConfig[reservation.status];
 
   return (
-    <div
-      className="cursor-pointer hover:shadow-md transition-shadow"
-      onClick={onClick}
-    >
-    <Card variant="light">
+    <>
+      <style jsx>{`
+        @keyframes pulse-border {
+          0%, 100% { border-color: rgb(253 224 71); }
+          50% { border-color: rgb(250 204 21); }
+        }
+        .animate-pulse-border {
+          animation: pulse-border 2s ease-in-out infinite;
+        }
+      `}</style>
+      <div
+        className={`cursor-pointer hover:shadow-md transition-all ${
+          isPending ? "animate-pulse-border" : ""
+        }`}
+        onClick={onClick}
+      >
+      <Card
+        variant="light"
+        className={isPending ? "border-2 border-yellow-300" : ""}
+      >
       <div className="flex items-start justify-between mb-3">
         <div>
           <h4 className="font-semibold text-gray-900">
@@ -504,6 +568,7 @@ function ReservationCard({
       </div>
     </Card>
     </div>
+    </>
   );
 }
 
