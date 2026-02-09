@@ -578,9 +578,7 @@ Documentação técnica completa disponível em **[/docs/](docs/)**:
 - **[CLAUDE.md](CLAUDE.md)** - Contexto e convenções do projeto
   - Estrutura de pastas detalhada
   - Clean Architecture patterns
-  - Como adicionar novas funcionalidades
-
-### Estado Atual (2026-02-07)
+  - Como adicionar novas funcionalidades### Estado Atual (2026-02-07)
 - ✅ Clean Architecture 100% implementada
 - ✅ 537 testes passando (100% use cases, 100% domain services)
 - ✅ Performance otimizada (React Query + Hooks + Indexes)

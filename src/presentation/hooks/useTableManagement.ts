@@ -13,7 +13,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDependencies } from '../contexts/DependencyContext';
 import { TableDTO, TableStatisticsDTO } from '@/application/use-cases/tables/GetAllTablesUseCase';
 import { TableStatus } from '@/domain/value-objects/TableStatus';
-import { Location } from '@/domain/value-objects/Location';
+import { Location } from '@/types/database';
 import { createClient } from '@/lib/supabase/client';
 
 /**

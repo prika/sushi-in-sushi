@@ -17,7 +17,7 @@ import {
   TableFullStatus,
 } from '@/domain/entities/Table';
 import { TableStatus } from '@/domain/value-objects/TableStatus';
-import { Location } from '@/domain/value-objects/Location';
+import { Location } from '@/types/database';
 
 /**
  * Helper para acesso a views não tipadas
@@ -227,13 +227,13 @@ export class SupabaseTableRepository implements ITableRepository {
     if (!viewError && viewData) {
       // Buscar empregados atribuídos
       const { data: assignments } = await extendedClient
-        .from('waiter_assignments')
-        .select('table_id, staff_id, staff_name');
+        .from('waiter_tables')
+        .select('table_id, staff_id, staff:staff_id(name)');
 
       const waiterMap = new Map(
-        (assignments || []).map((a: { table_id: string; staff_id: string; staff_name: string }) => [
+        (assignments || []).map((a: any) => [
           a.table_id,
-          { id: a.staff_id, name: a.staff_name },
+          { id: a.staff_id, name: a.staff?.name || null },
         ])
       );
 

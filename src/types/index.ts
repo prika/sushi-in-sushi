@@ -17,14 +17,8 @@
 // DOMAIN TYPES (Value Objects with helpers)
 // =============================================================================
 
-// Location
-export {
-  type Location,
-  LOCATION_LABELS,
-  ALL_LOCATIONS,
-  isValidLocation,
-  getLocationLabel,
-} from "@/domain/value-objects/Location";
+// Location - Now dynamic, use useLocations() hook
+export type { Location } from "./database";
 
 // Order Status
 export {

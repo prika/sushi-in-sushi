@@ -9,6 +9,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRequireWaiter } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
+import { useLocations } from "@/presentation/hooks";
 import type {
   Session,
   Table,
@@ -40,6 +41,7 @@ interface OrderWithTableInfo extends OrderWithProduct {
 
 export default function WaiterDashboard() {
   const { user, logout, isLoading: authLoading } = useRequireWaiter();
+  const { locations } = useLocations();
   const [tables, setTables] = useState<TableWithSession[]>([]);
   const [orders, setOrders] = useState<OrderWithTableInfo[]>([]);
   const [waiterCalls, setWaiterCalls] = useState<
@@ -50,6 +52,12 @@ export default function WaiterDashboard() {
   // Use memoized supabase client to prevent real-time subscription issues
   const supabase = useMemo(() => createClient(), []);
   const extendedSupabase = useMemo(() => getExtendedSupabase(supabase), [supabase]);
+
+  // Helper to get location label
+  const getLocationLabel = (location: string | null) => {
+    if (!location) return "";
+    return locations.find(loc => loc.slug === location)?.name || location;
+  };
 
   // Ref for fetchData to avoid useEffect dependency issues
   const fetchDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
@@ -349,10 +357,7 @@ export default function WaiterDashboard() {
                 Painel do Empregado
               </h1>
               <p className="text-sm text-gray-400">
-                {user?.name} •{" "}
-                {user?.location === "circunvalacao"
-                  ? "Circunvalação"
-                  : "Boavista"}
+                {user?.name} • {getLocationLabel(user?.location || null)}
               </p>
             </div>
           </div>

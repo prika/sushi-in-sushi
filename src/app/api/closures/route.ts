@@ -8,7 +8,7 @@ import {
   DeleteClosureUseCase,
 } from "@/application/use-cases/closures";
 import type { ClosureFilter, CreateClosureData } from "@/domain/entities/RestaurantClosure";
-import type { Location } from "@/domain/value-objects/Location";
+import type { Location } from "@/types/database";
 
 // GET - List closures
 export async function GET(request: NextRequest) {

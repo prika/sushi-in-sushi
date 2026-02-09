@@ -3,14 +3,16 @@
 // =============================================================================
 import type { SessionStatus as DomainSessionStatus } from "@/domain/value-objects/SessionStatus";
 import type { OrderStatus as DomainOrderStatus } from "@/domain/value-objects/OrderStatus";
-import type { Location as DomainLocation } from "@/domain/value-objects/Location";
 import type { TableStatus as DomainTableStatus } from "@/domain/value-objects/TableStatus";
 
 // Re-export domain types for backwards compatibility
 export type SessionStatus = DomainSessionStatus;
 export type OrderStatus = DomainOrderStatus;
-export type Location = DomainLocation;
 export type TableStatus = DomainTableStatus;
+
+// Location is now a dynamic string (restaurant slug)
+// Use useLocations() hook to get available locations
+export type Location = string;
 
 // =============================================================================
 // SUPABASE JSON TYPE

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDependencies } from '../contexts/DependencyContext';
 import { KitchenOrderDTO } from '@/application/dto/OrderDTO';
 import { OrderStatus } from '@/domain/value-objects/OrderStatus';
-import { Location } from '@/domain/value-objects/Location';
+import { Location } from '@/types/database';
 import { useMemo, useRef, useEffect, useState } from 'react';
 
 /**

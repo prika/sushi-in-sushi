@@ -6,7 +6,7 @@ import { ITableRepository } from '@/domain/repositories/ITableRepository';
 import { TableService } from '@/domain/services/TableService';
 import { TableWithSession } from '@/domain/entities/Table';
 import { TableStatus } from '@/domain/value-objects/TableStatus';
-import { Location } from '@/domain/value-objects/Location';
+import { Location } from '@/types/database';
 import { Result, Results } from '../Result';
 
 /**

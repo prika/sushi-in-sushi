@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui";
+import { useLocations } from "@/presentation/hooks";
 import type { StaffWithRole, Table, RoleName } from "@/types/database";
 
 interface StaffMetrics {
@@ -40,6 +41,7 @@ interface StaffDetailData {
 
 export default function StaffDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { locations } = useLocations();
   const [data, setData] = useState<StaffDetailData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -114,11 +116,7 @@ export default function StaffDetailPage() {
 
   const getLocationLabel = (location: string | null) => {
     if (!location) return "Todas";
-    const labels: Record<string, string> = {
-      circunvalacao: "Circunvalação",
-      boavista: "Boavista",
-    };
-    return labels[location] || location;
+    return locations.find(loc => loc.slug === location)?.name || location;
   };
 
   if (isLoading) {

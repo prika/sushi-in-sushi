@@ -20,3 +20,7 @@ export * from './useCustomers';
 // Optimized hooks with React Query (Phase 3 - Performance Optimization)
 export * from './useProductsOptimized';
 export * from './useKitchenOrdersOptimized';
+
+// Restaurant management hooks
+export * from './useRestaurants';
+export * from './useLocations';

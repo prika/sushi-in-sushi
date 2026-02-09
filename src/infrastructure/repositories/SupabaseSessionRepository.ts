@@ -16,7 +16,7 @@ import {
   SessionWithOrders,
 } from '@/domain/entities/Session';
 import { SessionStatus } from '@/domain/value-objects/SessionStatus';
-import { Location } from '@/domain/value-objects/Location';
+import { Location } from '@/types/database';
 
 /**
  * Tipo do registo da base de dados

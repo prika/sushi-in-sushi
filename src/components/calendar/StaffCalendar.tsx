@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Modal } from "@/components/ui";
-import { useStaffTimeOff, type StaffTimeOffFormData } from "@/presentation/hooks/useStaffTimeOff";
+import { useStaffTimeOff, useLocations, type StaffTimeOffFormData } from "@/presentation/hooks";
 import type { StaffTimeOffWithStaff, StaffTimeOffType, Staff } from "@/types/database";
 
 // =============================================
@@ -28,11 +28,6 @@ const TYPE_COLORS: Record<StaffTimeOffType, { bg: string; text: string; border: 
   sick: { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-300" },
   personal: { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-300" },
   other: { bg: "bg-gray-100", text: "text-gray-800", border: "border-gray-300" },
-};
-
-const LOCATION_LABELS: Record<string, string> = {
-  circunvalacao: "Circunvalacao",
-  boavista: "Boavista",
 };
 
 // =============================================
@@ -61,6 +56,13 @@ interface StaffCalendarProps {
 }
 
 export default function StaffCalendar({ staffList }: StaffCalendarProps) {
+  const { locations } = useLocations();
+
+  // Helper to get location label
+  const getLocationLabel = (slug: string) => {
+    return locations.find(loc => loc.slug === slug)?.name || slug;
+  };
+
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -284,7 +286,7 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
                       <div className="px-1 py-0.5 text-xs text-red-700">
                         <span className="font-medium">
                           {closureInfo?.location
-                            ? LOCATION_LABELS[closureInfo.location]
+                            ? getLocationLabel(closureInfo.location)
                             : "Ambos"}
                         </span>
                       </div>

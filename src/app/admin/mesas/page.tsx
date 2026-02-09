@@ -7,12 +7,7 @@ import type { TableDTO } from "@/application/use-cases/tables/GetAllTablesUseCas
 import { generateQRCodeToCanvas, buildTableOrderURLByNumber } from "@/lib/qrcode";
 import { TableMap } from "@/components/admin/TableMap";
 import { TableDetailModal } from "@/components/admin/TableDetailModal";
-import { useTableManagement } from "@/presentation/hooks";
-
-const LOCATION_LABELS: Record<string, string> = {
-  circunvalacao: "Circunvalação",
-  boavista: "Boavista",
-};
+import { useTableManagement, useLocations } from "@/presentation/hooks";
 
 type TabType = "config" | "map";
 
@@ -49,6 +44,14 @@ export default function MesasPage() {
     closeSession,
   } = useTableManagement({ location: selectedLocation as "circunvalacao" | "boavista", refreshInterval: 15000 });
 
+  // Locations hook for dynamic dropdowns
+  const { locations } = useLocations();
+
+  // Helper to get location label
+  const getLocationLabel = (slug: string) => {
+    return locations.find(loc => loc.slug === slug)?.name || slug;
+  };
+
   useEffect(() => {
     fetchTables();
   }, []);
@@ -72,19 +75,14 @@ export default function MesasPage() {
       .order("number");
 
     // Fetch waiter assignments
-    const extendedSupabase = supabase as unknown as {
-      from: (table: string) => {
-        select: (fields: string) => ReturnType<ReturnType<typeof createClient>["from"]>["select"];
-      };
-    };
-    const { data: waiterData } = await extendedSupabase
-      .from("waiter_assignments")
-      .select("table_id, staff_name");
+    const { data: waiterData } = await supabase
+      .from("waiter_tables")
+      .select("table_id, staff:staff_id(name)");
 
     const waiterMap = new Map<string, string>(
-      (waiterData || []).map((w: { table_id: string; staff_name: string }) => [
+      (waiterData || []).map((w: any) => [
         w.table_id,
-        w.staff_name,
+        w.staff?.name || null,
       ])
     );
 
@@ -233,7 +231,7 @@ export default function MesasPage() {
           </div>
           <div class="table-label">Mesa</div>
           <div class="table-number">${table.number}</div>
-          <div class="location">${LOCATION_LABELS[table.location]}</div>
+          <div class="location">${getLocationLabel(table.location)}</div>
           <div class="scan-text">Escaneie para fazer o pedido</div>
         </body>
       </html>
@@ -296,7 +294,7 @@ export default function MesasPage() {
         </div>
         <div class="table-label">Mesa</div>
         <div class="table-number">${table.number}</div>
-        <div class="location">${LOCATION_LABELS[table.location]}</div>
+        <div class="location">${getLocationLabel(table.location)}</div>
         <div class="scan-text">Escaneie para fazer o pedido</div>
       </div>
     `).join("");
@@ -523,26 +521,19 @@ export default function MesasPage() {
           {/* Location Toggle */}
           <div className="flex items-center justify-between">
             <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setSelectedLocation("circunvalacao")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedLocation === "circunvalacao"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Circunvalação
-              </button>
-              <button
-                onClick={() => setSelectedLocation("boavista")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedLocation === "boavista"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Boavista
-              </button>
+              {locations.map((location) => (
+                <button
+                  key={location.slug}
+                  onClick={() => setSelectedLocation(location.slug)}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedLocation === location.slug
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {location.name}
+                </button>
+              ))}
             </div>
 
             {/* Status Summary */}
@@ -728,8 +719,11 @@ export default function MesasPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                   required
                 >
-                  <option value="circunvalacao">Circunvalação</option>
-                  <option value="boavista">Boavista</option>
+                  {locations.map((location) => (
+                    <option key={location.slug} value={location.slug}>
+                      {location.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -789,7 +783,7 @@ export default function MesasPage() {
 
               <div className="text-sm text-gray-500 uppercase tracking-wider">Mesa</div>
               <div className="text-5xl font-bold text-[#D4AF37] mb-1">{selectedTableForQR.number}</div>
-              <div className="text-sm text-gray-500 mb-4">{LOCATION_LABELS[selectedTableForQR.location]}</div>
+              <div className="text-sm text-gray-500 mb-4">{getLocationLabel(selectedTableForQR.location)}</div>
 
               <div className="text-xs text-gray-400 mb-6 break-all px-4">
                 {buildTableOrderURLByNumber(

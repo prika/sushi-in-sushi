@@ -19,7 +19,15 @@ import {
 } from "@/lib/qrcode";
 import { TableMap } from "@/components/admin/TableMap";
 import { TableDetailModal } from "@/components/admin/TableDetailModal";
-import { useTableManagement } from "@/presentation/hooks";
+import {
+  useTableManagement,
+  useRestaurants,
+  useLocations,
+} from "@/presentation/hooks";
+import type { Restaurant } from "@/domain/entities/Restaurant";
+import { SupabaseRestaurantRepository } from "@/infrastructure/repositories/SupabaseRestaurantRepository";
+import { SupabaseTableRepository } from "@/infrastructure/repositories/SupabaseTableRepository";
+import { CreateTablesForRestaurantUseCase } from "@/application/use-cases/restaurants";
 
 // =============================================
 // CONSTANTS
@@ -35,12 +43,12 @@ const DAY_LABELS: Record<number, string> = {
   6: "Sabado",
 };
 
-const LOCATION_LABELS: Record<string, string> = {
-  circunvalacao: "Circunvalacao",
-  boavista: "Boavista",
-};
-
-type TabId = "notifications" | "weekly-closures" | "export" | "tables";
+type TabId =
+  | "notifications"
+  | "weekly-closures"
+  | "export"
+  | "tables"
+  | "restaurants";
 
 // =============================================
 // NOTIFICATIONS TAB COMPONENT
@@ -372,11 +380,17 @@ interface ClosureFormData {
 }
 
 function WeeklyClosuresTab() {
+  const { locations } = useLocations();
   const [closures, setClosures] = useState<RestaurantClosure[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Helper: Get location name from slug
+  const getLocationName = (slug: string) => {
+    return locations.find((loc) => loc.slug === slug)?.name || slug;
+  };
 
   const [formData, setFormData] = useState<ClosureFormData>({
     recurring_day_of_week: 1,
@@ -552,7 +566,7 @@ function WeeklyClosuresTab() {
                     </p>
                     <p className="text-sm text-gray-500">
                       {closure.location
-                        ? LOCATION_LABELS[closure.location]
+                        ? getLocationName(closure.location)
                         : "Ambas localizacoes"}
                       {closure.reason && ` - ${closure.reason}`}
                     </p>
@@ -788,10 +802,12 @@ function ExportTab() {
 
       let sessionsQuery = supabase
         .from("sessions")
-        .select(`
+        .select(
+          `
           *,
           orders (*)
-        `)
+        `,
+        )
         .gte("created_at", startDate.toISOString())
         .lte("created_at", endDate.toISOString());
 
@@ -1057,27 +1073,38 @@ function ExportTab() {
 // TABLE MANAGEMENT TAB
 // =============================================
 
-type TableTabType = "config" | "map";
-
 function TableManagementTab() {
-  const [activeTableTab, setActiveTableTab] = useState<TableTabType>("map");
-  const [tables, setTables] = useState<(Table & { waiter_name?: string | null })[]>([]);
+  const { locations } = useLocations();
+
+  const [tables, setTables] = useState<
+    (Table & { waiter_name?: string | null })[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [editingTable, setEditingTable] = useState<Table | null>(null);
-  const [selectedTableForQR, setSelectedTableForQR] = useState<Table | null>(null);
+  const [selectedTableForQR, setSelectedTableForQR] = useState<Table | null>(
+    null,
+  );
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const [formData, setFormData] = useState({
     number: 1,
     name: "",
-    location: "circunvalacao",
+    location: locations[0]?.slug || "circunvalacao",
     is_active: true,
   });
 
-  const [selectedLocation, setSelectedLocation] = useState<string>("circunvalacao");
-  const [selectedTableForDetail, setSelectedTableForDetail] = useState<TableDTO | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string>(
+    locations[0]?.slug || "circunvalacao",
+  );
+  const [selectedTableForDetail, setSelectedTableForDetail] =
+    useState<TableDTO | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Helper to get location label
+  const getLocationLabel = (slug: string) => {
+    return locations.find((loc) => loc.slug === slug)?.name || slug;
+  };
 
   const {
     tables: mapTables,
@@ -1088,7 +1115,10 @@ function TableManagementTab() {
     reactivateTable,
     requestBill,
     closeSession,
-  } = useTableManagement({ location: selectedLocation as "circunvalacao" | "boavista", refreshInterval: 15000 });
+  } = useTableManagement({
+    location: selectedLocation as "circunvalacao" | "boavista",
+    refreshInterval: 15000,
+  });
 
   useEffect(() => {
     fetchTables();
@@ -1098,7 +1128,7 @@ function TableManagementTab() {
     if (showQRModal && selectedTableForQR && qrCanvasRef.current) {
       const url = buildTableOrderURLByNumber(
         selectedTableForQR.number,
-        selectedTableForQR.location as "circunvalacao" | "boavista"
+        selectedTableForQR.location as "circunvalacao" | "boavista",
       );
       generateQRCodeToCanvas(qrCanvasRef.current, url, { width: 250 });
     }
@@ -1106,33 +1136,61 @@ function TableManagementTab() {
 
   const fetchTables = async () => {
     const supabase = createClient();
-    const { data } = await supabase
-      .from("tables")
-      .select("*")
-      .order("number");
+    const { data } = await supabase.from("tables").select("*").order("number");
 
-    const extendedSupabase = supabase as unknown as {
-      from: (table: string) => {
-        select: (fields: string) => ReturnType<ReturnType<typeof createClient>["from"]>["select"];
-      };
-    };
-    const { data: waiterData } = await extendedSupabase
-      .from("waiter_assignments")
-      .select("table_id, staff_name");
+    // Buscar atribuições de empregados com JOIN para obter o nome
+    const { data: waiterData } = await supabase
+      .from("waiter_tables")
+      .select("table_id, staff:staff_id(name)");
 
     const waiterMap = new Map<string, string>(
-      (waiterData || []).map((w: { table_id: string; staff_name: string }) => [
-        w.table_id,
-        w.staff_name,
-      ])
+      (waiterData || []).map((w: any) => [w.table_id, w.staff?.name || null]),
     );
 
-    const tablesWithWaiter = (data || []).map((table) => ({
+    // Buscar sessões ativas para cada mesa
+    const { data: sessionsData } = await supabase
+      .from("sessions")
+      .select(
+        `
+        id,
+        table_id,
+        status,
+        customer_name,
+        session_customers (
+          customer_name
+        )
+      `,
+      )
+      .in("status", ["active", "pending_payment"]);
+
+    const sessionsMap = new Map(
+      (sessionsData || []).map((s: any) => [
+        s.table_id,
+        {
+          customerName: s.customer_name,
+          sessionCustomers: s.session_customers || [],
+        },
+      ]),
+    );
+
+    // Buscar reservas ativas
+    const { data: reservationsData } = await supabase
+      .from("reservations")
+      .select("id, table_id, customer_name, status")
+      .eq("status", "confirmed");
+
+    const reservationsMap = new Map(
+      (reservationsData || []).map((r: any) => [r.table_id, r.customer_name]),
+    );
+
+    const tablesWithInfo = (data || []).map((table) => ({
       ...table,
       waiter_name: waiterMap.get(table.id) || null,
+      session: sessionsMap.get(table.id) || null,
+      reservation_name: reservationsMap.get(table.id) || null,
     }));
 
-    setTables(tablesWithWaiter);
+    setTables(tablesWithInfo);
     setIsLoading(false);
   };
 
@@ -1147,7 +1205,8 @@ function TableManagementTab() {
       });
     } else {
       setEditingTable(null);
-      const nextNumber = tables.length > 0 ? Math.max(...tables.map(t => t.number)) + 1 : 1;
+      const nextNumber =
+        tables.length > 0 ? Math.max(...tables.map((t) => t.number)) + 1 : 1;
       setFormData({
         number: nextNumber,
         name: `Mesa ${nextNumber}`,
@@ -1168,10 +1227,7 @@ function TableManagementTab() {
     const supabase = createClient();
 
     if (editingTable) {
-      await supabase
-        .from("tables")
-        .update(formData)
-        .eq("id", editingTable.id);
+      await supabase.from("tables").update(formData).eq("id", editingTable.id);
     } else {
       await supabase.from("tables").insert(formData);
     }
@@ -1271,7 +1327,7 @@ function TableManagementTab() {
           </div>
           <div class="table-label">Mesa</div>
           <div class="table-number">${table.number}</div>
-          <div class="location">${LOCATION_LABELS[table.location]}</div>
+          <div class="location">${getLocationLabel(table.location)}</div>
           <div class="scan-text">Escaneie para fazer o pedido</div>
         </body>
       </html>
@@ -1312,8 +1368,8 @@ function TableManagementTab() {
 
   const handlePrintAllQRs = (location?: string) => {
     const tablesToPrint = location
-      ? tables.filter(t => t.location === location && t.is_active)
-      : tables.filter(t => t.is_active);
+      ? tables.filter((t) => t.location === location && t.is_active)
+      : tables.filter((t) => t.is_active);
 
     if (tablesToPrint.length === 0) {
       alert("Não há mesas ativas para imprimir.");
@@ -1323,21 +1379,25 @@ function TableManagementTab() {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    const tablesHtml = tablesToPrint.map(table => `
+    const tablesHtml = tablesToPrint
+      .map(
+        (table) => `
       <div class="qr-card">
         <div class="logo">🍣</div>
         <div class="restaurant-name">SUSHI IN SUSHI</div>
         <div class="qr-container">
           <img class="qr-image" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-            `${window.location.origin}/mesa/${table.number}?loc=${table.location}`
+            `${window.location.origin}/mesa/${table.number}?loc=${table.location}`,
           )}&format=png&margin=10" alt="QR Code" />
         </div>
         <div class="table-label">Mesa</div>
         <div class="table-number">${table.number}</div>
-        <div class="location">${LOCATION_LABELS[table.location]}</div>
+        <div class="location">${getLocationLabel(table.location)}</div>
         <div class="scan-text">Escaneie para fazer o pedido</div>
       </div>
-    `).join("");
+    `,
+      )
+      .join("");
 
     const content = `
       <!DOCTYPE html>
@@ -1426,258 +1486,358 @@ function TableManagementTab() {
     );
   }
 
-  const circunvalacaoTables = tables.filter(t => t.location === "circunvalacao");
-  const boavistaTables = tables.filter(t => t.location === "boavista");
+  // Group tables by location dynamically
+  const tablesByLocation = locations.reduce((acc, location) => {
+    acc[location.slug] = tables.filter((t) => t.location === location.slug);
+    return acc;
+  }, {} as Record<string, typeof tables>);
 
-  const TableCard = ({ table }: { table: Table & { waiter_name?: string | null } }) => (
-    <div
-      className={`relative p-4 rounded-xl border-2 text-center ${
-        table.is_active
-          ? "border-green-200 bg-green-50"
-          : "border-gray-200 bg-gray-50 opacity-50"
-      }`}
-    >
-      <div className="text-2xl font-bold text-gray-900">#{table.number}</div>
-      <div className="text-xs text-gray-500 truncate">{table.name}</div>
-      {table.waiter_name && (
-        <div className="flex items-center justify-center gap-1 mt-1 text-xs text-blue-600">
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-          <span className="truncate max-w-[80px]">{table.waiter_name}</span>
+  // Color schemes for location sections (cycle through them)
+  const colorSchemes = [
+    { bg: "bg-blue-50", text: "text-blue-900", button: "text-blue-600 hover:text-blue-800" },
+    { bg: "bg-purple-50", text: "text-purple-900", button: "text-purple-600 hover:text-purple-800" },
+    { bg: "bg-green-50", text: "text-green-900", button: "text-green-600 hover:text-green-800" },
+    { bg: "bg-orange-50", text: "text-orange-900", button: "text-orange-600 hover:text-orange-800" },
+    { bg: "bg-pink-50", text: "text-pink-900", button: "text-pink-600 hover:text-pink-800" },
+  ];
+
+  const TableCard = ({
+    table,
+  }: {
+    table: Table & {
+      waiter_name?: string | null;
+      session?: any;
+      reservation_name?: string | null;
+    };
+  }) => {
+    // Determinar status visual
+    const getStatusInfo = () => {
+      if (!table.is_active) {
+        return {
+          label: "Inativa",
+          color: "bg-gray-100 text-gray-600",
+          border: "border-gray-300",
+        };
+      }
+      if (table.status === "occupied" || table.session) {
+        return {
+          label: "Ocupada",
+          color: "bg-red-100 text-red-700",
+          border: "border-red-300",
+        };
+      }
+      if (table.status === "reserved" || table.reservation_name) {
+        return {
+          label: "Reservada",
+          color: "bg-yellow-100 text-yellow-700",
+          border: "border-yellow-300",
+        };
+      }
+      return {
+        label: "Livre",
+        color: "bg-green-100 text-green-700",
+        border: "border-green-300",
+      };
+    };
+
+    const statusInfo = getStatusInfo();
+
+    return (
+      <div
+        className={`relative p-4 rounded-xl border-2 ${statusInfo.border} bg-white shadow-sm`}
+      >
+        {/* Header: Número + Status */}
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <div className="text-2xl font-bold text-gray-900">
+              Mesa #{table.number}
+            </div>
+            <div className="text-xs text-gray-500">{table.name}</div>
+            <div className="text-xs text-gray-400">
+              Cap: {table.capacity} pessoas
+            </div>
+          </div>
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.color}`}
+          >
+            {statusInfo.label}
+          </span>
         </div>
-      )}
-      <div className="flex justify-center gap-1 mt-2">
-        <button
-          onClick={() => handleOpenQRModal(table)}
-          className="p-1 text-gray-400 hover:text-[#D4AF37]"
-          title="Ver QR Code"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-          </svg>
-        </button>
-        <button
-          onClick={() => handleOpenModal(table)}
-          className="p-1 text-gray-400 hover:text-blue-600"
-          title="Editar"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-        </button>
-        <button
-          onClick={() => handleToggleActive(table)}
-          className={`p-1 ${table.is_active ? "text-green-600" : "text-gray-400"}`}
-          title={table.is_active ? "Desativar" : "Ativar"}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </button>
-        <button
-          onClick={() => handleDelete(table)}
-          className="p-1 text-gray-400 hover:text-red-600"
-          title="Eliminar"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
+
+        {/* Informações de Status */}
+        <div className="space-y-2 mb-3 min-h-[60px]">
+          {/* Reservada */}
+          {table.reservation_name && (
+            <div className="p-2 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div className="flex items-center gap-1 text-xs text-yellow-800">
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span className="font-medium">Reserva:</span>
+              </div>
+              <div className="text-xs font-semibold text-yellow-900 mt-1">
+                {table.reservation_name}
+              </div>
+            </div>
+          )}
+
+          {/* Ocupada */}
+          {table.session && (
+            <div className="p-2 bg-red-50 rounded-lg border border-red-200">
+              <div className="flex items-center gap-1 text-xs text-red-800 mb-1">
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+                <span className="font-medium">Clientes:</span>
+              </div>
+              <div className="space-y-0.5">
+                {table.session.customerName && (
+                  <div className="text-xs font-semibold text-red-900">
+                    • {table.session.customerName}
+                  </div>
+                )}
+                {table.session.sessionCustomers?.map((c: any, i: number) => (
+                  <div key={i} className="text-xs text-red-800">
+                    • {c.customer_name}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Livre */}
+          {!table.reservation_name && !table.session && table.is_active && (
+            <div className="p-2 bg-green-50 rounded-lg border border-green-200 text-center">
+              <div className="text-xs text-green-700 font-medium">
+                Disponível
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Waiter Responsável */}
+        {table.waiter_name && (
+          <div className="mb-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-center gap-1 text-xs text-blue-800">
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+              <span className="font-medium">Waiter:</span>
+              <span className="font-semibold">{table.waiter_name}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Ações */}
+        <div className="flex justify-center gap-1 pt-2 border-t border-gray-200">
+          <button
+            onClick={() => handleOpenQRModal(table)}
+            className="p-2 text-gray-400 hover:text-[#D4AF37] transition-colors"
+            title="Ver QR Code"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={() => handleOpenModal(table)}
+            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+            title="Editar"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={() => handleToggleActive(table)}
+            className={`p-2 transition-colors ${table.is_active ? "text-green-600 hover:text-green-700" : "text-gray-400 hover:text-gray-500"}`}
+            title={table.is_active ? "Desativar" : "Ativar"}
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={() => handleDelete(table)}
+            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+            title="Eliminar"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
-      {/* Sub-tabs */}
-      <div className="flex border-b border-gray-200">
-        <button
-          onClick={() => setActiveTableTab("map")}
-          className={`px-6 py-3 font-medium text-sm transition-colors ${
-            activeTableTab === "map"
-              ? "text-[#D4AF37] border-b-2 border-[#D4AF37]"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Mapa em Tempo Real
-        </button>
-        <button
-          onClick={() => setActiveTableTab("config")}
-          className={`px-6 py-3 font-medium text-sm transition-colors ${
-            activeTableTab === "config"
-              ? "text-[#D4AF37] border-b-2 border-[#D4AF37]"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Configuracao
-        </button>
-      </div>
-
-      {/* Actions */}
+      {/* Header com Ações */}
       <div className="flex justify-end gap-2">
-        {activeTableTab === "config" && (
-          <>
-            <button
-              onClick={() => handlePrintAllQRs()}
-              className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              Imprimir QRs
-            </button>
-            <button
-              onClick={() => handleOpenModal()}
-              className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Nova Mesa
-            </button>
-          </>
-        )}
-        {activeTableTab === "map" && (
-          <button
-            onClick={() => refreshMap()}
-            className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+        <button
+          onClick={() => handlePrintAllQRs()}
+          className="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Atualizar
-          </button>
-        )}
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+            />
+          </svg>
+          Imprimir Todos os QRs
+        </button>
+        <button
+          disabled
+          className="px-4 py-2 bg-gray-300 text-gray-500 font-semibold rounded-lg cursor-not-allowed flex items-center gap-2 opacity-60"
+          title="Mesas são criadas automaticamente baseado na lotação do restaurante"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Nova Mesa (Automático)
+        </button>
       </div>
 
-      {/* Map Tab */}
-      {activeTableTab === "map" && (
-        <>
-          <div className="flex items-center justify-between">
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setSelectedLocation("circunvalacao")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedLocation === "circunvalacao"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Circunvalacao
-              </button>
-              <button
-                onClick={() => setSelectedLocation("boavista")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedLocation === "boavista"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Boavista
-              </button>
-            </div>
+      {/* Grid de Mesas por Localização - DINÂMICO */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {locations.map((location, index) => {
+          const locationTables = tablesByLocation[location.slug] || [];
+          const colorScheme = colorSchemes[index % colorSchemes.length];
 
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1">
-                <span className="text-green-500">🟢</span>
-                <span className="text-gray-600">{statusCounts.available} Livres</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-yellow-500">🟡</span>
-                <span className="text-gray-600">{statusCounts.reserved} Reservadas</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-red-500">🔴</span>
-                <span className="text-gray-600">{statusCounts.occupied} Ocupadas</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-gray-500">⚫</span>
-                <span className="text-gray-600">{statusCounts.inactive} Inativas</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <TableMap
-              tables={mapTables}
-              onTableClick={handleTableClick}
-              isLoading={mapIsLoading}
-            />
-          </div>
-
-          <TableDetailModal
-            table={selectedTableForDetail}
-            isOpen={showDetailModal}
-            onClose={handleDetailModalClose}
-            onStatusChange={refreshMap}
-            onStartSession={startWalkInSession}
-            onMarkInactive={markTableInactive}
-            onReactivate={reactivateTable}
-            onRequestBill={requestBill}
-            onCloseSession={closeSession}
-          />
-        </>
-      )}
-
-      {/* Config Tab */}
-      {activeTableTab === "config" && (
-        <>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="bg-blue-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 className="font-semibold text-blue-900">Circunvalacao</h2>
+          return (
+            <div
+              key={location.slug}
+              className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+            >
+              <div className={`${colorScheme.bg} px-6 py-4 border-b border-gray-200 flex items-center justify-between`}>
+                <h2 className={`font-semibold ${colorScheme.text}`}>
+                  {location.name}
+                </h2>
                 <button
-                  onClick={() => handlePrintAllQRs("circunvalacao")}
-                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  onClick={() => handlePrintAllQRs(location.slug)}
+                  className={`text-sm ${colorScheme.button} flex items-center gap-1`}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                    />
                   </svg>
                   Imprimir todos
                 </button>
               </div>
               <div className="p-4">
-                {circunvalacaoTables.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">Nenhuma mesa</p>
+                {locationTables.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">
+                    Nenhuma mesa neste restaurante
+                  </p>
                 ) : (
-                  <div className="grid grid-cols-3 gap-3">
-                    {circunvalacaoTables.map((table) => (
+                  <div className="grid grid-cols-2 gap-4">
+                    {locationTables.map((table) => (
                       <TableCard key={table.id} table={table} />
                     ))}
                   </div>
                 )}
               </div>
             </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="bg-purple-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 className="font-semibold text-purple-900">Boavista</h2>
-                <button
-                  onClick={() => handlePrintAllQRs("boavista")}
-                  className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                  Imprimir todos
-                </button>
-              </div>
-              <div className="p-4">
-                {boavistaTables.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">Nenhuma mesa</p>
-                ) : (
-                  <div className="grid grid-cols-3 gap-3">
-                    {boavistaTables.map((table) => (
-                      <TableCard key={table.id} table={table} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+          );
+        })}
+      </div>
 
       {/* Modals */}
       {showModal && (
@@ -1691,8 +1851,18 @@ function TableManagementTab() {
                 onClick={() => setShowModal(false)}
                 className="p-2 text-gray-400 hover:text-gray-600"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -1706,7 +1876,12 @@ function TableManagementTab() {
                   type="number"
                   min="1"
                   value={formData.number}
-                  onChange={(e) => setFormData({ ...formData, number: parseInt(e.target.value) })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      number: parseInt(e.target.value),
+                    })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                   required
                 />
@@ -1719,7 +1894,9 @@ function TableManagementTab() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                   required
                 />
@@ -1731,12 +1908,17 @@ function TableManagementTab() {
                 </label>
                 <select
                   value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, location: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                   required
                 >
-                  <option value="circunvalacao">Circunvalacao</option>
-                  <option value="boavista">Boavista</option>
+                  {locations.map((location: Restaurant) => (
+                    <option key={location.slug} value={location.slug}>
+                      {location.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1745,7 +1927,9 @@ function TableManagementTab() {
                   type="checkbox"
                   id="is_active"
                   checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, is_active: e.target.checked })
+                  }
                   className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
                 />
                 <label htmlFor="is_active" className="text-sm text-gray-700">
@@ -1787,20 +1971,23 @@ function TableManagementTab() {
               <h3 className="text-xl font-bold mb-4">Sushi in Sushi</h3>
 
               <div className="bg-gray-50 rounded-xl p-4 mb-4 inline-block">
-                <canvas
-                  ref={qrCanvasRef}
-                  style={{ width: 200, height: 200 }}
-                />
+                <canvas ref={qrCanvasRef} style={{ width: 200, height: 200 }} />
               </div>
 
-              <div className="text-sm text-gray-500 uppercase tracking-wider">Mesa</div>
-              <div className="text-5xl font-bold text-[#D4AF37] mb-1">{selectedTableForQR.number}</div>
-              <div className="text-sm text-gray-500 mb-4">{LOCATION_LABELS[selectedTableForQR.location]}</div>
+              <div className="text-sm text-gray-500 uppercase tracking-wider">
+                Mesa
+              </div>
+              <div className="text-5xl font-bold text-[#D4AF37] mb-1">
+                {selectedTableForQR.number}
+              </div>
+              <div className="text-sm text-gray-500 mb-4">
+                {getLocationLabel(selectedTableForQR.location)}
+              </div>
 
               <div className="text-xs text-gray-400 mb-6 break-all px-4">
                 {buildTableOrderURLByNumber(
                   selectedTableForQR.number,
-                  selectedTableForQR.location as "circunvalacao" | "boavista"
+                  selectedTableForQR.location as "circunvalacao" | "boavista",
                 )}
               </div>
 
@@ -1812,10 +1999,17 @@ function TableManagementTab() {
                   Fechar
                 </button>
                 <button
-                  onClick={() => window.open(buildTableOrderURLByNumber(
-                    selectedTableForQR.number,
-                    selectedTableForQR.location as "circunvalacao" | "boavista"
-                  ), "_blank")}
+                  onClick={() =>
+                    window.open(
+                      buildTableOrderURLByNumber(
+                        selectedTableForQR.number,
+                        selectedTableForQR.location as
+                          | "circunvalacao"
+                          | "boavista",
+                      ),
+                      "_blank",
+                    )
+                  }
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Testar
@@ -1836,6 +2030,762 @@ function TableManagementTab() {
 }
 
 // =============================================
+// RESTAURANT MANAGEMENT TAB COMPONENT
+// =============================================
+
+function RestaurantManagementTab() {
+  const { restaurants, isLoading, error, create, update, remove } =
+    useRestaurants();
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(
+    null,
+  );
+  const [creatingTables, setCreatingTables] = useState(false);
+  const [recreatingTablesFor, setRecreatingTablesFor] = useState<string | null>(
+    null,
+  );
+  const [formData, setFormData] = useState({
+    name: "",
+    slug: "",
+    address: "",
+    maxCapacity: 50,
+    defaultPeoplePerTable: 4,
+    autoTableAssignment: false,
+    autoReservations: false,
+    isActive: true,
+  });
+
+  const handleOpenModal = (restaurant?: Restaurant) => {
+    if (restaurant) {
+      setEditingRestaurant(restaurant);
+      setFormData({
+        name: restaurant.name,
+        slug: restaurant.slug,
+        address: restaurant.address,
+        maxCapacity: restaurant.maxCapacity,
+        defaultPeoplePerTable: restaurant.defaultPeoplePerTable,
+        autoTableAssignment: restaurant.autoTableAssignment,
+        autoReservations: restaurant.autoReservations,
+        isActive: restaurant.isActive,
+      });
+    } else {
+      setEditingRestaurant(null);
+      setFormData({
+        name: "",
+        slug: "",
+        address: "",
+        maxCapacity: 50,
+        defaultPeoplePerTable: 4,
+        autoTableAssignment: false,
+        autoReservations: false,
+        isActive: true,
+      });
+    }
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validação ao editar: verificar se lotação mudou
+    if (
+      editingRestaurant &&
+      formData.maxCapacity !== editingRestaurant.maxCapacity
+    ) {
+      // Calcular nova distribuição baseada em pessoas por mesa
+      const ppt = formData.defaultPeoplePerTable;
+      const totalTables = Math.ceil(formData.maxCapacity / ppt);
+      const totalCapacity = totalTables * ppt;
+
+      const shouldRecreate = confirm(
+        `⚠️ A lotação mudou de ${editingRestaurant.maxCapacity} para ${formData.maxCapacity} pessoas!\n\n` +
+          `Para refletir a nova lotação, as mesas precisam ser recriadas.\n\n` +
+          `📊 Nova distribuição:\n` +
+          `${totalTables} mesas de ${ppt} pessoas = ${totalCapacity} lugares\n\n` +
+          `Deseja recriar as mesas agora?`,
+      );
+
+      if (shouldRecreate) {
+        setCreatingTables(true);
+        try {
+          // 1. Atualizar restaurante
+          await update(editingRestaurant.id, formData);
+
+          // 2. Recriar mesas
+          const supabase = createClient();
+          const restaurantRepo = new SupabaseRestaurantRepository(supabase);
+          const tableRepo = new SupabaseTableRepository(supabase);
+          const createTablesUseCase = new CreateTablesForRestaurantUseCase(
+            restaurantRepo,
+            tableRepo,
+          );
+
+          const result = await createTablesUseCase.execute({
+            restaurantSlug: formData.slug,
+            forceRecreate: true,
+          });
+
+          if (result.success) {
+            alert(
+              `✅ Restaurante atualizado!\n\n` +
+                `🪑 Mesas recriadas: ${totalTables} mesas de ${ppt} pessoas = ${totalCapacity} lugares`,
+            );
+          } else {
+            alert(
+              `⚠️ Restaurante atualizado, mas erro ao recriar mesas:\n${result.error}`,
+            );
+          }
+        } catch (err) {
+          alert(
+            `❌ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`,
+          );
+        } finally {
+          setCreatingTables(false);
+        }
+        setShowModal(false);
+        return;
+      } else {
+        // Só atualiza restaurante, sem recriar mesas
+        await update(editingRestaurant.id, formData);
+        setShowModal(false);
+        return;
+      }
+    }
+
+    setCreatingTables(true);
+
+    try {
+      if (editingRestaurant) {
+        // Edição sem mudança de lotação
+        await update(editingRestaurant.id, formData);
+      } else {
+        // Ao criar: cria restaurante + mesas automaticamente
+        const restaurant = await create(formData);
+
+        if (restaurant) {
+          // Criar mesas automaticamente
+          const supabase = createClient();
+          const restaurantRepo = new SupabaseRestaurantRepository(supabase);
+          const tableRepo = new SupabaseTableRepository(supabase);
+          const createTablesUseCase = new CreateTablesForRestaurantUseCase(
+            restaurantRepo,
+            tableRepo,
+          );
+
+          const tablesResult = await createTablesUseCase.execute({
+            restaurantSlug: formData.slug,
+            forceRecreate: false,
+          });
+
+          if (tablesResult.success) {
+            const distribution = tablesResult.data.reduce(
+              (acc: Record<number, number>, table) => {
+                acc[table.capacity] = (acc[table.capacity] || 0) + 1;
+                return acc;
+              },
+              {},
+            );
+
+            const summary = Object.entries(distribution)
+              .sort(([a], [b]) => parseInt(b) - parseInt(a))
+              .map(([capacity, count]) => `${count}×${capacity}`)
+              .join(" + ");
+
+            alert(
+              `✅ Restaurante criado!\n\n` +
+                `🪑 ${tablesResult.data.length} mesas criadas:\n` +
+                `${summary} = ${tablesResult.data.reduce((sum, t) => sum + t.capacity, 0)} lugares`,
+            );
+          } else {
+            console.error("Erro ao criar mesas:", tablesResult.error);
+            alert(
+              `⚠️ Restaurante criado, mas houve erro ao criar mesas:\n${tablesResult.error}`,
+            );
+          }
+        }
+      }
+
+      setShowModal(false);
+    } catch (error) {
+      console.error("Erro ao submeter:", error);
+      alert(
+        `❌ Erro: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+      );
+    } finally {
+      setCreatingTables(false);
+    }
+  };
+
+  const handleRecreateTables = async (restaurant: Restaurant) => {
+    // Calcular distribuição baseada em pessoas por mesa
+    const ppt = restaurant.defaultPeoplePerTable;
+    const totalTables = Math.ceil(restaurant.maxCapacity / ppt);
+    const totalCapacity = totalTables * ppt;
+
+    if (
+      !confirm(
+        `Recriar mesas para ${restaurant.name}?\n\n` +
+          `📊 Nova distribuição:\n` +
+          `${totalTables} mesas de ${ppt} pessoas = ${totalCapacity} lugares\n\n` +
+          `⚠️ As mesas existentes serão eliminadas e recriadas.`,
+      )
+    ) {
+      return;
+    }
+
+    setRecreatingTablesFor(restaurant.id);
+
+    try {
+      const supabase = createClient();
+      const restaurantRepo = new SupabaseRestaurantRepository(supabase);
+      const tableRepo = new SupabaseTableRepository(supabase);
+      const createTablesUseCase = new CreateTablesForRestaurantUseCase(
+        restaurantRepo,
+        tableRepo,
+      );
+
+      const result = await createTablesUseCase.execute({
+        restaurantSlug: restaurant.slug,
+        forceRecreate: true,
+      });
+
+      if (result.success) {
+        alert(
+          `✅ Mesas recriadas com sucesso!\n\n` +
+            `🪑 ${result.data.length} mesas de ${ppt} pessoas = ${totalCapacity} lugares`,
+        );
+      } else {
+        alert(`❌ Erro ao recriar mesas:\n${result.error}`);
+      }
+    } catch (err) {
+      alert(
+        `❌ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`,
+      );
+    } finally {
+      setRecreatingTablesFor(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja eliminar este restaurante?")) return;
+    await remove(id);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin h-8 w-8 border-2 border-[#D4AF37] border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Add Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => handleOpenModal()}
+          className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Novo Restaurante
+        </button>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
+          {error}
+        </div>
+      )}
+
+      {/* Restaurants Grid */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {restaurants.map((restaurant) => (
+          <div
+            key={restaurant.id}
+            className={`bg-white rounded-xl shadow-sm border-2 p-6 ${
+              restaurant.isActive
+                ? "border-green-200"
+                : "border-gray-200 opacity-50"
+            }`}
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {restaurant.name}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Código: {restaurant.slug}
+                </p>
+              </div>
+              <div
+                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  restaurant.isActive
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                {restaurant.isActive ? "Ativo" : "Inativo"}
+              </div>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                {restaurant.address}
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+                Capacidade: {restaurant.maxCapacity} pessoas
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                  />
+                </svg>
+                Distribuição:{" "}
+                {(() => {
+                  const ppt = restaurant.defaultPeoplePerTable;
+                  const totalTables = Math.ceil(restaurant.maxCapacity / ppt);
+                  return `${totalTables} mesas de ${ppt} pessoas`;
+                })()}
+              </div>
+            </div>
+
+            {/* Automation Flags */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {restaurant.autoTableAssignment && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                  Atribuição automática
+                </span>
+              )}
+              {restaurant.autoReservations && (
+                <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                  Reservas automáticas
+                </span>
+              )}
+              {!restaurant.autoTableAssignment &&
+                !restaurant.autoReservations && (
+                  <span className="px-2 py-1 bg-gray-100 text-gray-500 text-xs rounded-full">
+                    Manual
+                  </span>
+                )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleOpenModal(restaurant)}
+                  className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => handleDelete(restaurant.id)}
+                  className="px-3 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 text-sm"
+                >
+                  Eliminar
+                </button>
+              </div>
+              <button
+                onClick={() => handleRecreateTables(restaurant)}
+                disabled={recreatingTablesFor === restaurant.id}
+                className="w-full px-3 py-2 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {recreatingTablesFor === restaurant.id ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full" />
+                    Recriando...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      />
+                    </svg>
+                    Recriar Mesas
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Empty State */}
+      {restaurants.length === 0 && (
+        <div className="text-center py-12 text-gray-500">
+          <svg
+            className="w-16 h-16 mx-auto text-gray-300 mb-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+            />
+          </svg>
+          <p className="text-lg font-medium mb-2">
+            Nenhum restaurante registado
+          </p>
+          <p className="text-sm mb-4">
+            Comece por adicionar um novo restaurante
+          </p>
+        </div>
+      )}
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editingRestaurant ? "Editar Restaurante" : "Novo Restaurante"}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome do Restaurante *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  required
+                />
+              </div>
+
+              {/* Slug */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Código (Slug) *
+                </label>
+                <input
+                  type="text"
+                  value={formData.slug}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      slug: e.target.value.toLowerCase(),
+                    })
+                  }
+                  placeholder="ex: circunvalacao, boavista"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  pattern="[a-z0-9\-]+"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Apenas letras minúsculas, números e hífens
+                </p>
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Endereço *
+                </label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  required
+                />
+              </div>
+
+              {/* Max Capacity */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Lotação Máxima *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.maxCapacity}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      maxCapacity: parseInt(e.target.value),
+                    })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Capacidade total do restaurante (todas as mesas)
+                </p>
+
+                {/* Preview da Distribuição */}
+                {formData.maxCapacity > 0 && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <svg
+                        className="w-4 h-4 text-blue-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium text-blue-900">
+                        Preview da Distribuição
+                      </span>
+                    </div>
+                    <div className="text-sm text-blue-800">
+                      {(() => {
+                        const ppt = formData.defaultPeoplePerTable || 4;
+                        const totalTables = Math.ceil(formData.maxCapacity / ppt);
+                        const totalCapacity = totalTables * ppt;
+
+                        return (
+                          <>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              <span className="px-2 py-1 bg-blue-200 text-blue-900 text-xs font-medium rounded-full">
+                                {totalTables} mesa{totalTables > 1 ? "s" : ""} de {ppt} pessoas
+                              </span>
+                            </div>
+                            <div className="text-xs text-blue-700 font-medium">
+                              📊 Total: {totalTables} mesa{totalTables > 1 ? "s" : ""} = {totalCapacity} lugares
+                              {totalCapacity > formData.maxCapacity && (
+                                <span className="ml-2 text-yellow-700">
+                                  (+{totalCapacity - formData.maxCapacity} lugar
+                                  {totalCapacity - formData.maxCapacity > 1 ? "es" : ""}{" "}
+                                  extra)
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Default People Per Table */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pessoas por Mesa (Padrão) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.defaultPeoplePerTable}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      defaultPeoplePerTable: parseInt(e.target.value),
+                    })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Capacidade padrão ao criar novas mesas
+                </p>
+              </div>
+
+              {/* Automation Flags */}
+              <div className="space-y-3 p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm font-medium text-blue-900">
+                  Configurações de Automação (Funcionalidades Futuras)
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="autoTableAssignment"
+                    checked={formData.autoTableAssignment}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        autoTableAssignment: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
+                  />
+                  <label
+                    htmlFor="autoTableAssignment"
+                    className="text-sm text-gray-700"
+                  >
+                    Automatizar atribuição de mesas aos funcionários
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="autoReservations"
+                    checked={formData.autoReservations}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        autoReservations: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
+                  />
+                  <label
+                    htmlFor="autoReservations"
+                    className="text-sm text-gray-700"
+                  >
+                    Automatizar gestão de reservas
+                  </label>
+                </div>
+
+                <p className="text-xs text-blue-600 mt-2">
+                  Estas funcionalidades estarão disponíveis em futuras
+                  atualizações
+                </p>
+              </div>
+
+              {/* Active Toggle */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={formData.isActive}
+                  onChange={(e) =>
+                    setFormData({ ...formData, isActive: e.target.checked })
+                  }
+                  className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
+                />
+                <label htmlFor="isActive" className="text-sm text-gray-700">
+                  Restaurante ativo
+                </label>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  disabled={creatingTables}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingTables}
+                  className="flex-1 px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {creatingTables ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full" />
+                      {editingRestaurant ? "Guardando..." : "Criando mesas..."}
+                    </>
+                  ) : (
+                    <>{editingRestaurant ? "Guardar" : "Criar"}</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================
 // MAIN SETTINGS PAGE
 // =============================================
 
@@ -1847,10 +2797,11 @@ export default function SettingsPage() {
     { id: "weekly-closures", label: "Dias de Folga Semanal" },
     { id: "export", label: "Exportar" },
     { id: "tables", label: "Gestao de Mesas" },
+    { id: "restaurants", label: "Gestao de Restaurantes" },
   ];
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Definições</h2>
@@ -1885,6 +2836,7 @@ export default function SettingsPage() {
         {activeTab === "weekly-closures" && <WeeklyClosuresTab />}
         {activeTab === "export" && <ExportTab />}
         {activeTab === "tables" && <TableManagementTab />}
+        {activeTab === "restaurants" && <RestaurantManagementTab />}
       </div>
     </div>
   );

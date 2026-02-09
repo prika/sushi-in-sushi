@@ -6,6 +6,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import StaffCalendar from "@/components/calendar/StaffCalendar";
 import { useStaff } from "@/presentation/hooks/useStaff";
 import { useTableManagement } from "@/presentation/hooks/useTableManagement";
+import { useLocations } from "@/presentation/hooks";
 import type { StaffWithRole } from "@/domain/entities/Staff";
 import type { Staff, Location } from "@/types/database";
 
@@ -26,6 +27,7 @@ export default function StaffManagementPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   // Use the clean architecture hooks
+  const { locations } = useLocations();
   const {
     staff,
     roles,
@@ -40,6 +42,12 @@ export default function StaffManagementPage() {
   } = useStaff({ loadTableAssignments: true });
 
   const { tables } = useTableManagement();
+
+  // Helper to get location label
+  const getLocationLabel = (location: string | null) => {
+    if (!location) return "-";
+    return locations.find(loc => loc.slug === location)?.name || location;
+  };
 
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -394,11 +402,7 @@ export default function StaffManagementPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {staffMember.location === "circunvalacao"
-                        ? "Circunvalação"
-                        : staffMember.location === "boavista"
-                          ? "Boavista"
-                          : "-"}
+                      {getLocationLabel(staffMember.location)}
                     </td>
                     <td className="px-6 py-4">
                       <button
@@ -566,8 +570,11 @@ export default function StaffManagementPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                 >
                   <option value="">Todas as localizações</option>
-                  <option value="circunvalacao">Circunvalação</option>
-                  <option value="boavista">Boavista</option>
+                  {locations.map((location) => (
+                    <option key={location.slug} value={location.slug}>
+                      {location.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

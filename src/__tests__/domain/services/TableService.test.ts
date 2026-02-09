@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { TableService } from '@/domain/services/TableService';
 import { Table, TableFullStatus } from '@/domain/entities/Table';
 import { TableStatus } from '@/domain/value-objects/TableStatus';
-import { Location } from '@/domain/value-objects/Location';
+import { Location } from '@/types/database';
 
 // Helper para criar mesa de teste
 function createTestTable(overrides: Partial<Table> = {}): Table {

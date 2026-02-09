@@ -14,3 +14,4 @@ export * from './IWaiterCallRepository';
 export * from './ICustomerRepository';
 export * from './IStaffTimeOffRepository';
 export * from './IReservationSettingsRepository';
+export * from './IRestaurantRepository';

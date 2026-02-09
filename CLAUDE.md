@@ -12,34 +12,37 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 - Interface para empregados de mesa
 - Suporte multi-localização (Circunvalação e Boavista)
 
-## 🎉 Estado Atual do Projeto (2026-02-06)
+## 🎉 Estado Atual do Projeto (2026-02-08)
 
 ### ✅ Clean Architecture - 100% Implementada
 
 **O projeto implementou com sucesso a Clean Architecture completa:**
-- ✅ **11 entidades** de domínio completas
-- ✅ **12 repositórios** (interfaces + implementações Supabase)
-- ✅ **50+ use cases** totalmente testados
+- ✅ **12 entidades** de domínio completas (incluindo Restaurant)
+- ✅ **13 repositórios** (interfaces + implementações Supabase)
+- ✅ **55+ use cases** totalmente testados
 - ✅ **3 domain services** com lógica de negócio isolada
 - ✅ **Dependency Injection** via DependencyContext
 - ✅ **Result Pattern** para tratamento de erros tipado
 
 ### 📊 Cobertura de Testes - Exemplar
 
-**537 testes passando** (aumento de 22% desde última revisão):
-- ✅ **Use Cases:** 100% testados (50+ use cases)
+**598 testes passando** (+61 novos testes desde última revisão):
+- ✅ **Use Cases:** 100% testados (55+ use cases)
 - ✅ **Domain Services:** 100% testados (118 tests)
   - OrderService (44 tests)
   - SessionService (34 tests)
   - TableService (40 tests)
-- ✅ **Infrastructure:** Padrão estabelecido (36 tests)
+- ✅ **Infrastructure:** Padrão estabelecido (61 tests)
   - SupabaseRestaurantClosureRepository
   - SupabaseStaffTimeOffRepository
   - SupabaseReservationSettingsRepository
-- ✅ **React Hooks:** Padrão estabelecido (39 tests)
+  - SupabaseRestaurantRepository (25 tests)
+- ✅ **React Hooks:** Padrão estabelecido (44 tests)
   - useActivityLog
   - useProducts
   - useStaffTimeOff
+  - useRestaurants
+  - useLocations
 
 ### 📚 Documentação Técnica
 
@@ -48,6 +51,19 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 - ✅ **REACT_HOOK_TESTING_GUIDE.md** - Guia de testes de hooks
 
 ### 🚀 Features Recentes
+
+**Restaurant Management** (Gestão Dinâmica de Restaurantes):
+- Sistema completo de CRUD para restaurantes
+- Substituiu hardcoded locations (circunvalacao, boavista) por sistema dinâmico
+- 5 use cases com validações (GetAll, GetActive, Create, Update, Delete)
+- Repository com mapeamento snake_case ↔ camelCase
+- 2 hooks: useRestaurants (gestão) e useLocations (dropdowns)
+- 61 testes (31 use cases + 25 repository + 5 hooks)
+- Criação automática de mesas baseada em capacidade/pessoas_por_mesa
+- Tab "Gestão de Restaurantes" em /admin/definicoes
+- Campos: name, slug, address, coordinates, max_capacity, default_people_per_table
+- Flags futuras: auto_table_assignment, auto_reservations
+- Todos os dropdowns de localização agora são dinâmicos
 
 **StaffTimeOff** (Gestão de Férias/Folgas):
 - Domain layer completo
@@ -152,9 +168,10 @@ npx supabase db reset
 ## Base de Dados
 
 ### Tabelas Principais
+- `restaurants` - **NOVO** Localizações e configurações de restaurantes (substituiu hardcoded locations)
 - `staff` - Funcionários e credenciais
 - `roles` - Definições de roles (admin, kitchen, waiter, customer)
-- `tables` - Mesas do restaurante
+- `tables` - Mesas do restaurante (criadas automaticamente baseado em restaurant.max_capacity)
 - `categories` - Categorias de produtos
 - `products` - Items do menu
 - `sessions` - Sessões de mesa (refeições)
@@ -235,6 +252,7 @@ O projeto segue **Clean Architecture** com separação rigorosa de responsabilid
 ### 1. Domain Layer (`/src/domain`)
 
 **Entidades** (`/domain/entities/`):
+- `Restaurant` - **NOVO** Localizações de restaurantes (name, slug, address, coordinates, capacity, automation flags)
 - `Order` - Pedidos individuais
 - `Session` - Sessões de mesa
 - `Table` - Mesas do restaurante
@@ -249,6 +267,7 @@ O projeto segue **Clean Architecture** com separação rigorosa de responsabilid
 - `ReservationSettings` - Configurações de reservas
 
 **Repository Interfaces** (`/domain/repositories/`):
+- `IRestaurantRepository` - **NOVO** CRUD de restaurantes + validação de slug único
 - `IOrderRepository` - CRUD e queries de pedidos
 - `ISessionRepository` - Gestão de sessões
 - `ITableRepository` - Gestão de mesas
@@ -611,10 +630,36 @@ Ficheiro `.env.local` requer:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `RESEND_API_KEY`, `FROM_EMAIL`, `RESEND_WEBHOOK_SECRET`
 
-## Localizações do Restaurante
+## Gestão de Restaurantes (Multi-Localização)
 
-1. **Circunvalação** - Localização principal
-2. **Boavista** - Segunda localização
+### Sistema Dinâmico de Restaurantes
+
+O sistema agora suporta **gestão dinâmica de restaurantes** via interface admin, substituindo as localizações hardcoded anteriores.
+
+**Restaurantes Atuais:**
+1. **Circunvalação** (slug: `circunvalacao`) - Localização principal
+2. **Boavista** (slug: `boavista`) - Segunda localização
+
+**Novos restaurantes podem ser adicionados via:**
+- `/admin/definicoes` → Tab "Gestão de Restaurantes"
+- CRUD completo: Create, Read, Update, Delete
+- Validações: slug único, formato válido, capacidades positivas
+
+**Criação Automática de Mesas:**
+- Ao criar/editar restaurante, o sistema calcula automaticamente: `num_mesas = max_capacity / default_people_per_table`
+- Exemplo: 50 pessoas ÷ 4 pessoas/mesa = 12-13 mesas criadas automaticamente
+- Mesas criadas com número sequencial (1, 2, 3, ...) e capacidade padrão
+
+**Campos do Restaurante:**
+- `name` - Nome exibido (ex: "Circunvalação")
+- `slug` - Identificador único usado no código (ex: "circunvalacao")
+- `address` - Endereço completo
+- `latitude`, `longitude` - Coordenadas (opcional, para futuro mapa)
+- `max_capacity` - Capacidade total do restaurante
+- `default_people_per_table` - Capacidade padrão para novas mesas
+- `auto_table_assignment` - Flag para futura automação de atribuição de mesas
+- `auto_reservations` - Flag para futura automação de reservas
+- `is_active` - Restaurante ativo (aparece em dropdowns)
 
 Cada localização tem gestão independente de mesas, pedidos e reservas.
 

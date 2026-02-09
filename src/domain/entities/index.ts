@@ -14,3 +14,4 @@ export * from './WaiterCall';
 export * from './Customer';
 export * from './StaffTimeOff';
 export * from './ReservationSettings';
+export * from './Restaurant';

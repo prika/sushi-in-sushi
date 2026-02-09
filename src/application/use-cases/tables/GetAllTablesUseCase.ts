@@ -6,7 +6,7 @@ import { ITableRepository, TableFilter } from '@/domain/repositories/ITableRepos
 import { TableService } from '@/domain/services/TableService';
 import { TableFullStatus } from '@/domain/entities/Table';
 import { TableStatus } from '@/domain/value-objects/TableStatus';
-import { Location } from '@/domain/value-objects/Location';
+import { Location } from '@/types/database';
 import { Result, Results } from '../Result';
 
 /**

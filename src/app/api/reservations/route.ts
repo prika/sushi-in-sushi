@@ -7,7 +7,7 @@ import {
   CreateReservationUseCase,
 } from "@/application/use-cases/reservations";
 import type { ReservationFilter, CreateReservationData, Reservation } from "@/domain/entities/Reservation";
-import type { Location } from "@/domain/value-objects/Location";
+import type { Location } from "@/types/database";
 import { sendReservationEmails } from "@/lib/email";
 import type { Reservation as LegacyReservation } from "@/types/database";
 

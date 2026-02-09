@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSound } from "@/hooks/useSound";
-import { useActivityLog } from "@/presentation/hooks";
+import { useActivityLog, useLocations } from "@/presentation/hooks";
 import { useToast } from "@/components/ui";
 import { useKitchenOrdersOptimized } from "@/presentation/hooks";
 import type { KitchenOrderDTO } from "@/application/dto/OrderDTO";
@@ -16,12 +16,6 @@ function getExtendedSupabase(supabase: ReturnType<typeof createClient>) {
     from: (table: string) => ReturnType<typeof supabase.from>;
   };
 }
-
-const LOCATIONS = [
-  { value: "all", label: "Todas" },
-  { value: "circunvalacao", label: "Circunvalação" },
-  { value: "boavista", label: "Boavista" },
-];
 
 export default function CozinhaPage() {
   const router = useRouter();
@@ -36,6 +30,15 @@ export default function CozinhaPage() {
   } = useSound();
   const { logActivity } = useActivityLog();
   const { showToast } = useToast();
+  const { locations } = useLocations();
+
+  // Build locations array with "all" option
+  const locationOptions = useMemo(() => {
+    return [
+      { value: "all", label: "Todas" },
+      ...locations.map((loc) => ({ value: loc.slug, label: loc.name }))
+    ];
+  }, [locations]);
 
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -221,7 +224,7 @@ export default function CozinhaPage() {
             aria-label="Filtrar por localização"
             className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#D4AF37]"
           >
-            {LOCATIONS.map((loc) => (
+            {locationOptions.map((loc) => (
               <option key={loc.value} value={loc.value}>
                 {loc.label}
               </option>

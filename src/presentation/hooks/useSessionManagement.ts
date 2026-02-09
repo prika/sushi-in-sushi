@@ -16,7 +16,7 @@ import {
   useRequestBillUseCase,
 } from '../contexts/DependencyContext';
 import { SessionWithStats } from '@/application/use-cases/sessions/GetActiveSessionsUseCase';
-import { Location } from '@/domain/value-objects/Location';
+import { Location } from '@/types/database';
 
 interface UseSessionManagementOptions {
   location?: Location;

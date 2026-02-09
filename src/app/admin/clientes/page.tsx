@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useCustomers } from "@/presentation/hooks/useCustomers";
+import { useLocations } from "@/presentation/hooks";
 import type { Customer, CustomerWithHistory } from "@/domain/entities/Customer";
 
 export default function ClientesPage() {
@@ -18,7 +19,8 @@ export default function ClientesPage() {
     marketingConsent: false,
   });
 
-  // Use the clean architecture hook
+  // Use the clean architecture hooks
+  const { locations } = useLocations();
   const {
     customers,
     isLoading,
@@ -28,6 +30,11 @@ export default function ClientesPage() {
     update,
     remove,
   } = useCustomers();
+
+  // Helper to get location label
+  const getLocationLabel = (slug: string) => {
+    return locations.find(loc => loc.slug === slug)?.name || slug;
+  };
 
   const fetchCustomerHistory = async (customer: Customer) => {
     const customerWithHistory = await getById(customer.id);
@@ -395,7 +402,7 @@ export default function ClientesPage() {
                   {selectedCustomer.preferredLocation && (
                     <div className="flex justify-between">
                       <span className="text-gray-500">Localização Preferida</span>
-                      <span className="capitalize">{selectedCustomer.preferredLocation}</span>
+                      <span>{getLocationLabel(selectedCustomer.preferredLocation)}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
@@ -497,8 +504,11 @@ export default function ClientesPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                 >
                   <option value="">Sem preferência</option>
-                  <option value="circunvalacao">Circunvalação</option>
-                  <option value="boavista">Boavista</option>
+                  {locations.map((location) => (
+                    <option key={location.slug} value={location.slug}>
+                      {location.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

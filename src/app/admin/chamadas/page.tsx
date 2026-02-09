@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useWaiterCalls } from "@/presentation/hooks/useWaiterCalls";
+import { useWaiterCalls, useLocations } from "@/presentation/hooks";
 import type { WaiterCallWithDetails, WaiterCallStatus, WaiterCallType } from "@/domain/entities/WaiterCall";
-import type { Location } from "@/domain/value-objects/Location";
+import type { Location } from "@/types/database";
 
 const CALL_TYPE_CONFIG: Record<WaiterCallType, { icon: string; label: string; color: string }> = {
   assistance: { icon: "🙋", label: "Ajuda", color: "bg-blue-500" },
@@ -36,12 +36,9 @@ const STATUS_CONFIG: Record<WaiterCallStatus, { label: string; color: string; bg
   },
 };
 
-const LOCATION_LABELS: Record<Location, string> = {
-  circunvalacao: "Circunvalação",
-  boavista: "Boavista",
-};
-
 export default function ChamadasPage() {
+  const { locations } = useLocations();
+
   const [selectedLocation, setSelectedLocation] = useState<Location | "all">("all");
   const [showCompleted, setShowCompleted] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -238,26 +235,19 @@ export default function ChamadasPage() {
           >
             Todas
           </button>
-          <button
-            onClick={() => setSelectedLocation("circunvalacao")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              selectedLocation === "circunvalacao"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Circunvalação
-          </button>
-          <button
-            onClick={() => setSelectedLocation("boavista")}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              selectedLocation === "boavista"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Boavista
-          </button>
+          {locations.map((location) => (
+            <button
+              key={location.slug}
+              onClick={() => setSelectedLocation(location.slug as Location)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedLocation === location.slug
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {location.name}
+            </button>
+          ))}
         </div>
 
         {/* Show completed toggle */}
@@ -323,6 +313,7 @@ export default function ChamadasPage() {
                   onAcknowledge={() => handleAcknowledge(call.id)}
                   onComplete={() => handleComplete(call.id)}
                   formatTimeAgo={formatTimeAgo}
+                  locationName={locations.find(loc => loc.slug === call.location)?.name || call.location}
                 />
               ))}
             </div>
@@ -338,6 +329,7 @@ export default function ChamadasPage() {
                   call={call}
                   onComplete={() => handleComplete(call.id)}
                   formatTimeAgo={formatTimeAgo}
+                  locationName={locations.find(loc => loc.slug === call.location)?.name || call.location}
                 />
               ))}
             </div>
@@ -354,6 +346,7 @@ export default function ChamadasPage() {
                   key={call.id}
                   call={call}
                   formatTimeAgo={formatTimeAgo}
+                  locationName={locations.find(loc => loc.slug === call.location)?.name || call.location}
                 />
               ))}
             </div>
@@ -370,11 +363,13 @@ function CallCard({
   onAcknowledge,
   onComplete,
   formatTimeAgo,
+  locationName,
 }: {
   call: WaiterCallWithDetails;
   onAcknowledge?: () => void;
   onComplete?: () => void;
   formatTimeAgo: (date: Date) => string;
+  locationName: string;
 }) {
   const typeConfig = CALL_TYPE_CONFIG[call.callType] || CALL_TYPE_CONFIG.other;
   const statusConfig = STATUS_CONFIG[call.status];
@@ -415,7 +410,7 @@ function CallCard({
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <span>{typeConfig.label}</span>
               <span>•</span>
-              <span>{LOCATION_LABELS[call.location]}</span>
+              <span>{locationName}</span>
             </div>
 
             {/* Waiter info */}

@@ -2,14 +2,9 @@
 
 import { useState } from "react";
 import { Card, Button, Modal } from "@/components/ui";
-import { useClosures } from "@/presentation/hooks/useClosures";
+import { useClosures, useLocations } from "@/presentation/hooks";
 import type { RestaurantClosure, CreateClosureData } from "@/domain/entities/RestaurantClosure";
-import type { Location } from "@/domain/value-objects/Location";
-
-const LOCATION_LABELS: Record<Location, string> = {
-  circunvalacao: "Circunvalação",
-  boavista: "Boavista",
-};
+import type { Location } from "@/types/database";
 
 const DAY_LABELS: Record<number, string> = {
   0: "Domingo",
@@ -41,6 +36,14 @@ export default function FolgasPage() {
   const { closures, isLoading, error, create, remove, refresh } = useClosures({
     autoLoad: true,
   });
+
+  // Use locations hook for dynamic dropdowns
+  const { locations } = useLocations();
+
+  // Helper to get location label
+  const getLocationLabel = (slug: string) => {
+    return locations.find(loc => loc.slug === slug)?.name || slug;
+  };
 
   const [formData, setFormData] = useState<FormData>({
     type: "specific",
@@ -189,7 +192,7 @@ export default function FolgasPage() {
                     </p>
                     <p className="text-sm text-gray-500">
                       {closure.location
-                        ? LOCATION_LABELS[closure.location]
+                        ? getLocationLabel(closure.location)
                         : "Ambas localizações"}
                       {closure.reason && ` • ${closure.reason}`}
                     </p>
@@ -264,7 +267,7 @@ export default function FolgasPage() {
                         </p>
                         <p className="text-sm text-gray-500">
                           {closure.location
-                            ? LOCATION_LABELS[closure.location]
+                            ? getLocationLabel(closure.location)
                             : "Ambas localizações"}
                           {closure.reason && ` • ${closure.reason}`}
                         </p>
@@ -378,8 +381,11 @@ export default function FolgasPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             >
               <option value="">Ambas localizações</option>
-              <option value="circunvalacao">Circunvalação</option>
-              <option value="boavista">Boavista</option>
+              {locations.map((location) => (
+                <option key={location.slug} value={location.slug}>
+                  {location.name}
+                </option>
+              ))}
             </select>
           </div>
 

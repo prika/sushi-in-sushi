@@ -5,7 +5,7 @@
 import { ISessionRepository } from '@/domain/repositories/ISessionRepository';
 import { SessionWithTable } from '@/domain/entities/Session';
 import { SessionService } from '@/domain/services/SessionService';
-import { Location } from '@/domain/value-objects/Location';
+import { Location } from '@/types/database';
 
 export interface GetActiveSessionsInput {
   location?: Location;
