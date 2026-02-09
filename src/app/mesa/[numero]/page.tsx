@@ -96,6 +96,7 @@ export default function MesaPage() {
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
   // UI state
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isStartingSession, setIsStartingSession] = useState(false);
@@ -138,11 +139,11 @@ export default function MesaPage() {
 
   const rodizioPrice = isLunch ? 17 : 20;
 
-  // Fetch waiter info for this table
+  // Fetch table info, waiter, and recover existing session on load
   useEffect(() => {
-    async function fetchWaiterInfo() {
+    async function fetchTableAndSession() {
       try {
-        // Get table ID first
+        // Get table by number and location
         const { data: tableData } = await supabase
           .from("tables")
           .select("id")
@@ -151,6 +152,8 @@ export default function MesaPage() {
           .single();
 
         if (!tableData) return;
+
+        setTableId(tableData.id);
 
         // Fetch waiter assignment using the view
         const { data: waiterData } = await (
@@ -166,12 +169,31 @@ export default function MesaPage() {
         if (waiterData) {
           setWaiterName(waiterData.staff_name);
         }
+
+        // Check for existing active session on this table
+        const { data: activeSession } = await supabase
+          .from("sessions")
+          .select("*")
+          .eq("table_id", tableData.id)
+          .in("status", ["active", "pending_payment"])
+          .order("started_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (activeSession) {
+          setSession(activeSession);
+          setOrderType(activeSession.is_rodizio ? "rodizio" : "carta");
+          setNumPessoas(activeSession.num_people || 2);
+          setStep("menu");
+        }
       } catch (err) {
-        console.error("Error fetching waiter info", err);
+        console.error("Error fetching table info", err);
+      } finally {
+        setIsCheckingSession(false);
       }
     }
 
-    fetchWaiterInfo();
+    fetchTableAndSession();
   }, [supabase, mesaNumero, localizacao]);
 
   // Set active category when categories load (React Query handles fetching automatically)
@@ -296,62 +318,62 @@ export default function MesaPage() {
     setError(null);
 
     try {
-      const { data: tableData, error: tableError } = await supabase
+      // 1. Find table by number and location
+      let foundTableId: string | null = null;
+
+      const { data: tableData } = await supabase
         .from("tables")
-        .select("*")
+        .select("id")
         .eq("number", parseInt(mesaNumero))
         .eq("location", localizacao)
         .eq("is_active", true)
         .single();
 
-      if (tableError) {
+      if (tableData) {
+        foundTableId = tableData.id;
+      } else {
+        // Fallback: search without location filter
         const { data: tableDataFallback, error: tableErrorFallback } =
           await supabase
             .from("tables")
-            .select("*")
+            .select("id")
             .eq("number", parseInt(mesaNumero))
             .eq("is_active", true)
             .single();
 
-        if (tableErrorFallback) {
+        if (tableErrorFallback || !tableDataFallback) {
           throw new Error(t("mesa.errors.tableNotFound"));
         }
+        foundTableId = tableDataFallback.id;
+      }
 
-        setTableId(tableDataFallback.id);
+      setTableId(foundTableId);
 
-        const { data: sessionData, error: sessionError } = await supabase
-          .from("sessions")
-          .insert({
-            table_id: tableDataFallback.id,
-            is_rodizio: orderType === "rodizio",
-            num_people: numPessoas,
-            status: "active",
-            total_amount:
-              orderType === "rodizio" ? rodizioPrice * numPessoas : 0,
-          })
-          .select()
-          .single();
+      // 2. Create session via API (handles table status + auto waiter assignment)
+      const totalAmount = orderType === "rodizio" ? rodizioPrice * numPessoas : 0;
 
-        if (sessionError) throw sessionError;
-        setSession(sessionData);
-      } else {
-        setTableId(tableData.id);
+      const response = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableId: foundTableId,
+          isRodizio: orderType === "rodizio",
+          numPeople: numPessoas,
+          totalAmount,
+        }),
+      });
 
-        const { data: sessionData, error: sessionError } = await supabase
-          .from("sessions")
-          .insert({
-            table_id: tableData.id,
-            is_rodizio: orderType === "rodizio",
-            num_people: numPessoas,
-            status: "active",
-            total_amount:
-              orderType === "rodizio" ? rodizioPrice * numPessoas : 0,
-          })
-          .select()
-          .single();
+      const result = await response.json();
 
-        if (sessionError) throw sessionError;
-        setSession(sessionData);
+      if (!response.ok) {
+        throw new Error(result.error || t("mesa.errors.startSession"));
+      }
+
+      setSession(result.session);
+
+      // 3. Update waiter name if auto-assigned
+      if (result.waiterName) {
+        setWaiterName(result.waiterName);
       }
 
       setStep("menu");
@@ -761,7 +783,12 @@ export default function MesaPage() {
       )}
 
       {/* Welcome Step */}
-      {step === "welcome" && (
+      {step === "welcome" && isCheckingSession && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin h-8 w-8 border-2 border-[#D4AF37] border-t-transparent rounded-full" />
+        </div>
+      )}
+      {step === "welcome" && !isCheckingSession && (
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-6">
           {/* Language Switcher */}
           <div className="absolute top-4 right-4">

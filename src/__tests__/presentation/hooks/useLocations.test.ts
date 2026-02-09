@@ -25,10 +25,10 @@ describe('useLocations', () => {
   });
 
   it('deve ser compatível com o tipo UseLocationsResult', async () => {
-    const module = await import('@/presentation/hooks/useLocations');
+    const hookModule = await import('@/presentation/hooks/useLocations');
 
     // Verifica que o tipo existe e está exportado
-    expect(module.useLocations).toBeDefined();
+    expect(hookModule.useLocations).toBeDefined();
   });
 });
 

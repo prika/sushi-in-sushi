@@ -21,6 +21,7 @@ import { IReservationRepository } from '@/domain/repositories/IReservationReposi
 import { IRestaurantClosureRepository } from '@/domain/repositories/IRestaurantClosureRepository';
 import { IWaiterCallRepository } from '@/domain/repositories/IWaiterCallRepository';
 import { ICustomerRepository } from '@/domain/repositories/ICustomerRepository';
+import { IRestaurantRepository } from '@/domain/repositories/IRestaurantRepository';
 
 // Ports (Interfaces de serviços)
 import { IActivityLogger } from '@/application/ports/IActivityLogger';
@@ -36,6 +37,7 @@ import { SupabaseReservationRepository } from '@/infrastructure/repositories/Sup
 import { SupabaseRestaurantClosureRepository } from '@/infrastructure/repositories/SupabaseRestaurantClosureRepository';
 import { SupabaseWaiterCallRepository } from '@/infrastructure/repositories/SupabaseWaiterCallRepository';
 import { SupabaseCustomerRepository } from '@/infrastructure/repositories/SupabaseCustomerRepository';
+import { SupabaseRestaurantRepository } from '@/infrastructure/repositories/SupabaseRestaurantRepository';
 
 // Implementações de serviços
 import { ApiActivityLogger } from '@/infrastructure/services/ApiActivityLogger';
@@ -48,6 +50,7 @@ import { CreateOrderUseCase } from '@/application/use-cases/orders/CreateOrderUs
 
 // Use Cases - Sessions
 import { StartSessionUseCase } from '@/application/use-cases/sessions/StartSessionUseCase';
+import { AutoAssignWaiterUseCase } from '@/application/use-cases/sessions/AutoAssignWaiterUseCase';
 import { CloseSessionUseCase } from '@/application/use-cases/sessions/CloseSessionUseCase';
 import { RequestBillUseCase } from '@/application/use-cases/sessions/RequestBillUseCase';
 import { GetActiveSessionsUseCase } from '@/application/use-cases/sessions/GetActiveSessionsUseCase';
@@ -108,6 +111,7 @@ export interface Dependencies {
   closureRepository: IRestaurantClosureRepository;
   waiterCallRepository: IWaiterCallRepository;
   customerRepository: ICustomerRepository;
+  restaurantRepository: IRestaurantRepository;
 
   // Use Cases - Orders
   getKitchenOrders: GetKitchenOrdersUseCase;
@@ -214,6 +218,9 @@ export function DependencyProvider({
     const customerRepository =
       customDependencies?.customerRepository || new SupabaseCustomerRepository();
 
+    const restaurantRepository =
+      customDependencies?.restaurantRepository || new SupabaseRestaurantRepository();
+
     // Criar use cases - Orders
     const getKitchenOrders =
       customDependencies?.getKitchenOrders ||
@@ -232,9 +239,15 @@ export function DependencyProvider({
       new CreateOrderUseCase(orderRepository, productRepository);
 
     // Criar use cases - Sessions
+    const autoAssignWaiter = new AutoAssignWaiterUseCase(
+      staffRepository,
+      tableRepository,
+      restaurantRepository,
+    );
+
     const startSession =
       customDependencies?.startSession ||
-      new StartSessionUseCase(sessionRepository, tableRepository);
+      new StartSessionUseCase(sessionRepository, tableRepository, autoAssignWaiter);
 
     const closeSession =
       customDependencies?.closeSession ||
@@ -354,6 +367,7 @@ export function DependencyProvider({
       closureRepository,
       waiterCallRepository,
       customerRepository,
+      restaurantRepository,
 
       // Use Cases - Orders
       getKitchenOrders,

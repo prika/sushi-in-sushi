@@ -6,6 +6,7 @@ import { ISessionRepository } from '@/domain/repositories/ISessionRepository';
 import { ITableRepository } from '@/domain/repositories/ITableRepository';
 import { Session, CreateSessionData } from '@/domain/entities/Session';
 import { SessionService } from '@/domain/services/SessionService';
+import { AutoAssignWaiterUseCase } from './AutoAssignWaiterUseCase';
 
 export interface StartSessionInput {
   tableId: string;
@@ -23,7 +24,8 @@ export interface StartSessionResult {
 export class StartSessionUseCase {
   constructor(
     private sessionRepository: ISessionRepository,
-    private tableRepository: ITableRepository
+    private tableRepository: ITableRepository,
+    private autoAssignWaiterUseCase?: AutoAssignWaiterUseCase,
   ) {}
 
   async execute(input: StartSessionInput): Promise<StartSessionResult> {
@@ -77,6 +79,14 @@ export class StartSessionUseCase {
         status: 'occupied',
         currentSessionId: session.id,
       });
+
+      // Auto-atribuir waiter (se configurado)
+      if (this.autoAssignWaiterUseCase) {
+        await this.autoAssignWaiterUseCase.execute({
+          tableId: input.tableId,
+          location: table.location,
+        });
+      }
 
       return {
         success: true,

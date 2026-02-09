@@ -1174,7 +1174,7 @@ function TableManagementTab() {
     );
 
     // Buscar reservas ativas
-    const { data: reservationsData } = await supabase
+    const { data: reservationsData } = await (supabase as any)
       .from("reservations")
       .select("id, table_id, customer_name, status")
       .eq("status", "confirmed");
@@ -1553,9 +1553,6 @@ function TableManagementTab() {
               Mesa #{table.number}
             </div>
             <div className="text-xs text-gray-500">{table.name}</div>
-            <div className="text-xs text-gray-400">
-              Cap: {table.capacity} pessoas
-            </div>
           </div>
           <span
             className={`px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.color}`}
@@ -2179,23 +2176,14 @@ function RestaurantManagementTab() {
           });
 
           if (tablesResult.success) {
-            const distribution = tablesResult.data.reduce(
-              (acc: Record<number, number>, table) => {
-                acc[table.capacity] = (acc[table.capacity] || 0) + 1;
-                return acc;
-              },
-              {},
-            );
-
-            const summary = Object.entries(distribution)
-              .sort(([a], [b]) => parseInt(b) - parseInt(a))
-              .map(([capacity, count]) => `${count}×${capacity}`)
-              .join(" + ");
+            const ppt = formData.defaultPeoplePerTable;
+            const totalTables = tablesResult.data.length;
+            const totalCapacity = totalTables * ppt;
 
             alert(
               `✅ Restaurante criado!\n\n` +
-                `🪑 ${tablesResult.data.length} mesas criadas:\n` +
-                `${summary} = ${tablesResult.data.reduce((sum, t) => sum + t.capacity, 0)} lugares`,
+                `🪑 ${totalTables} mesas criadas:\n` +
+                `${totalTables}×${ppt} = ${totalCapacity} lugares`,
             );
           } else {
             console.error("Erro ao criar mesas:", tablesResult.error);

@@ -167,51 +167,6 @@ export default function WaiterMesaPage() {
     };
   }, [supabase, id]);
 
-  const [error, setError] = useState<string | null>(null);
-  const [isStartingSession, setIsStartingSession] = useState(false);
-
-  const handleStartSession = useCallback(async (isRodizio: boolean, numPeople: number) => {
-    if (!table) return;
-
-    setIsStartingSession(true);
-    setError(null);
-
-    try {
-      const { data: session, error: insertError } = await supabase
-        .from("sessions")
-        .insert({
-          table_id: table.id,
-          is_rodizio: isRodizio,
-          num_people: numPeople,
-          status: "active",
-          total_amount: 0,
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error("Error starting session:", insertError);
-        setError(`Erro ao iniciar sessão: ${insertError.message}`);
-        return;
-      }
-
-      if (session) {
-        setTable({ ...table, activeSession: session });
-        await logActivity("session_started", "session", session.id, {
-          tableNumber: table.number,
-          location: table.location,
-          isRodizio,
-          numPeople,
-        });
-      }
-    } catch (err) {
-      console.error("Error starting session:", err);
-      setError("Erro ao iniciar sessão. Por favor, tente novamente.");
-    } finally {
-      setIsStartingSession(false);
-    }
-  }, [table, supabase, logActivity]);
-
   const handleAddOrder = useCallback(async (product: Product) => {
     if (!table?.activeSession) return;
 
@@ -349,46 +304,12 @@ export default function WaiterMesaPage() {
             <h2 className="text-xl font-semibold text-white mb-4">
               Mesa Disponível
             </h2>
-            <p className="text-gray-400 mb-8">
-              Inicie uma nova sessão para começar a receber pedidos.
+            <p className="text-gray-400 mb-4">
+              A aguardar que o cliente inicie a sessão via QR code.
             </p>
-
-            {error && (
-              <div className="max-w-md mx-auto mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="max-w-md mx-auto space-y-4">
-              <button
-                onClick={() => handleStartSession(false, 2)}
-                disabled={isStartingSession}
-                className="w-full py-4 bg-[#D4AF37] text-black font-semibold rounded-xl hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isStartingSession ? (
-                  <>
-                    <div className="animate-spin h-5 w-5 border-2 border-black border-t-transparent rounded-full" />
-                    A iniciar...
-                  </>
-                ) : (
-                  "Iniciar Sessão Normal"
-                )}
-              </button>
-              <button
-                onClick={() => handleStartSession(true, 2)}
-                disabled={isStartingSession}
-                className="w-full py-4 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isStartingSession ? (
-                  <>
-                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                    A iniciar...
-                  </>
-                ) : (
-                  "Iniciar Rodízio"
-                )}
-              </button>
-            </div>
+            <p className="text-gray-500 text-sm">
+              O tipo de sessão (normal ou rodízio) é escolhido pelo cliente.
+            </p>
           </div>
         )}
 

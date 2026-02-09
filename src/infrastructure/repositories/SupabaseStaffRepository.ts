@@ -207,6 +207,17 @@ export class SupabaseStaffRepository implements IStaffRepository {
     return (data || []).map((row: { table_id: string }) => row.table_id);
   }
 
+  async addTableAssignment(staffId: string, tableId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('waiter_tables')
+      .upsert(
+        { staff_id: staffId, table_id: tableId },
+        { onConflict: 'staff_id,table_id' }
+      );
+
+    if (error) throw new Error(error.message);
+  }
+
   private mapToEntity(row: DatabaseStaff & { roles: DatabaseRole }): StaffWithRole {
     return {
       id: row.id,

@@ -21,4 +21,5 @@ export interface IStaffRepository {
   getAllRoles(): Promise<Role[]>;
   assignTables(staffId: string, tableIds: string[]): Promise<void>;
   getAssignedTables(staffId: string): Promise<string[]>;
+  addTableAssignment(staffId: string, tableId: string): Promise<void>;
 }

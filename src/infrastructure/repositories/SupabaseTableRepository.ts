@@ -40,7 +40,7 @@ interface DatabaseTable {
   is_active: boolean;
   current_session_id: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 /**
@@ -290,9 +290,7 @@ export class SupabaseTableRepository implements ITableRepository {
   }
 
   async update(id: string, data: UpdateTableData): Promise<Table> {
-    const updateData: Record<string, unknown> = {
-      updated_at: new Date().toISOString(),
-    };
+    const updateData: Record<string, unknown> = {};
 
     if (data.number !== undefined) updateData.number = data.number;
     if (data.name !== undefined) updateData.name = data.name;
@@ -316,10 +314,7 @@ export class SupabaseTableRepository implements ITableRepository {
   async updateStatus(id: string, status: TableStatus): Promise<Table> {
     const { data: table, error } = await this.supabase
       .from('tables')
-      .update({
-        status,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ status })
       .eq('id', id)
       .select()
       .single();
@@ -375,7 +370,7 @@ export class SupabaseTableRepository implements ITableRepository {
       isActive: data.is_active,
       currentSessionId: data.current_session_id,
       createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
+      updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(data.created_at),
     };
   }
 
@@ -383,6 +378,7 @@ export class SupabaseTableRepository implements ITableRepository {
    * Converte registo da view para entidade de domínio
    */
   private viewToDomain(data: Record<string, unknown>): TableFullStatus {
+    const createdAt = new Date(data.created_at as string);
     return {
       id: data.id as string,
       number: data.number as number,
@@ -391,8 +387,8 @@ export class SupabaseTableRepository implements ITableRepository {
       status: data.status as TableStatus,
       isActive: data.is_active as boolean,
       currentSessionId: data.session_id as string | null,
-      createdAt: new Date(data.created_at as string),
-      updatedAt: new Date(data.updated_at as string),
+      createdAt,
+      updatedAt: data.updated_at ? new Date(data.updated_at as string) : createdAt,
       waiter: null,
       activeSession: data.session_id
         ? {
