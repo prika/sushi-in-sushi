@@ -13,6 +13,7 @@ function createProduct(overrides: Partial<Product> = {}): Product {
     price: 5.5,
     categoryId: 'cat-1',
     imageUrl: null,
+    imageUrls: [],
     isAvailable: true,
     isRodizio: true,
     sortOrder: 1,

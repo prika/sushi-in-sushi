@@ -60,6 +60,8 @@ function createTestProduct(overrides: Partial<Product> = {}): Product {
     isAvailable: true,
     isRodizio: true,
     imageUrl: '/images/salmon.jpg',
+    imageUrls: ['/images/salmon.jpg'],
+    sortOrder: 1,
     createdAt: new Date('2024-01-01T12:00:00Z'),
     updatedAt: new Date('2024-01-01T12:00:00Z'),
     ...overrides,

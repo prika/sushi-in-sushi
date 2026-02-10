@@ -25,11 +25,12 @@ interface DatabaseProduct {
   price: number;
   category_id: string;
   image_url: string | null;
+  image_urls: string[] | null;
   is_available: boolean;
   is_rodizio: boolean;
   sort_order: number;
   created_at: string;
-  updated_at: string;
+  updated_at?: string; // optional: products table may not have this column
 }
 
 /**
@@ -146,6 +147,8 @@ export class SupabaseProductRepository implements IProductRepository {
   }
 
   async create(data: CreateProductData): Promise<Product> {
+    const imageUrls = data.imageUrls ?? (data.imageUrl ? [data.imageUrl] : []);
+    const firstImage = imageUrls[0] ?? data.imageUrl ?? null;
     const { data: product, error } = await this.supabase
       .from('products')
       .insert({
@@ -153,7 +156,8 @@ export class SupabaseProductRepository implements IProductRepository {
         description: data.description || null,
         price: data.price,
         category_id: data.categoryId,
-        image_url: data.imageUrl || null,
+        image_url: firstImage,
+        image_urls: imageUrls.length > 0 ? imageUrls : null,
         is_available: data.isAvailable ?? true,
         is_rodizio: data.isRodizio ?? false,
         sort_order: data.sortOrder ?? 0,
@@ -166,15 +170,18 @@ export class SupabaseProductRepository implements IProductRepository {
   }
 
   async update(id: string, data: UpdateProductData): Promise<Product> {
-    const updateData: Record<string, unknown> = {
-      updated_at: new Date().toISOString(),
-    };
+    const updateData: Record<string, unknown> = {};
 
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.price !== undefined) updateData.price = data.price;
     if (data.categoryId !== undefined) updateData.category_id = data.categoryId;
-    if (data.imageUrl !== undefined) updateData.image_url = data.imageUrl;
+    if (data.imageUrls !== undefined) {
+      updateData.image_urls = data.imageUrls.length > 0 ? data.imageUrls : null;
+      updateData.image_url = data.imageUrls[0] ?? null;
+    } else if (data.imageUrl !== undefined) {
+      updateData.image_url = data.imageUrl;
+    }
     if (data.isAvailable !== undefined) updateData.is_available = data.isAvailable;
     if (data.isRodizio !== undefined) updateData.is_rodizio = data.isRodizio;
     if (data.sortOrder !== undefined) updateData.sort_order = data.sortOrder;
@@ -184,9 +191,10 @@ export class SupabaseProductRepository implements IProductRepository {
       .update(updateData)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw new Error(error.message);
+    if (!product) throw new Error('Produto não encontrado ou sem permissão para atualizar');
     return this.toDomain(product);
   }
 
@@ -204,18 +212,25 @@ export class SupabaseProductRepository implements IProductRepository {
    * Converte registo da BD para entidade de domínio
    */
   private toDomain(data: DatabaseProduct): Product {
+    const imageUrls = data.image_urls?.length
+      ? data.image_urls
+      : data.image_url
+        ? [data.image_url]
+        : [];
+    const imageUrl = imageUrls[0] ?? data.image_url ?? null;
     return {
       id: data.id,
       name: data.name,
       description: data.description,
       price: data.price,
       categoryId: data.category_id,
-      imageUrl: data.image_url,
+      imageUrl,
+      imageUrls,
       isAvailable: data.is_available,
       isRodizio: data.is_rodizio,
       sortOrder: data.sort_order,
       createdAt: new Date(data.created_at),
-      updatedAt: new Date(data.updated_at),
+      updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(data.created_at),
     };
   }
 

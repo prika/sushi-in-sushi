@@ -96,6 +96,7 @@ export type Database = {
           price: number;
           category_id: string;
           image_url: string | null;
+          image_urls: string[] | null;
           is_available: boolean;
           is_rodizio: boolean;
           sort_order: number;
@@ -109,6 +110,7 @@ export type Database = {
           price: number;
           category_id: string;
           image_url?: string | null;
+          image_urls?: string[] | null;
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;
@@ -122,6 +124,7 @@ export type Database = {
           price?: number;
           category_id?: string;
           image_url?: string | null;
+          image_urls?: string[] | null;
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;

@@ -12,7 +12,10 @@ export interface Product {
   description: string | null;
   price: number;
   categoryId: string;
+  /** Primary image (first of imageUrls or legacy single image) */
   imageUrl: string | null;
+  /** All image URLs; first is primary */
+  imageUrls: string[];
   isAvailable: boolean;
   isRodizio: boolean;
   sortOrder: number;
@@ -29,6 +32,7 @@ export interface CreateProductData {
   price: number;
   categoryId: string;
   imageUrl?: string | null;
+  imageUrls?: string[];
   isAvailable?: boolean;
   isRodizio?: boolean;
   sortOrder?: number;
@@ -43,6 +47,7 @@ export interface UpdateProductData {
   price?: number;
   categoryId?: string;
   imageUrl?: string | null;
+  imageUrls?: string[];
   isAvailable?: boolean;
   isRodizio?: boolean;
   sortOrder?: number;
