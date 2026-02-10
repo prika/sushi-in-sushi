@@ -24,3 +24,7 @@ export * from './useKitchenOrdersOptimized';
 // Restaurant management hooks
 export * from './useRestaurants';
 export * from './useLocations';
+
+// Cart and order review hooks
+export * from './useCart';
+export * from './useOrderReview';
