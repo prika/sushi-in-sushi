@@ -15,4 +15,5 @@ export * from './Customer';
 export * from './StaffTimeOff';
 export * from './ReservationSettings';
 export * from './Restaurant';
+export * from './DeviceProfile';
 export * from './CartItem';

@@ -889,6 +889,8 @@ export type SessionCustomer = {
   preferred_contact: PreferredContact;
   customer_id: string | null;
   is_session_host: boolean;
+  device_id: string | null;
+  tier: number;
   created_at: string;
   updated_at: string;
 };
@@ -904,6 +906,8 @@ export type SessionCustomerInsert = {
   preferred_contact?: PreferredContact;
   customer_id?: string | null;
   is_session_host?: boolean;
+  device_id?: string | null;
+  tier?: number;
 };
 
 export type SessionCustomerUpdate = Partial<Omit<SessionCustomer, "id" | "session_id" | "created_at">>;
@@ -937,6 +941,27 @@ export type OrderWithCustomer = Order & {
 export type OrderWithProductAndCustomer = OrderWithProduct & {
   session_customer_id: string | null;
   customer_name?: string | null;
+};
+
+// =============================================
+// DEVICE PROFILE TYPES
+// =============================================
+
+export type DeviceProfileRow = {
+  device_id: string;
+  last_display_name: string | null;
+  last_full_name: string | null;
+  last_email: string | null;
+  last_phone: string | null;
+  last_birth_date: string | null;
+  last_preferred_contact: string;
+  highest_tier: number;
+  linked_customer_id: string | null;
+  visit_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  created_at: string;
+  updated_at: string;
 };
 
 // =============================================

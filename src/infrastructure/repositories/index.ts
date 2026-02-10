@@ -13,3 +13,4 @@ export * from './SupabaseCustomerRepository';
 export * from './SupabaseStaffTimeOffRepository';
 export * from './SupabaseReservationSettingsRepository';
 export * from './SupabaseRestaurantRepository';
+export * from './SupabaseDeviceProfileRepository';

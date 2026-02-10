@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, type MutableRefObject } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -8,6 +8,11 @@ import { useProductsOptimized } from "@/presentation/hooks";
 import { useCart } from "@/presentation/hooks/useCart";
 import { useOrderReview } from "@/presentation/hooks/useOrderReview";
 import { useOrderCooldown } from "@/presentation/hooks/useOrderCooldown";
+import {
+  useOrderNotificationChannel,
+  type OrderNotificationSupabaseLike,
+  type RealtimeChannelLike,
+} from "@/presentation/hooks/useOrderNotificationChannel";
 import { CartService } from "@/domain/services/CartService";
 import type { Product, Category } from "@/domain/entities";
 import type {
@@ -352,29 +357,16 @@ export default function MesaPage() {
     };
   }, [session, step, supabase]);
 
-  // Broadcast channel for cross-device order notifications
-  useEffect(() => {
-    if (!session || step !== "active") return;
-
-    const channel = supabase.channel(`cart-review-${session.id}`);
-    let notificationTimerId: number | ReturnType<typeof setTimeout> | undefined;
-    channel.on("broadcast", { event: "order-submitted" }, (payload) => {
-      const msg = payload.payload as { customerName: string; itemCount: number };
-      setOrderNotification(
-        t("mesa.review.reviewNotification", { name: msg.customerName, count: msg.itemCount })
-      );
-      fetchSessionOrders();
-      notificationTimerId = setTimeout(() => setOrderNotification(null), 5000);
-    }).subscribe();
-
-    broadcastChannelRef.current = channel;
-
-    return () => {
-      if (notificationTimerId !== undefined) clearTimeout(notificationTimerId);
-      supabase.removeChannel(channel);
-      broadcastChannelRef.current = null;
-    };
-  }, [session, step, supabase, t, fetchSessionOrders]);
+  // Broadcast channel for cross-device order notifications (timer cleanup on unmount in hook)
+  useOrderNotificationChannel({
+    session,
+    step,
+    supabase: supabase as unknown as OrderNotificationSupabaseLike,
+    t,
+    fetchSessionOrders,
+    setOrderNotification,
+    channelRef: broadcastChannelRef as MutableRefObject<RealtimeChannelLike | null>,
+  });
 
   // Group orders by timestamp (rounded to minute)
   const groupedOrders: GroupedOrders[] = sessionOrders.reduce(
@@ -523,20 +515,114 @@ export default function MesaPage() {
     }
   }, [session?.id, fetchSessionCustomers]);
 
-  // Register customer
+  // Sync session_customer to loyalty program (customers table) so they appear in admin
+  const syncToLoyaltyCustomer = useCallback(
+    async (sessionCustomerId: string, emailTrim: string) => {
+      const res = await fetch("/api/customers/from-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailTrim,
+          displayName: customerForm.display_name.trim(),
+          fullName: customerForm.full_name.trim() || null,
+          phone: customerForm.phone.trim() || null,
+          birthDate: customerForm.birth_date || null,
+          marketingConsent: customerForm.marketing_consent,
+          sessionCustomerId,
+        }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error("[mesa] sync to customers failed:", res.status, errBody);
+        setError(
+          t("mesa.errors.syncLoyalty") ||
+            "Não foi possível sincronizar com o programa de fidelização. Verifique SUPABASE_SERVICE_ROLE_KEY no servidor."
+        );
+        return null;
+      }
+      const { customerId } = (await res.json()) as { customerId: string };
+      return customerId;
+    },
+    [customerForm, t]
+  );
+
+  // Register customer (new person) or update existing session_customer (edit profile)
   const registerCustomer = useCallback(async () => {
     if (!session || !customerForm.display_name.trim()) return;
 
-    try {
-      const extendedSupabase = supabase as unknown as {
-        from: (table: string) => ReturnType<typeof supabase.from>;
-      };
+    setError(null);
+    const extendedSupabase = supabase as unknown as {
+      from: (table: string) => ReturnType<typeof supabase.from>;
+    };
+    const emailTrim = customerForm.email.trim();
+    const isEditingCurrent =
+      currentCustomer &&
+      customerForm.display_name.trim() === currentCustomer.display_name;
 
+    try {
+      if (isEditingCurrent && currentCustomer) {
+        // Atualizar perfil do session_customer atual (ex.: adicionar email)
+        const { data: updated, error: updateError } = await extendedSupabase
+          .from("session_customers")
+          .update({
+            display_name: customerForm.display_name.trim(),
+            full_name: customerForm.full_name.trim() || null,
+            email: emailTrim || null,
+            phone: customerForm.phone.trim() || null,
+            birth_date: customerForm.birth_date || null,
+            marketing_consent: customerForm.marketing_consent,
+            preferred_contact: customerForm.preferred_contact,
+          })
+          .eq("id", currentCustomer.id)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+
+        const updatedCustomer = updated as SessionCustomer;
+        setSessionCustomers((prev) =>
+          prev.map((c) => (c.id === currentCustomer.id ? updatedCustomer : c))
+        );
+        setCurrentCustomer(updatedCustomer);
+
+        if (emailTrim) {
+          const customerId = await syncToLoyaltyCustomer(
+            currentCustomer.id,
+            emailTrim
+          );
+          if (customerId) {
+            setSessionCustomers((prev) =>
+              prev.map((c) =>
+                c.id === currentCustomer.id
+                  ? { ...c, customer_id: customerId }
+                  : c
+              )
+            );
+            setCurrentCustomer((prev) =>
+              prev?.id === currentCustomer.id
+                ? { ...prev, customer_id: customerId }
+                : prev
+            );
+            setSuccessMessage(
+              t("mesa.success.profileSaved") || "Perfil guardado. Aparecerá no painel Clientes."
+            );
+          }
+        } else {
+          setSuccessMessage(
+            t("mesa.success.profileSaved") || "Perfil guardado."
+          );
+        }
+        setTimeout(() => setSuccessMessage(null), 3000);
+        setShowCustomerModal(false);
+        return;
+      }
+
+      // Inserir novo participante na sessão
       const customerData: SessionCustomerInsert = {
         session_id: session.id,
         display_name: customerForm.display_name.trim(),
         full_name: customerForm.full_name.trim() || null,
-        email: customerForm.email.trim() || null,
+        email: emailTrim || null,
         phone: customerForm.phone.trim() || null,
         birth_date: customerForm.birth_date || null,
         marketing_consent: customerForm.marketing_consent,
@@ -557,6 +643,22 @@ export default function MesaPage() {
       setCurrentCustomer(newCustomer);
       localStorage.setItem(`customer_${session.id}`, newCustomer.id);
 
+      if (emailTrim) {
+        const customerId = await syncToLoyaltyCustomer(newCustomer.id, emailTrim);
+        if (customerId) {
+          setSessionCustomers((prev) =>
+            prev.map((c) =>
+              c.id === newCustomer.id ? { ...c, customer_id: customerId } : c
+            )
+          );
+          setCurrentCustomer((prev) =>
+            prev?.id === newCustomer.id
+              ? { ...prev, customer_id: customerId }
+              : prev
+          );
+        }
+      }
+
       setCustomerForm({
         display_name: "",
         full_name: "",
@@ -574,7 +676,15 @@ export default function MesaPage() {
       console.error("Error registering customer:", err);
       setError(t("mesa.errors.register"));
     }
-  }, [session, customerForm, sessionCustomers.length, supabase, t]);
+  }, [
+    session,
+    customerForm,
+    sessionCustomers.length,
+    currentCustomer,
+    supabase,
+    t,
+    syncToLoyaltyCustomer,
+  ]);
 
   // Select existing customer
   const selectCustomer = useCallback(
@@ -2486,9 +2596,12 @@ export default function MesaPage() {
                   disabled={!customerForm.display_name.trim()}
                   className="w-full py-4 rounded-xl bg-[#D4AF37] text-black font-bold text-lg hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {sessionCustomers.length === 0
-                    ? t("mesa.startOrdering")
-                    : t("mesa.addPerson")}
+                  {currentCustomer &&
+                  customerForm.display_name.trim() === currentCustomer.display_name
+                    ? (t("mesa.saveProfile") || "Guardar perfil")
+                    : sessionCustomers.length === 0
+                      ? t("mesa.startOrdering")
+                      : t("mesa.addPerson")}
                 </button>
 
                 {currentCustomer && (

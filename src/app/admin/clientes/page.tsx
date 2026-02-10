@@ -1,12 +1,34 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useCustomers } from "@/presentation/hooks/useCustomers";
 import { useLocations } from "@/presentation/hooks";
 import type { Customer, CustomerWithHistory } from "@/domain/entities/Customer";
+import { CustomerTierService } from "@/domain/services/CustomerTierService";
+import type { CustomerTier } from "@/domain/value-objects/CustomerTier";
+
+// Labels de patamar em português para o painel admin (sem "Contacto")
+const TIER_LABELS_PT: Record<CustomerTier, string> = {
+  1: "Sessão",
+  2: "Básico",
+  3: "Completo",
+  4: "Perfil Entrega",
+};
+
+function getCustomerTier(customer: Customer): CustomerTier {
+  return CustomerTierService.computeTier({
+    displayName: customer.name,
+    email: customer.email,
+    phone: customer.phone,
+    fullName: customer.name,
+    birthDate: customer.birthDate,
+  });
+}
 
 export default function ClientesPage() {
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithHistory | null>(null);
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<CustomerWithHistory | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -21,22 +43,20 @@ export default function ClientesPage() {
 
   // Use the clean architecture hooks
   const { locations } = useLocations();
-  const {
-    customers,
-    isLoading,
-    error,
-    getById,
-    create,
-    update,
-    remove,
-  } = useCustomers();
+  const { customers, isLoading, error, getById, create, update, remove } =
+    useCustomers();
 
   // Helper to get location label
   const getLocationLabel = (slug: string) => {
-    return locations.find(loc => loc.slug === slug)?.name || slug;
+    return locations.find((loc) => loc.slug === slug)?.name || slug;
   };
 
   const fetchCustomerHistory = async (customer: Customer) => {
+    setSelectedCustomer({
+      ...customer,
+      reservations: 0,
+      lastVisit: null,
+    });
     const customerWithHistory = await getById(customer.id);
     if (customerWithHistory) {
       setSelectedCustomer(customerWithHistory);
@@ -51,7 +71,10 @@ export default function ClientesPage() {
         name: customer.name,
         phone: customer.phone || "",
         birthDate: customer.birthDate || "",
-        preferredLocation: (customer.preferredLocation || "") as "circunvalacao" | "boavista" | "",
+        preferredLocation: (customer.preferredLocation || "") as
+          | "circunvalacao"
+          | "boavista"
+          | "",
         marketingConsent: customer.marketingConsent,
       });
     } else {
@@ -105,7 +128,10 @@ export default function ClientesPage() {
   };
 
   const handleDelete = async (customer: Customer) => {
-    if (!confirm(`Tem certeza que deseja eliminar o cliente "${customer.name}"?`)) return;
+    if (
+      !confirm(`Tem certeza que deseja eliminar o cliente "${customer.name}"?`)
+    )
+      return;
 
     const success = await remove(customer.id);
     if (!success) {
@@ -143,14 +169,18 @@ export default function ClientesPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestão de Clientes</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Gestão de Clientes
+          </h1>
           <p className="text-gray-500">Programa de fidelização e histórico</p>
         </div>
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
           <div className="flex items-start gap-4">
             <div className="text-yellow-500 text-2xl">⚠️</div>
             <div>
-              <h3 className="font-semibold text-yellow-800 mb-2">Configuração Necessária</h3>
+              <h3 className="font-semibold text-yellow-800 mb-2">
+                Configuração Necessária
+              </h3>
               <p className="text-yellow-700 mb-4">{error}</p>
               <p className="text-sm text-yellow-600">
                 Execute o ficheiro{" "}
@@ -171,15 +201,27 @@ export default function ClientesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gestão de Clientes</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Gestão de Clientes
+          </h1>
           <p className="text-gray-500">Programa de fidelização e histórico</p>
         </div>
         <button
           onClick={() => handleOpenModal()}
           className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           Novo Cliente
         </button>
@@ -211,6 +253,27 @@ export default function ClientesPage() {
         </div>
       </div>
 
+      {/* Distribuição por patamar */}
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+        <p className="text-sm text-gray-500 mb-3">Clientes por patamar</p>
+        <div className="flex flex-wrap gap-3">
+          {([1, 2, 3, 4] as CustomerTier[]).map((tier) => {
+            const count = customers.filter(
+              (c) => getCustomerTier(c) === tier,
+            ).length;
+            return (
+              <span
+                key={tier}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-800"
+              >
+                <span className="text-[#D4AF37] font-semibold">{count}</span>
+                <span>{TIER_LABELS_PT[tier]}</span>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Search */}
       <div className="flex gap-4">
         <div className="flex-1">
@@ -235,6 +298,9 @@ export default function ClientesPage() {
                     Cliente
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Patamar
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Pontos
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -251,8 +317,13 @@ export default function ClientesPage() {
               <tbody className="divide-y divide-gray-200">
                 {filteredCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                      {searchTerm ? "Nenhum cliente encontrado" : "Nenhum cliente registado"}
+                    <td
+                      colSpan={6}
+                      className="px-6 py-12 text-center text-gray-500"
+                    >
+                      {searchTerm
+                        ? "Nenhum cliente encontrado"
+                        : "Nenhum cliente registado"}
                     </td>
                   </tr>
                 ) : (
@@ -260,25 +331,48 @@ export default function ClientesPage() {
                     <tr
                       key={customer.id}
                       className={`hover:bg-gray-50 cursor-pointer ${
-                        selectedCustomer?.id === customer.id ? "bg-[#D4AF37]/5" : ""
+                        selectedCustomer?.id === customer.id
+                          ? "bg-[#D4AF37]/5"
+                          : ""
                       } ${!customer.isActive ? "opacity-50" : ""}`}
                       onClick={() => fetchCustomerHistory(customer)}
                     >
                       <td className="px-6 py-4">
                         <div>
-                          <div className="font-medium text-gray-900">{customer.name}</div>
-                          <div className="text-sm text-gray-500">{customer.email}</div>
+                          <div className="font-medium text-gray-900">
+                            {customer.name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {customer.email}
+                          </div>
                           {customer.phone && (
-                            <div className="text-xs text-gray-400">{customer.phone}</div>
+                            <div className="text-xs text-gray-400">
+                              {customer.phone}
+                            </div>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-1 text-sm font-semibold bg-[#D4AF37]/20 text-[#D4AF37] rounded-full">
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                            getCustomerTier(customer) === 3
+                              ? "bg-emerald-100 text-emerald-800"
+                              : getCustomerTier(customer) === 2
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {TIER_LABELS_PT[getCustomerTier(customer)]}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-0.5 text-xs font-medium bg-[#D4AF37]/20 text-[#D4AF37] rounded-full">
                           {customer.points} pts
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-700">{customer.visitCount}</td>
+                      <td className="px-6 py-4 text-gray-700 text-sm tabular-nums">
+                        {customer.visitCount}
+                      </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
                         {customer.totalSpent.toFixed(2)}€
                       </td>
@@ -292,7 +386,12 @@ export default function ClientesPage() {
                             className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
                             title="Editar"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -313,8 +412,18 @@ export default function ClientesPage() {
                             }`}
                             title={customer.isActive ? "Desativar" : "Ativar"}
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
                             </svg>
                           </button>
                           <button
@@ -325,7 +434,12 @@ export default function ClientesPage() {
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
                             title="Eliminar"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -349,15 +463,29 @@ export default function ClientesPage() {
           {selectedCustomer ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Detalhes do Cliente</h3>
-                <button
-                  onClick={() => setSelectedCustomer(null)}
-                  className="p-1 text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <h3 className="font-semibold text-gray-900">
+                  Detalhes do Cliente
+                </h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedCustomer(null)}
+                    className="p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -367,67 +495,173 @@ export default function ClientesPage() {
                       {selectedCustomer.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
-                  <h4 className="font-semibold text-gray-900">{selectedCustomer.name}</h4>
-                  <p className="text-sm text-gray-500">{selectedCustomer.email}</p>
+                  <h4 className="font-semibold text-gray-900">
+                    {selectedCustomer.name}
+                  </h4>
+                  <p className="text-sm text-gray-500">
+                    {selectedCustomer.email}
+                  </p>
+                  <span
+                    className={`inline-flex mt-2 px-2.5 py-1 text-xs font-medium rounded-full ${
+                      getCustomerTier(selectedCustomer) === 3
+                        ? "bg-emerald-100 text-emerald-800"
+                        : getCustomerTier(selectedCustomer) === 2
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {TIER_LABELS_PT[getCustomerTier(selectedCustomer)]}
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-center py-4 border-b border-gray-200">
                   <div>
-                    <p className="text-2xl font-bold text-[#D4AF37]">{selectedCustomer.points}</p>
+                    <p className="text-xl font-bold text-[#D4AF37]">
+                      {selectedCustomer.points}
+                    </p>
                     <p className="text-xs text-gray-500">Pontos</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{selectedCustomer.visitCount}</p>
+                    <p className="text-xl font-bold text-gray-900 tabular-nums">
+                      {selectedCustomer.visitCount}
+                    </p>
                     <p className="text-xs text-gray-500">Visitas</p>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Total Gasto</span>
-                    <span className="font-semibold">{selectedCustomer.totalSpent.toFixed(2)}€</span>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-500 shrink-0">Total Gasto</span>
+                    <span className="text-gray-500 font-semibold text-right">
+                      {Number(selectedCustomer.totalSpent).toFixed(2)}€
+                    </span>
                   </div>
-                  {selectedCustomer.phone && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Telefone</span>
-                      <span>{selectedCustomer.phone}</span>
-                    </div>
-                  )}
-                  {selectedCustomer.birthDate && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Aniversário</span>
-                      <span>{new Date(selectedCustomer.birthDate).toLocaleDateString("pt-PT")}</span>
-                    </div>
-                  )}
-                  {selectedCustomer.preferredLocation && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Localização Preferida</span>
-                      <span>{getLocationLabel(selectedCustomer.preferredLocation)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Marketing</span>
-                    <span className={selectedCustomer.marketingConsent ? "text-green-600" : "text-gray-400"}>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-500 shrink-0">Telefone</span>
+                    <span className="text-gray-500 text-right">
+                      {selectedCustomer.phone?.trim() || "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-500 shrink-0">
+                      Data de Nascimento
+                    </span>
+                    <span className="text-gray-500 text-right">
+                      {selectedCustomer.birthDate?.trim()
+                        ? new Date(
+                            selectedCustomer.birthDate,
+                          ).toLocaleDateString("pt-PT")
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-500 shrink-0">
+                      Localização Preferida
+                    </span>
+                    <span className="text-gray-500 text-right">
+                      {selectedCustomer.preferredLocation
+                        ? getLocationLabel(selectedCustomer.preferredLocation)
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-500 shrink-0">Marketing</span>
+                    <span
+                      className={`text-gray-500 text-right ${selectedCustomer.marketingConsent ? "text-green-600" : "text-gray-400"}`}
+                    >
                       {selectedCustomer.marketingConsent ? "Sim" : "Não"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Membro desde</span>
-                    <span>{selectedCustomer.createdAt.toLocaleDateString("pt-PT")}</span>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-500 shrink-0">Estado</span>
+                    <span
+                      className={`text-right ${selectedCustomer.isActive ? "text-green-600" : "text-gray-500"}`}
+                    >
+                      {selectedCustomer.isActive ? "Ativo" : "Inativo"}
+                    </span>
                   </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-500 shrink-0">Membro desde</span>
+                    <span className="text-gray-500 text-right">
+                      {selectedCustomer.createdAt instanceof Date
+                        ? selectedCustomer.createdAt.toLocaleDateString("pt-PT")
+                        : new Date(
+                            selectedCustomer.createdAt,
+                          ).toLocaleDateString("pt-PT")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-500 shrink-0">
+                      Última atualização
+                    </span>
+                    <span className="text-gray-500 text-right">
+                      {selectedCustomer.updatedAt instanceof Date
+                        ? selectedCustomer.updatedAt.toLocaleDateString("pt-PT")
+                        : new Date(
+                            selectedCustomer.updatedAt,
+                          ).toLocaleDateString("pt-PT")}
+                    </span>
+                  </div>
+                  {"reservations" in selectedCustomer && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-gray-500 shrink-0">Reservas</span>
+                      <span className="text-gray-500 text-right font-medium">
+                        {selectedCustomer.reservations}
+                      </span>
+                    </div>
+                  )}
+                  {"lastVisit" in selectedCustomer &&
+                    selectedCustomer.lastVisit && (
+                      <div className="flex justify-between gap-2">
+                        <span className="text-gray-500 shrink-0">
+                          Última visita
+                        </span>
+                        <span className="text-gray-500 text-right">
+                          {selectedCustomer.lastVisit instanceof Date
+                            ? selectedCustomer.lastVisit.toLocaleDateString(
+                                "pt-PT",
+                              )
+                            : new Date(
+                                selectedCustomer.lastVisit,
+                              ).toLocaleDateString("pt-PT")}
+                        </span>
+                      </div>
+                    )}
                 </div>
 
-                <div className="pt-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-500 text-center">
-                    {selectedCustomer.reservations} reservas registadas
-                  </p>
-                </div>
+                <Link
+                  href={`/admin/clientes/${selectedCustomer.id}`}
+                  className="w-full inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium justify-center bg-[#D4AF37] text-black rounded-lg hover:bg-[#C4A030] transition-colors"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                  Ver completo
+                </Link>
               </div>
             </div>
           ) : (
             <div className="bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 p-8 text-center">
               <div className="text-4xl mb-3">👤</div>
-              <p className="text-gray-500">Selecione um cliente para ver os detalhes</p>
+              <p className="text-gray-500">
+                Selecione um cliente para ver os detalhes
+              </p>
             </div>
           )}
         </div>
@@ -441,64 +675,98 @@ export default function ClientesPage() {
               <h2 className="text-lg font-semibold text-gray-900">
                 {editingCustomer ? "Editar Cliente" : "Novo Cliente"}
               </h2>
-              <button onClick={() => setShowModal(false)} className="p-2 text-gray-400 hover:text-gray-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nome
+                </label>
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Telefone
+                </label>
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Data de Nascimento
+                </label>
                 <input
                   type="date"
                   value={formData.birthDate}
-                  onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, birthDate: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Localização Preferida</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Localização Preferida
+                </label>
                 <select
                   value={formData.preferredLocation}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      preferredLocation: e.target.value as "circunvalacao" | "boavista" | "",
+                      preferredLocation: e.target.value as
+                        | "circunvalacao"
+                        | "boavista"
+                        | "",
                     })
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
@@ -517,10 +785,18 @@ export default function ClientesPage() {
                   type="checkbox"
                   id="marketing_consent"
                   checked={formData.marketingConsent}
-                  onChange={(e) => setFormData({ ...formData, marketingConsent: e.target.checked })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      marketingConsent: e.target.checked,
+                    })
+                  }
                   className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
                 />
-                <label htmlFor="marketing_consent" className="text-sm text-gray-700">
+                <label
+                  htmlFor="marketing_consent"
+                  className="text-sm text-gray-700"
+                >
                   Aceita receber comunicações de marketing
                 </label>
               </div>

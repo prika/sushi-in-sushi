@@ -31,3 +31,6 @@ export * from './useOrderReview';
 
 // Order cooldown hook
 export * from './useOrderCooldown';
+
+// Order notification channel (broadcast + timer cleanup)
+export * from './useOrderNotificationChannel';

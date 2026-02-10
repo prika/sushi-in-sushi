@@ -21,6 +21,8 @@ interface DatabaseRestaurant {
   auto_table_assignment: boolean;
   auto_reservations: boolean;
   order_cooldown_minutes: number;
+  show_upgrade_after_order: boolean;
+  show_upgrade_at_bill: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -116,6 +118,8 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
         auto_table_assignment: data.autoTableAssignment ?? false,
         auto_reservations: data.autoReservations ?? false,
         order_cooldown_minutes: data.orderCooldownMinutes ?? 0,
+        show_upgrade_after_order: data.showUpgradeAfterOrder ?? false,
+        show_upgrade_at_bill: data.showUpgradeAtBill ?? false,
         is_active: data.isActive ?? true,
       })
       .select()
@@ -138,6 +142,8 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
     if (data.autoTableAssignment !== undefined) updateData.auto_table_assignment = data.autoTableAssignment;
     if (data.autoReservations !== undefined) updateData.auto_reservations = data.autoReservations;
     if (data.orderCooldownMinutes !== undefined) updateData.order_cooldown_minutes = data.orderCooldownMinutes;
+    if (data.showUpgradeAfterOrder !== undefined) updateData.show_upgrade_after_order = data.showUpgradeAfterOrder;
+    if (data.showUpgradeAtBill !== undefined) updateData.show_upgrade_at_bill = data.showUpgradeAtBill;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
     const { data: updated, error } = await this.supabase
@@ -189,6 +195,8 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
       autoTableAssignment: row.auto_table_assignment,
       autoReservations: row.auto_reservations,
       orderCooldownMinutes: row.order_cooldown_minutes,
+      showUpgradeAfterOrder: row.show_upgrade_after_order,
+      showUpgradeAtBill: row.show_upgrade_at_bill,
       isActive: row.is_active,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
