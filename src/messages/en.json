@@ -272,6 +272,11 @@
       "billRequested": "A staff member will be with you shortly.",
       "staffCalled": "A staff member has been notified and will be with you shortly.",
       "staffCalledOrder": "A staff member has been notified to help with your order."
+    },
+    "cooldown": {
+      "title": "Please wait before ordering again",
+      "description": "To ensure quality, there is an interval between orders.",
+      "waitMessage": "Please wait {time}"
     }
   },
   "reservation": {

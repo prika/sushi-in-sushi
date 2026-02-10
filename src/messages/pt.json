@@ -272,6 +272,11 @@
       "billRequested": "Um funcionário virá até si em breve.",
       "staffCalled": "Um funcionário foi notificado e virá até si em breve.",
       "staffCalledOrder": "Um funcionário foi notificado para ajudar com o pedido."
+    },
+    "cooldown": {
+      "title": "Aguarde para fazer novo pedido",
+      "description": "Para garantir a qualidade, há um intervalo entre pedidos.",
+      "waitMessage": "Aguarde {time}"
     }
   },
   "reservation": {

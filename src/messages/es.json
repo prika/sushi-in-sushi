@@ -272,6 +272,11 @@
       "billRequested": "Un empleado vendrá enseguida.",
       "staffCalled": "Un empleado ha sido notificado y vendrá enseguida.",
       "staffCalledOrder": "Un empleado ha sido notificado para ayudarte con el pedido."
+    },
+    "cooldown": {
+      "title": "Espere antes de pedir de nuevo",
+      "description": "Para garantizar la calidad, hay un intervalo entre pedidos.",
+      "waitMessage": "Espere {time}"
     }
   },
   "reservation": {

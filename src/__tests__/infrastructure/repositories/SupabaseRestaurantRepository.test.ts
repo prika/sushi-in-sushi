@@ -21,6 +21,7 @@ function createDatabaseRestaurant(overrides: Partial<{
   default_people_per_table: number;
   auto_table_assignment: boolean;
   auto_reservations: boolean;
+  order_cooldown_minutes: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -36,6 +37,7 @@ function createDatabaseRestaurant(overrides: Partial<{
     default_people_per_table: 4,
     auto_table_assignment: false,
     auto_reservations: false,
+    order_cooldown_minutes: 0,
     is_active: true,
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
@@ -261,6 +263,7 @@ describe('SupabaseRestaurantRepository', () => {
       defaultPeoplePerTable: 4,
       autoTableAssignment: false,
       autoReservations: false,
+      orderCooldownMinutes: 0,
       isActive: true,
     };
 
@@ -291,6 +294,56 @@ describe('SupabaseRestaurantRepository', () => {
       );
       expect(builder.select).toHaveBeenCalled();
       expect(builder.single).toHaveBeenCalled();
+    });
+
+    it('deve mapear order_cooldown_minutes na criação', async () => {
+      const dataWithCooldown: CreateRestaurantData = {
+        name: 'Cooldown Test',
+        slug: 'cooldown-test',
+        address: 'Address',
+        maxCapacity: 30,
+        defaultPeoplePerTable: 3,
+        orderCooldownMinutes: 5,
+      };
+
+      const dbRow = createDatabaseRestaurant({
+        name: 'Cooldown Test',
+        slug: 'cooldown-test',
+        order_cooldown_minutes: 5,
+      });
+      const builder = mockClient._createBuilder({ data: dbRow, error: null });
+      mockClient._setBuilder(builder);
+
+      const result = await repository.create(dataWithCooldown);
+
+      expect(builder.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          order_cooldown_minutes: 5,
+        })
+      );
+      expect(result.orderCooldownMinutes).toBe(5);
+    });
+
+    it('deve usar 0 como padrão para order_cooldown_minutes', async () => {
+      const minimalData: CreateRestaurantData = {
+        name: 'No Cooldown',
+        slug: 'no-cooldown',
+        address: 'Address',
+        maxCapacity: 20,
+        defaultPeoplePerTable: 2,
+      };
+
+      const dbRow = createDatabaseRestaurant({ order_cooldown_minutes: 0 });
+      const builder = mockClient._createBuilder({ data: dbRow, error: null });
+      mockClient._setBuilder(builder);
+
+      await repository.create(minimalData);
+
+      expect(builder.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          order_cooldown_minutes: 0,
+        })
+      );
     });
 
     it('deve mapear latitude e longitude null corretamente', async () => {
@@ -361,6 +414,23 @@ describe('SupabaseRestaurantRepository', () => {
       expect(builder.eq).toHaveBeenCalledWith('id', restaurantId);
       expect(builder.select).toHaveBeenCalled();
       expect(builder.single).toHaveBeenCalled();
+    });
+
+    it('deve mapear orderCooldownMinutes no update', async () => {
+      const updateData: UpdateRestaurantData = {
+        orderCooldownMinutes: 15,
+      };
+
+      const dbRow = createDatabaseRestaurant({ order_cooldown_minutes: 15 });
+      const builder = mockClient._createBuilder({ data: dbRow, error: null });
+      mockClient._setBuilder(builder);
+
+      const result = await repository.update(restaurantId, updateData);
+
+      expect(builder.update).toHaveBeenCalledWith({
+        order_cooldown_minutes: 15,
+      });
+      expect(result.orderCooldownMinutes).toBe(15);
     });
 
     it('deve mapear apenas campos definidos', async () => {
@@ -486,6 +556,7 @@ describe('SupabaseRestaurantRepository', () => {
         defaultPeoplePerTable: 6,
         autoTableAssignment: true,
         autoReservations: true,
+        orderCooldownMinutes: 0,
         isActive: false,
       });
       expect(result[0]).not.toHaveProperty('max_capacity');

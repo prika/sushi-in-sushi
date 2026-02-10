@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useProductsOptimized } from "@/presentation/hooks";
 import { useCart } from "@/presentation/hooks/useCart";
 import { useOrderReview } from "@/presentation/hooks/useOrderReview";
+import { useOrderCooldown } from "@/presentation/hooks/useOrderCooldown";
 import { CartService } from "@/domain/services/CartService";
 import type { Product, Category } from "@/domain/entities";
 import type {
@@ -98,6 +99,9 @@ export default function MesaPage() {
   const [isRequestingBill, setIsRequestingBill] = useState(false);
   const [billRequested, setBillRequested] = useState(false);
 
+  // Cooldown state
+  const [cooldownMinutes, setCooldownMinutes] = useState(0);
+
   // Waiter state
   const [waiterName, setWaiterName] = useState<string | null>(null);
   const [isCallingWaiter, setIsCallingWaiter] = useState(false);
@@ -164,6 +168,12 @@ export default function MesaPage() {
     undoConfirmDuplicate,
   } = useOrderReview({ cart, sessionOrders });
 
+  // Order cooldown hook - blocks orders for X minutes after last order
+  const { isCooldownActive, remainingFormatted, progress } = useOrderCooldown({
+    sessionOrders,
+    cooldownMinutes,
+  });
+
   // Fetch table info, waiter, and recover existing session on load
   useEffect(() => {
     async function fetchTableAndSession() {
@@ -193,6 +203,20 @@ export default function MesaPage() {
 
         if (waiterData) {
           setWaiterName(waiterData.staff_name);
+        }
+
+        // Fetch cooldown setting from restaurant
+        const { data: restaurantData } = await (
+          supabase as unknown as {
+            from: (table: string) => ReturnType<typeof supabase.from>;
+          }
+        )
+          .from("restaurants")
+          .select("order_cooldown_minutes")
+          .eq("slug", localizacao)
+          .single();
+        if (restaurantData) {
+          setCooldownMinutes((restaurantData as Record<string, number>).order_cooldown_minutes ?? 0);
         }
 
         // Check for existing active session on this table
@@ -333,18 +357,20 @@ export default function MesaPage() {
     if (!session || step !== "active") return;
 
     const channel = supabase.channel(`cart-review-${session.id}`);
+    let notificationTimerId: number | ReturnType<typeof setTimeout> | undefined;
     channel.on("broadcast", { event: "order-submitted" }, (payload) => {
       const msg = payload.payload as { customerName: string; itemCount: number };
       setOrderNotification(
         t("mesa.review.reviewNotification", { name: msg.customerName, count: msg.itemCount })
       );
       fetchSessionOrders();
-      setTimeout(() => setOrderNotification(null), 5000);
+      notificationTimerId = setTimeout(() => setOrderNotification(null), 5000);
     }).subscribe();
 
     broadcastChannelRef.current = channel;
 
     return () => {
+      if (notificationTimerId !== undefined) clearTimeout(notificationTimerId);
       supabase.removeChannel(channel);
       broadcastChannelRef.current = null;
     };
@@ -1290,6 +1316,32 @@ export default function MesaPage() {
                 </div>
               </div>
 
+              {/* Cooldown Banner */}
+              {isCooldownActive && (
+                <div className="mx-4 mt-3 p-4 rounded-xl bg-gray-900 border border-gray-700 flex items-center gap-4">
+                  <div className="relative w-14 h-14 flex-shrink-0">
+                    <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                      <circle cx="28" cy="28" r="24" fill="none" stroke="#374151" strokeWidth="4" />
+                      <circle
+                        cx="28" cy="28" r="24" fill="none"
+                        stroke="#D4AF37" strokeWidth="4"
+                        strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * 24}`}
+                        strokeDashoffset={`${2 * Math.PI * 24 * (1 - progress)}`}
+                        className="transition-all duration-1000 ease-linear"
+                      />
+                    </svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-[#D4AF37]">
+                      {remainingFormatted}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{t("mesa.cooldown.title")}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{t("mesa.cooldown.description")}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex-1 overflow-y-auto px-4 py-4 pb-48">
                 {cart.length === 0 ? (
                   <div className="text-center py-20">
@@ -1424,12 +1476,28 @@ export default function MesaPage() {
                   </div>
                   <button
                     onClick={() => openReview()}
-                    className="w-full py-3.5 rounded-xl bg-[#D4AF37] text-black font-bold text-base hover:bg-[#C4A030] transition-colors flex items-center justify-center gap-2"
+                    disabled={isCooldownActive}
+                    className={`w-full py-3.5 rounded-xl font-bold text-base transition-colors flex items-center justify-center gap-2 ${
+                      isCooldownActive
+                        ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                        : "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
+                    }`}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
-                    {t("mesa.review.reviewAndSend")}
+                    {isCooldownActive ? (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {t("mesa.cooldown.waitMessage", { time: remainingFormatted })}
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        {t("mesa.review.reviewAndSend")}
+                      </>
+                    )}
                   </button>
                 </div>
               )}
@@ -2105,7 +2173,7 @@ export default function MesaPage() {
                       </button>
                       <button
                         onClick={() => { closeReview(); submitOrder(); }}
-                        disabled={isSubmittingOrder || hasUnconfirmedDuplicates}
+                        disabled={isSubmittingOrder || hasUnconfirmedDuplicates || isCooldownActive}
                         className="flex-1 py-3 rounded-xl bg-[#D4AF37] text-black font-bold hover:bg-[#C4A030] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                       >
                         {isSubmittingOrder ? (

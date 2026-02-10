@@ -272,6 +272,11 @@
       "billRequested": "Ein Mitarbeiter kommt in Kürze.",
       "staffCalled": "Ein Mitarbeiter wurde benachrichtigt und kommt in Kürze.",
       "staffCalledOrder": "Ein Mitarbeiter wurde benachrichtigt, um bei Ihrer Bestellung zu helfen."
+    },
+    "cooldown": {
+      "title": "Bitte warten Sie vor der nächsten Bestellung",
+      "description": "Um die Qualität zu gewährleisten, gibt es ein Intervall zwischen den Bestellungen.",
+      "waitMessage": "Bitte warten {time}"
     }
   },
   "reservation": {

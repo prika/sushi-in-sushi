@@ -2048,6 +2048,7 @@ function RestaurantManagementTab() {
     address: "",
     maxCapacity: 50,
     defaultPeoplePerTable: 4,
+    orderCooldownMinutes: 0,
     autoTableAssignment: false,
     autoReservations: false,
     isActive: true,
@@ -2062,6 +2063,7 @@ function RestaurantManagementTab() {
         address: restaurant.address,
         maxCapacity: restaurant.maxCapacity,
         defaultPeoplePerTable: restaurant.defaultPeoplePerTable,
+        orderCooldownMinutes: restaurant.orderCooldownMinutes,
         autoTableAssignment: restaurant.autoTableAssignment,
         autoReservations: restaurant.autoReservations,
         isActive: restaurant.isActive,
@@ -2074,6 +2076,7 @@ function RestaurantManagementTab() {
         address: "",
         maxCapacity: 50,
         defaultPeoplePerTable: 4,
+        orderCooldownMinutes: 0,
         autoTableAssignment: false,
         autoReservations: false,
         isActive: true,
@@ -2667,6 +2670,29 @@ function RestaurantManagementTab() {
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Capacidade padrão ao criar novas mesas
+                </p>
+              </div>
+
+              {/* Order Cooldown Minutes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cooldown entre Pedidos (minutos)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={formData.orderCooldownMinutes}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      orderCooldownMinutes: parseInt(e.target.value) || 0,
+                    })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Tempo mínimo de espera entre pedidos por mesa. 0 = sem limite.
                 </p>
               </div>
 

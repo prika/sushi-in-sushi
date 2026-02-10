@@ -25,6 +25,7 @@ const mockRestaurant: Restaurant = {
   defaultPeoplePerTable: 4,
   autoTableAssignment: false,
   autoReservations: false,
+  orderCooldownMinutes: 0,
   isActive: true,
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
@@ -188,6 +189,7 @@ describe('Restaurants Use Cases', () => {
       defaultPeoplePerTable: 4,
       autoTableAssignment: false,
       autoReservations: false,
+      orderCooldownMinutes: 0,
       isActive: true,
     };
 
@@ -330,6 +332,53 @@ describe('Restaurants Use Cases', () => {
       }
     });
 
+    it('deve falhar quando orderCooldownMinutes é negativo', async () => {
+      const invalidData = { ...validCreateData, orderCooldownMinutes: -1 };
+      vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
+
+      const useCase = new CreateRestaurantUseCase(mockRepository);
+      const result = await useCase.execute(invalidData);
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe('Tempo de cooldown deve ser zero ou positivo');
+        expect(result.code).toBe('INVALID_COOLDOWN');
+      }
+      expect(mockRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('deve aceitar orderCooldownMinutes igual a zero', async () => {
+      const dataWithZeroCooldown = { ...validCreateData, orderCooldownMinutes: 0 };
+      vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
+      vi.mocked(mockRepository.create).mockResolvedValue({
+        ...mockRestaurant,
+        ...dataWithZeroCooldown,
+      });
+
+      const useCase = new CreateRestaurantUseCase(mockRepository);
+      const result = await useCase.execute(dataWithZeroCooldown);
+
+      expect(result.success).toBe(true);
+    });
+
+    it('deve aceitar orderCooldownMinutes positivo', async () => {
+      const dataWithCooldown = { ...validCreateData, orderCooldownMinutes: 5 };
+      vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
+      vi.mocked(mockRepository.create).mockResolvedValue({
+        ...mockRestaurant,
+        ...dataWithCooldown,
+        orderCooldownMinutes: 5,
+      });
+
+      const useCase = new CreateRestaurantUseCase(mockRepository);
+      const result = await useCase.execute(dataWithCooldown);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.orderCooldownMinutes).toBe(5);
+      }
+    });
+
     it('deve criar restaurante com valores padrão para campos opcionais', async () => {
       const minimalData: CreateRestaurantData = {
         name: 'Minimal',
@@ -347,6 +396,7 @@ describe('Restaurants Use Cases', () => {
         longitude: null,
         autoTableAssignment: false,
         autoReservations: false,
+        orderCooldownMinutes: 0,
         isActive: true,
       });
 
@@ -494,6 +544,62 @@ describe('Restaurants Use Cases', () => {
       if (!result.success) {
         expect(result.code).toBe('INVALID_PEOPLE_PER_TABLE');
       }
+    });
+
+    it('deve falhar quando orderCooldownMinutes é negativo', async () => {
+      vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
+
+      const useCase = new UpdateRestaurantUseCase(mockRepository);
+      const result = await useCase.execute({
+        id: restaurantId,
+        data: { orderCooldownMinutes: -3 },
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe('Tempo de cooldown deve ser zero ou positivo');
+        expect(result.code).toBe('INVALID_COOLDOWN');
+      }
+      expect(mockRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('deve aceitar orderCooldownMinutes igual a zero', async () => {
+      vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
+      vi.mocked(mockRepository.update).mockResolvedValue({
+        ...mockRestaurant,
+        orderCooldownMinutes: 0,
+      });
+
+      const useCase = new UpdateRestaurantUseCase(mockRepository);
+      const result = await useCase.execute({
+        id: restaurantId,
+        data: { orderCooldownMinutes: 0 },
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.orderCooldownMinutes).toBe(0);
+      }
+    });
+
+    it('deve atualizar orderCooldownMinutes com valor positivo', async () => {
+      vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
+      vi.mocked(mockRepository.update).mockResolvedValue({
+        ...mockRestaurant,
+        orderCooldownMinutes: 10,
+      });
+
+      const useCase = new UpdateRestaurantUseCase(mockRepository);
+      const result = await useCase.execute({
+        id: restaurantId,
+        data: { orderCooldownMinutes: 10 },
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.orderCooldownMinutes).toBe(10);
+      }
+      expect(mockRepository.update).toHaveBeenCalledWith(restaurantId, { orderCooldownMinutes: 10 });
     });
 
     it('deve atualizar flags de automação', async () => {

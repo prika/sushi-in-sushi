@@ -9,6 +9,7 @@ export interface Restaurant {
   defaultPeoplePerTable: number; // Default for new tables
   autoTableAssignment: boolean; // Enable auto-assignment (future)
   autoReservations: boolean; // Enable auto-reservations (future)
+  orderCooldownMinutes: number; // Minutes between orders per session (0 = disabled)
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -24,6 +25,7 @@ export interface CreateRestaurantData {
   defaultPeoplePerTable: number;
   autoTableAssignment?: boolean;
   autoReservations?: boolean;
+  orderCooldownMinutes?: number;
   isActive?: boolean;
 }
 
@@ -37,6 +39,7 @@ export interface UpdateRestaurantData {
   defaultPeoplePerTable?: number;
   autoTableAssignment?: boolean;
   autoReservations?: boolean;
+  orderCooldownMinutes?: number;
   isActive?: boolean;
 }
 

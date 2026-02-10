@@ -63,6 +63,7 @@ function createTestRestaurant(overrides: Partial<Restaurant> = {}): Restaurant {
     defaultPeoplePerTable: 4,
     autoTableAssignment: true,
     autoReservations: false,
+    orderCooldownMinutes: 0,
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date(),

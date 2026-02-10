@@ -57,6 +57,13 @@ export class UpdateRestaurantUseCase {
         );
       }
 
+      if (input.data.orderCooldownMinutes !== undefined && input.data.orderCooldownMinutes < 0) {
+        return Results.error(
+          'Tempo de cooldown deve ser zero ou positivo',
+          'INVALID_COOLDOWN'
+        );
+      }
+
       const restaurant = await this.restaurantRepository.update(input.id, input.data);
       return Results.success(restaurant);
     } catch (error) {

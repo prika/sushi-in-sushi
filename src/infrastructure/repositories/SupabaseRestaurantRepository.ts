@@ -20,6 +20,7 @@ interface DatabaseRestaurant {
   default_people_per_table: number;
   auto_table_assignment: boolean;
   auto_reservations: boolean;
+  order_cooldown_minutes: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -114,6 +115,7 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
         default_people_per_table: data.defaultPeoplePerTable,
         auto_table_assignment: data.autoTableAssignment ?? false,
         auto_reservations: data.autoReservations ?? false,
+        order_cooldown_minutes: data.orderCooldownMinutes ?? 0,
         is_active: data.isActive ?? true,
       })
       .select()
@@ -135,6 +137,7 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
     if (data.defaultPeoplePerTable !== undefined) updateData.default_people_per_table = data.defaultPeoplePerTable;
     if (data.autoTableAssignment !== undefined) updateData.auto_table_assignment = data.autoTableAssignment;
     if (data.autoReservations !== undefined) updateData.auto_reservations = data.autoReservations;
+    if (data.orderCooldownMinutes !== undefined) updateData.order_cooldown_minutes = data.orderCooldownMinutes;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
     const { data: updated, error } = await this.supabase
@@ -185,6 +188,7 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
       defaultPeoplePerTable: row.default_people_per_table,
       autoTableAssignment: row.auto_table_assignment,
       autoReservations: row.auto_reservations,
+      orderCooldownMinutes: row.order_cooldown_minutes,
       isActive: row.is_active,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
