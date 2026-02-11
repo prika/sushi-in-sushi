@@ -14,3 +14,7 @@ export * from './SupabaseStaffTimeOffRepository';
 export * from './SupabaseReservationSettingsRepository';
 export * from './SupabaseRestaurantRepository';
 export * from './SupabaseDeviceProfileRepository';
+export * from './SupabaseGameQuestionRepository';
+export * from './SupabaseGameSessionRepository';
+export * from './SupabaseGameAnswerRepository';
+export * from './SupabaseGamePrizeRepository';

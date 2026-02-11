@@ -22,6 +22,10 @@ import { IRestaurantClosureRepository } from '@/domain/repositories/IRestaurantC
 import { IWaiterCallRepository } from '@/domain/repositories/IWaiterCallRepository';
 import { ICustomerRepository } from '@/domain/repositories/ICustomerRepository';
 import { IRestaurantRepository } from '@/domain/repositories/IRestaurantRepository';
+import { IGameQuestionRepository } from '@/domain/repositories/IGameQuestionRepository';
+import { IGameSessionRepository } from '@/domain/repositories/IGameSessionRepository';
+import { IGameAnswerRepository } from '@/domain/repositories/IGameAnswerRepository';
+import { IGamePrizeRepository } from '@/domain/repositories/IGamePrizeRepository';
 
 // Ports (Interfaces de serviços)
 import { IActivityLogger } from '@/application/ports/IActivityLogger';
@@ -38,6 +42,10 @@ import { SupabaseRestaurantClosureRepository } from '@/infrastructure/repositori
 import { SupabaseWaiterCallRepository } from '@/infrastructure/repositories/SupabaseWaiterCallRepository';
 import { SupabaseCustomerRepository } from '@/infrastructure/repositories/SupabaseCustomerRepository';
 import { SupabaseRestaurantRepository } from '@/infrastructure/repositories/SupabaseRestaurantRepository';
+import { SupabaseGameQuestionRepository } from '@/infrastructure/repositories/SupabaseGameQuestionRepository';
+import { SupabaseGameSessionRepository } from '@/infrastructure/repositories/SupabaseGameSessionRepository';
+import { SupabaseGameAnswerRepository } from '@/infrastructure/repositories/SupabaseGameAnswerRepository';
+import { SupabaseGamePrizeRepository } from '@/infrastructure/repositories/SupabaseGamePrizeRepository';
 
 // Implementações de serviços
 import { ApiActivityLogger } from '@/infrastructure/services/ApiActivityLogger';
@@ -95,6 +103,16 @@ import {
   UpdateCustomerUseCase,
   AddCustomerPointsUseCase,
 } from '@/application/use-cases/customers';
+
+// Use Cases - Games
+import {
+  StartGameSessionUseCase,
+  SubmitGameAnswerUseCase,
+  CompleteGameSessionUseCase,
+  GetGameLeaderboardUseCase,
+  GetGameConfigUseCase,
+  RedeemGamePrizeUseCase,
+} from '@/application/use-cases/games';
 
 /**
  * Interface das dependências disponíveis
@@ -155,6 +173,20 @@ export interface Dependencies {
   createCustomer: CreateCustomerUseCase;
   updateCustomer: UpdateCustomerUseCase;
   addCustomerPoints: AddCustomerPointsUseCase;
+
+  // Repositórios - Games
+  gameQuestionRepository: IGameQuestionRepository;
+  gameSessionRepository: IGameSessionRepository;
+  gameAnswerRepository: IGameAnswerRepository;
+  gamePrizeRepository: IGamePrizeRepository;
+
+  // Use Cases - Games
+  startGameSession: StartGameSessionUseCase;
+  submitGameAnswer: SubmitGameAnswerUseCase;
+  completeGameSession: CompleteGameSessionUseCase;
+  getGameLeaderboard: GetGameLeaderboardUseCase;
+  getGameConfig: GetGameConfigUseCase;
+  redeemGamePrize: RedeemGamePrizeUseCase;
 
   // Services
   activityLogger: IActivityLogger;
@@ -220,6 +252,18 @@ export function DependencyProvider({
 
     const restaurantRepository =
       customDependencies?.restaurantRepository || new SupabaseRestaurantRepository();
+
+    const gameQuestionRepository =
+      customDependencies?.gameQuestionRepository || new SupabaseGameQuestionRepository();
+
+    const gameSessionRepository =
+      customDependencies?.gameSessionRepository || new SupabaseGameSessionRepository();
+
+    const gameAnswerRepository =
+      customDependencies?.gameAnswerRepository || new SupabaseGameAnswerRepository();
+
+    const gamePrizeRepository =
+      customDependencies?.gamePrizeRepository || new SupabaseGamePrizeRepository();
 
     // Criar use cases - Orders
     const getKitchenOrders =
@@ -350,6 +394,31 @@ export function DependencyProvider({
       customDependencies?.addCustomerPoints ||
       new AddCustomerPointsUseCase(customerRepository);
 
+    // Criar use cases - Games
+    const startGameSession =
+      customDependencies?.startGameSession ||
+      new StartGameSessionUseCase(gameSessionRepository, gameQuestionRepository);
+
+    const submitGameAnswer =
+      customDependencies?.submitGameAnswer ||
+      new SubmitGameAnswerUseCase(gameAnswerRepository);
+
+    const completeGameSession =
+      customDependencies?.completeGameSession ||
+      new CompleteGameSessionUseCase(gameSessionRepository, gameAnswerRepository, gamePrizeRepository);
+
+    const getGameLeaderboard =
+      customDependencies?.getGameLeaderboard ||
+      new GetGameLeaderboardUseCase(gameAnswerRepository);
+
+    const getGameConfig =
+      customDependencies?.getGameConfig ||
+      new GetGameConfigUseCase(restaurantRepository);
+
+    const redeemGamePrize =
+      customDependencies?.redeemGamePrize ||
+      new RedeemGamePrizeUseCase(gamePrizeRepository);
+
     // Criar services
     const activityLogger =
       customDependencies?.activityLogger ||
@@ -411,6 +480,20 @@ export function DependencyProvider({
       createCustomer,
       updateCustomer,
       addCustomerPoints,
+
+      // Repositórios - Games
+      gameQuestionRepository,
+      gameSessionRepository,
+      gameAnswerRepository,
+      gamePrizeRepository,
+
+      // Use Cases - Games
+      startGameSession,
+      submitGameAnswer,
+      completeGameSession,
+      getGameLeaderboard,
+      getGameConfig,
+      redeemGamePrize,
 
       // Services
       activityLogger,

@@ -230,7 +230,74 @@
       "orders": "Pedidos",
       "callStaff": "Llamar",
       "bill": "Cuenta",
-      "cart": "Carrito"
+      "cart": "Carrito",
+      "games": "Juegos"
+    },
+    "rate": {
+      "title": "Valora tus favoritos",
+      "close": "Cerrar",
+      "tableLeader": "Favorito de la mesa",
+      "freeDrinkWon": "¡Has ganado una bebida! Muestra esta pantalla al camarero.",
+      "freeDrinkProgress": "{count} valoraciones más y ganas una bebida (mín. {min}).",
+      "joinTableToWin": "Únete a la mesa con un nombre para competir por una bebida gratis.",
+      "noProducts": "No hay platos para valorar.",
+      "thanks": "¡Gracias!",
+      "thanksSub": "Tus valoraciones ayudan a elegir el favorito de la mesa.",
+      "done": "Hecho",
+      "seeLeaderboard": "Ver clasificación",
+      "swipeHint": "Desliza derecha = me gusta, izquierda = no tanto",
+      "left": "restantes",
+      "like": "Me gusta",
+      "nope": "No tanto"
+    },
+    "games": {
+      "leaderboard": "Clasificación",
+      "close": "Cerrar",
+      "leaderboardEmpty": "Aún no hay resultados. ¡Juega para aparecer en el ranking!",
+      "points": "pts",
+      "viewLeaderboard": "Ver clasificación",
+      "startGame": "Iniciar juego",
+      "quizLabel": "Quiz Sushi",
+      "preferenceLabel": "¿A o B?",
+      "swipeLabel": "Valorar platos",
+      "quiz": {
+        "title": "Quiz Sushi 🍣",
+        "correct": "¡Correcto! +{pts} pts",
+        "wrong": "¡Incorrecto!",
+        "timeout": "¡Tiempo agotado!",
+        "scoreMaster": "¡Maestro Sushi! ¡Impresionante!",
+        "scoreGood": "¡Muy bien! ¡Sabes mucho de sushi!",
+        "scoreTry": "¡Buen intento! ¡Vuelve para mejorar!"
+      },
+      "preference": {
+        "title": "¿A o B? 🤔",
+        "preferencesRegistered": "¡Tus preferencias han sido registradas!",
+        "noWrongAnswer": "No hay respuesta incorrecta — ¡elige tu favorito!"
+      },
+      "prize": {
+        "title": "Premio",
+        "default": "Premio del juego",
+        "staffCode": "Código para el personal",
+        "redeemed": "¡Ya canjeado!",
+        "showStaff": "Muestra el código QR o el código al personal para validar.",
+        "redeem": "Canjear",
+        "redeeming": "Canjeando...",
+        "revealing": "Revelando premio..."
+      },
+      "hub": {
+        "title": "Juegos",
+        "subtitle": "¡Elige un juego y diviértete mientras esperas!",
+        "quizDesc": "Pon a prueba tus conocimientos sobre sushi",
+        "prefDesc": "Elige tu favorito entre dos",
+        "swipeDesc": "Desliza para valorar los platos que probaste",
+        "seePrize": "Ver premio",
+        "playAgain": "Jugar de nuevo"
+      },
+      "realtime": {
+        "movedUp": "¡Subiste al #{rank}!",
+        "overtaken": "¡{name} te adelantó!",
+        "droppedRank": "Bajaste al #{rank}"
+      }
     },
     "review": {
       "title": "Revisión del Pedido",

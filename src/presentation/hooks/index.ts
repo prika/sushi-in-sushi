@@ -34,3 +34,7 @@ export * from './useOrderCooldown';
 
 // Order notification channel (broadcast + timer cleanup)
 export * from './useOrderNotificationChannel';
+
+// Games hooks
+export * from './useGameSession';
+export * from './useGameConfig';

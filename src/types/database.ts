@@ -441,6 +441,254 @@ export type Database = {
           }
         ];
       };
+      game_questions: {
+        Row: {
+          id: string;
+          game_type: string;
+          question_text: string;
+          options: Json | null;
+          correct_answer_index: number | null;
+          option_a: Json | null;
+          option_b: Json | null;
+          category: string | null;
+          difficulty: number;
+          points: number;
+          is_active: boolean;
+          restaurant_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          game_type: string;
+          question_text: string;
+          options?: Json | null;
+          correct_answer_index?: number | null;
+          option_a?: Json | null;
+          option_b?: Json | null;
+          category?: string | null;
+          difficulty?: number;
+          points?: number;
+          is_active?: boolean;
+          restaurant_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          game_type?: string;
+          question_text?: string;
+          options?: Json | null;
+          correct_answer_index?: number | null;
+          option_a?: Json | null;
+          option_b?: Json | null;
+          category?: string | null;
+          difficulty?: number;
+          points?: number;
+          is_active?: boolean;
+          restaurant_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      game_sessions: {
+        Row: {
+          id: string;
+          session_id: string;
+          game_type: string | null;
+          status: string;
+          round_number: number;
+          total_questions: number;
+          started_at: string;
+          completed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          game_type?: string | null;
+          status?: string;
+          round_number?: number;
+          total_questions?: number;
+          started_at?: string;
+          completed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          game_type?: string | null;
+          status?: string;
+          round_number?: number;
+          total_questions?: number;
+          started_at?: string;
+          completed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "game_sessions_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      game_answers: {
+        Row: {
+          id: string;
+          game_session_id: string;
+          session_customer_id: string | null;
+          question_id: string | null;
+          product_id: number | null;
+          game_type: string;
+          answer: Json;
+          score_earned: number;
+          answered_at: string;
+        };
+        Insert: {
+          id?: string;
+          game_session_id: string;
+          session_customer_id?: string | null;
+          question_id?: string | null;
+          product_id?: number | null;
+          game_type: string;
+          answer: Json;
+          score_earned?: number;
+          answered_at?: string;
+        };
+        Update: {
+          id?: string;
+          game_session_id?: string;
+          session_customer_id?: string | null;
+          question_id?: string | null;
+          product_id?: number | null;
+          game_type?: string;
+          answer?: Json;
+          score_earned?: number;
+          answered_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "game_answers_game_session_id_fkey";
+            columns: ["game_session_id"];
+            isOneToOne: false;
+            referencedRelation: "game_sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "game_answers_question_id_fkey";
+            columns: ["question_id"];
+            isOneToOne: false;
+            referencedRelation: "game_questions";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      game_prizes: {
+        Row: {
+          id: string;
+          session_id: string;
+          game_session_id: string | null;
+          session_customer_id: string | null;
+          display_name: string;
+          prize_type: string;
+          prize_value: string;
+          prize_description: string | null;
+          total_score: number;
+          redeemed: boolean;
+          redeemed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          game_session_id?: string | null;
+          session_customer_id?: string | null;
+          display_name: string;
+          prize_type: string;
+          prize_value: string;
+          prize_description?: string | null;
+          total_score?: number;
+          redeemed?: boolean;
+          redeemed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          game_session_id?: string | null;
+          session_customer_id?: string | null;
+          display_name?: string;
+          prize_type?: string;
+          prize_value?: string;
+          prize_description?: string | null;
+          total_score?: number;
+          redeemed?: boolean;
+          redeemed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "game_prizes_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "game_prizes_game_session_id_fkey";
+            columns: ["game_session_id"];
+            isOneToOne: false;
+            referencedRelation: "game_sessions";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      product_ratings: {
+        Row: {
+          id: string;
+          session_id: string;
+          session_customer_id: string | null;
+          product_id: number;
+          rating: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          session_customer_id?: string | null;
+          product_id: number;
+          rating: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          session_customer_id?: string | null;
+          product_id?: number;
+          rating?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_ratings_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_ratings_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -965,6 +1213,64 @@ export type DeviceProfileRow = {
   last_seen_at: string;
   created_at: string;
   updated_at: string;
+};
+
+// =============================================
+// GAME TYPES
+// =============================================
+
+export type GameQuestionRow = {
+  id: string;
+  game_type: string;
+  question_text: string;
+  options: unknown | null;
+  correct_answer_index: number | null;
+  option_a: unknown | null;
+  option_b: unknown | null;
+  category: string | null;
+  difficulty: number;
+  points: number;
+  is_active: boolean;
+  restaurant_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameSessionRow = {
+  id: string;
+  session_id: string;
+  status: string;
+  round_number: number;
+  total_questions: number;
+  started_at: string;
+  completed_at: string | null;
+  created_at: string;
+};
+
+export type GameAnswerRow = {
+  id: string;
+  game_session_id: string;
+  session_customer_id: string | null;
+  question_id: string;
+  game_type: string;
+  answer: unknown;
+  score_earned: number;
+  answered_at: string;
+};
+
+export type GamePrizeRow = {
+  id: string;
+  session_id: string;
+  game_session_id: string | null;
+  session_customer_id: string | null;
+  display_name: string;
+  prize_type: string;
+  prize_value: string;
+  prize_description: string | null;
+  total_score: number;
+  redeemed: boolean;
+  redeemed_at: string | null;
+  created_at: string;
 };
 
 // =============================================

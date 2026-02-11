@@ -230,7 +230,74 @@
       "orders": "Bestellungen",
       "callStaff": "Rufen",
       "bill": "Rechnung",
-      "cart": "Warenkorb"
+      "cart": "Warenkorb",
+      "games": "Spiele"
+    },
+    "rate": {
+      "title": "Bewerten Sie Ihre Favoriten",
+      "close": "Schließen",
+      "tableLeader": "Tisch-Favorit",
+      "freeDrinkWon": "Sie haben ein Getränk gewonnen! Zeigen Sie diesen Bildschirm dem Service.",
+      "freeDrinkProgress": "Noch {count} Bewertungen und Sie erhalten ein Getränk (min. {min}).",
+      "joinTableToWin": "Treten Sie der Tischrunde mit einem Namen bei, um ein Getränk zu gewinnen.",
+      "noProducts": "Keine Gerichte zu bewerten.",
+      "thanks": "Danke!",
+      "thanksSub": "Ihre Bewertungen helfen, den Tisch-Favoriten zu wählen.",
+      "done": "Fertig",
+      "seeLeaderboard": "Bestenliste ansehen",
+      "swipeHint": "Wischen Sie nach rechts = mag ich, links = nicht so",
+      "left": "übrig",
+      "like": "Gefällt mir",
+      "nope": "Nicht so"
+    },
+    "games": {
+      "leaderboard": "Rangliste",
+      "close": "Schließen",
+      "leaderboardEmpty": "Noch keine Ergebnisse. Spiele, um in der Rangliste zu erscheinen!",
+      "points": "Pkt",
+      "viewLeaderboard": "Rangliste anzeigen",
+      "startGame": "Spiel starten",
+      "quizLabel": "Sushi-Quiz",
+      "preferenceLabel": "A oder B?",
+      "swipeLabel": "Gerichte bewerten",
+      "quiz": {
+        "title": "Sushi-Quiz 🍣",
+        "correct": "Richtig! +{pts} Pkt",
+        "wrong": "Falsch!",
+        "timeout": "Zeit abgelaufen!",
+        "scoreMaster": "Sushi-Meister! Beeindruckend!",
+        "scoreGood": "Sehr gut! Du weißt viel über Sushi!",
+        "scoreTry": "Guter Versuch! Komm wieder, um dich zu verbessern!"
+      },
+      "preference": {
+        "title": "A oder B? 🤔",
+        "preferencesRegistered": "Deine Präferenzen wurden gespeichert!",
+        "noWrongAnswer": "Keine falsche Antwort — wähle deinen Favoriten!"
+      },
+      "prize": {
+        "title": "Preis",
+        "default": "Spielpreis",
+        "staffCode": "Code für das Personal",
+        "redeemed": "Bereits eingelöst!",
+        "showStaff": "Zeigen Sie den QR-Code oder Code dem Personal zur Validierung.",
+        "redeem": "Einlösen",
+        "redeeming": "Wird eingelöst...",
+        "revealing": "Preis wird enthüllt..."
+      },
+      "hub": {
+        "title": "Spiele",
+        "subtitle": "Wähle ein Spiel und hab Spaß beim Warten!",
+        "quizDesc": "Teste dein Sushi-Wissen",
+        "prefDesc": "Wähle deinen Favoriten zwischen zwei",
+        "swipeDesc": "Wische, um die Gerichte zu bewerten, die du probiert hast",
+        "seePrize": "Preis ansehen",
+        "playAgain": "Nochmal spielen"
+      },
+      "realtime": {
+        "movedUp": "Du bist auf #{rank} gestiegen!",
+        "overtaken": "{name} hat dich überholt!",
+        "droppedRank": "Du bist auf #{rank} gefallen"
+      }
     },
     "review": {
       "title": "Bestellung Überprüfen",

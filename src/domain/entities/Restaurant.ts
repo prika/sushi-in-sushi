@@ -12,6 +12,13 @@ export interface Restaurant {
   orderCooldownMinutes: number; // Minutes between orders per session (0 = disabled)
   showUpgradeAfterOrder: boolean; // Show tier upgrade prompt after order
   showUpgradeAtBill: boolean; // Show tier upgrade prompt at bill time
+  gamesEnabled: boolean; // Enable games on mesa page
+  gamesMode: 'selection' | 'random'; // 'selection' = user picks game, 'random' = random game assigned
+  gamesPrizeType: 'none' | 'discount_percentage' | 'free_product' | 'free_dinner';
+  gamesPrizeValue: string | null;
+  gamesPrizeProductId: string | null;
+  gamesMinRoundsForPrize: number;
+  gamesQuestionsPerRound: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -30,6 +37,13 @@ export interface CreateRestaurantData {
   orderCooldownMinutes?: number;
   showUpgradeAfterOrder?: boolean;
   showUpgradeAtBill?: boolean;
+  gamesEnabled?: boolean;
+  gamesMode?: 'selection' | 'random';
+  gamesPrizeType?: 'none' | 'discount_percentage' | 'free_product' | 'free_dinner';
+  gamesPrizeValue?: string | null;
+  gamesPrizeProductId?: string | null;
+  gamesMinRoundsForPrize?: number;
+  gamesQuestionsPerRound?: number;
   isActive?: boolean;
 }
 
@@ -46,6 +60,13 @@ export interface UpdateRestaurantData {
   orderCooldownMinutes?: number;
   showUpgradeAfterOrder?: boolean;
   showUpgradeAtBill?: boolean;
+  gamesEnabled?: boolean;
+  gamesMode?: 'selection' | 'random';
+  gamesPrizeType?: 'none' | 'discount_percentage' | 'free_product' | 'free_dinner';
+  gamesPrizeValue?: string | null;
+  gamesPrizeProductId?: string | null;
+  gamesMinRoundsForPrize?: number;
+  gamesQuestionsPerRound?: number;
   isActive?: boolean;
 }
 

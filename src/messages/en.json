@@ -230,7 +230,74 @@
       "orders": "Orders",
       "callStaff": "Call",
       "bill": "Bill",
-      "cart": "Cart"
+      "cart": "Cart",
+      "games": "Games"
+    },
+    "rate": {
+      "title": "Rate your favourites",
+      "close": "Close",
+      "tableLeader": "Table favourite",
+      "freeDrinkWon": "You won a free drink! Show this screen to staff.",
+      "freeDrinkProgress": "{count} more ratings and you get a free drink (min. {min}).",
+      "joinTableToWin": "Join the table with a name to compete for a free drink.",
+      "noProducts": "No dishes served yet. They will appear here once delivered.",
+      "thanks": "Thank you!",
+      "thanksSub": "Your ratings help choose the table favourite.",
+      "done": "Done",
+      "seeLeaderboard": "See Leaderboard",
+      "swipeHint": "Swipe right = liked, left = not so much",
+      "left": "left",
+      "like": "Liked",
+      "nope": "Not so much"
+    },
+    "games": {
+      "leaderboard": "Leaderboard",
+      "close": "Close",
+      "leaderboardEmpty": "No results yet. Play to appear on the ranking!",
+      "points": "pts",
+      "viewLeaderboard": "View Leaderboard",
+      "startGame": "Start Game",
+      "quizLabel": "Sushi Quiz",
+      "preferenceLabel": "A or B?",
+      "swipeLabel": "Rate Dishes",
+      "quiz": {
+        "title": "Sushi Quiz 🍣",
+        "correct": "Correct! +{pts} pts",
+        "wrong": "Wrong!",
+        "timeout": "Time's up!",
+        "scoreMaster": "Sushi Master! Impressive!",
+        "scoreGood": "Very good! You know a lot about sushi!",
+        "scoreTry": "Good try! Come back to improve!"
+      },
+      "preference": {
+        "title": "A or B? 🤔",
+        "preferencesRegistered": "Your preferences have been recorded!",
+        "noWrongAnswer": "No wrong answer — choose your favourite!"
+      },
+      "prize": {
+        "title": "Prize",
+        "default": "Game prize",
+        "staffCode": "Code for staff",
+        "redeemed": "Already redeemed!",
+        "showStaff": "Show the QR code or code to staff to validate.",
+        "redeem": "Redeem",
+        "redeeming": "Redeeming...",
+        "revealing": "Revealing prize..."
+      },
+      "hub": {
+        "title": "Games",
+        "subtitle": "Pick a game and have fun while you wait!",
+        "quizDesc": "Test your sushi knowledge",
+        "prefDesc": "Choose your favourite between two",
+        "swipeDesc": "Swipe to rate the dishes you tried",
+        "seePrize": "See Prize",
+        "playAgain": "Play Again"
+      },
+      "realtime": {
+        "movedUp": "You moved up to #{rank}!",
+        "overtaken": "{name} overtook you!",
+        "droppedRank": "You dropped to #{rank}"
+      }
     },
     "review": {
       "title": "Review Order",

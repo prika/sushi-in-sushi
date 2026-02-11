@@ -2052,6 +2052,13 @@ function RestaurantManagementTab() {
     autoTableAssignment: false,
     autoReservations: false,
     isActive: true,
+    gamesEnabled: false,
+    gamesMode: "selection" as "selection" | "random",
+    gamesPrizeType: "none" as "none" | "discount_percentage" | "free_product" | "free_dinner",
+    gamesPrizeValue: "",
+    gamesPrizeProductId: "",
+    gamesMinRoundsForPrize: 3,
+    gamesQuestionsPerRound: 5,
   });
 
   const handleOpenModal = (restaurant?: Restaurant) => {
@@ -2067,6 +2074,13 @@ function RestaurantManagementTab() {
         autoTableAssignment: restaurant.autoTableAssignment,
         autoReservations: restaurant.autoReservations,
         isActive: restaurant.isActive,
+        gamesEnabled: restaurant.gamesEnabled,
+        gamesMode: restaurant.gamesMode,
+        gamesPrizeType: restaurant.gamesPrizeType,
+        gamesPrizeValue: restaurant.gamesPrizeValue ?? "",
+        gamesPrizeProductId: restaurant.gamesPrizeProductId ?? "",
+        gamesMinRoundsForPrize: restaurant.gamesMinRoundsForPrize,
+        gamesQuestionsPerRound: restaurant.gamesQuestionsPerRound,
       });
     } else {
       setEditingRestaurant(null);
@@ -2080,6 +2094,13 @@ function RestaurantManagementTab() {
         autoTableAssignment: false,
         autoReservations: false,
         isActive: true,
+        gamesEnabled: false,
+        gamesMode: "selection",
+        gamesPrizeType: "none",
+        gamesPrizeValue: "",
+        gamesPrizeProductId: "",
+        gamesMinRoundsForPrize: 3,
+        gamesQuestionsPerRound: 5,
       });
     }
     setShowModal(true);
@@ -2398,6 +2419,12 @@ function RestaurantManagementTab() {
 
             {/* Automation Flags */}
             <div className="flex flex-wrap gap-2 mb-4">
+              {restaurant.gamesEnabled && (
+                <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                  Jogos {restaurant.gamesMode === "random" ? "(aleatorio)" : "(selecao)"}
+                  {restaurant.gamesPrizeType !== "none" && " + Premio"}
+                </span>
+              )}
               {restaurant.autoTableAssignment && (
                 <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
                   Atribuição automática
@@ -2409,7 +2436,8 @@ function RestaurantManagementTab() {
                 </span>
               )}
               {!restaurant.autoTableAssignment &&
-                !restaurant.autoReservations && (
+                !restaurant.autoReservations &&
+                !restaurant.gamesEnabled && (
                   <span className="px-2 py-1 bg-gray-100 text-gray-500 text-xs rounded-full">
                     Manual
                   </span>
@@ -2748,6 +2776,165 @@ function RestaurantManagementTab() {
                   Estas funcionalidades estarão disponíveis em futuras
                   atualizações
                 </p>
+              </div>
+
+              {/* Games Configuration */}
+              <div className="space-y-3 p-4 bg-purple-50 rounded-lg">
+                <p className="text-sm font-medium text-purple-900">
+                  Jogos Interativos na Mesa
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="gamesEnabled"
+                    checked={formData.gamesEnabled}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        gamesEnabled: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
+                  />
+                  <label
+                    htmlFor="gamesEnabled"
+                    className="text-sm text-gray-700"
+                  >
+                    Ativar jogos para os clientes na mesa
+                  </label>
+                </div>
+
+                {formData.gamesEnabled && (
+                  <div className="space-y-3 pt-2">
+                    {/* Games Mode */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Modo de Jogos
+                      </label>
+                      <select
+                        value={formData.gamesMode}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            gamesMode: e.target.value as "selection" | "random",
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                      >
+                        <option value="selection">Pagina de selecao de jogos</option>
+                        <option value="random">Jogos aleatorios</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formData.gamesMode === "selection"
+                          ? "O cliente escolhe qual jogo quer jogar"
+                          : "O sistema escolhe um jogo aleatorio para o cliente"}
+                      </p>
+                    </div>
+
+                    {/* Questions Per Round */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Perguntas por ronda
+                      </label>
+                      <input
+                        type="number"
+                        min="3"
+                        max="20"
+                        value={formData.gamesQuestionsPerRound}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            gamesQuestionsPerRound: parseInt(e.target.value) || 5,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Prize Type */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tipo de Premio
+                      </label>
+                      <select
+                        value={formData.gamesPrizeType}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            gamesPrizeType: e.target.value as typeof formData.gamesPrizeType,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                      >
+                        <option value="none">Sem premio</option>
+                        <option value="discount_percentage">Desconto (%)</option>
+                        <option value="free_product">Produto gratis</option>
+                        <option value="free_dinner">Jantar gratis</option>
+                      </select>
+                    </div>
+
+                    {/* Prize Value - shown for discount and free_dinner */}
+                    {(formData.gamesPrizeType === "discount_percentage" ||
+                      formData.gamesPrizeType === "free_dinner") && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {formData.gamesPrizeType === "discount_percentage"
+                            ? "Percentagem de desconto"
+                            : "Descricao do premio"}
+                        </label>
+                        <input
+                          type={formData.gamesPrizeType === "discount_percentage" ? "number" : "text"}
+                          min={formData.gamesPrizeType === "discount_percentage" ? "1" : undefined}
+                          max={formData.gamesPrizeType === "discount_percentage" ? "100" : undefined}
+                          value={formData.gamesPrizeValue}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              gamesPrizeValue: e.target.value,
+                            })
+                          }
+                          placeholder={
+                            formData.gamesPrizeType === "discount_percentage"
+                              ? "10"
+                              : "Proximo jantar gratis"
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                        />
+                        {formData.gamesPrizeType === "discount_percentage" && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Ex: 10 para 10% de desconto
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Min Rounds for Prize */}
+                    {formData.gamesPrizeType !== "none" && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Rondas minimas para premio
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={formData.gamesMinRoundsForPrize}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              gamesMinRoundsForPrize: parseInt(e.target.value) || 3,
+                            })
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Numero de rondas que a mesa precisa jogar para ganhar premio
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Active Toggle */}

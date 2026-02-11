@@ -17,3 +17,7 @@ export * from './ReservationSettings';
 export * from './Restaurant';
 export * from './DeviceProfile';
 export * from './CartItem';
+export * from './GameQuestion';
+export * from './GameSession';
+export * from './GameAnswer';
+export * from './GamePrize';

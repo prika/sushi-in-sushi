@@ -16,3 +16,7 @@ export * from './IStaffTimeOffRepository';
 export * from './IReservationSettingsRepository';
 export * from './IRestaurantRepository';
 export * from './IDeviceProfileRepository';
+export * from './IGameQuestionRepository';
+export * from './IGameSessionRepository';
+export * from './IGameAnswerRepository';
+export * from './IGamePrizeRepository';

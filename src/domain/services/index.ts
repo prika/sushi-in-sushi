@@ -7,3 +7,4 @@ export * from './OrderService';
 export * from './SessionService';
 export * from './TableService';
 export * from './CartService';
+export * from './GameService';

@@ -24,9 +24,12 @@ import type {
 } from "@/types/database";
 import { useMesaLocale } from "@/contexts/MesaLocaleContext";
 import { MesaLanguageSwitcher } from "@/components/mesa/MesaLanguageSwitcher";
+import { type TableLeaderInfo } from "@/components/mesa/SwipeRatingGame";
+import { GameHub } from "@/components/mesa/GameHub";
+import type { GamesMode } from "@/domain/value-objects/GameConfig";
 
 type Step = "welcome" | "active";
-type Tab = "menu" | "cart" | "pedidos" | "chamar" | "conta";
+type Tab = "menu" | "cart" | "pedidos" | "chamar" | "conta" | "jogos";
 type OrderType = "rodizio" | "carta" | null;
 
 interface CategoryWithProducts extends Category {
@@ -78,6 +81,10 @@ export default function MesaPage() {
     availableOnly: true, // Only show available products
   });
 
+  // Game config (for gamesMode: 'selection' | 'random')
+  const [gamesMode, setGamesMode] = useState<GamesMode>("selection");
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+
   // Transform categories with products grouped
   const categories = useMemo<CategoryWithProducts[]>(() => {
     return rawCategories
@@ -93,6 +100,24 @@ export default function MesaPage() {
   // Orders/Tracking state
   const [sessionOrders, setSessionOrders] = useState<OrderWithProduct[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  // Products actually served this session (delivered or ready) – only these are shown in the rating game
+  const productsServedInSession = useMemo(() => {
+    const order: string[] = [];
+    const seen = new Set<string>();
+    for (const o of sessionOrders) {
+      if (o.status === "delivered" || o.status === "ready") {
+        const id = String(o.product_id);
+        if (!seen.has(id)) {
+          seen.add(id);
+          order.push(id);
+        }
+      }
+    }
+    return order
+      .map((id) => products.find((p) => String(p.id) === id))
+      .filter((p): p is Product => p != null);
+  }, [sessionOrders, products]);
 
   // UI state
   const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -138,6 +163,13 @@ export default function MesaPage() {
   // Broadcast notification state
   const [orderNotification, setOrderNotification] = useState<string | null>(null);
   const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Ratings (swipe game) state
+  const [ratingsStats, setRatingsStats] = useState<{
+    tableLeader: TableLeaderInfo | null;
+    userRatingCount: number;
+    totalRatingsAtTable: number;
+  }>({ tableLeader: null, userRatingCount: 0, totalRatingsAtTable: 0 });
 
   // Refs
   const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -210,18 +242,21 @@ export default function MesaPage() {
           setWaiterName(waiterData.staff_name);
         }
 
-        // Fetch cooldown setting from restaurant
+        // Fetch cooldown setting and games mode from restaurant
         const { data: restaurantData } = await (
           supabase as unknown as {
             from: (table: string) => ReturnType<typeof supabase.from>;
           }
         )
           .from("restaurants")
-          .select("order_cooldown_minutes")
+          .select("id, order_cooldown_minutes, games_mode")
           .eq("slug", localizacao)
           .single();
         if (restaurantData) {
-          setCooldownMinutes((restaurantData as Record<string, number>).order_cooldown_minutes ?? 0);
+          const rd = restaurantData as Record<string, unknown>;
+          setCooldownMinutes((rd.order_cooldown_minutes as number) ?? 0);
+          setGamesMode(((rd.games_mode as string) ?? "selection") as GamesMode);
+          if (rd.id) setRestaurantId(rd.id as string);
         }
 
         // Check for existing active session on this table
@@ -307,6 +342,31 @@ export default function MesaPage() {
       fetchSessionOrders();
     }
   }, [step, session, fetchSessionOrders]);
+
+  // Fetch ratings stats for swipe game (table leader, user count)
+  const fetchRatingsStats = useCallback(async () => {
+    if (!session?.id) return;
+    try {
+      const params = new URLSearchParams({ sessionId: session.id });
+      if (currentCustomer?.id) params.set("sessionCustomerId", currentCustomer.id);
+      const res = await fetch(`/api/mesa/ratings?${params}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setRatingsStats({
+        tableLeader: data.tableLeader ?? null,
+        userRatingCount: data.userRatingCount ?? 0,
+        totalRatingsAtTable: data.totalRatingsAtTable ?? 0,
+      });
+    } catch (e) {
+      console.error("Fetch ratings stats:", e);
+    }
+  }, [session?.id, currentCustomer?.id]);
+
+  useEffect(() => {
+    if (step === "active" && session?.id) {
+      fetchRatingsStats();
+    }
+  }, [step, session?.id, fetchRatingsStats]);
 
   // Real-time subscription for order updates
   useEffect(() => {
@@ -1198,29 +1258,6 @@ export default function MesaPage() {
                   </span>
                 </button>
 
-                <button
-                  onClick={() => setActiveTab("cart")}
-                  className="relative p-1.5"
-                >
-                  <svg
-                    className="w-5 h-5 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                    />
-                  </svg>
-                  {cartItemsCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-[#D4AF37] text-black text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                      {cartItemsCount}
-                    </span>
-                  )}
-                </button>
               </div>
             </div>
 
@@ -1869,6 +1906,28 @@ export default function MesaPage() {
             </div>
           )}
 
+          {/* Jogos Tab - Interactive games (includes Quiz, Preference, and Swipe Rating) */}
+          {activeTab === "jogos" && session && (
+            <GameHub
+              sessionId={session.id}
+              sessionCustomerId={currentCustomer?.id ?? null}
+              restaurantId={restaurantId}
+              gamesMode={gamesMode}
+              products={productsServedInSession}
+              tableLeader={ratingsStats.tableLeader}
+              leaderProductName={
+                ratingsStats.tableLeader
+                  ? products.find((p) => String(p.id) === String(ratingsStats.tableLeader!.productId))?.name ?? null
+                  : null
+              }
+              userRatingCount={ratingsStats.userRatingCount}
+              totalRatingsAtTable={ratingsStats.totalRatingsAtTable}
+              onRated={fetchRatingsStats}
+              onClose={() => setActiveTab("menu")}
+              t={t}
+            />
+          )}
+
           {/* Bottom Tab Bar */}
           <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#0D0D0D] border-t border-gray-800" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
             <div className="flex items-center justify-around h-16">
@@ -1929,6 +1988,18 @@ export default function MesaPage() {
                   )}
                 </div>
                 <span className="text-[10px] font-medium">{t("mesa.tabs.callStaff")}</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("jogos")}
+                className={`flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors ${
+                  activeTab === "jogos" ? "text-[#D4AF37]" : "text-gray-500"
+                }`}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-[10px] font-medium">{t("mesa.tabs.games")}</span>
               </button>
               <button
                 onClick={() => setActiveTab("conta")}

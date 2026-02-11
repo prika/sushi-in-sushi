@@ -23,6 +23,13 @@ interface DatabaseRestaurant {
   order_cooldown_minutes: number;
   show_upgrade_after_order: boolean;
   show_upgrade_at_bill: boolean;
+  games_enabled: boolean;
+  games_mode: string;
+  games_prize_type: string;
+  games_prize_value: string | null;
+  games_prize_product_id: number | null;
+  games_min_rounds_for_prize: number;
+  games_questions_per_round: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -120,6 +127,13 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
         order_cooldown_minutes: data.orderCooldownMinutes ?? 0,
         show_upgrade_after_order: data.showUpgradeAfterOrder ?? false,
         show_upgrade_at_bill: data.showUpgradeAtBill ?? false,
+        games_enabled: data.gamesEnabled ?? false,
+        games_mode: data.gamesMode ?? 'selection',
+        games_prize_type: data.gamesPrizeType ?? 'none',
+        games_prize_value: data.gamesPrizeValue ?? null,
+        games_prize_product_id: data.gamesPrizeProductId ? Number(data.gamesPrizeProductId) : null,
+        games_min_rounds_for_prize: data.gamesMinRoundsForPrize ?? 1,
+        games_questions_per_round: data.gamesQuestionsPerRound ?? 6,
         is_active: data.isActive ?? true,
       })
       .select()
@@ -144,6 +158,13 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
     if (data.orderCooldownMinutes !== undefined) updateData.order_cooldown_minutes = data.orderCooldownMinutes;
     if (data.showUpgradeAfterOrder !== undefined) updateData.show_upgrade_after_order = data.showUpgradeAfterOrder;
     if (data.showUpgradeAtBill !== undefined) updateData.show_upgrade_at_bill = data.showUpgradeAtBill;
+    if (data.gamesEnabled !== undefined) updateData.games_enabled = data.gamesEnabled;
+    if (data.gamesMode !== undefined) updateData.games_mode = data.gamesMode;
+    if (data.gamesPrizeType !== undefined) updateData.games_prize_type = data.gamesPrizeType;
+    if (data.gamesPrizeValue !== undefined) updateData.games_prize_value = data.gamesPrizeValue;
+    if (data.gamesPrizeProductId !== undefined) updateData.games_prize_product_id = data.gamesPrizeProductId ? Number(data.gamesPrizeProductId) : null;
+    if (data.gamesMinRoundsForPrize !== undefined) updateData.games_min_rounds_for_prize = data.gamesMinRoundsForPrize;
+    if (data.gamesQuestionsPerRound !== undefined) updateData.games_questions_per_round = data.gamesQuestionsPerRound;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
     const { data: updated, error } = await this.supabase
@@ -197,6 +218,13 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
       orderCooldownMinutes: row.order_cooldown_minutes,
       showUpgradeAfterOrder: row.show_upgrade_after_order,
       showUpgradeAtBill: row.show_upgrade_at_bill,
+      gamesEnabled: row.games_enabled,
+      gamesMode: (row.games_mode || 'selection') as Restaurant['gamesMode'],
+      gamesPrizeType: (row.games_prize_type || 'none') as Restaurant['gamesPrizeType'],
+      gamesPrizeValue: row.games_prize_value,
+      gamesPrizeProductId: row.games_prize_product_id ? String(row.games_prize_product_id) : null,
+      gamesMinRoundsForPrize: row.games_min_rounds_for_prize,
+      gamesQuestionsPerRound: row.games_questions_per_round,
       isActive: row.is_active,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
