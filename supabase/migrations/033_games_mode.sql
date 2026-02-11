@@ -1,4 +1,4 @@
--- Migration 031: Add games_mode to restaurants
+-- Migration 033: Add games_mode to restaurants
 -- Allows admin to choose between 'selection' (user picks game) and 'random' (random game assigned)
 
 ALTER TABLE restaurants

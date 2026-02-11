@@ -23,8 +23,13 @@ import {
   useTableManagement,
   useRestaurants,
   useLocations,
+  useProductsOptimized,
 } from "@/presentation/hooks";
-import type { Restaurant } from "@/domain/entities/Restaurant";
+import type {
+  Restaurant,
+  CreateRestaurantData,
+  UpdateRestaurantData,
+} from "@/domain/entities/Restaurant";
 import { SupabaseRestaurantRepository } from "@/infrastructure/repositories/SupabaseRestaurantRepository";
 import { SupabaseTableRepository } from "@/infrastructure/repositories/SupabaseTableRepository";
 import { CreateTablesForRestaurantUseCase } from "@/application/use-cases/restaurants";
@@ -1487,18 +1492,41 @@ function TableManagementTab() {
   }
 
   // Group tables by location dynamically
-  const tablesByLocation = locations.reduce((acc, location) => {
-    acc[location.slug] = tables.filter((t) => t.location === location.slug);
-    return acc;
-  }, {} as Record<string, typeof tables>);
+  const tablesByLocation = locations.reduce(
+    (acc, location) => {
+      acc[location.slug] = tables.filter((t) => t.location === location.slug);
+      return acc;
+    },
+    {} as Record<string, typeof tables>,
+  );
 
   // Color schemes for location sections (cycle through them)
   const colorSchemes = [
-    { bg: "bg-blue-50", text: "text-blue-900", button: "text-blue-600 hover:text-blue-800" },
-    { bg: "bg-purple-50", text: "text-purple-900", button: "text-purple-600 hover:text-purple-800" },
-    { bg: "bg-green-50", text: "text-green-900", button: "text-green-600 hover:text-green-800" },
-    { bg: "bg-orange-50", text: "text-orange-900", button: "text-orange-600 hover:text-orange-800" },
-    { bg: "bg-pink-50", text: "text-pink-900", button: "text-pink-600 hover:text-pink-800" },
+    {
+      bg: "bg-blue-50",
+      text: "text-blue-900",
+      button: "text-blue-600 hover:text-blue-800",
+    },
+    {
+      bg: "bg-purple-50",
+      text: "text-purple-900",
+      button: "text-purple-600 hover:text-purple-800",
+    },
+    {
+      bg: "bg-green-50",
+      text: "text-green-900",
+      button: "text-green-600 hover:text-green-800",
+    },
+    {
+      bg: "bg-orange-50",
+      text: "text-orange-900",
+      button: "text-orange-600 hover:text-orange-800",
+    },
+    {
+      bg: "bg-pink-50",
+      text: "text-pink-900",
+      button: "text-pink-600 hover:text-pink-800",
+    },
   ];
 
   const TableCard = ({
@@ -1794,7 +1822,9 @@ function TableManagementTab() {
               key={location.slug}
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
             >
-              <div className={`${colorScheme.bg} px-6 py-4 border-b border-gray-200 flex items-center justify-between`}>
+              <div
+                className={`${colorScheme.bg} px-6 py-4 border-b border-gray-200 flex items-center justify-between`}
+              >
                 <h2 className={`font-semibold ${colorScheme.text}`}>
                   {location.name}
                 </h2>
@@ -2033,6 +2063,9 @@ function TableManagementTab() {
 function RestaurantManagementTab() {
   const { restaurants, isLoading, error, create, update, remove } =
     useRestaurants();
+  const { products, isLoading: isLoadingProducts } = useProductsOptimized({
+    availableOnly: false,
+  });
 
   const [showModal, setShowModal] = useState(false);
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(
@@ -2054,11 +2087,24 @@ function RestaurantManagementTab() {
     isActive: true,
     gamesEnabled: false,
     gamesMode: "selection" as "selection" | "random",
-    gamesPrizeType: "none" as "none" | "discount_percentage" | "free_product" | "free_dinner",
+    gamesPrizeType: "none" as
+      | "none"
+      | "discount_percentage"
+      | "free_product"
+      | "free_dinner",
     gamesPrizeValue: "",
     gamesPrizeProductId: "",
     gamesMinRoundsForPrize: 3,
     gamesQuestionsPerRound: 5,
+  });
+
+  const toRestaurantPayload = (
+    fd: typeof formData,
+  ): CreateRestaurantData & UpdateRestaurantData => ({
+    ...fd,
+    gamesPrizeProductId: fd.gamesPrizeProductId?.trim()
+      ? Number(fd.gamesPrizeProductId)
+      : null,
   });
 
   const handleOpenModal = (restaurant?: Restaurant) => {
@@ -2078,7 +2124,10 @@ function RestaurantManagementTab() {
         gamesMode: restaurant.gamesMode,
         gamesPrizeType: restaurant.gamesPrizeType,
         gamesPrizeValue: restaurant.gamesPrizeValue ?? "",
-        gamesPrizeProductId: restaurant.gamesPrizeProductId ?? "",
+        gamesPrizeProductId:
+          restaurant.gamesPrizeProductId != null
+            ? String(restaurant.gamesPrizeProductId)
+            : "",
         gamesMinRoundsForPrize: restaurant.gamesMinRoundsForPrize,
         gamesQuestionsPerRound: restaurant.gamesQuestionsPerRound,
       });
@@ -2109,6 +2158,17 @@ function RestaurantManagementTab() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validação: prémio "produto grátis" requer produto selecionado
+    if (
+      formData.gamesPrizeType === "free_product" &&
+      !formData.gamesPrizeProductId?.trim()
+    ) {
+      alert(
+        "Selecione o produto do prémio quando o tipo de prémio é «Produto grátis».",
+      );
+      return;
+    }
+
     // Validação ao editar: verificar se lotação mudou
     if (
       editingRestaurant &&
@@ -2131,7 +2191,7 @@ function RestaurantManagementTab() {
         setCreatingTables(true);
         try {
           // 1. Atualizar restaurante
-          await update(editingRestaurant.id, formData);
+          await update(editingRestaurant.id, toRestaurantPayload(formData));
 
           // 2. Recriar mesas
           const supabase = createClient();
@@ -2168,7 +2228,7 @@ function RestaurantManagementTab() {
         return;
       } else {
         // Só atualiza restaurante, sem recriar mesas
-        await update(editingRestaurant.id, formData);
+        await update(editingRestaurant.id, toRestaurantPayload(formData));
         setShowModal(false);
         return;
       }
@@ -2179,10 +2239,10 @@ function RestaurantManagementTab() {
     try {
       if (editingRestaurant) {
         // Edição sem mudança de lotação
-        await update(editingRestaurant.id, formData);
+        await update(editingRestaurant.id, toRestaurantPayload(formData));
       } else {
         // Ao criar: cria restaurante + mesas automaticamente
-        const restaurant = await create(formData);
+        const restaurant = await create(toRestaurantPayload(formData));
 
         if (restaurant) {
           // Criar mesas automaticamente
@@ -2421,7 +2481,10 @@ function RestaurantManagementTab() {
             <div className="flex flex-wrap gap-2 mb-4">
               {restaurant.gamesEnabled && (
                 <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                  Jogos {restaurant.gamesMode === "random" ? "(aleatorio)" : "(selecao)"}
+                  Jogos{" "}
+                  {restaurant.gamesMode === "random"
+                    ? "(aleatorio)"
+                    : "(selecao)"}
                   {restaurant.gamesPrizeType !== "none" && " + Premio"}
                 </span>
               )}
@@ -2650,22 +2713,29 @@ function RestaurantManagementTab() {
                     <div className="text-sm text-blue-800">
                       {(() => {
                         const ppt = formData.defaultPeoplePerTable || 4;
-                        const totalTables = Math.ceil(formData.maxCapacity / ppt);
+                        const totalTables = Math.ceil(
+                          formData.maxCapacity / ppt,
+                        );
                         const totalCapacity = totalTables * ppt;
 
                         return (
                           <>
                             <div className="flex flex-wrap gap-2 mb-2">
                               <span className="px-2 py-1 bg-blue-200 text-blue-900 text-xs font-medium rounded-full">
-                                {totalTables} mesa{totalTables > 1 ? "s" : ""} de {ppt} pessoas
+                                {totalTables} mesa{totalTables > 1 ? "s" : ""}{" "}
+                                de {ppt} pessoas
                               </span>
                             </div>
                             <div className="text-xs text-blue-700 font-medium">
-                              📊 Total: {totalTables} mesa{totalTables > 1 ? "s" : ""} = {totalCapacity} lugares
+                              📊 Total: {totalTables} mesa
+                              {totalTables > 1 ? "s" : ""} = {totalCapacity}{" "}
+                              lugares
                               {totalCapacity > formData.maxCapacity && (
                                 <span className="ml-2 text-yellow-700">
                                   (+{totalCapacity - formData.maxCapacity} lugar
-                                  {totalCapacity - formData.maxCapacity > 1 ? "es" : ""}{" "}
+                                  {totalCapacity - formData.maxCapacity > 1
+                                    ? "es"
+                                    : ""}{" "}
                                   extra)
                                 </span>
                               )}
@@ -2822,7 +2892,9 @@ function RestaurantManagementTab() {
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                       >
-                        <option value="selection">Pagina de selecao de jogos</option>
+                        <option value="selection">
+                          Pagina de selecao de jogos
+                        </option>
                         <option value="random">Jogos aleatorios</option>
                       </select>
                       <p className="text-xs text-gray-500 mt-1">
@@ -2845,7 +2917,8 @@ function RestaurantManagementTab() {
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            gamesQuestionsPerRound: parseInt(e.target.value) || 5,
+                            gamesQuestionsPerRound:
+                              parseInt(e.target.value) || 5,
                           })
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
@@ -2859,20 +2932,63 @@ function RestaurantManagementTab() {
                       </label>
                       <select
                         value={formData.gamesPrizeType}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const newType = e.target
+                            .value as typeof formData.gamesPrizeType;
                           setFormData({
                             ...formData,
-                            gamesPrizeType: e.target.value as typeof formData.gamesPrizeType,
-                          })
-                        }
+                            gamesPrizeType: newType,
+                            gamesPrizeProductId:
+                              newType === "free_product"
+                                ? formData.gamesPrizeProductId
+                                : "",
+                          });
+                        }}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                       >
                         <option value="none">Sem premio</option>
-                        <option value="discount_percentage">Desconto (%)</option>
+                        <option value="discount_percentage">
+                          Desconto (%)
+                        </option>
                         <option value="free_product">Produto gratis</option>
                         <option value="free_dinner">Jantar gratis</option>
                       </select>
                     </div>
+
+                    {/* Prize Product - shown for free_product */}
+                    {formData.gamesPrizeType === "free_product" && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Produto do premio
+                        </label>
+                        <select
+                          value={formData.gamesPrizeProductId}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              gamesPrizeProductId: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                        >
+                          <option value="">Selecionar produto</option>
+                          {isLoadingProducts ? (
+                            <option value="" disabled>
+                              A carregar produtos...
+                            </option>
+                          ) : (
+                            products.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Produto que o cliente ganha ao completar as rondas
+                        </p>
+                      </div>
+                    )}
 
                     {/* Prize Value - shown for discount and free_dinner */}
                     {(formData.gamesPrizeType === "discount_percentage" ||
@@ -2884,9 +3000,21 @@ function RestaurantManagementTab() {
                             : "Descricao do premio"}
                         </label>
                         <input
-                          type={formData.gamesPrizeType === "discount_percentage" ? "number" : "text"}
-                          min={formData.gamesPrizeType === "discount_percentage" ? "1" : undefined}
-                          max={formData.gamesPrizeType === "discount_percentage" ? "100" : undefined}
+                          type={
+                            formData.gamesPrizeType === "discount_percentage"
+                              ? "number"
+                              : "text"
+                          }
+                          min={
+                            formData.gamesPrizeType === "discount_percentage"
+                              ? "1"
+                              : undefined
+                          }
+                          max={
+                            formData.gamesPrizeType === "discount_percentage"
+                              ? "100"
+                              : undefined
+                          }
                           value={formData.gamesPrizeValue}
                           onChange={(e) =>
                             setFormData({
@@ -2923,13 +3051,15 @@ function RestaurantManagementTab() {
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              gamesMinRoundsForPrize: parseInt(e.target.value) || 3,
+                              gamesMinRoundsForPrize:
+                                parseInt(e.target.value) || 3,
                             })
                           }
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          Numero de rondas que a mesa precisa jogar para ganhar premio
+                          Numero de rondas que a mesa precisa jogar para ganhar
+                          premio
                         </p>
                       </div>
                     )}

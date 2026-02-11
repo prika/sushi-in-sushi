@@ -9,7 +9,10 @@ const TIMER_SECONDS = 15;
 
 interface QuizGameProps {
   questions: GameQuestion[];
-  onAnswer: (questionId: string, selectedIndex: number) => Promise<GameAnswer | null>;
+  onAnswer: (
+    questionId: string,
+    selectedIndex: number,
+  ) => Promise<GameAnswer | null>;
   onComplete: () => void;
   onClose: () => void;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -31,11 +34,12 @@ export function QuizGame({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const current = questions[currentIndex];
   const total = questions.length;
   const isFinished = currentIndex >= total;
-  const progress = total > 0 ? ((currentIndex) / total) * 100 : 0;
+  const progress = total > 0 ? (currentIndex / total) * 100 : 0;
 
   // Timer
   useEffect(() => {
@@ -57,6 +61,14 @@ export function QuizGame({
     };
   }, [currentIndex, isFinished, answerState]);
 
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
   // Handle timeout
   useEffect(() => {
     if (timeLeft === 0 && answerState === "idle" && !isFinished) {
@@ -70,7 +82,9 @@ export function QuizGame({
     setAnswerState("timeout");
     setSelectedOption(null);
 
-    setTimeout(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null;
       advanceQuestion();
     }, 1500);
   }, []);
@@ -99,16 +113,22 @@ export function QuizGame({
 
       setIsSubmitting(false);
 
-      setTimeout(() => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        timeoutRef.current = null;
         advanceQuestion();
       }, 1500);
     },
-    [answerState, isSubmitting, current, onAnswer, advanceQuestion]
+    [answerState, isSubmitting, current, onAnswer, advanceQuestion],
   );
 
   const timerPercent = (timeLeft / TIMER_SECONDS) * 100;
   const timerColor =
-    timeLeft > 10 ? "bg-green-500" : timeLeft > 5 ? "bg-yellow-500" : "bg-red-500";
+    timeLeft > 10
+      ? "bg-green-500"
+      : timeLeft > 5
+        ? "bg-yellow-500"
+        : "bg-red-500";
 
   return (
     <div
@@ -250,11 +270,9 @@ export function QuizGame({
                       optionStyle =
                         "border-green-500 bg-green-500/10 text-green-400";
                     } else if (isSelected && !isCorrectAnswer) {
-                      optionStyle =
-                        "border-red-500 bg-red-500/10 text-red-400";
+                      optionStyle = "border-red-500 bg-red-500/10 text-red-400";
                     } else {
-                      optionStyle =
-                        "border-gray-800 bg-[#111] text-gray-600";
+                      optionStyle = "border-gray-800 bg-[#111] text-gray-600";
                     }
                   }
 
@@ -306,7 +324,8 @@ export function QuizGame({
                   >
                     {answerState === "correct" && (
                       <p className="text-green-400 font-medium">
-                        ✅ {t("mesa.games.quiz.correct", { pts: current.points })}
+                        ✅{" "}
+                        {t("mesa.games.quiz.correct", { pts: current.points })}
                       </p>
                     )}
                     {answerState === "wrong" && (

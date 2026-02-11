@@ -32,7 +32,7 @@ export class StartGameSessionUseCase {
         return Results.error('ID da sessão é obrigatório', 'MISSING_SESSION_ID');
       }
 
-      const questionsPerRound = input.questionsPerRound ?? 5;
+      const questionsPerRound = Math.max(1, Math.min(input.questionsPerRound ?? 5, 50));
 
       // Calculate round number from existing sessions
       const existingSessions = await this.gameSessionRepository.findBySessionId(input.sessionId);
@@ -57,10 +57,11 @@ export class StartGameSessionUseCase {
         totalQuestions: questionsPerRound,
       });
 
-      // Fetch random questions for this round
+      // Fetch random questions for this round, filtered by game type
+      const gameTypes = input.gameType ? [input.gameType] : undefined;
       const questions = await this.gameQuestionRepository.findRandom(
         questionsPerRound,
-        undefined,
+        gameTypes,
         input.restaurantId
       );
 

@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS product_ratings (
 CREATE INDEX IF NOT EXISTS idx_product_ratings_session ON product_ratings(session_id);
 CREATE INDEX IF NOT EXISTS idx_product_ratings_product ON product_ratings(product_id);
 
+-- Deduplicate anonymous ratings: UNIQUE allows multiple NULLs, so we need a partial index
+CREATE UNIQUE INDEX IF NOT EXISTS idx_product_ratings_anon_unique
+ON product_ratings(session_id, product_id)
+WHERE session_customer_id IS NULL;
+
 COMMENT ON TABLE product_ratings IS 'Customer ratings from mesa swipe game; used for table leader and free drink reward';
 
 ALTER TABLE product_ratings ENABLE ROW LEVEL SECURITY;

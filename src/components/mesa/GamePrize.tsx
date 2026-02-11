@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { generateQRCodeDataURL } from "@/lib/qrcode";
+import { useToast } from "@/components/ui";
 import type { GamePrize as GamePrizeEntity } from "@/domain/entities/GamePrize";
 
 export interface GamePrizeProps {
@@ -27,6 +28,7 @@ function getPrizeQRPayload(prizeId: string): string {
 }
 
 export function GamePrize({ prize, onRedeem, onClose, t }: GamePrizeProps) {
+  const { showToast } = useToast();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isRedeeming, setIsRedeeming] = useState(false);
@@ -42,18 +44,22 @@ export function GamePrize({ prize, onRedeem, onClose, t }: GamePrizeProps) {
 
   // Reveal animation after mount
   useEffect(() => {
-    const t = setTimeout(() => setIsRevealed(true), 100);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setIsRevealed(true), 100);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleRedeem = useCallback(async () => {
     setIsRedeeming(true);
     try {
       await onRedeem(prize.id);
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : t("mesa.games.prize.redeemError");
+      showToast("error", message);
     } finally {
       setIsRedeeming(false);
     }
-  }, [prize.id, onRedeem]);
+  }, [prize.id, onRedeem, showToast, t]);
 
   const description =
     prize.prizeDescription || prize.prizeValue || t("mesa.games.prize.default");
@@ -126,7 +132,8 @@ export function GamePrize({ prize, onRedeem, onClose, t }: GamePrizeProps) {
                 {description}
               </p>
               <p className="text-sm text-gray-500 mb-6">
-                {prize.displayName} · {prize.totalScore} {t("mesa.games.points")}
+                {prize.displayName} · {prize.totalScore}{" "}
+                {t("mesa.games.points")}
               </p>
 
               {/* QR Code */}
@@ -199,7 +206,11 @@ export function GamePrize({ prize, onRedeem, onClose, t }: GamePrizeProps) {
             >
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 0.3 }}
+                transition={{
+                  duration: 0.6,
+                  repeat: Infinity,
+                  repeatDelay: 0.3,
+                }}
                 className="text-5xl mb-4"
               >
                 🎁

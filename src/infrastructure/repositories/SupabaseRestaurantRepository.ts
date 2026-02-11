@@ -1,12 +1,12 @@
-import { createClient } from '@/lib/supabase/client';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { IRestaurantRepository } from '@/domain/repositories/IRestaurantRepository';
+import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { IRestaurantRepository } from "@/domain/repositories/IRestaurantRepository";
 import {
   Restaurant,
   CreateRestaurantData,
   UpdateRestaurantData,
   RestaurantFilter,
-} from '@/domain/entities/Restaurant';
+} from "@/domain/entities/Restaurant";
 
 // Database type (snake_case)
 interface DatabaseRestaurant {
@@ -43,53 +43,43 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
   }
 
   async findAll(filter?: RestaurantFilter): Promise<Restaurant[]> {
-    console.log('[SupabaseRestaurantRepository] findAll called with filter:', filter);
-
     let query = this.supabase
-      .from('restaurants')
-      .select('*')
-      .order('name', { ascending: true });
+      .from("restaurants")
+      .select("*")
+      .order("name", { ascending: true });
 
     if (filter?.isActive !== undefined) {
-      query = query.eq('is_active', filter.isActive);
+      query = query.eq("is_active", filter.isActive);
     }
 
     if (filter?.slug) {
-      query = query.eq('slug', filter.slug);
+      query = query.eq("slug", filter.slug);
     }
 
-    console.log('[SupabaseRestaurantRepository] Executing query...');
     const { data, error } = await query;
 
-    console.log('[SupabaseRestaurantRepository] Query result:', { data, error });
-
     if (error) {
-      console.error('[SupabaseRestaurantRepository] Query error:', error);
       throw new Error(error.message);
     }
 
-    const restaurants = (data || []).map((row: DatabaseRestaurant) => this.mapToEntity(row));
-    console.log('[SupabaseRestaurantRepository] Mapped restaurants:', restaurants.length);
-
-    return restaurants;
+    return (data || []).map((row: DatabaseRestaurant) =>
+      this.mapToEntity(row),
+    );
   }
 
   async findActive(): Promise<Restaurant[]> {
-    console.log('[SupabaseRestaurantRepository] findActive called');
-    const result = await this.findAll({ isActive: true });
-    console.log('[SupabaseRestaurantRepository] findActive returning:', result.length, 'restaurants');
-    return result;
+    return this.findAll({ isActive: true });
   }
 
   async findById(id: string): Promise<Restaurant | null> {
     const { data, error } = await this.supabase
-      .from('restaurants')
-      .select('*')
-      .eq('id', id)
+      .from("restaurants")
+      .select("*")
+      .eq("id", id)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
+      if (error.code === "PGRST116") return null; // Not found
       throw new Error(error.message);
     }
 
@@ -98,13 +88,13 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
 
   async findBySlug(slug: string): Promise<Restaurant | null> {
     const { data, error } = await this.supabase
-      .from('restaurants')
-      .select('*')
-      .eq('slug', slug)
+      .from("restaurants")
+      .select("*")
+      .eq("slug", slug)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') return null;
+      if (error.code === "PGRST116") return null;
       throw new Error(error.message);
     }
 
@@ -113,7 +103,7 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
 
   async create(data: CreateRestaurantData): Promise<Restaurant> {
     const { data: created, error } = await this.supabase
-      .from('restaurants')
+      .from("restaurants")
       .insert({
         name: data.name,
         slug: data.slug,
@@ -128,10 +118,10 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
         show_upgrade_after_order: data.showUpgradeAfterOrder ?? false,
         show_upgrade_at_bill: data.showUpgradeAtBill ?? false,
         games_enabled: data.gamesEnabled ?? false,
-        games_mode: data.gamesMode ?? 'selection',
-        games_prize_type: data.gamesPrizeType ?? 'none',
+        games_mode: data.gamesMode ?? "selection",
+        games_prize_type: data.gamesPrizeType ?? "none",
         games_prize_value: data.gamesPrizeValue ?? null,
-        games_prize_product_id: data.gamesPrizeProductId ? Number(data.gamesPrizeProductId) : null,
+        games_prize_product_id: data.gamesPrizeProductId ?? null,
         games_min_rounds_for_prize: data.gamesMinRoundsForPrize ?? 1,
         games_questions_per_round: data.gamesQuestionsPerRound ?? 6,
         is_active: data.isActive ?? true,
@@ -151,26 +141,39 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
     if (data.address !== undefined) updateData.address = data.address;
     if (data.latitude !== undefined) updateData.latitude = data.latitude;
     if (data.longitude !== undefined) updateData.longitude = data.longitude;
-    if (data.maxCapacity !== undefined) updateData.max_capacity = data.maxCapacity;
-    if (data.defaultPeoplePerTable !== undefined) updateData.default_people_per_table = data.defaultPeoplePerTable;
-    if (data.autoTableAssignment !== undefined) updateData.auto_table_assignment = data.autoTableAssignment;
-    if (data.autoReservations !== undefined) updateData.auto_reservations = data.autoReservations;
-    if (data.orderCooldownMinutes !== undefined) updateData.order_cooldown_minutes = data.orderCooldownMinutes;
-    if (data.showUpgradeAfterOrder !== undefined) updateData.show_upgrade_after_order = data.showUpgradeAfterOrder;
-    if (data.showUpgradeAtBill !== undefined) updateData.show_upgrade_at_bill = data.showUpgradeAtBill;
-    if (data.gamesEnabled !== undefined) updateData.games_enabled = data.gamesEnabled;
+    if (data.maxCapacity !== undefined)
+      updateData.max_capacity = data.maxCapacity;
+    if (data.defaultPeoplePerTable !== undefined)
+      updateData.default_people_per_table = data.defaultPeoplePerTable;
+    if (data.autoTableAssignment !== undefined)
+      updateData.auto_table_assignment = data.autoTableAssignment;
+    if (data.autoReservations !== undefined)
+      updateData.auto_reservations = data.autoReservations;
+    if (data.orderCooldownMinutes !== undefined)
+      updateData.order_cooldown_minutes = data.orderCooldownMinutes;
+    if (data.showUpgradeAfterOrder !== undefined)
+      updateData.show_upgrade_after_order = data.showUpgradeAfterOrder;
+    if (data.showUpgradeAtBill !== undefined)
+      updateData.show_upgrade_at_bill = data.showUpgradeAtBill;
+    if (data.gamesEnabled !== undefined)
+      updateData.games_enabled = data.gamesEnabled;
     if (data.gamesMode !== undefined) updateData.games_mode = data.gamesMode;
-    if (data.gamesPrizeType !== undefined) updateData.games_prize_type = data.gamesPrizeType;
-    if (data.gamesPrizeValue !== undefined) updateData.games_prize_value = data.gamesPrizeValue;
-    if (data.gamesPrizeProductId !== undefined) updateData.games_prize_product_id = data.gamesPrizeProductId ? Number(data.gamesPrizeProductId) : null;
-    if (data.gamesMinRoundsForPrize !== undefined) updateData.games_min_rounds_for_prize = data.gamesMinRoundsForPrize;
-    if (data.gamesQuestionsPerRound !== undefined) updateData.games_questions_per_round = data.gamesQuestionsPerRound;
+    if (data.gamesPrizeType !== undefined)
+      updateData.games_prize_type = data.gamesPrizeType;
+    if (data.gamesPrizeValue !== undefined)
+      updateData.games_prize_value = data.gamesPrizeValue;
+    if (data.gamesPrizeProductId !== undefined)
+      updateData.games_prize_product_id = data.gamesPrizeProductId ?? null;
+    if (data.gamesMinRoundsForPrize !== undefined)
+      updateData.games_min_rounds_for_prize = data.gamesMinRoundsForPrize;
+    if (data.gamesQuestionsPerRound !== undefined)
+      updateData.games_questions_per_round = data.gamesQuestionsPerRound;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
     const { data: updated, error } = await this.supabase
-      .from('restaurants')
+      .from("restaurants")
       .update(updateData)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -180,21 +183,18 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
 
   async delete(id: string): Promise<void> {
     const { error } = await this.supabase
-      .from('restaurants')
+      .from("restaurants")
       .delete()
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) throw new Error(error.message);
   }
 
   async validateSlugUnique(slug: string, excludeId?: string): Promise<boolean> {
-    let query = this.supabase
-      .from('restaurants')
-      .select('id')
-      .eq('slug', slug);
+    let query = this.supabase.from("restaurants").select("id").eq("slug", slug);
 
     if (excludeId) {
-      query = query.neq('id', excludeId);
+      query = query.neq("id", excludeId);
     }
 
     const { data, error } = await query;
@@ -219,10 +219,11 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
       showUpgradeAfterOrder: row.show_upgrade_after_order,
       showUpgradeAtBill: row.show_upgrade_at_bill,
       gamesEnabled: row.games_enabled,
-      gamesMode: (row.games_mode || 'selection') as Restaurant['gamesMode'],
-      gamesPrizeType: (row.games_prize_type || 'none') as Restaurant['gamesPrizeType'],
+      gamesMode: (row.games_mode ?? "selection") as Restaurant["gamesMode"],
+      gamesPrizeType: (row.games_prize_type ??
+        "none") as Restaurant["gamesPrizeType"],
       gamesPrizeValue: row.games_prize_value,
-      gamesPrizeProductId: row.games_prize_product_id ? String(row.games_prize_product_id) : null,
+      gamesPrizeProductId: row.games_prize_product_id ?? null,
       gamesMinRoundsForPrize: row.games_min_rounds_for_prize,
       gamesQuestionsPerRound: row.games_questions_per_round,
       isActive: row.is_active,

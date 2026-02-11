@@ -1,11 +1,11 @@
-import { createClient } from '@/lib/supabase/client';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { IGameAnswerRepository, LeaderboardEntry } from '@/domain/repositories/IGameAnswerRepository';
+import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  GameAnswer,
-  CreateGameAnswerData,
-} from '@/domain/entities/GameAnswer';
-import type { GameType } from '@/domain/entities/GameQuestion';
+  IGameAnswerRepository,
+  LeaderboardEntry,
+} from "@/domain/repositories/IGameAnswerRepository";
+import { GameAnswer, CreateGameAnswerData } from "@/domain/entities/GameAnswer";
+import type { GameType } from "@/domain/entities/GameQuestion";
 
 interface DatabaseGameAnswer {
   id: string;
@@ -45,14 +45,14 @@ export class SupabaseGameAnswerRepository implements IGameAnswerRepository {
 
     // Try insert first; on unique conflict, update the existing row
     const { data: created, error } = await this.supabase
-      .from('game_answers')
+      .from("game_answers")
       .insert(row)
       .select()
       .single();
 
     if (error) {
       // Unique constraint violation (23505) — update existing row instead
-      if (error.code === '23505') {
+      if (error.code === "23505") {
         return this.updateExisting(data);
       }
       throw new Error(error.message);
@@ -61,28 +61,34 @@ export class SupabaseGameAnswerRepository implements IGameAnswerRepository {
     return this.mapToEntity(created);
   }
 
-  private async updateExisting(data: CreateGameAnswerData): Promise<GameAnswer> {
+  private async updateExisting(
+    data: CreateGameAnswerData,
+  ): Promise<GameAnswer> {
     let query = this.supabase
-      .from('game_answers')
+      .from("game_answers")
       .update({
         answer: data.answer,
         score_earned: data.scoreEarned ?? 0,
         answered_at: new Date().toISOString(),
       })
-      .eq('game_session_id', data.gameSessionId);
+      .eq("game_session_id", data.gameSessionId);
 
-    // Match on the correct deduplication column
-    if (data.productId != null) {
-      query = query.eq('product_id', data.productId);
+    // Match on the correct deduplication column (DB requires question_id OR product_id)
+    if (data.productId !== null && data.productId !== undefined) {
+      query = query.eq("product_id", data.productId);
+    } else if (data.questionId !== null && data.questionId !== undefined) {
+      query = query.eq("question_id", data.questionId);
     } else {
-      query = query.eq('question_id', data.questionId!);
+      throw new Error(
+        "Either questionId or productId must be provided for game answer",
+      );
     }
 
     // Match session_customer_id (handle NULL)
     if (data.sessionCustomerId) {
-      query = query.eq('session_customer_id', data.sessionCustomerId);
+      query = query.eq("session_customer_id", data.sessionCustomerId);
     } else {
-      query = query.is('session_customer_id', null);
+      query = query.is("session_customer_id", null);
     }
 
     const { data: updated, error } = await query.select().single();
@@ -92,22 +98,25 @@ export class SupabaseGameAnswerRepository implements IGameAnswerRepository {
 
   async findByGameSession(gameSessionId: string): Promise<GameAnswer[]> {
     const { data, error } = await this.supabase
-      .from('game_answers')
-      .select('*')
-      .eq('game_session_id', gameSessionId)
-      .order('answered_at', { ascending: true });
+      .from("game_answers")
+      .select("*")
+      .eq("game_session_id", gameSessionId)
+      .order("answered_at", { ascending: true });
 
     if (error) throw new Error(error.message);
     return (data || []).map(this.mapToEntity);
   }
 
-  async findBySessionCustomer(gameSessionId: string, sessionCustomerId: string): Promise<GameAnswer[]> {
+  async findBySessionCustomer(
+    gameSessionId: string,
+    sessionCustomerId: string,
+  ): Promise<GameAnswer[]> {
     const { data, error } = await this.supabase
-      .from('game_answers')
-      .select('*')
-      .eq('game_session_id', gameSessionId)
-      .eq('session_customer_id', sessionCustomerId)
-      .order('answered_at', { ascending: true });
+      .from("game_answers")
+      .select("*")
+      .eq("game_session_id", gameSessionId)
+      .eq("session_customer_id", sessionCustomerId)
+      .order("answered_at", { ascending: true });
 
     if (error) throw new Error(error.message);
     return (data || []).map(this.mapToEntity);
@@ -116,9 +125,9 @@ export class SupabaseGameAnswerRepository implements IGameAnswerRepository {
   async getLeaderboard(gameSessionId: string): Promise<LeaderboardEntry[]> {
     // Fetch all answers for this game session
     const { data: answers, error: answersError } = await this.supabase
-      .from('game_answers')
-      .select('session_customer_id, score_earned')
-      .eq('game_session_id', gameSessionId);
+      .from("game_answers")
+      .select("session_customer_id, score_earned")
+      .eq("game_session_id", gameSessionId);
 
     if (answersError) throw new Error(answersError.message);
     if (!answers || answers.length === 0) return [];
@@ -126,20 +135,22 @@ export class SupabaseGameAnswerRepository implements IGameAnswerRepository {
     // Aggregate scores by session_customer_id in JS
     const scoreMap = new Map<string, number>();
     for (const answer of answers) {
-      const customerId = answer.session_customer_id || 'anonymous';
+      const customerId = answer.session_customer_id || "anonymous";
       const current = scoreMap.get(customerId) || 0;
       scoreMap.set(customerId, current + (answer.score_earned || 0));
     }
 
     // Get display names for all session_customer_ids
-    const customerIds = Array.from(scoreMap.keys()).filter((id) => id !== 'anonymous');
+    const customerIds = Array.from(scoreMap.keys()).filter(
+      (id) => id !== "anonymous",
+    );
     const displayNameMap = new Map<string, string>();
 
     if (customerIds.length > 0) {
       const { data: customers, error: customersError } = await this.supabase
-        .from('session_customers')
-        .select('id, display_name')
-        .in('id', customerIds);
+        .from("session_customers")
+        .select("id, display_name")
+        .in("id", customerIds);
 
       if (customersError) throw new Error(customersError.message);
       if (customers) {
@@ -153,10 +164,11 @@ export class SupabaseGameAnswerRepository implements IGameAnswerRepository {
     const leaderboard: LeaderboardEntry[] = [];
     for (const [customerId, totalScore] of Array.from(scoreMap.entries())) {
       leaderboard.push({
-        sessionCustomerId: customerId === 'anonymous' ? null : customerId,
-        displayName: customerId === 'anonymous'
-          ? 'Anonymous'
-          : displayNameMap.get(customerId) || 'Unknown',
+        sessionCustomerId: customerId === "anonymous" ? null : customerId,
+        displayName:
+          customerId === "anonymous"
+            ? "Anonymous"
+            : displayNameMap.get(customerId) || "Unknown",
         totalScore,
       });
     }
@@ -168,9 +180,9 @@ export class SupabaseGameAnswerRepository implements IGameAnswerRepository {
   async getSessionLeaderboard(sessionId: string): Promise<LeaderboardEntry[]> {
     // First get all game_session IDs for this restaurant session
     const { data: gameSessions, error: sessionsError } = await this.supabase
-      .from('game_sessions')
-      .select('id')
-      .eq('session_id', sessionId);
+      .from("game_sessions")
+      .select("id")
+      .eq("session_id", sessionId);
 
     if (sessionsError) throw new Error(sessionsError.message);
     if (!gameSessions || gameSessions.length === 0) return [];
@@ -179,9 +191,9 @@ export class SupabaseGameAnswerRepository implements IGameAnswerRepository {
 
     // Fetch all answers across all game sessions for this session
     const { data: answers, error: answersError } = await this.supabase
-      .from('game_answers')
-      .select('session_customer_id, score_earned')
-      .in('game_session_id', gameSessionIds);
+      .from("game_answers")
+      .select("session_customer_id, score_earned")
+      .in("game_session_id", gameSessionIds);
 
     if (answersError) throw new Error(answersError.message);
     if (!answers || answers.length === 0) return [];
@@ -189,20 +201,22 @@ export class SupabaseGameAnswerRepository implements IGameAnswerRepository {
     // Aggregate scores by session_customer_id in JS
     const scoreMap = new Map<string, number>();
     for (const answer of answers) {
-      const customerId = answer.session_customer_id || 'anonymous';
+      const customerId = answer.session_customer_id || "anonymous";
       const current = scoreMap.get(customerId) || 0;
       scoreMap.set(customerId, current + (answer.score_earned || 0));
     }
 
     // Get display names for all session_customer_ids
-    const customerIds = Array.from(scoreMap.keys()).filter((id) => id !== 'anonymous');
+    const customerIds = Array.from(scoreMap.keys()).filter(
+      (id) => id !== "anonymous",
+    );
     const displayNameMap = new Map<string, string>();
 
     if (customerIds.length > 0) {
       const { data: customers, error: customersError } = await this.supabase
-        .from('session_customers')
-        .select('id, display_name')
-        .in('id', customerIds);
+        .from("session_customers")
+        .select("id, display_name")
+        .in("id", customerIds);
 
       if (customersError) throw new Error(customersError.message);
       if (customers) {
@@ -216,10 +230,11 @@ export class SupabaseGameAnswerRepository implements IGameAnswerRepository {
     const leaderboard: LeaderboardEntry[] = [];
     for (const [customerId, totalScore] of Array.from(scoreMap.entries())) {
       leaderboard.push({
-        sessionCustomerId: customerId === 'anonymous' ? null : customerId,
-        displayName: customerId === 'anonymous'
-          ? 'Anonymous'
-          : displayNameMap.get(customerId) || 'Unknown',
+        sessionCustomerId: customerId === "anonymous" ? null : customerId,
+        displayName:
+          customerId === "anonymous"
+            ? "Anonymous"
+            : displayNameMap.get(customerId) || "Unknown",
         totalScore,
       });
     }

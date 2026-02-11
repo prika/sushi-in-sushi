@@ -2,8 +2,8 @@
  * GetGameLeaderboardUseCase - Obtém o leaderboard de uma sessão
  */
 
-import { IGameAnswerRepository } from '@/domain/repositories/IGameAnswerRepository';
-import { GameService, LeaderboardEntry } from '@/domain/services/GameService';
+import { IGameAnswerRepository, LeaderboardEntry } from '@/domain/repositories/IGameAnswerRepository';
+import { GameService } from '@/domain/services/GameService';
 import { Result, Results } from '../Result';
 
 export class GetGameLeaderboardUseCase {

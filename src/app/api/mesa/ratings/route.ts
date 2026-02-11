@@ -43,16 +43,19 @@ export async function GET(request: NextRequest) {
       ? { productId: leaderEntry[0], totalScore: leaderEntry[1].sum, voteCount: leaderEntry[1].count }
       : null;
 
-    // User's rating count: only for identified session_customer (so drink reward is per person)
-    const userRatingCount = sessionCustomerId
-      ? list.filter((r) => r.session_customer_id === sessionCustomerId).length
-      : 0;
+    // User's ratings: only for identified session_customer (so drink reward is per person)
+    const userRatings = sessionCustomerId
+      ? list.filter((r) => r.session_customer_id === sessionCustomerId)
+      : [];
+    const userRatingCount = userRatings.length;
+    const userRatedProductIds = userRatings.map((r) => Number(r.product_id));
 
     const totalRatingsAtTable = list.length;
 
     return NextResponse.json({
       tableLeader,
       userRatingCount,
+      userRatedProductIds,
       totalRatingsAtTable,
     });
   } catch (err) {

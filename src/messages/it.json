@@ -282,6 +282,7 @@
         "showStaff": "Mostra il QR code o il codice al personale per validare.",
         "redeem": "Riscatta",
         "redeeming": "Riscatto in corso...",
+        "redeemError": "Impossibile riscattare il premio. Riprova.",
         "revealing": "Svelando il premio..."
       },
       "hub": {

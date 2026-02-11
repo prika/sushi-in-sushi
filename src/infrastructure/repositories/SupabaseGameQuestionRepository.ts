@@ -97,8 +97,12 @@ export class SupabaseGameQuestionRepository implements IGameQuestionRepository {
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) return [];
 
-    // Shuffle in JS since Supabase doesn't support random ordering
-    const shuffled = [...data].sort(() => Math.random() - 0.5);
+    // Fisher-Yates shuffle for unbiased randomization
+    const shuffled = [...data];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
     const selected = shuffled.slice(0, count);
 
     return selected.map(this.mapToEntity);

@@ -685,8 +685,8 @@ supabase/migrations/
 ├── 029_games.sql                   # 4 tabelas de jogos + config restaurante
 ├── 030_game_questions_seed.sql     # 35 perguntas seed (quiz + preferência)
 ├── 031_game_answers_realtime.sql   # Real-time para respostas
-├── 031_games_mode.sql              # Modo de selecção de jogos
-└── 032_unified_game_scoring.sql    # Sistema de pontuação unificado
+├── 032_unified_game_scoring.sql    # Sistema de pontuação unificado
+└── 033_games_mode.sql              # Modo de selecção de jogos
 ```
 
 ---

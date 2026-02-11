@@ -1,24 +1,24 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { IRestaurantRepository } from '@/domain/repositories/IRestaurantRepository';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { IRestaurantRepository } from "@/domain/repositories/IRestaurantRepository";
 import {
   Restaurant,
   CreateRestaurantData,
   UpdateRestaurantData,
-} from '@/domain/entities/Restaurant';
+} from "@/domain/entities/Restaurant";
 import {
   GetAllRestaurantsUseCase,
   GetActiveRestaurantsUseCase,
   CreateRestaurantUseCase,
   UpdateRestaurantUseCase,
   DeleteRestaurantUseCase,
-} from '@/application/use-cases/restaurants';
+} from "@/application/use-cases/restaurants";
 
 // Mock Restaurant data
 const mockRestaurant: Restaurant = {
-  id: '123e4567-e89b-12d3-a456-426614174000',
-  name: 'Circunvalação',
-  slug: 'circunvalacao',
-  address: 'Via de Circunvalação, Porto',
+  id: "123e4567-e89b-12d3-a456-426614174000",
+  name: "Circunvalação",
+  slug: "circunvalacao",
+  address: "Via de Circunvalação, Porto",
   latitude: 41.1621,
   longitude: -8.6369,
   maxCapacity: 50,
@@ -26,24 +26,33 @@ const mockRestaurant: Restaurant = {
   autoTableAssignment: false,
   autoReservations: false,
   orderCooldownMinutes: 0,
+  showUpgradeAfterOrder: false,
+  showUpgradeAtBill: false,
+  gamesEnabled: false,
+  gamesMode: "selection",
+  gamesPrizeType: "none",
+  gamesPrizeValue: null,
+  gamesPrizeProductId: null,
+  gamesMinRoundsForPrize: 1,
+  gamesQuestionsPerRound: 6,
   isActive: true,
-  createdAt: new Date('2024-01-01'),
-  updatedAt: new Date('2024-01-01'),
+  createdAt: new Date("2024-01-01"),
+  updatedAt: new Date("2024-01-01"),
 };
 
 const mockRestaurant2: Restaurant = {
   ...mockRestaurant,
-  id: '223e4567-e89b-12d3-a456-426614174000',
-  name: 'Boavista',
-  slug: 'boavista',
-  address: 'Avenida da Boavista, Porto',
+  id: "223e4567-e89b-12d3-a456-426614174000",
+  name: "Boavista",
+  slug: "boavista",
+  address: "Avenida da Boavista, Porto",
 };
 
 const mockInactiveRestaurant: Restaurant = {
   ...mockRestaurant,
-  id: '323e4567-e89b-12d3-a456-426614174000',
-  name: 'Matosinhos',
-  slug: 'matosinhos',
+  id: "323e4567-e89b-12d3-a456-426614174000",
+  name: "Matosinhos",
+  slug: "matosinhos",
   isActive: false,
 };
 
@@ -59,7 +68,7 @@ const createMockRepository = (): IRestaurantRepository => ({
   validateSlugUnique: vi.fn(),
 });
 
-describe('Restaurants Use Cases', () => {
+describe("Restaurants Use Cases", () => {
   let mockRepository: IRestaurantRepository;
 
   beforeEach(() => {
@@ -70,9 +79,13 @@ describe('Restaurants Use Cases', () => {
   // =====================================================
   // GetAllRestaurantsUseCase
   // =====================================================
-  describe('GetAllRestaurantsUseCase', () => {
-    it('deve retornar todos os restaurantes', async () => {
-      const allRestaurants = [mockRestaurant, mockRestaurant2, mockInactiveRestaurant];
+  describe("GetAllRestaurantsUseCase", () => {
+    it("deve retornar todos os restaurantes", async () => {
+      const allRestaurants = [
+        mockRestaurant,
+        mockRestaurant2,
+        mockInactiveRestaurant,
+      ];
       vi.mocked(mockRepository.findAll).mockResolvedValue(allRestaurants);
 
       const useCase = new GetAllRestaurantsUseCase(mockRepository);
@@ -86,7 +99,7 @@ describe('Restaurants Use Cases', () => {
       expect(mockRepository.findAll).toHaveBeenCalledWith(undefined);
     });
 
-    it('deve retornar restaurantes filtrados por isActive', async () => {
+    it("deve retornar restaurantes filtrados por isActive", async () => {
       const activeRestaurants = [mockRestaurant, mockRestaurant2];
       vi.mocked(mockRepository.findAll).mockResolvedValue(activeRestaurants);
 
@@ -101,22 +114,24 @@ describe('Restaurants Use Cases', () => {
       expect(mockRepository.findAll).toHaveBeenCalledWith({ isActive: true });
     });
 
-    it('deve retornar restaurantes filtrados por slug', async () => {
+    it("deve retornar restaurantes filtrados por slug", async () => {
       vi.mocked(mockRepository.findAll).mockResolvedValue([mockRestaurant]);
 
       const useCase = new GetAllRestaurantsUseCase(mockRepository);
-      const result = await useCase.execute({ filter: { slug: 'circunvalacao' } });
+      const result = await useCase.execute({
+        filter: { slug: "circunvalacao" },
+      });
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data).toHaveLength(1);
-        expect(result.data[0].slug).toBe('circunvalacao');
+        expect(result.data[0].slug).toBe("circunvalacao");
       }
     });
 
-    it('deve retornar erro quando o repositório falha', async () => {
+    it("deve retornar erro quando o repositório falha", async () => {
       vi.mocked(mockRepository.findAll).mockRejectedValue(
-        new Error('Database connection failed')
+        new Error("Database connection failed"),
       );
 
       const useCase = new GetAllRestaurantsUseCase(mockRepository);
@@ -124,7 +139,7 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Database connection failed');
+        expect(result.error).toBe("Database connection failed");
       }
     });
   });
@@ -132,8 +147,8 @@ describe('Restaurants Use Cases', () => {
   // =====================================================
   // GetActiveRestaurantsUseCase
   // =====================================================
-  describe('GetActiveRestaurantsUseCase', () => {
-    it('deve retornar apenas restaurantes ativos', async () => {
+  describe("GetActiveRestaurantsUseCase", () => {
+    it("deve retornar apenas restaurantes ativos", async () => {
       const activeRestaurants = [mockRestaurant, mockRestaurant2];
       vi.mocked(mockRepository.findActive).mockResolvedValue(activeRestaurants);
 
@@ -148,7 +163,7 @@ describe('Restaurants Use Cases', () => {
       expect(mockRepository.findActive).toHaveBeenCalledTimes(1);
     });
 
-    it('deve retornar array vazio quando não há restaurantes ativos', async () => {
+    it("deve retornar array vazio quando não há restaurantes ativos", async () => {
       vi.mocked(mockRepository.findActive).mockResolvedValue([]);
 
       const useCase = new GetActiveRestaurantsUseCase(mockRepository);
@@ -160,9 +175,9 @@ describe('Restaurants Use Cases', () => {
       }
     });
 
-    it('deve retornar erro quando o repositório falha', async () => {
+    it("deve retornar erro quando o repositório falha", async () => {
       vi.mocked(mockRepository.findActive).mockRejectedValue(
-        new Error('Network error')
+        new Error("Network error"),
       );
 
       const useCase = new GetActiveRestaurantsUseCase(mockRepository);
@@ -170,7 +185,7 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Network error');
+        expect(result.error).toBe("Network error");
       }
     });
   });
@@ -178,11 +193,11 @@ describe('Restaurants Use Cases', () => {
   // =====================================================
   // CreateRestaurantUseCase
   // =====================================================
-  describe('CreateRestaurantUseCase', () => {
+  describe("CreateRestaurantUseCase", () => {
     const validCreateData: CreateRestaurantData = {
-      name: 'Matosinhos',
-      slug: 'matosinhos',
-      address: 'Avenida de Matosinhos, Porto',
+      name: "Matosinhos",
+      slug: "matosinhos",
+      address: "Avenida de Matosinhos, Porto",
       latitude: 41.1803,
       longitude: -8.6891,
       maxCapacity: 35,
@@ -193,7 +208,7 @@ describe('Restaurants Use Cases', () => {
       isActive: true,
     };
 
-    it('deve criar restaurante com sucesso', async () => {
+    it("deve criar restaurante com sucesso", async () => {
       const createdRestaurant = { ...mockRestaurant, ...validCreateData };
       vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
       vi.mocked(mockRepository.create).mockResolvedValue(createdRestaurant);
@@ -206,68 +221,70 @@ describe('Restaurants Use Cases', () => {
         expect(result.data.name).toBe(validCreateData.name);
         expect(result.data.slug).toBe(validCreateData.slug);
       }
-      expect(mockRepository.validateSlugUnique).toHaveBeenCalledWith('matosinhos');
+      expect(mockRepository.validateSlugUnique).toHaveBeenCalledWith(
+        "matosinhos",
+      );
       expect(mockRepository.create).toHaveBeenCalledWith(validCreateData);
     });
 
-    it('deve falhar quando nome está vazio', async () => {
-      const invalidData = { ...validCreateData, name: '' };
+    it("deve falhar quando nome está vazio", async () => {
+      const invalidData = { ...validCreateData, name: "" };
 
       const useCase = new CreateRestaurantUseCase(mockRepository);
       const result = await useCase.execute(invalidData);
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Nome do restaurante é obrigatório');
-        expect(result.code).toBe('INVALID_NAME');
+        expect(result.error).toBe("Nome do restaurante é obrigatório");
+        expect(result.code).toBe("INVALID_NAME");
       }
       expect(mockRepository.create).not.toHaveBeenCalled();
     });
 
-    it('deve falhar quando slug está vazio', async () => {
-      const invalidData = { ...validCreateData, slug: '' };
+    it("deve falhar quando slug está vazio", async () => {
+      const invalidData = { ...validCreateData, slug: "" };
 
       const useCase = new CreateRestaurantUseCase(mockRepository);
       const result = await useCase.execute(invalidData);
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Código do restaurante é obrigatório');
-        expect(result.code).toBe('INVALID_SLUG');
+        expect(result.error).toBe("Código do restaurante é obrigatório");
+        expect(result.code).toBe("INVALID_SLUG");
       }
     });
 
-    it('deve falhar quando slug tem formato inválido (maiúsculas)', async () => {
-      const invalidData = { ...validCreateData, slug: 'Matosinhos' };
+    it("deve falhar quando slug tem formato inválido (maiúsculas)", async () => {
+      const invalidData = { ...validCreateData, slug: "Matosinhos" };
 
       const useCase = new CreateRestaurantUseCase(mockRepository);
       const result = await useCase.execute(invalidData);
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toContain('letras minúsculas');
-        expect(result.code).toBe('INVALID_SLUG_FORMAT');
+        expect(result.error).toContain("letras minúsculas");
+        expect(result.code).toBe("INVALID_SLUG_FORMAT");
       }
     });
 
-    it('deve falhar quando slug tem formato inválido (espaços)', async () => {
-      const invalidData = { ...validCreateData, slug: 'mato sinhos' };
+    it("deve falhar quando slug tem formato inválido (espaços)", async () => {
+      const invalidData = { ...validCreateData, slug: "mato sinhos" };
 
       const useCase = new CreateRestaurantUseCase(mockRepository);
       const result = await useCase.execute(invalidData);
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.code).toBe('INVALID_SLUG_FORMAT');
+        expect(result.code).toBe("INVALID_SLUG_FORMAT");
       }
     });
 
-    it('deve aceitar slug com hífens', async () => {
-      const dataWithHyphen = { ...validCreateData, slug: 'porto-alegre' };
+    it("deve aceitar slug com hífens", async () => {
+      const dataWithHyphen = { ...validCreateData, slug: "porto-alegre" };
       vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
       vi.mocked(mockRepository.create).mockResolvedValue({
         ...mockRestaurant,
-        slug: 'porto-alegre',
+        slug: "porto-alegre",
       });
 
       const useCase = new CreateRestaurantUseCase(mockRepository);
@@ -276,7 +293,7 @@ describe('Restaurants Use Cases', () => {
       expect(result.success).toBe(true);
     });
 
-    it('deve falhar quando slug já existe', async () => {
+    it("deve falhar quando slug já existe", async () => {
       vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(false);
 
       const useCase = new CreateRestaurantUseCase(mockRepository);
@@ -284,14 +301,14 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Já existe um restaurante com este código');
-        expect(result.code).toBe('SLUG_EXISTS');
+        expect(result.error).toBe("Já existe um restaurante com este código");
+        expect(result.code).toBe("SLUG_EXISTS");
       }
       expect(mockRepository.create).not.toHaveBeenCalled();
     });
 
-    it('deve falhar quando endereço está vazio', async () => {
-      const invalidData = { ...validCreateData, address: '' };
+    it("deve falhar quando endereço está vazio", async () => {
+      const invalidData = { ...validCreateData, address: "" };
       vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
 
       const useCase = new CreateRestaurantUseCase(mockRepository);
@@ -299,12 +316,12 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Endereço é obrigatório');
-        expect(result.code).toBe('INVALID_ADDRESS');
+        expect(result.error).toBe("Endereço é obrigatório");
+        expect(result.code).toBe("INVALID_ADDRESS");
       }
     });
 
-    it('deve falhar quando maxCapacity é zero', async () => {
+    it("deve falhar quando maxCapacity é zero", async () => {
       const invalidData = { ...validCreateData, maxCapacity: 0 };
       vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
 
@@ -313,12 +330,12 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Lotação máxima deve ser maior que zero');
-        expect(result.code).toBe('INVALID_CAPACITY');
+        expect(result.error).toBe("Lotação máxima deve ser maior que zero");
+        expect(result.code).toBe("INVALID_CAPACITY");
       }
     });
 
-    it('deve falhar quando defaultPeoplePerTable é negativo', async () => {
+    it("deve falhar quando defaultPeoplePerTable é negativo", async () => {
       const invalidData = { ...validCreateData, defaultPeoplePerTable: -1 };
       vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
 
@@ -327,12 +344,12 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Pessoas por mesa deve ser maior que zero');
-        expect(result.code).toBe('INVALID_PEOPLE_PER_TABLE');
+        expect(result.error).toBe("Pessoas por mesa deve ser maior que zero");
+        expect(result.code).toBe("INVALID_PEOPLE_PER_TABLE");
       }
     });
 
-    it('deve falhar quando orderCooldownMinutes é negativo', async () => {
+    it("deve falhar quando orderCooldownMinutes é negativo", async () => {
       const invalidData = { ...validCreateData, orderCooldownMinutes: -1 };
       vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
 
@@ -341,14 +358,19 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Tempo de cooldown deve ser zero ou positivo');
-        expect(result.code).toBe('INVALID_COOLDOWN');
+        expect(result.error).toBe(
+          "Tempo de cooldown deve ser zero ou positivo",
+        );
+        expect(result.code).toBe("INVALID_COOLDOWN");
       }
       expect(mockRepository.create).not.toHaveBeenCalled();
     });
 
-    it('deve aceitar orderCooldownMinutes igual a zero', async () => {
-      const dataWithZeroCooldown = { ...validCreateData, orderCooldownMinutes: 0 };
+    it("deve aceitar orderCooldownMinutes igual a zero", async () => {
+      const dataWithZeroCooldown = {
+        ...validCreateData,
+        orderCooldownMinutes: 0,
+      };
       vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
       vi.mocked(mockRepository.create).mockResolvedValue({
         ...mockRestaurant,
@@ -361,7 +383,7 @@ describe('Restaurants Use Cases', () => {
       expect(result.success).toBe(true);
     });
 
-    it('deve aceitar orderCooldownMinutes positivo', async () => {
+    it("deve aceitar orderCooldownMinutes positivo", async () => {
       const dataWithCooldown = { ...validCreateData, orderCooldownMinutes: 5 };
       vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
       vi.mocked(mockRepository.create).mockResolvedValue({
@@ -379,11 +401,11 @@ describe('Restaurants Use Cases', () => {
       }
     });
 
-    it('deve criar restaurante com valores padrão para campos opcionais', async () => {
+    it("deve criar restaurante com valores padrão para campos opcionais", async () => {
       const minimalData: CreateRestaurantData = {
-        name: 'Minimal',
-        slug: 'minimal',
-        address: 'Minimal Address',
+        name: "Minimal",
+        slug: "minimal",
+        address: "Minimal Address",
         maxCapacity: 20,
         defaultPeoplePerTable: 2,
       };
@@ -410,14 +432,14 @@ describe('Restaurants Use Cases', () => {
   // =====================================================
   // UpdateRestaurantUseCase
   // =====================================================
-  describe('UpdateRestaurantUseCase', () => {
-    const restaurantId = '123e4567-e89b-12d3-a456-426614174000';
+  describe("UpdateRestaurantUseCase", () => {
+    const restaurantId = "123e4567-e89b-12d3-a456-426614174000";
     const validUpdateData: UpdateRestaurantData = {
-      name: 'Circunvalação Atualizado',
+      name: "Circunvalação Atualizado",
       maxCapacity: 60,
     };
 
-    it('deve atualizar restaurante com sucesso', async () => {
+    it("deve atualizar restaurante com sucesso", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
       vi.mocked(mockRepository.update).mockResolvedValue({
         ...mockRestaurant,
@@ -425,98 +447,110 @@ describe('Restaurants Use Cases', () => {
       });
 
       const useCase = new UpdateRestaurantUseCase(mockRepository);
-      const result = await useCase.execute({ id: restaurantId, data: validUpdateData });
+      const result = await useCase.execute({
+        id: restaurantId,
+        data: validUpdateData,
+      });
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.name).toBe('Circunvalação Atualizado');
+        expect(result.data.name).toBe("Circunvalação Atualizado");
         expect(result.data.maxCapacity).toBe(60);
       }
       expect(mockRepository.findById).toHaveBeenCalledWith(restaurantId);
-      expect(mockRepository.update).toHaveBeenCalledWith(restaurantId, validUpdateData);
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        restaurantId,
+        validUpdateData,
+      );
     });
 
-    it('deve falhar quando restaurante não existe', async () => {
+    it("deve falhar quando restaurante não existe", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(null);
 
       const useCase = new UpdateRestaurantUseCase(mockRepository);
-      const result = await useCase.execute({ id: restaurantId, data: validUpdateData });
+      const result = await useCase.execute({
+        id: restaurantId,
+        data: validUpdateData,
+      });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Restaurante não encontrado');
-        expect(result.code).toBe('NOT_FOUND');
+        expect(result.error).toBe("Restaurante não encontrado");
+        expect(result.code).toBe("NOT_FOUND");
       }
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
 
-    it('deve falhar quando nome é vazio', async () => {
+    it("deve falhar quando nome é vazio", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
 
       const useCase = new UpdateRestaurantUseCase(mockRepository);
       const result = await useCase.execute({
         id: restaurantId,
-        data: { name: '' },
+        data: { name: "" },
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Nome do restaurante não pode estar vazio');
-        expect(result.code).toBe('INVALID_NAME');
+        expect(result.error).toBe("Nome do restaurante não pode estar vazio");
+        expect(result.code).toBe("INVALID_NAME");
       }
     });
 
-    it('deve falhar quando novo slug tem formato inválido', async () => {
+    it("deve falhar quando novo slug tem formato inválido", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
 
       const useCase = new UpdateRestaurantUseCase(mockRepository);
       const result = await useCase.execute({
         id: restaurantId,
-        data: { slug: 'Invalid Slug' },
+        data: { slug: "Invalid Slug" },
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.code).toBe('INVALID_SLUG_FORMAT');
+        expect(result.code).toBe("INVALID_SLUG_FORMAT");
       }
     });
 
-    it('deve falhar quando novo slug já existe em outro restaurante', async () => {
+    it("deve falhar quando novo slug já existe em outro restaurante", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
       vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(false);
 
       const useCase = new UpdateRestaurantUseCase(mockRepository);
       const result = await useCase.execute({
         id: restaurantId,
-        data: { slug: 'boavista' },
+        data: { slug: "boavista" },
       });
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Já existe um restaurante com este código');
-        expect(result.code).toBe('SLUG_EXISTS');
+        expect(result.error).toBe("Já existe um restaurante com este código");
+        expect(result.code).toBe("SLUG_EXISTS");
       }
-      expect(mockRepository.validateSlugUnique).toHaveBeenCalledWith('boavista', restaurantId);
+      expect(mockRepository.validateSlugUnique).toHaveBeenCalledWith(
+        "boavista",
+        restaurantId,
+      );
     });
 
-    it('deve permitir manter o mesmo slug', async () => {
+    it("deve permitir manter o mesmo slug", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
       vi.mocked(mockRepository.validateSlugUnique).mockResolvedValue(true);
       vi.mocked(mockRepository.update).mockResolvedValue({
         ...mockRestaurant,
-        name: 'Novo Nome',
+        name: "Novo Nome",
       });
 
       const useCase = new UpdateRestaurantUseCase(mockRepository);
       const result = await useCase.execute({
         id: restaurantId,
-        data: { slug: 'circunvalacao', name: 'Novo Nome' },
+        data: { slug: "circunvalacao", name: "Novo Nome" },
       });
 
       expect(result.success).toBe(true);
     });
 
-    it('deve falhar quando maxCapacity é inválida', async () => {
+    it("deve falhar quando maxCapacity é inválida", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
 
       const useCase = new UpdateRestaurantUseCase(mockRepository);
@@ -527,11 +561,11 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.code).toBe('INVALID_CAPACITY');
+        expect(result.code).toBe("INVALID_CAPACITY");
       }
     });
 
-    it('deve falhar quando defaultPeoplePerTable é inválido', async () => {
+    it("deve falhar quando defaultPeoplePerTable é inválido", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
 
       const useCase = new UpdateRestaurantUseCase(mockRepository);
@@ -542,11 +576,11 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.code).toBe('INVALID_PEOPLE_PER_TABLE');
+        expect(result.code).toBe("INVALID_PEOPLE_PER_TABLE");
       }
     });
 
-    it('deve falhar quando orderCooldownMinutes é negativo', async () => {
+    it("deve falhar quando orderCooldownMinutes é negativo", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
 
       const useCase = new UpdateRestaurantUseCase(mockRepository);
@@ -557,13 +591,15 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Tempo de cooldown deve ser zero ou positivo');
-        expect(result.code).toBe('INVALID_COOLDOWN');
+        expect(result.error).toBe(
+          "Tempo de cooldown deve ser zero ou positivo",
+        );
+        expect(result.code).toBe("INVALID_COOLDOWN");
       }
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
 
-    it('deve aceitar orderCooldownMinutes igual a zero', async () => {
+    it("deve aceitar orderCooldownMinutes igual a zero", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
       vi.mocked(mockRepository.update).mockResolvedValue({
         ...mockRestaurant,
@@ -582,7 +618,7 @@ describe('Restaurants Use Cases', () => {
       }
     });
 
-    it('deve atualizar orderCooldownMinutes com valor positivo', async () => {
+    it("deve atualizar orderCooldownMinutes com valor positivo", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
       vi.mocked(mockRepository.update).mockResolvedValue({
         ...mockRestaurant,
@@ -599,10 +635,12 @@ describe('Restaurants Use Cases', () => {
       if (result.success) {
         expect(result.data.orderCooldownMinutes).toBe(10);
       }
-      expect(mockRepository.update).toHaveBeenCalledWith(restaurantId, { orderCooldownMinutes: 10 });
+      expect(mockRepository.update).toHaveBeenCalledWith(restaurantId, {
+        orderCooldownMinutes: 10,
+      });
     });
 
-    it('deve atualizar flags de automação', async () => {
+    it("deve atualizar flags de automação", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
       vi.mocked(mockRepository.update).mockResolvedValue({
         ...mockRestaurant,
@@ -623,7 +661,7 @@ describe('Restaurants Use Cases', () => {
       }
     });
 
-    it('deve atualizar status isActive', async () => {
+    it("deve atualizar status isActive", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
       vi.mocked(mockRepository.update).mockResolvedValue({
         ...mockRestaurant,
@@ -646,10 +684,10 @@ describe('Restaurants Use Cases', () => {
   // =====================================================
   // DeleteRestaurantUseCase
   // =====================================================
-  describe('DeleteRestaurantUseCase', () => {
-    const restaurantId = '123e4567-e89b-12d3-a456-426614174000';
+  describe("DeleteRestaurantUseCase", () => {
+    const restaurantId = "123e4567-e89b-12d3-a456-426614174000";
 
-    it('deve eliminar restaurante com sucesso', async () => {
+    it("deve eliminar restaurante com sucesso", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
       vi.mocked(mockRepository.delete).mockResolvedValue(undefined);
 
@@ -661,7 +699,7 @@ describe('Restaurants Use Cases', () => {
       expect(mockRepository.delete).toHaveBeenCalledWith(restaurantId);
     });
 
-    it('deve falhar quando restaurante não existe', async () => {
+    it("deve falhar quando restaurante não existe", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(null);
 
       const useCase = new DeleteRestaurantUseCase(mockRepository);
@@ -669,16 +707,16 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Restaurante não encontrado');
-        expect(result.code).toBe('NOT_FOUND');
+        expect(result.error).toBe("Restaurante não encontrado");
+        expect(result.code).toBe("NOT_FOUND");
       }
       expect(mockRepository.delete).not.toHaveBeenCalled();
     });
 
-    it('deve retornar erro quando o repositório falha', async () => {
+    it("deve retornar erro quando o repositório falha", async () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(mockRestaurant);
       vi.mocked(mockRepository.delete).mockRejectedValue(
-        new Error('Foreign key constraint')
+        new Error("Foreign key constraint"),
       );
 
       const useCase = new DeleteRestaurantUseCase(mockRepository);
@@ -686,7 +724,7 @@ describe('Restaurants Use Cases', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBe('Foreign key constraint');
+        expect(result.error).toBe("Foreign key constraint");
       }
     });
   });

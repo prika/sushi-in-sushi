@@ -1,11 +1,11 @@
-import { createClient } from '@/lib/supabase/client';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { IGamePrizeRepository } from '@/domain/repositories/IGamePrizeRepository';
+import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { IGamePrizeRepository } from "@/domain/repositories/IGamePrizeRepository";
 import {
   GamePrize,
   CreateGamePrizeData,
   PrizeType,
-} from '@/domain/entities/GamePrize';
+} from "@/domain/entities/GamePrize";
 
 interface DatabaseGamePrize {
   id: string;
@@ -31,7 +31,7 @@ export class SupabaseGamePrizeRepository implements IGamePrizeRepository {
 
   async create(data: CreateGamePrizeData): Promise<GamePrize> {
     const { data: created, error } = await this.supabase
-      .from('game_prizes')
+      .from("game_prizes")
       .insert({
         session_id: data.sessionId,
         game_session_id: data.gameSessionId ?? null,
@@ -52,10 +52,10 @@ export class SupabaseGamePrizeRepository implements IGamePrizeRepository {
 
   async findBySession(sessionId: string): Promise<GamePrize[]> {
     const { data, error } = await this.supabase
-      .from('game_prizes')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: false });
+      .from("game_prizes")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: false });
 
     if (error) throw new Error(error.message);
     return (data || []).map(this.mapToEntity);
@@ -63,13 +63,13 @@ export class SupabaseGamePrizeRepository implements IGamePrizeRepository {
 
   async findById(id: string): Promise<GamePrize | null> {
     const { data, error } = await this.supabase
-      .from('game_prizes')
-      .select('*')
-      .eq('id', id)
+      .from("game_prizes")
+      .select("*")
+      .eq("id", id)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') return null;
+      if (error.code === "PGRST116") return null;
       throw new Error(error.message);
     }
 
@@ -78,16 +78,19 @@ export class SupabaseGamePrizeRepository implements IGamePrizeRepository {
 
   async redeem(id: string): Promise<GamePrize> {
     const { data: updated, error } = await this.supabase
-      .from('game_prizes')
+      .from("game_prizes")
       .update({
         redeemed: true,
         redeemed_at: new Date().toISOString(),
       })
-      .eq('id', id)
+      .eq("id", id)
+      .eq("redeemed", false)
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error || updated == null) {
+      throw new Error(error?.message ?? "Prize already redeemed or not found");
+    }
     return this.mapToEntity(updated);
   }
 

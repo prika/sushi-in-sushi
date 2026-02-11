@@ -282,6 +282,7 @@
         "showStaff": "Montrez le QR code ou le code au personnel pour valider.",
         "redeem": "Réclamer",
         "redeeming": "En cours...",
+        "redeemError": "Impossible de réclamer le prix. Réessaie.",
         "revealing": "Révélation du prix..."
       },
       "hub": {

@@ -52,23 +52,27 @@ export class CompleteGameSessionUseCase {
       const hasParticipants = rawLeaderboard.length > 0;
 
       if (GameService.shouldAwardPrize(input.config, roundsPlayed, hasParticipants)) {
-        // Award prize to top scorer
         const topScorer = rawLeaderboard[0];
-        const prizeDescription = GameService.buildPrizeDescription(
-          input.config.gamesPrizeType,
-          input.config.gamesPrizeValue
-        );
+        const prizeType = input.config.gamesPrizeType;
 
-        prize = await this.gamePrizeRepository.create({
-          sessionId: input.sessionId,
-          gameSessionId: input.gameSessionId,
-          sessionCustomerId: topScorer.sessionCustomerId,
-          displayName: topScorer.displayName,
-          prizeType: input.config.gamesPrizeType as 'discount_percentage' | 'free_product' | 'free_dinner',
-          prizeValue: input.config.gamesPrizeValue ?? '',
-          prizeDescription,
-          totalScore: topScorer.totalScore,
-        });
+        // shouldAwardPrize already guards against 'none', but be safe
+        if (prizeType !== 'none' && topScorer) {
+          const prizeDescription = GameService.buildPrizeDescription(
+            prizeType,
+            input.config.gamesPrizeValue
+          );
+
+          prize = await this.gamePrizeRepository.create({
+            sessionId: input.sessionId,
+            gameSessionId: input.gameSessionId,
+            sessionCustomerId: topScorer.sessionCustomerId,
+            displayName: topScorer.displayName,
+            prizeType,
+            prizeValue: input.config.gamesPrizeValue ?? '',
+            prizeDescription,
+            totalScore: topScorer.totalScore,
+          });
+        }
       }
 
       return Results.success({ leaderboard: rawLeaderboard, prize });

@@ -138,7 +138,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "categories";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       sessions: {
@@ -188,7 +188,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "tables";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       orders: {
@@ -242,7 +242,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "products";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       roles: {
@@ -310,7 +310,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "roles";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       waiter_tables: {
@@ -346,7 +346,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "tables";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       customers: {
@@ -438,7 +438,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "staff";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       game_questions: {
@@ -533,7 +533,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "sessions";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       game_answers: {
@@ -584,7 +584,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "game_questions";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       game_prizes: {
@@ -644,7 +644,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "game_sessions";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       product_ratings: {
@@ -686,7 +686,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "products";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
     };
@@ -710,12 +710,15 @@ export type Database = {
 // and re-exported at the top of this file for backwards compatibility
 
 // Generic helper type for table rows
-export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"];
+export type Tables<T extends keyof Database["public"]["Tables"]> =
+  Database["public"]["Tables"][T]["Row"];
 
 // Helper types for easier usage
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
-export type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
-export type CategoryUpdate = Database["public"]["Tables"]["categories"]["Update"];
+export type CategoryInsert =
+  Database["public"]["Tables"]["categories"]["Insert"];
+export type CategoryUpdate =
+  Database["public"]["Tables"]["categories"]["Update"];
 
 export type TableBase = Database["public"]["Tables"]["tables"]["Row"];
 export type TableInsert = Database["public"]["Tables"]["tables"]["Insert"];
@@ -862,7 +865,10 @@ export type Customer = {
   updated_at: string;
 };
 
-export type CustomerInsert = Omit<Customer, "id" | "created_at" | "updated_at" | "points" | "total_spent" | "visit_count"> & {
+export type CustomerInsert = Omit<
+  Customer,
+  "id" | "created_at" | "updated_at" | "points" | "total_spent" | "visit_count"
+> & {
   id?: string;
   created_at?: string;
   updated_at?: string;
@@ -922,7 +928,10 @@ export type TableStatusHistory = {
   created_at: string;
 };
 
-export type TableStatusHistoryInsert = Omit<TableStatusHistory, "id" | "created_at"> & {
+export type TableStatusHistoryInsert = Omit<
+  TableStatusHistory,
+  "id" | "created_at"
+> & {
   id?: number;
   created_at?: string;
 };
@@ -970,10 +979,26 @@ export type SessionMetricsSummary = {
 // RESERVATIONS TYPES
 // =============================================
 
-export type ReservationStatus = "pending" | "confirmed" | "cancelled" | "completed" | "no_show";
-export type ReservationOccasion = "birthday" | "anniversary" | "business" | "other";
+export type ReservationStatus =
+  | "pending"
+  | "confirmed"
+  | "cancelled"
+  | "completed"
+  | "no_show";
+export type ReservationOccasion =
+  | "birthday"
+  | "anniversary"
+  | "business"
+  | "other";
 
-export type EmailStatus = "sent" | "delivered" | "opened" | "clicked" | "bounced" | "complained" | "failed";
+export type EmailStatus =
+  | "sent"
+  | "delivered"
+  | "opened"
+  | "clicked"
+  | "bounced"
+  | "complained"
+  | "failed";
 
 export type Reservation = {
   id: string;
@@ -1072,14 +1097,20 @@ export type RestaurantClosureInsert = {
   recurring_day_of_week?: number | null;
 };
 
-export type RestaurantClosureUpdate = Partial<Omit<RestaurantClosure, "id" | "created_at" | "created_by">>;
+export type RestaurantClosureUpdate = Partial<
+  Omit<RestaurantClosure, "id" | "created_at" | "created_by">
+>;
 
 // =============================================
 // WAITER CALLS TYPES
 // =============================================
 
 export type WaiterCallType = "assistance" | "bill" | "order" | "other";
-export type WaiterCallStatus = "pending" | "acknowledged" | "completed" | "cancelled";
+export type WaiterCallStatus =
+  | "pending"
+  | "acknowledged"
+  | "completed"
+  | "cancelled";
 
 export type WaiterCall = {
   id: string;
@@ -1104,7 +1135,9 @@ export type WaiterCallInsert = {
   location: Location;
 };
 
-export type WaiterCallUpdate = Partial<Omit<WaiterCall, "id" | "created_at" | "table_id" | "location">>;
+export type WaiterCallUpdate = Partial<
+  Omit<WaiterCall, "id" | "created_at" | "table_id" | "location">
+>;
 
 export type WaiterCallWithDetails = WaiterCall & {
   table_number: number;
@@ -1161,7 +1194,9 @@ export type SessionCustomerInsert = {
   tier?: number;
 };
 
-export type SessionCustomerUpdate = Partial<Omit<SessionCustomer, "id" | "session_id" | "created_at">>;
+export type SessionCustomerUpdate = Partial<
+  Omit<SessionCustomer, "id" | "session_id" | "created_at">
+>;
 
 // Session customer summary (for display in waiter panel)
 export type SessionCustomerSummary = {
@@ -1251,7 +1286,8 @@ export type GameAnswerRow = {
   id: string;
   game_session_id: string;
   session_customer_id: string | null;
-  question_id: string;
+  question_id: string | null;
+  product_id: number | null;
   game_type: string;
   answer: unknown;
   score_earned: number;
@@ -1289,7 +1325,9 @@ export type ReservationSettings = {
   updated_by: string | null;
 };
 
-export type ReservationSettingsUpdate = Partial<Omit<ReservationSettings, "id" | "updated_at">>;
+export type ReservationSettingsUpdate = Partial<
+  Omit<ReservationSettings, "id" | "updated_at">
+>;
 
 // =============================================
 // STAFF TIME OFF TYPES
@@ -1321,7 +1359,9 @@ export type StaffTimeOffInsert = {
   status?: StaffTimeOffStatus;
 };
 
-export type StaffTimeOffUpdate = Partial<Omit<StaffTimeOff, "id" | "staff_id" | "created_at">>;
+export type StaffTimeOffUpdate = Partial<
+  Omit<StaffTimeOff, "id" | "staff_id" | "created_at">
+>;
 
 export type StaffTimeOffWithStaff = StaffTimeOff & {
   staff_name: string;

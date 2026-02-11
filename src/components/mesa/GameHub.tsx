@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/components/ui";
 import { QuizGame } from "./QuizGame";
 import { PreferenceGame } from "./PreferenceGame";
 import { SwipeRatingGame, type TableLeaderInfo } from "./SwipeRatingGame";
@@ -12,7 +13,7 @@ import type { GameAnswer } from "@/domain/entities/GameAnswer";
 import type { GamePrize as GamePrizeEntity } from "@/domain/entities/GamePrize";
 import type { LeaderboardEntry } from "@/domain/repositories/IGameAnswerRepository";
 import type { Product } from "@/domain/entities";
-import type { GamesMode } from "@/domain/value-objects/GameConfig";
+import type { GamesMode, GameConfig } from "@/domain/value-objects/GameConfig";
 
 type GameFlowStep = "select" | "playing" | "leaderboard" | "prize";
 type GameChoice = "quiz" | "preference" | "tinder";
@@ -22,6 +23,8 @@ interface GameHubProps {
   sessionCustomerId: string | null;
   restaurantId: string | null;
   gamesMode: GamesMode;
+  /** Optional: pass restaurant game config. If not provided, fetches from /api/mesa/games/config when restaurantId is set. */
+  gameConfig?: GameConfig | null;
   // Props for SwipeRatingGame (tinder mode)
   products: Product[];
   tableLeader: TableLeaderInfo | null;
@@ -33,13 +36,24 @@ interface GameHubProps {
   t: (key: string, params?: Record<string, string | number>) => string;
 }
 
-const GAME_CHOICES: GameChoice[] = ["quiz", "preference", "tinder"];
+const ALL_GAME_CHOICES: GameChoice[] = ["quiz", "preference", "tinder"];
+
+const DEFAULT_GAME_CONFIG: GameConfig = {
+  gamesEnabled: true,
+  gamesMode: "selection",
+  gamesPrizeType: "none",
+  gamesPrizeValue: null,
+  gamesPrizeProductId: null,
+  gamesMinRoundsForPrize: 1,
+  gamesQuestionsPerRound: 6,
+};
 
 export function GameHub({
   sessionId,
   sessionCustomerId,
   restaurantId,
   gamesMode,
+  gameConfig: gameConfigProp,
   products,
   tableLeader,
   leaderProductName,
@@ -49,16 +63,48 @@ export function GameHub({
   onClose,
   t,
 }: GameHubProps) {
+  const { showToast } = useToast();
   const [step, setStep] = useState<GameFlowStep>("select");
   const [gameChoice, setGameChoice] = useState<GameChoice | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const randomPickedRef = useRef(false);
+  const hasProducts = products.length > 0;
+  const availableChoices: GameChoice[] = hasProducts
+    ? ALL_GAME_CHOICES
+    : ALL_GAME_CHOICES.filter((c) => c !== "tinder");
+
+  // Resolved game config: prop > fetched > default
+  const [fetchedGameConfig, setFetchedGameConfig] = useState<GameConfig | null>(
+    null,
+  );
+  const gameConfig = gameConfigProp ?? fetchedGameConfig ?? DEFAULT_GAME_CONFIG;
 
   // Game state from API
   const [gameSessionId, setGameSessionId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<GameQuestion[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [currentPrize, setCurrentPrize] = useState<GamePrizeEntity | null>(null);
+  const [currentPrize, setCurrentPrize] = useState<GamePrizeEntity | null>(
+    null,
+  );
+
+  // Fetch game config when restaurantId is available and no config prop passed
+  useEffect(() => {
+    if (gameConfigProp !== undefined || !restaurantId) return;
+    let cancelled = false;
+    fetch(
+      `/api/mesa/games/config?restaurantId=${encodeURIComponent(restaurantId)}`,
+    )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setFetchedGameConfig(data as GameConfig);
+      })
+      .catch((err: unknown) => {
+        console.error("Failed to fetch game config:", err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurantId, gameConfigProp]);
 
   // Fetch game config + start game session (all game types including tinder)
   const startGame = useCallback(
@@ -90,28 +136,36 @@ export function GameHub({
         }
 
         setStep("playing");
-      } catch (e) {
-        console.error(e);
-        alert((e as Error).message);
+      } catch (error) {
+        console.error(error);
+        showToast("error", (error as Error).message);
       } finally {
         setIsLoading(false);
       }
     },
-    [sessionId, restaurantId]
+    [sessionId, restaurantId, showToast],
   );
 
   // Random mode: auto-pick a random game on mount
   useEffect(() => {
-    if (gamesMode === "random" && step === "select" && !randomPickedRef.current) {
+    if (
+      gamesMode === "random" &&
+      step === "select" &&
+      !randomPickedRef.current
+    ) {
       randomPickedRef.current = true;
-      const randomChoice = GAME_CHOICES[Math.floor(Math.random() * GAME_CHOICES.length)];
+      const randomChoice =
+        availableChoices[Math.floor(Math.random() * availableChoices.length)];
       startGame(randomChoice);
     }
-  }, [gamesMode, step, startGame]);
+  }, [gamesMode, step, startGame, availableChoices]);
 
   // Submit quiz answer via API
   const handleQuizAnswer = useCallback(
-    async (questionId: string, selectedIndex: number): Promise<GameAnswer | null> => {
+    async (
+      questionId: string,
+      selectedIndex: number,
+    ): Promise<GameAnswer | null> => {
       if (!gameSessionId) return null;
       const question = questions.find((q) => q.id === questionId);
 
@@ -137,12 +191,15 @@ export function GameHub({
         return null;
       }
     },
-    [gameSessionId, sessionCustomerId, questions]
+    [gameSessionId, sessionCustomerId, questions],
   );
 
   // Submit preference answer via API
   const handlePreferenceAnswer = useCallback(
-    async (questionId: string, choice: "a" | "b"): Promise<GameAnswer | null> => {
+    async (
+      questionId: string,
+      choice: "a" | "b",
+    ): Promise<GameAnswer | null> => {
       if (!gameSessionId) return null;
       const question = questions.find((q) => q.id === questionId);
 
@@ -167,7 +224,7 @@ export function GameHub({
         return null;
       }
     },
-    [gameSessionId, sessionCustomerId, questions]
+    [gameSessionId, sessionCustomerId, questions],
   );
 
   // Complete game and get leaderboard + prize
@@ -176,18 +233,28 @@ export function GameHub({
     setIsLoading(true);
 
     try {
+      // Use restaurant config; for quiz/preference, use actual questions.length as gamesQuestionsPerRound
+      const questionsPerRound =
+        questions.length > 0
+          ? questions.length
+          : gameConfig.gamesQuestionsPerRound;
+      const config = {
+        gamesEnabled: gameConfig.gamesEnabled,
+        gamesMode: gameConfig.gamesMode,
+        gamesPrizeType: gameConfig.gamesPrizeType,
+        gamesPrizeValue: gameConfig.gamesPrizeValue,
+        gamesPrizeProductId: gameConfig.gamesPrizeProductId,
+        gamesMinRoundsForPrize: gameConfig.gamesMinRoundsForPrize,
+        gamesQuestionsPerRound: questionsPerRound,
+      };
+
       const res = await fetch("/api/mesa/games/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           gameSessionId,
           sessionId,
-          config: {
-            gamesEnabled: true,
-            gamesPrizeType: "none",
-            gamesMinRoundsForPrize: 1,
-            gamesQuestionsPerRound: questions.length,
-          },
+          config,
         }),
       });
 
@@ -204,7 +271,7 @@ export function GameHub({
     } finally {
       setIsLoading(false);
     }
-  }, [gameSessionId, sessionId, questions.length]);
+  }, [gameSessionId, sessionId, questions.length, gameConfig]);
 
   // Refresh leaderboard
   const refreshLeaderboard = useCallback(async () => {
@@ -219,20 +286,39 @@ export function GameHub({
   }, [sessionId]);
 
   // Redeem prize
-  const handleRedeem = useCallback(async (prizeId: string) => {
-    try {
-      const res = await fetch("/api/mesa/games/redeem", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prizeId }),
-      });
-      if (!res.ok) throw new Error("Erro ao resgatar");
-      const data = await res.json();
-      if (data.prize) setCurrentPrize(data.prize);
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
+  const handleRedeem = useCallback(
+    async (prizeId: string) => {
+      try {
+        const res = await fetch("/api/mesa/games/redeem", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prizeId }),
+        });
+
+        if (!res.ok) {
+          let errorMessage = "Erro ao resgatar prémio";
+          try {
+            const body = await res.json();
+            if (typeof body?.error === "string" && body.error.trim()) {
+              errorMessage = body.error;
+            }
+          } catch {
+            // Response body is not valid JSON, keep default message
+          }
+          showToast("error", errorMessage);
+          return;
+        }
+
+        const data = await res.json();
+        if (data.prize) setCurrentPrize(data.prize);
+      } catch (e) {
+        const message =
+          e instanceof Error ? e.message : "Erro ao resgatar prémio";
+        showToast("error", message);
+      }
+    },
+    [showToast],
+  );
 
   // Reset and play again
   const handlePlayAgain = useCallback(() => {
@@ -260,7 +346,11 @@ export function GameHub({
   }
 
   // Playing Preference (fullscreen)
-  if (step === "playing" && gameChoice === "preference" && questions.length > 0) {
+  if (
+    step === "playing" &&
+    gameChoice === "preference" &&
+    questions.length > 0
+  ) {
     return (
       <PreferenceGame
         questions={questions}
@@ -310,7 +400,10 @@ export function GameHub({
           t={t}
         />
         {/* Play again + prize buttons overlay at bottom */}
-        <div className="fixed bottom-0 left-0 right-0 z-[60] bg-gradient-to-t from-[#0D0D0D] to-transparent pt-8 pb-6 px-4 flex flex-col items-center gap-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)" }}>
+        <div
+          className="fixed bottom-0 left-0 right-0 z-[60] bg-gradient-to-t from-[#0D0D0D] to-transparent pt-8 pb-6 px-4 flex flex-col items-center gap-3"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)" }}
+        >
           {currentPrize && (
             <button
               type="button"
@@ -367,8 +460,18 @@ export function GameHub({
             className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-800"
             aria-label={t("mesa.games.close")}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -432,27 +535,29 @@ export function GameHub({
                 </div>
               </button>
 
-              {/* Swipe Rating (Tinder) option */}
-              <button
-                type="button"
-                disabled={isLoading}
-                onClick={() => startGame("tinder")}
-                className="w-full rounded-2xl border-2 border-gray-700 bg-[#1A1A1A] p-5 text-left hover:border-[#D4AF37]/50 transition-colors disabled:opacity-50"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="shrink-0 w-14 h-14 rounded-xl bg-pink-500/20 flex items-center justify-center text-2xl">
-                    ⭐
+              {/* Swipe Rating (Tinder) option — only when products available */}
+              {hasProducts && (
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => startGame("tinder")}
+                  className="w-full rounded-2xl border-2 border-gray-700 bg-[#1A1A1A] p-5 text-left hover:border-[#D4AF37]/50 transition-colors disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="shrink-0 w-14 h-14 rounded-xl bg-pink-500/20 flex items-center justify-center text-2xl">
+                      ⭐
+                    </div>
+                    <div>
+                      <h3 className="text-white font-semibold text-lg">
+                        {t("mesa.games.swipeLabel")}
+                      </h3>
+                      <p className="text-gray-500 text-sm">
+                        {t("mesa.games.hub.swipeDesc")}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-white font-semibold text-lg">
-                      {t("mesa.games.swipeLabel")}
-                    </h3>
-                    <p className="text-gray-500 text-sm">
-                      {t("mesa.games.hub.swipeDesc")}
-                    </p>
-                  </div>
-                </div>
-              </button>
+                </button>
+              )}
             </div>
 
             {/* Loading overlay */}

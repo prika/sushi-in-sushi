@@ -282,6 +282,7 @@
         "showStaff": "Zeigen Sie den QR-Code oder Code dem Personal zur Validierung.",
         "redeem": "Einlösen",
         "redeeming": "Wird eingelöst...",
+        "redeemError": "Preis konnte nicht eingelöst werden. Bitte versuche es erneut.",
         "revealing": "Preis wird enthüllt..."
       },
       "hub": {

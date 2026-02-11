@@ -282,6 +282,7 @@
         "showStaff": "Muestra el código QR o el código al personal para validar.",
         "redeem": "Canjear",
         "redeeming": "Canjeando...",
+        "redeemError": "No se pudo canjear el premio. Inténtalo de nuevo.",
         "revealing": "Revelando premio..."
       },
       "hub": {

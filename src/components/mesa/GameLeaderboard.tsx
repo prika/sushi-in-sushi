@@ -63,7 +63,7 @@ export function GameLeaderboard({
           debounceTimer = setTimeout(() => {
             onRefresh();
           }, 800);
-        }
+        },
       )
       .subscribe();
 
@@ -73,17 +73,26 @@ export function GameLeaderboard({
     };
   }, [sessionId, onRefresh]);
 
+  // Stable unique key for rank tracking: sessionCustomerId for known players;
+  // for anonymous (null sessionCustomerId), use sessionId + displayName + totalScore to avoid collisions
+  const getRankKey = useCallback(
+    (entry: LeaderboardEntry) =>
+      entry.sessionCustomerId ??
+      `${sessionId}-${entry.displayName}-${entry.totalScore}`,
+    [sessionId],
+  );
+
   // Track previous ranks for animation direction
   const getRankChange = useCallback(
     (entry: LeaderboardEntryWithRank): "up" | "down" | "same" | null => {
       if (isFirstRenderRef.current) return null;
-      const prev = prevRanksRef.current.get(entry.sessionCustomerId ?? "anon");
+      const prev = prevRanksRef.current.get(getRankKey(entry));
       if (prev == null) return null;
       if (entry.rank < prev) return "up";
       if (entry.rank > prev) return "down";
       return "same";
     },
-    []
+    [getRankKey],
   );
 
   useEffect(() => {
@@ -92,8 +101,12 @@ export function GameLeaderboard({
       if (!isFirstRenderRef.current && currentSessionCustomerId) {
         const myKey = currentSessionCustomerId;
         const prevRank = prevRanksRef.current.get(myKey);
-        const currentEntry = leaderboard.find((e) => e.sessionCustomerId === myKey);
-        const currentRank = currentEntry ? (currentEntry.rank ?? leaderboard.indexOf(currentEntry) + 1) : null;
+        const currentEntry = leaderboard.find(
+          (e) => e.sessionCustomerId === myKey,
+        );
+        const currentRank = currentEntry
+          ? (currentEntry.rank ?? leaderboard.indexOf(currentEntry) + 1)
+          : null;
 
         if (prevRank != null && currentRank != null) {
           if (currentRank < prevRank) {
@@ -103,12 +116,15 @@ export function GameLeaderboard({
           } else if (currentRank > prevRank) {
             // User was overtaken
             const overtaker = leaderboard.find(
-              (e) => (e.rank ?? 0) === prevRank && e.sessionCustomerId !== myKey
+              (e) =>
+                (e.rank ?? 0) === prevRank && e.sessionCustomerId !== myKey,
             );
             setToast(
               overtaker
-                ? t("mesa.games.realtime.overtaken", { name: overtaker.displayName })
-                : t("mesa.games.realtime.droppedRank", { rank: currentRank })
+                ? t("mesa.games.realtime.overtaken", {
+                    name: overtaker.displayName,
+                  })
+                : t("mesa.games.realtime.droppedRank", { rank: currentRank }),
             );
             setTimeout(() => setToast(null), 3000);
           }
@@ -118,11 +134,11 @@ export function GameLeaderboard({
       isFirstRenderRef.current = false;
       const next = new Map<string, number>();
       for (const e of leaderboard) {
-        next.set(e.sessionCustomerId ?? "anon", e.rank ?? 0);
+        next.set(getRankKey(e), e.rank ?? 0);
       }
       prevRanksRef.current = next;
     }
-  }, [leaderboard, currentSessionCustomerId, t]);
+  }, [leaderboard, currentSessionCustomerId, t, getRankKey]);
 
   const isEmpty = leaderboard.length === 0;
 
@@ -204,13 +220,18 @@ export function GameLeaderboard({
 
                 return (
                   <motion.div
-                    key={entry.sessionCustomerId ?? `anon-${index}`}
+                    key={getRankKey(entry)}
                     layout
                     initial={{ opacity: 0, y: 20 }}
                     animate={{
                       opacity: 1,
                       y: 0,
-                      x: change === "up" ? [0, -8, 0] : change === "down" ? [0, 8, 0] : 0,
+                      x:
+                        change === "up"
+                          ? [0, -8, 0]
+                          : change === "down"
+                            ? [0, 8, 0]
+                            : 0,
                     }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{
@@ -248,7 +269,9 @@ export function GameLeaderboard({
                       >
                         {entry.displayName}
                         {isCurrentUser && (
-                          <span className="ml-1 text-xs text-gray-500">(tu)</span>
+                          <span className="ml-1 text-xs text-gray-500">
+                            (tu)
+                          </span>
                         )}
                       </p>
                       <p className="text-sm text-gray-500">

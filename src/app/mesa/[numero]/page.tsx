@@ -168,8 +168,9 @@ export default function MesaPage() {
   const [ratingsStats, setRatingsStats] = useState<{
     tableLeader: TableLeaderInfo | null;
     userRatingCount: number;
+    userRatedProductIds: number[];
     totalRatingsAtTable: number;
-  }>({ tableLeader: null, userRatingCount: 0, totalRatingsAtTable: 0 });
+  }>({ tableLeader: null, userRatingCount: 0, userRatedProductIds: [], totalRatingsAtTable: 0 });
 
   // Refs
   const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -355,6 +356,7 @@ export default function MesaPage() {
       setRatingsStats({
         tableLeader: data.tableLeader ?? null,
         userRatingCount: data.userRatingCount ?? 0,
+        userRatedProductIds: data.userRatedProductIds ?? [],
         totalRatingsAtTable: data.totalRatingsAtTable ?? 0,
       });
     } catch (e) {
@@ -1913,7 +1915,9 @@ export default function MesaPage() {
               sessionCustomerId={currentCustomer?.id ?? null}
               restaurantId={restaurantId}
               gamesMode={gamesMode}
-              products={productsServedInSession}
+              products={productsServedInSession.filter(
+                (p) => !ratingsStats.userRatedProductIds.includes(Number(p.id))
+              )}
               tableLeader={ratingsStats.tableLeader}
               leaderProductName={
                 ratingsStats.tableLeader

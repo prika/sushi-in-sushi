@@ -282,6 +282,7 @@
         "showStaff": "Show the QR code or code to staff to validate.",
         "redeem": "Redeem",
         "redeeming": "Redeeming...",
+        "redeemError": "Could not redeem the prize. Please try again.",
         "revealing": "Revealing prize..."
       },
       "hub": {

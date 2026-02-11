@@ -1,3 +1,5 @@
+import type { GamePrizeType, GamesMode } from '../value-objects/GameConfig';
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -13,10 +15,10 @@ export interface Restaurant {
   showUpgradeAfterOrder: boolean; // Show tier upgrade prompt after order
   showUpgradeAtBill: boolean; // Show tier upgrade prompt at bill time
   gamesEnabled: boolean; // Enable games on mesa page
-  gamesMode: 'selection' | 'random'; // 'selection' = user picks game, 'random' = random game assigned
-  gamesPrizeType: 'none' | 'discount_percentage' | 'free_product' | 'free_dinner';
+  gamesMode: GamesMode;
+  gamesPrizeType: GamePrizeType;
   gamesPrizeValue: string | null;
-  gamesPrizeProductId: string | null;
+  gamesPrizeProductId: number | null;
   gamesMinRoundsForPrize: number;
   gamesQuestionsPerRound: number;
   isActive: boolean;
@@ -38,10 +40,10 @@ export interface CreateRestaurantData {
   showUpgradeAfterOrder?: boolean;
   showUpgradeAtBill?: boolean;
   gamesEnabled?: boolean;
-  gamesMode?: 'selection' | 'random';
-  gamesPrizeType?: 'none' | 'discount_percentage' | 'free_product' | 'free_dinner';
+  gamesMode?: GamesMode;
+  gamesPrizeType?: GamePrizeType;
   gamesPrizeValue?: string | null;
-  gamesPrizeProductId?: string | null;
+  gamesPrizeProductId?: number | null;
   gamesMinRoundsForPrize?: number;
   gamesQuestionsPerRound?: number;
   isActive?: boolean;
@@ -61,10 +63,10 @@ export interface UpdateRestaurantData {
   showUpgradeAfterOrder?: boolean;
   showUpgradeAtBill?: boolean;
   gamesEnabled?: boolean;
-  gamesMode?: 'selection' | 'random';
-  gamesPrizeType?: 'none' | 'discount_percentage' | 'free_product' | 'free_dinner';
+  gamesMode?: GamesMode;
+  gamesPrizeType?: GamePrizeType;
   gamesPrizeValue?: string | null;
-  gamesPrizeProductId?: string | null;
+  gamesPrizeProductId?: number | null;
   gamesMinRoundsForPrize?: number;
   gamesQuestionsPerRound?: number;
   isActive?: boolean;

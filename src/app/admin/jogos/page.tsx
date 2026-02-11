@@ -78,6 +78,13 @@ export default function JogosPage() {
     fetchQuestions();
   }, [fetchQuestions]);
 
+  // Close preview when the referenced question was deleted
+  useEffect(() => {
+    if (previewId && !questions.some((q) => q.id === previewId)) {
+      setPreviewId(null);
+    }
+  }, [previewId, questions]);
+
   const handleOpenCreate = () => {
     setEditingId(null);
     if (tab === "quiz") {
@@ -93,9 +100,10 @@ export default function JogosPage() {
     if (tab === "quiz") {
       setQuizForm({
         questionText: q.questionText,
-        options: q.options && q.options.length >= 4
-          ? [...q.options]
-          : ["", "", "", ""],
+        options:
+          q.options && q.options.length >= 4
+            ? [...q.options]
+            : ["", "", "", ""],
         correctAnswerIndex: q.correctAnswerIndex ?? 0,
         category: q.category ?? "sushi_knowledge",
         difficulty: q.difficulty,
@@ -155,11 +163,15 @@ export default function JogosPage() {
           questionText: prefForm.questionText || "Preferes...",
           optionA: {
             label: prefForm.optionALabel,
-            ...(prefForm.optionAImage ? { imageUrl: prefForm.optionAImage } : {}),
+            ...(prefForm.optionAImage
+              ? { imageUrl: prefForm.optionAImage }
+              : {}),
           },
           optionB: {
             label: prefForm.optionBLabel,
-            ...(prefForm.optionBImage ? { imageUrl: prefForm.optionBImage } : {}),
+            ...(prefForm.optionBImage
+              ? { imageUrl: prefForm.optionBImage }
+              : {}),
           },
           category: prefForm.category,
           points: prefForm.points,
@@ -224,6 +236,7 @@ export default function JogosPage() {
   const filteredQuestions = questions;
   const activeCount = questions.filter((q) => q.isActive).length;
   const inactiveCount = questions.length - activeCount;
+  const previewQuestion = questions.find((q) => q.id === previewId);
 
   return (
     <div className="space-y-6">
@@ -255,280 +268,344 @@ export default function JogosPage() {
       {pageView === "analytics" && <GameAnalytics />}
 
       {/* Perguntas View */}
-      {pageView === "perguntas" && <>
+      {pageView === "perguntas" && (
+        <>
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Gestão de Perguntas
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                {questions.length} perguntas ({activeCount} ativas,{" "}
+                {inactiveCount} inativas)
+              </p>
+            </div>
+            <button
+              onClick={handleOpenCreate}
+              className="px-4 py-2 bg-[#D4AF37] text-black rounded-lg font-semibold hover:bg-[#C4A030] transition-colors"
+            >
+              + Nova Pergunta
+            </button>
+          </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Gestão de Perguntas
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {questions.length} perguntas ({activeCount} ativas, {inactiveCount}{" "}
-            inativas)
-          </p>
-        </div>
-        <button
-          onClick={handleOpenCreate}
-          className="px-4 py-2 bg-[#D4AF37] text-black rounded-lg font-semibold hover:bg-[#C4A030] transition-colors"
-        >
-          + Nova Pergunta
-        </button>
-      </div>
+          {/* Tabs */}
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+            <button
+              onClick={() => setTab("quiz")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                tab === "quiz"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Quiz ({tab === "quiz" ? questions.length : "..."})
+            </button>
+            <button
+              onClick={() => setTab("preference")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                tab === "preference"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Preferência ({tab === "preference" ? questions.length : "..."})
+            </button>
+          </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
-        <button
-          onClick={() => setTab("quiz")}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            tab === "quiz"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Quiz ({tab === "quiz" ? questions.length : "..."})
-        </button>
-        <button
-          onClick={() => setTab("preference")}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            tab === "preference"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Preferência ({tab === "preference" ? questions.length : "..."})
-        </button>
-      </div>
+          {/* Error */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
 
-      {/* Error */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
+          {/* Loading */}
+          {isLoading && (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D4AF37]" />
+            </div>
+          )}
 
-      {/* Loading */}
-      {isLoading && (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D4AF37]" />
-        </div>
-      )}
+          {/* Questions list */}
+          {!isLoading && filteredQuestions.length === 0 && (
+            <div className="text-center py-12 text-gray-400">
+              <p className="text-lg">
+                Sem perguntas de {tab === "quiz" ? "quiz" : "preferência"}
+              </p>
+              <p className="text-sm mt-1">
+                Clica em &quot;Nova Pergunta&quot; para começar
+              </p>
+            </div>
+          )}
 
-      {/* Questions list */}
-      {!isLoading && filteredQuestions.length === 0 && (
-        <div className="text-center py-12 text-gray-400">
-          <p className="text-lg">Sem perguntas de {tab === "quiz" ? "quiz" : "preferência"}</p>
-          <p className="text-sm mt-1">Clica em &quot;Nova Pergunta&quot; para começar</p>
-        </div>
-      )}
-
-      {!isLoading && filteredQuestions.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">
-                  Pergunta
-                </th>
-                {tab === "quiz" && (
-                  <>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3 w-24">
-                      Categoria
+          {!isLoading && filteredQuestions.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">
+                      Pergunta
+                    </th>
+                    {tab === "quiz" && (
+                      <>
+                        <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3 w-24">
+                          Categoria
+                        </th>
+                        <th className="text-center text-xs font-medium text-gray-500 uppercase px-4 py-3 w-20">
+                          Dificuldade
+                        </th>
+                      </>
+                    )}
+                    {tab === "preference" && (
+                      <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3 w-48">
+                        Opções
+                      </th>
+                    )}
+                    <th className="text-center text-xs font-medium text-gray-500 uppercase px-4 py-3 w-16">
+                      Pts
                     </th>
                     <th className="text-center text-xs font-medium text-gray-500 uppercase px-4 py-3 w-20">
-                      Dificuldade
+                      Estado
                     </th>
-                  </>
-                )}
-                {tab === "preference" && (
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3 w-48">
-                    Opções
-                  </th>
-                )}
-                <th className="text-center text-xs font-medium text-gray-500 uppercase px-4 py-3 w-16">
-                  Pts
-                </th>
-                <th className="text-center text-xs font-medium text-gray-500 uppercase px-4 py-3 w-20">
-                  Estado
-                </th>
-                <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3 w-32">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredQuestions.map((q) => (
-                <tr key={q.id} className={`hover:bg-gray-50 ${!q.isActive ? "opacity-50" : ""}`}>
-                  <td className="px-4 py-3">
-                    <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                      {q.questionText}
-                    </p>
-                    {tab === "quiz" && q.options && (
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {q.options.length} opções · Resposta: {String.fromCharCode(65 + (q.correctAnswerIndex ?? 0))}
-                      </p>
-                    )}
-                  </td>
-                  {tab === "quiz" && (
-                    <>
+                    <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3 w-32">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredQuestions.map((q) => (
+                    <tr
+                      key={q.id}
+                      className={`hover:bg-gray-50 ${!q.isActive ? "opacity-50" : ""}`}
+                    >
                       <td className="px-4 py-3">
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                          {q.category?.replace(/_/g, " ") ?? "-"}
+                        <p className="text-sm font-medium text-gray-900 line-clamp-1">
+                          {q.questionText}
+                        </p>
+                        {tab === "quiz" && q.options && (
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {q.options.length} opções · Resposta:{" "}
+                            {String.fromCharCode(
+                              65 + (q.correctAnswerIndex ?? 0),
+                            )}
+                          </p>
+                        )}
+                      </td>
+                      {tab === "quiz" && (
+                        <>
+                          <td className="px-4 py-3">
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                              {q.category?.replace(/_/g, " ") ?? "-"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center text-xs">
+                            {"⭐".repeat(q.difficulty)}
+                          </td>
+                        </>
+                      )}
+                      {tab === "preference" && (
+                        <td className="px-4 py-3">
+                          <span className="text-xs text-gray-600">
+                            {q.optionA?.label ?? "?"}{" "}
+                            <span className="text-gray-400">vs</span>{" "}
+                            {q.optionB?.label ?? "?"}
+                          </span>
+                        </td>
+                      )}
+                      <td className="px-4 py-3 text-center">
+                        <span className="text-xs font-medium text-[#D4AF37]">
+                          {q.points}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center text-xs">
-                        {"⭐".repeat(q.difficulty)}
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => handleToggleActive(q)}
+                          className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full transition-colors ${
+                            q.isActive
+                              ? "bg-green-100 text-green-700 hover:bg-green-200"
+                              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                          }`}
+                        >
+                          {q.isActive ? "Ativa" : "Inativa"}
+                        </button>
                       </td>
-                    </>
-                  )}
-                  {tab === "preference" && (
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-gray-600">
-                        {q.optionA?.label ?? "?"} <span className="text-gray-400">vs</span>{" "}
-                        {q.optionB?.label ?? "?"}
-                      </span>
-                    </td>
-                  )}
-                  <td className="px-4 py-3 text-center">
-                    <span className="text-xs font-medium text-[#D4AF37]">{q.points}</span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => handleToggleActive(q)}
-                      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full transition-colors ${
-                        q.isActive
-                          ? "bg-green-100 text-green-700 hover:bg-green-200"
-                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                      }`}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() =>
+                              setPreviewId(previewId === q.id ? null : q.id)
+                            }
+                            className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 transition-colors"
+                            title="Pré-visualizar"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleOpenEdit(q)}
+                            className="p-1.5 text-gray-400 hover:text-[#D4AF37] rounded-lg hover:bg-amber-50 transition-colors"
+                            title="Editar"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setDeleteId(q.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Eliminar"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Preview inline */}
+          {previewQuestion && (
+            <PreviewCard
+              question={previewQuestion}
+              tab={tab}
+              onClose={() => setPreviewId(null)}
+            />
+          )}
+
+          {/* Create/Edit Modal */}
+          {showModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-white rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto shadow-xl">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {editingId ? "Editar Pergunta" : "Nova Pergunta"}{" "}
+                    <span className="text-sm text-gray-400 font-normal">
+                      ({tab === "quiz" ? "Quiz" : "Preferência"})
+                    </span>
+                  </h3>
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      {q.isActive ? "Ativa" : "Inativa"}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => setPreviewId(previewId === q.id ? null : q.id)}
-                        className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 transition-colors"
-                        title="Pré-visualizar"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleOpenEdit(q)}
-                        className="p-1.5 text-gray-400 hover:text-[#D4AF37] rounded-lg hover:bg-amber-50 transition-colors"
-                        title="Editar"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(q.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
-                        title="Eliminar"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
 
-      {/* Preview inline */}
-      {previewId && (
-        <PreviewCard
-          question={questions.find((q) => q.id === previewId)!}
-          tab={tab}
-          onClose={() => setPreviewId(null)}
-        />
-      )}
+                <div className="px-6 py-4 space-y-4">
+                  {tab === "quiz" ? (
+                    <QuizForm form={quizForm} onChange={setQuizForm} />
+                  ) : (
+                    <PreferenceForm form={prefForm} onChange={setPrefForm} />
+                  )}
+                </div>
 
-      {/* Create/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {editingId ? "Editar Pergunta" : "Nova Pergunta"}{" "}
-                <span className="text-sm text-gray-400 font-normal">
-                  ({tab === "quiz" ? "Quiz" : "Preferência"})
-                </span>
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+                <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="px-4 py-2 text-sm bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] disabled:opacity-50 transition-colors"
+                  >
+                    {isSaving
+                      ? "A guardar..."
+                      : editingId
+                        ? "Guardar"
+                        : "Criar"}
+                  </button>
+                </div>
+              </div>
             </div>
+          )}
 
-            <div className="px-6 py-4 space-y-4">
-              {tab === "quiz" ? (
-                <QuizForm form={quizForm} onChange={setQuizForm} />
-              ) : (
-                <PreferenceForm form={prefForm} onChange={setPrefForm} />
-              )}
+          {/* Delete Confirm Dialog */}
+          {deleteId && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-white rounded-xl w-full max-w-sm mx-4 p-6 shadow-xl">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Eliminar pergunta?
+                </h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Esta ação não pode ser revertida.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setDeleteId(null)}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="px-4 py-2 text-sm bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
             </div>
-
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-4 py-2 text-sm bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] disabled:opacity-50 transition-colors"
-              >
-                {isSaving ? "A guardar..." : editingId ? "Guardar" : "Criar"}
-              </button>
-            </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
-
-      {/* Delete Confirm Dialog */}
-      {deleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl w-full max-w-sm mx-4 p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Eliminar pergunta?
-            </h3>
-            <p className="text-sm text-gray-500 mb-6">
-              Esta ação não pode ser revertida.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setDeleteId(null)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 text-sm bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      </>}
     </div>
   );
 }
@@ -556,12 +633,28 @@ interface GameStats {
   };
   ratings: {
     totalRatings: number;
-    topRatedProducts: { productId: string; avgRating: number; voteCount: number }[];
-    bottomRatedProducts: { productId: string; avgRating: number; voteCount: number }[];
+    topRatedProducts: {
+      productId: string;
+      avgRating: number;
+      voteCount: number;
+    }[];
+    bottomRatedProducts: {
+      productId: string;
+      avgRating: number;
+      voteCount: number;
+    }[];
   };
   questions: {
-    hardestQuestions: { questionId: string; totalAnswers: number; accuracy: number }[];
-    easiestQuestions: { questionId: string; totalAnswers: number; accuracy: number }[];
+    hardestQuestions: {
+      questionId: string;
+      totalAnswers: number;
+      accuracy: number;
+    }[];
+    easiestQuestions: {
+      questionId: string;
+      totalAnswers: number;
+      accuracy: number;
+    }[];
   };
   dailyActivity: { date: string; count: number }[];
 }
@@ -571,7 +664,9 @@ function GameAnalytics() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [productNames, setProductNames] = useState<Record<string, string>>({});
-  const [questionTexts, setQuestionTexts] = useState<Record<string, string>>({});
+  const [questionTexts, setQuestionTexts] = useState<Record<string, string>>(
+    {},
+  );
 
   useEffect(() => {
     async function fetchStats() {
@@ -650,11 +745,20 @@ function GameAnalytics() {
       {/* Overview cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Sessões de Jogo" value={overview.totalSessions} />
-        <StatCard label="Mesas Participantes" value={overview.uniqueTableSessions} />
-        <StatCard label="Taxa de Conclusão" value={`${overview.completionRate}%`} />
+        <StatCard
+          label="Mesas Participantes"
+          value={overview.uniqueTableSessions}
+        />
+        <StatCard
+          label="Taxa de Conclusão"
+          value={`${overview.completionRate}%`}
+        />
         <StatCard label="Respostas Totais" value={overview.totalAnswers} />
         <StatCard label="Quiz Respostas" value={overview.quizAnswers} />
-        <StatCard label="Preferência Respostas" value={overview.preferenceAnswers} />
+        <StatCard
+          label="Preferência Respostas"
+          value={overview.preferenceAnswers}
+        />
         <StatCard label="Precisão Quiz" value={`${overview.quizAccuracy}%`} />
         <StatCard label="Score Médio" value={overview.avgScore} />
       </div>
@@ -689,7 +793,8 @@ function GameAnalytics() {
       </div>
 
       {/* Product Ratings */}
-      {(ratings.topRatedProducts.length > 0 || ratings.bottomRatedProducts.length > 0) && (
+      {(ratings.topRatedProducts.length > 0 ||
+        ratings.bottomRatedProducts.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {ratings.topRatedProducts.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -698,9 +803,14 @@ function GameAnalytics() {
               </h3>
               <div className="space-y-2">
                 {ratings.topRatedProducts.map((p, i) => (
-                  <div key={p.productId} className="flex items-center justify-between">
+                  <div
+                    key={p.productId}
+                    className="flex items-center justify-between"
+                  >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-400 w-5">{i + 1}.</span>
+                      <span className="text-sm text-gray-400 w-5">
+                        {i + 1}.
+                      </span>
                       <span className="text-sm font-medium text-gray-900">
                         {productNames[p.productId] ?? `#${p.productId}`}
                       </span>
@@ -709,7 +819,9 @@ function GameAnalytics() {
                       <span className="text-sm font-semibold text-[#D4AF37]">
                         {p.avgRating}
                       </span>
-                      <span className="text-xs text-gray-400">({p.voteCount} votos)</span>
+                      <span className="text-xs text-gray-400">
+                        ({p.voteCount} votos)
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -724,9 +836,14 @@ function GameAnalytics() {
               </h3>
               <div className="space-y-2">
                 {ratings.bottomRatedProducts.map((p, i) => (
-                  <div key={p.productId} className="flex items-center justify-between">
+                  <div
+                    key={p.productId}
+                    className="flex items-center justify-between"
+                  >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-400 w-5">{i + 1}.</span>
+                      <span className="text-sm text-gray-400 w-5">
+                        {i + 1}.
+                      </span>
                       <span className="text-sm font-medium text-gray-900">
                         {productNames[p.productId] ?? `#${p.productId}`}
                       </span>
@@ -735,7 +852,9 @@ function GameAnalytics() {
                       <span className="text-sm font-semibold text-red-500">
                         {p.avgRating}
                       </span>
-                      <span className="text-xs text-gray-400">({p.voteCount} votos)</span>
+                      <span className="text-xs text-gray-400">
+                        ({p.voteCount} votos)
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -746,7 +865,8 @@ function GameAnalytics() {
       )}
 
       {/* Question Stats */}
-      {(questions.hardestQuestions.length > 0 || questions.easiestQuestions.length > 0) && (
+      {(questions.hardestQuestions.length > 0 ||
+        questions.easiestQuestions.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {questions.hardestQuestions.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -755,7 +875,10 @@ function GameAnalytics() {
               </h3>
               <div className="space-y-2">
                 {questions.hardestQuestions.map((q) => (
-                  <div key={q.questionId} className="flex items-center justify-between gap-2">
+                  <div
+                    key={q.questionId}
+                    className="flex items-center justify-between gap-2"
+                  >
                     <span className="text-sm text-gray-700 truncate flex-1">
                       {questionTexts[q.questionId] ?? q.questionId.slice(0, 8)}
                     </span>
@@ -763,7 +886,9 @@ function GameAnalytics() {
                       <span className="text-sm font-semibold text-red-500">
                         {q.accuracy}%
                       </span>
-                      <span className="text-xs text-gray-400">({q.totalAnswers}x)</span>
+                      <span className="text-xs text-gray-400">
+                        ({q.totalAnswers}x)
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -778,7 +903,10 @@ function GameAnalytics() {
               </h3>
               <div className="space-y-2">
                 {questions.easiestQuestions.map((q) => (
-                  <div key={q.questionId} className="flex items-center justify-between gap-2">
+                  <div
+                    key={q.questionId}
+                    className="flex items-center justify-between gap-2"
+                  >
                     <span className="text-sm text-gray-700 truncate flex-1">
                       {questionTexts[q.questionId] ?? q.questionId.slice(0, 8)}
                     </span>
@@ -786,7 +914,9 @@ function GameAnalytics() {
                       <span className="text-sm font-semibold text-green-500">
                         {q.accuracy}%
                       </span>
-                      <span className="text-xs text-gray-400">({q.totalAnswers}x)</span>
+                      <span className="text-xs text-gray-400">
+                        ({q.totalAnswers}x)
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -892,7 +1022,11 @@ function QuizForm({
                     ? "bg-green-500 text-white"
                     : "bg-gray-100 text-gray-400 hover:bg-gray-200"
                 }`}
-                title={form.correctAnswerIndex === i ? "Resposta correta" : "Marcar como correta"}
+                title={
+                  form.correctAnswerIndex === i
+                    ? "Resposta correta"
+                    : "Marcar como correta"
+                }
               >
                 {String.fromCharCode(65 + i)}
               </button>
@@ -960,7 +1094,9 @@ function QuizForm({
           <input
             type="number"
             value={form.points}
-            onChange={(e) => onChange({ ...form, points: Number(e.target.value) })}
+            onChange={(e) =>
+              onChange({ ...form, points: Number(e.target.value) })
+            }
             min={1}
             max={100}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
@@ -971,7 +1107,9 @@ function QuizForm({
             <input
               type="checkbox"
               checked={form.isActive}
-              onChange={(e) => onChange({ ...form, isActive: e.target.checked })}
+              onChange={(e) =>
+                onChange({ ...form, isActive: e.target.checked })
+              }
               className="rounded border-gray-300 text-[#D4AF37] focus:ring-[#D4AF37]"
             />
             <span className="text-sm text-gray-700">Ativa</span>
@@ -1015,7 +1153,9 @@ function PreferenceForm({
           <input
             type="text"
             value={form.optionALabel}
-            onChange={(e) => onChange({ ...form, optionALabel: e.target.value })}
+            onChange={(e) =>
+              onChange({ ...form, optionALabel: e.target.value })
+            }
             className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             placeholder="Ex: Nigiri"
           />
@@ -1027,7 +1167,9 @@ function PreferenceForm({
           <input
             type="text"
             value={form.optionAImage}
-            onChange={(e) => onChange({ ...form, optionAImage: e.target.value })}
+            onChange={(e) =>
+              onChange({ ...form, optionAImage: e.target.value })
+            }
             className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             placeholder="https://..."
           />
@@ -1047,7 +1189,9 @@ function PreferenceForm({
           <input
             type="text"
             value={form.optionBLabel}
-            onChange={(e) => onChange({ ...form, optionBLabel: e.target.value })}
+            onChange={(e) =>
+              onChange({ ...form, optionBLabel: e.target.value })
+            }
             className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             placeholder="Ex: Maki"
           />
@@ -1059,7 +1203,9 @@ function PreferenceForm({
           <input
             type="text"
             value={form.optionBImage}
-            onChange={(e) => onChange({ ...form, optionBImage: e.target.value })}
+            onChange={(e) =>
+              onChange({ ...form, optionBImage: e.target.value })
+            }
             className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             placeholder="https://..."
           />
@@ -1075,7 +1221,9 @@ function PreferenceForm({
           <input
             type="number"
             value={form.points}
-            onChange={(e) => onChange({ ...form, points: Number(e.target.value) })}
+            onChange={(e) =>
+              onChange({ ...form, points: Number(e.target.value) })
+            }
             min={1}
             max={100}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
@@ -1086,7 +1234,9 @@ function PreferenceForm({
             <input
               type="checkbox"
               checked={form.isActive}
-              onChange={(e) => onChange({ ...form, isActive: e.target.checked })}
+              onChange={(e) =>
+                onChange({ ...form, isActive: e.target.checked })
+              }
               className="rounded border-gray-300 text-[#D4AF37] focus:ring-[#D4AF37]"
             />
             <span className="text-sm text-gray-700">Ativa</span>
@@ -1157,7 +1307,9 @@ function PreviewCard({
                       : "bg-gray-800 text-gray-500"
                   }`}
                 >
-                  {i === question.correctAnswerIndex ? "✓" : String.fromCharCode(65 + i)}
+                  {i === question.correctAnswerIndex
+                    ? "✓"
+                    : String.fromCharCode(65 + i)}
                 </span>
                 <span>{opt}</span>
               </div>
@@ -1169,7 +1321,9 @@ function PreviewCard({
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-center text-gray-400 text-sm">{question.questionText}</p>
+          <p className="text-center text-gray-400 text-sm">
+            {question.questionText}
+          </p>
           <div className="flex gap-3">
             <div className="flex-1 rounded-xl border-2 border-gray-700 bg-[#1A1A1A] p-4 text-center">
               {question.optionA?.imageUrl && (

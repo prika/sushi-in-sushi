@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
 
+/** Stats window: last N days for overview aggregates */
+const STATS_DAYS = 90;
+/** Upper bound per table to avoid unbounded result sets */
+const SAFETY_LIMIT = 10_000;
+const DAILY_DAYS = 30;
+
 /**
  * GET /api/admin/game-stats
- * Returns aggregated game analytics for the admin dashboard
+ * Returns aggregated game analytics for the admin dashboard.
+ * All queries are bounded by date filter (last STATS_DAYS) and SAFETY_LIMIT.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -15,62 +22,84 @@ export async function GET(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Run all queries in parallel
+    const statsSince = new Date(
+      Date.now() - STATS_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const dailySince = new Date(
+      Date.now() - DAILY_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
+
+    // Run all bounded queries in parallel
     const [
       sessionsResult,
       answersResult,
       prizesResult,
       ratingsResult,
-      questionStatsResult,
       dailyResult,
     ] = await Promise.all([
-      // Total game sessions + breakdown by status
+      // Game sessions: date filter + limit (breakdown by status, unique table sessions)
       supabase
         .from("game_sessions")
-        .select("id, status, session_id, round_number, created_at"),
+        .select("id, status, session_id, round_number, created_at")
+        .gte("created_at", statsSince)
+        .limit(SAFETY_LIMIT),
 
-      // Total answers + score distribution
+      // Game answers: single query for totals + question stats (answered_at filter)
       supabase
         .from("game_answers")
-        .select("id, game_type, score_earned, question_id"),
+        .select("id, game_type, score_earned, question_id")
+        .gte("answered_at", statsSince)
+        .limit(SAFETY_LIMIT),
 
-      // Prizes distributed
+      // Prizes: date filter + limit
       supabase
         .from("game_prizes")
-        .select("id, prize_type, prize_value, redeemed, created_at"),
+        .select("id, prize_type, prize_value, redeemed, created_at")
+        .gte("created_at", statsSince)
+        .limit(SAFETY_LIMIT),
 
-      // Product ratings from swipe game
+      // Product ratings: date filter + limit
       supabase
         .from("product_ratings")
-        .select("product_id, rating, session_id"),
+        .select("product_id, rating, session_id")
+        .gte("created_at", statsSince)
+        .limit(SAFETY_LIMIT),
 
-      // Question accuracy: count answers per question
-      supabase
-        .from("game_answers")
-        .select("question_id, score_earned, game_type"),
-
-      // Sessions by day (last 30 days)
+      // Sessions by day (last 30 days) - already bounded by date + implicit limit
       supabase
         .from("game_sessions")
         .select("created_at")
-        .gte(
-          "created_at",
-          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-        ),
+        .gte("created_at", dailySince)
+        .limit(SAFETY_LIMIT),
     ]);
+
+    // Fail fast if any query returned an error
+    const queryErrors = [
+      sessionsResult.error,
+      answersResult.error,
+      prizesResult.error,
+      ratingsResult.error,
+      dailyResult.error,
+    ].filter(Boolean);
+
+    if (queryErrors.length > 0) {
+      console.error("Game stats query errors:", queryErrors);
+      return NextResponse.json(
+        { error: "Erro ao consultar dados de jogos" },
+        { status: 500 },
+      );
+    }
 
     // Process sessions
     const sessions = sessionsResult.data ?? [];
     const totalSessions = sessions.length;
     const completedSessions = sessions.filter(
-      (s) => s.status === "completed"
+      (s) => s.status === "completed",
     ).length;
     const abandonedSessions = sessions.filter(
-      (s) => s.status === "abandoned"
+      (s) => s.status === "abandoned",
     ).length;
-    const activeSessions = sessions.filter(
-      (s) => s.status === "active"
-    ).length;
+    const activeSessions = sessions.filter((s) => s.status === "active").length;
     const completionRate =
       totalSessions > 0
         ? Math.round((completedSessions / totalSessions) * 100)
@@ -88,13 +117,13 @@ export async function GET(request: NextRequest) {
       answers.length > 0
         ? Math.round(
             answers.reduce((sum, a) => sum + (a.score_earned ?? 0), 0) /
-              answers.length
+              answers.length,
           )
         : 0;
 
     // Quiz accuracy (score_earned > 0 = correct)
     const quizCorrect = quizAnswers.filter(
-      (a) => (a.score_earned ?? 0) > 0
+      (a) => (a.score_earned ?? 0) > 0,
     ).length;
     const quizAccuracy =
       quizAnswers.length > 0
@@ -143,32 +172,41 @@ export async function GET(request: NextRequest) {
       .slice(-5)
       .reverse();
 
-    // Question stats (most answered, hardest)
+    // Question stats (most answered, hardest) - only quiz answers count for accuracy
+    const quizAnswersForQuestions = (answersResult.data ?? []).filter(
+      (a) => a.question_id != null && a.game_type === "quiz",
+    );
     const questionAnswerMap: Record<
       string,
-      { total: number; correct: number }
+      { quizTotal: number; quizCorrect: number }
     > = {};
-    for (const a of questionStatsResult.data ?? []) {
+    for (const a of quizAnswersForQuestions) {
       const qid = a.question_id;
-      if (!questionAnswerMap[qid]) {
-        questionAnswerMap[qid] = { total: 0, correct: 0 };
+      if (qid == null) continue;
+      const key = String(qid);
+      if (!questionAnswerMap[key]) {
+        questionAnswerMap[key] = { quizTotal: 0, quizCorrect: 0 };
       }
-      questionAnswerMap[qid].total += 1;
-      if ((a.score_earned ?? 0) > 0 && a.game_type === "quiz") {
-        questionAnswerMap[qid].correct += 1;
+      questionAnswerMap[key].quizTotal += 1;
+      if ((a.score_earned ?? 0) > 0) {
+        questionAnswerMap[key].quizCorrect += 1;
       }
     }
 
     const questionStats = Object.entries(questionAnswerMap)
       .map(([questionId, data]) => ({
         questionId,
-        totalAnswers: data.total,
+        totalAnswers: data.quizTotal,
         accuracy:
-          data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+          data.quizTotal > 0
+            ? Math.round((data.quizCorrect / data.quizTotal) * 100)
+            : 0,
       }))
       .sort((a, b) => a.accuracy - b.accuracy);
 
-    const hardestQuestions = questionStats.filter((q) => q.totalAnswers >= 3).slice(0, 5);
+    const hardestQuestions = questionStats
+      .filter((q) => q.totalAnswers >= 3)
+      .slice(0, 5);
     const easiestQuestions = questionStats
       .filter((q) => q.totalAnswers >= 3)
       .slice(-5)
@@ -185,6 +223,11 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => a.date.localeCompare(b.date));
 
     return NextResponse.json({
+      meta: {
+        statsSince,
+        statsDays: STATS_DAYS,
+        dailyDays: DAILY_DAYS,
+      },
       overview: {
         totalSessions,
         completedSessions,
@@ -219,7 +262,7 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching game stats:", error);
     return NextResponse.json(
       { error: "Erro ao carregar estatísticas" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

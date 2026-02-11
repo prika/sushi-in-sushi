@@ -282,6 +282,7 @@
         "showStaff": "Mostra o QR code ou o código ao empregado para validar.",
         "redeem": "Resgatar",
         "redeeming": "A resgatar...",
+        "redeemError": "Não foi possível resgatar o prémio. Tenta novamente.",
         "revealing": "A revelar prémio..."
       },
       "hub": {

@@ -24,10 +24,18 @@ export async function POST(request: NextRequest) {
       productId,
     } = body;
 
-    if (!gameSessionId || !gameType || answer == null || (!questionId && productId == null)) {
+    if (
+      !gameSessionId ||
+      !gameType ||
+      answer == null ||
+      (!questionId && productId == null)
+    ) {
       return NextResponse.json(
-        { error: "gameSessionId, gameType, answer e (questionId ou productId) são obrigatórios" },
-        { status: 400 }
+        {
+          error:
+            "gameSessionId, gameType, answer e (questionId ou productId) são obrigatórios",
+        },
+        { status: 400 },
       );
     }
 
@@ -52,22 +60,64 @@ export async function POST(request: NextRequest) {
 
     // For tinder game type, also write to product_ratings for backwards compatibility
     if (gameType === "tinder" && sessionId && productId != null) {
-      const rating = answer.rating as number;
-      if (rating >= 1 && rating <= 5) {
-        const row = {
-          session_id: sessionId as string,
-          product_id: Number(productId),
-          rating: rating as number,
-          session_customer_id: (sessionCustomerId as string) || null,
-        };
+      if (answer == null || typeof answer !== "object") {
+        return NextResponse.json(
+          { error: "Para o jogo tinder, answer deve ser um objeto com rating" },
+          { status: 400 },
+        );
+      }
+      const rawRating = answer.rating;
+      const rating =
+        typeof rawRating === "number" && Number.isFinite(rawRating)
+          ? rawRating
+          : Number(rawRating);
+      if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+        return NextResponse.json(
+          { error: "answer.rating deve ser um número entre 1 e 5" },
+          { status: 400 },
+        );
+      }
+      const row = {
+        session_id: sessionId as string,
+        product_id: Number(productId),
+        rating,
+        session_customer_id: (sessionCustomerId as string) || null,
+      };
 
-        if (sessionCustomerId) {
-          await supabase
+      let ratingError: { message?: string } | null = null;
+
+      if (sessionCustomerId) {
+        const upsertResult = await supabase
+          .from("product_ratings")
+          .upsert(row, {
+            onConflict: "session_id,session_customer_id,product_id",
+          });
+        ratingError = upsertResult.error;
+      } else {
+        // Anonymous: partial unique index isn't usable for PostgREST upsert,
+        // so try insert first and fall back to update on conflict.
+        const insertResult = await supabase.from("product_ratings").insert(row);
+
+        if (insertResult.error?.code === "23505") {
+          // Duplicate — another request inserted first, update instead
+          const updateResult = await supabase
             .from("product_ratings")
-            .upsert(row, { onConflict: "session_id,session_customer_id,product_id" });
+            .update({ rating })
+            .eq("session_id", sessionId)
+            .eq("product_id", Number(productId))
+            .is("session_customer_id", null);
+          ratingError = updateResult.error;
         } else {
-          await supabase.from("product_ratings").insert(row);
+          ratingError = insertResult.error;
         }
+      }
+
+      if (ratingError) {
+        console.error("product_ratings write error:", ratingError);
+        return NextResponse.json(
+          { error: "Erro ao guardar avaliação do produto" },
+          { status: 500 },
+        );
       }
     }
 
@@ -78,6 +128,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("Games answer POST error:", err);
-    return NextResponse.json({ error: "Erro ao submeter resposta" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Erro ao submeter resposta" },
+      { status: 500 },
+    );
   }
 }

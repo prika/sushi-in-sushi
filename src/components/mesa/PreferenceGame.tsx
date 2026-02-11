@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { GameQuestion } from "@/domain/entities/GameQuestion";
 import type { GameAnswer } from "@/domain/entities/GameAnswer";
 
 interface PreferenceGameProps {
   questions: GameQuestion[];
-  onAnswer: (questionId: string, choice: "a" | "b") => Promise<GameAnswer | null>;
+  onAnswer: (
+    questionId: string,
+    choice: "a" | "b",
+  ) => Promise<GameAnswer | null>;
   onComplete: () => void;
   onClose: () => void;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -27,6 +30,15 @@ export function PreferenceGame({
   const [selectedChoice, setSelectedChoice] = useState<"a" | "b" | null>(null);
   const [score, setScore] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const current = questions[currentIndex];
   const total = questions.length;
@@ -48,13 +60,17 @@ export function PreferenceGame({
 
       setIsSubmitting(false);
 
-      setTimeout(() => {
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        timeoutRef.current = null;
         setChoiceState("idle");
         setSelectedChoice(null);
         setCurrentIndex((i) => i + 1);
       }, 1000);
     },
-    [choiceState, isSubmitting, current, onAnswer]
+    [choiceState, isSubmitting, current, onAnswer],
   );
 
   return (
@@ -81,8 +97,18 @@ export function PreferenceGame({
               className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-800"
               aria-label={t("mesa.games.close")}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
