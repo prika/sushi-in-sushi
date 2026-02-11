@@ -1,22 +1,33 @@
 # Sushi in Sushi
 
-Sistema de gestão completo para restaurante de sushi, incluindo website público, sistema de pedidos por mesa, painel administrativo, ecrã de cozinha e integrações com serviços externos.
+Sistema de gestão completo para uma cadeia de restaurantes de sushi portuguesa. Inclui website público, sistema de pedidos por mesa via QR code, painel administrativo com analytics, ecrã de cozinha em tempo real, sistema de reservas com confirmação por email, programa de fidelização progressivo, jogos interactivos na mesa e suporte multi-localização.
 
 ## Índice
 
 - [Tecnologias](#tecnologias)
+- [Arquitectura](#arquitectura)
 - [Funcionalidades](#funcionalidades)
   - [Website Público](#website-público)
   - [Sistema de Pedidos por Mesa](#sistema-de-pedidos-por-mesa)
+  - [Jogos Interactivos na Mesa](#jogos-interactivos-na-mesa)
+  - [Programa de Fidelização](#programa-de-fidelização)
   - [Painel Administrativo](#painel-administrativo)
   - [Ecrã de Cozinha](#ecrã-de-cozinha)
+  - [Interface do Empregado](#interface-do-empregado)
   - [Sistema de Reservas](#sistema-de-reservas)
-- [Integrações](#integrações)
+  - [Gestão Multi-Restaurante](#gestão-multi-restaurante)
+- [Tempo Real](#tempo-real)
+- [Performance](#performance)
+- [Testes](#testes)
+- [API Routes](#api-routes)
 - [Base de Dados](#base-de-dados)
 - [Autenticação](#autenticação)
 - [Internacionalização](#internacionalização)
+- [Integrações](#integrações)
 - [Instalação](#instalação)
 - [Variáveis de Ambiente](#variáveis-de-ambiente)
+- [Scripts Disponíveis](#scripts-disponíveis)
+- [Estrutura do Projecto](#estrutura-do-projecto)
 
 ---
 
@@ -24,14 +35,57 @@ Sistema de gestão completo para restaurante de sushi, incluindo website públic
 
 | Categoria | Tecnologia |
 |-----------|------------|
-| **Frontend** | React 18.3, Next.js 14.2, TypeScript 5.4 |
-| **Styling** | Tailwind CSS 3.4, Framer Motion 11 |
+| **Framework** | React 18.3, Next.js 14.2 (App Router), TypeScript 5.4 |
+| **Styling** | Tailwind CSS 3.4 (tema gold/dark personalizado), Framer Motion 11 |
 | **Backend** | Next.js API Routes, Supabase (PostgreSQL) |
-| **Autenticação** | JWT com jose 6.1 |
-| **Email** | Resend API |
-| **i18n** | next-intl 4.8 |
+| **Real-time** | Supabase Realtime (subscriptions) |
+| **Caching** | React Query (TanStack Query) |
+| **Autenticação** | JWT com jose 6.1, cookies httpOnly |
+| **Email** | Resend API com webhook tracking |
+| **i18n** | next-intl 4.8 (6 idiomas) |
+| **Testes** | Vitest (914 testes) |
 | **Icons** | Lucide React |
 | **QR Codes** | qrcode |
+
+---
+
+## Arquitectura
+
+O projecto segue **Clean Architecture** com separação rigorosa em 4 camadas:
+
+```
+┌─────────────────────────────────────────┐
+│   Presentation (React/Next.js)         │  Hooks, Pages, Contexts
+├─────────────────────────────────────────┤
+│   Application (Use Cases)              │  Orquestração de lógica de negócio
+├─────────────────────────────────────────┤
+│   Domain (Entidades + Interfaces)      │  Regras de negócio puras
+├─────────────────────────────────────────┤
+│   Infrastructure (Supabase)            │  Acesso a dados, serviços externos
+└─────────────────────────────────────────┘
+```
+
+**Dependências apontam sempre para dentro** (para o Domain). A UI nunca importa Supabase directamente.
+
+### Números da Arquitectura
+
+| Camada | Quantidade |
+|--------|------------|
+| **Entidades** | 19 (Order, Session, Table, Product, Category, Staff, Reservation, Restaurant, Customer, StaffTimeOff, RestaurantClosure, WaiterCall, ReservationSettings, DeviceProfile, CartItem, GameQuestion, GameSession, GameAnswer, GamePrize) |
+| **Value Objects** | 6 (OrderStatus, SessionStatus, TableStatus, CustomerTier, Location, GameConfig) |
+| **Domain Services** | 7 (OrderService, SessionService, TableService, CartService, GameService, CustomerTierService, WaiterAssignmentService) |
+| **Repository Interfaces** | 16 |
+| **Repository Implementações** | 16 (Supabase) |
+| **Use Cases** | 86+ |
+| **Presentation Hooks** | 24+ |
+
+### Padrões Implementados
+
+- **Result Pattern** — Tratamento de erros tipado (`Result<T>` com success/error)
+- **Dependency Injection** — Via `DependencyContext` (React Context)
+- **Repository Pattern** — Interfaces no Domain, implementações na Infrastructure
+- **Use Case Pattern** — Uma classe por operação, responsabilidade única
+- **Optimistic Updates** — UI instantânea com rollback automático em caso de erro
 
 ---
 
@@ -41,6 +95,8 @@ Sistema de gestão completo para restaurante de sushi, incluindo website públic
 
 Website moderno e responsivo com suporte a 6 idiomas.
 
+**Rotas:** `/` · `/menu` · `/equipa`
+
 | Secção | Descrição |
 |--------|-----------|
 | **Homepage** | Landing page com hero, vídeo promocional e call-to-actions |
@@ -48,41 +104,49 @@ Website moderno e responsivo com suporte a 6 idiomas.
 | **Equipa** | Apresentação da equipa do restaurante |
 | **Galeria** | Galeria de fotos com efeito marquee |
 | **Reviews** | Testemunhos de clientes |
-| **Localizações** | Duas localizações: Circunvalação e Boavista |
+| **Localizações** | Circunvalação e Boavista com mapa |
 | **Contacto** | Formulário de contacto e informações |
-| **Reservas** | Formulário de reserva online |
-
-**Rotas:**
-- `/` - Homepage
-- `/menu` - Menu completo
-- `/equipa` - Página da equipa
+| **Reservas** | Formulário de reserva online com confirmação por email |
 
 ---
 
 ### Sistema de Pedidos por Mesa
 
-Sistema de pedidos colaborativo via QR code, permitindo múltiplos dispositivos na mesma mesa.
+Sistema de pedidos colaborativo via QR code, permitindo múltiplos dispositivos na mesma mesa com sincronização em tempo real.
+
+**Rota:** `/mesa/[numero]`
+
+#### Tabs da Interface
+
+| Tab | Descrição |
+|-----|-----------|
+| **Menu** | Navegar produtos por categoria, adicionar ao carrinho |
+| **Carrinho** | Rever itens, confirmar pedido |
+| **Pedidos** | Acompanhar estado dos pedidos em tempo real |
+| **Chamar** | Chamar empregado de mesa |
+| **Conta** | Solicitar conta |
+| **Jogos** | Jogos interactivos durante a refeição |
 
 #### Características Principais
 
 | Funcionalidade | Descrição |
 |----------------|-----------|
-| **QR Code** | Cada mesa tem um QR code único que direciona para `/mesa/[numero]` |
-| **Carrinho Partilhado** | Todos os dispositivos na mesma mesa vêm o mesmo carrinho em tempo real |
-| **Identificação de Dispositivo** | Cada dispositivo recebe um nome único (ex: "Feliz Salmão") |
-| **Tipos de Serviço** | Suporte para Rodízio (all-you-can-eat) e À La Carte |
-| **Tracking de Pedidos** | Acompanhamento do estado: pendente → a preparar → pronto → entregue |
-| **Participantes** | Visualização de quantos dispositivos estão a fazer pedidos |
+| **QR Code** | Cada mesa tem um QR code único que direcciona para `/mesa/[numero]` |
+| **Carrinho Partilhado** | Todos os dispositivos na mesma mesa vêem o mesmo carrinho em tempo real |
+| **Identificação de Dispositivo** | Nome único gerado automaticamente (ex: "Feliz Salmão") |
+| **Persistência de Dispositivo** | Reconhece clientes que regressam e pré-preenche dados |
+| **Tipos de Serviço** | Rodízio (all-you-can-eat) e À La Carte |
+| **Tracking de Pedidos** | Acompanhamento visual: pendente → a preparar → pronto → entregue |
+| **Cooldown de Pedidos** | Período de espera entre pedidos para evitar spam |
+| **Participantes** | Visualização de quantos dispositivos estão ligados à mesa |
 
 #### Estados dos Pedidos
 
-| Estado | Descrição |
-|--------|-----------|
-| `pending` | Pedido recebido, aguarda preparação |
-| `preparing` | Em preparação na cozinha |
-| `ready` | Pronto para servir |
-| `delivered` | Entregue ao cliente |
-| `cancelled` | Cancelado |
+```
+pending → preparing → ready → delivered
+                                  ↓
+                             cancelled
+```
 
 #### Fluxo do Cliente
 
@@ -91,6 +155,81 @@ Sistema de pedidos colaborativo via QR code, permitindo múltiplos dispositivos 
 3. Navegar pelo menu e adicionar itens ao carrinho
 4. Confirmar pedido
 5. Acompanhar estado em tempo real
+6. Jogar jogos enquanto espera
+7. Solicitar conta quando terminar
+
+---
+
+### Jogos Interactivos na Mesa
+
+Sistema de jogos que permite aos clientes interagir durante a refeição, ganhar pontos e competir por prémios.
+
+#### 3 Tipos de Jogos
+
+**1. Swipe/Tinder Game** — Avaliar produtos com gestos de swipe
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Drag gestures | Arrastar para a direita (LIKE, 5 estrelas) ou esquerda (NOPE, 2 estrelas) |
+| Animações | Spring physics com Framer Motion |
+| Progresso | Barra de progresso para bebida grátis (threshold: 5 ratings) |
+| Table Leader | Produto mais votado da mesa |
+| Acessibilidade | Botões manuais como alternativa ao swipe |
+
+**2. Quiz Game** — Perguntas sobre sushi e culinária japonesa
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| 4 opções | Perguntas de escolha múltipla (A, B, C, D) |
+| Temporizador | 15 segundos por pergunta com barra animada |
+| Feedback visual | Verde (correcto), vermelho (errado), amarelo (timeout) |
+| Pontuação | Score em tempo real no header |
+| Dificuldade | Categorias e níveis de dificuldade com estrelas |
+| Animações | Transições slide entre perguntas |
+
+**3. Preference Game (A vs B)** — Escolhas de preferência
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Layout VS | Duas opções lado a lado |
+| Sem respostas erradas | Sempre ganha pontos |
+| Imagens opcionais | Suporte a imagens nas opções |
+| Animações | Scale + highlight dourado na selecção |
+
+#### Sistema de Prémios
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Tipos de prémio | Desconto %, produto grátis, jantar grátis |
+| Elegibilidade | Rondas mínimas configuráveis por restaurante |
+| Revelação | Animação de revelação com troféu |
+| Validação | QR code + código alfanumérico para o empregado validar |
+| Resgate | Estado de "já resgatado" após utilização |
+
+#### Leaderboard em Tempo Real
+
+- Ranking de jogadores da mesa via Supabase subscriptions
+- Notificações toast quando alguém ultrapassa no ranking
+- Nomes anónimos engraçados para cada jogador
+
+---
+
+### Programa de Fidelização
+
+Sistema de registo progressivo com 4 níveis (tiers):
+
+| Tier | Nome | Dados |
+|------|------|-------|
+| 1 | Session Only | Nome anónimo gerado automaticamente |
+| 2 | Basic Contact | Email OU telefone |
+| 3 | Full Contact | Email + telefone + nome completo + data de nascimento |
+| 4 | Delivery | Reservado para futuro (morada de entrega) |
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Progressivo | Dados pedidos gradualmente, sem formulários longos |
+| Device Fingerprinting | Reconhece dispositivos que regressam |
+| Pré-preenchimento | Dados guardados para visitas futuras |
+| Pontos | Sistema de pontos por visita e gasto |
+| Upgrade Prompts | Convites configuráveis por restaurante para fornecer mais dados |
+| Opt-in | Adesão voluntária ao programa completo |
 
 ---
 
@@ -107,62 +246,62 @@ Dashboard completo para gestão do restaurante com estatísticas em tempo real.
 | Sessões Activas | Número de mesas ocupadas no momento |
 | Sessões Hoje | Total de sessões do dia |
 | Pedidos por Estado | Contagem de pedidos pendentes, a preparar, prontos |
-| Receita do Dia | Faturação total do dia |
+| Receita do Dia | Facturação total do dia |
 | Ticket Médio | Valor médio por sessão |
 | Ocupação | Percentagem de mesas ocupadas |
 
-#### Gestão de Mesas (`/admin/mesas`)
+#### Chamadas de Empregados (`/admin/chamadas`)
 
 | Funcionalidade | Descrição |
 |----------------|-----------|
-| Criar Mesa | Adicionar nova mesa com número e nome |
-| Editar Mesa | Modificar dados da mesa |
-| Localização | Atribuir mesa a Circunvalação ou Boavista |
-| Estado | Activar/desactivar mesas |
-| Eliminar | Remover mesas (soft delete) |
+| Chamadas pendentes | Lista de mesas que pediram assistência |
+| Acknowledge | Marcar chamada como reconhecida |
+| Completar | Marcar chamada como resolvida |
+| Tempo | Há quanto tempo a chamada está pendente |
+
+#### Gestão de Reservas (`/admin/reservas`)
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Lista de Reservas | Todas as reservas com filtros por data e estado |
+| Confirmar/Cancelar | Gestão de estados com notificação por email |
+| Atribuir Mesa | Associar mesa à reserva |
+| Estados | pending → confirmed → seated → completed / cancelled / no_show |
+| Emails automáticos | Confirmação, lembretes (véspera e dia), cancelamento |
+| Cron Jobs | Lembretes automáticos via cron |
+
+#### Gestão de Folgas (`/admin/folgas`)
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Dias de Fecho | Definir dias específicos em que o restaurante está fechado |
+| Fecho Recorrente | Definir dias da semana sempre fechados (ex: segunda-feira) |
+| Por Localização | Fecho específico por localização ou ambas |
+| Motivo | Registar motivo do fecho |
+| Validação | Bloqueia automaticamente reservas em dias fechados |
+
+#### Gestão de Sessões (`/admin/sessoes`)
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Sessões Activas | Ver sessões em curso com detalhes |
+| Histórico | Ver sessões anteriores |
+| Filtros | Filtrar por estado, data e localização |
+| Detalhes | Ver pedidos de cada sessão |
+| Fechar Sessão | Finalizar sessão manualmente |
 
 #### Gestão de Produtos (`/admin/produtos`)
 
 | Funcionalidade | Descrição |
 |----------------|-----------|
 | CRUD Completo | Criar, ver, editar e eliminar produtos |
+| Múltiplas Imagens | Upload de várias imagens por produto |
 | Categorias | Organização por categorias |
 | Preços | Gestão de preços |
 | Disponibilidade | Marcar produtos como disponíveis/indisponíveis |
 | Rodízio | Marcar produtos incluídos no rodízio |
 | Ordenação | Definir ordem de apresentação |
-| Imagens | URL de imagem do produto |
-
-#### Gestão de Reservas (`/admin/reservas`)
-
-| Funcionalidade | Descrição |
-|----------------|-----------|
-| Lista de Reservas | Ver todas as reservas com filtros por data e estado |
-| Confirmar | Confirmar reservas pendentes |
-| Cancelar | Cancelar reservas com motivo |
-| Atribuir Mesa | Associar mesa à reserva |
-| Enviar Email | Notificação automática ao cliente |
-| Estados | pending, confirmed, cancelled, completed, no_show |
-
-#### Gestão de Folgas (`/admin/folgas`)
-
-| Funcionalidade | Descrição |
-|----------------|-----------|
-| Dias de Fecho | Definir dias em que o restaurante está fechado |
-| Por Localização | Fecho específico por localização ou ambas |
-| Fecho Recorrente | Definir dia da semana sempre fechado (ex: segunda-feira) |
-| Motivo | Registar motivo do fecho |
-| Validação | Bloqueia reservas em dias fechados |
-
-#### Gestão de Sessões (`/admin/sessoes`)
-
-| Funcionalidade | Descrição |
-|----------------|-----------|
-| Sessões Activas | Ver sessões em curso |
-| Histórico | Ver sessões anteriores |
-| Filtros | Filtrar por estado e data |
-| Detalhes | Ver pedidos de cada sessão |
-| Fechar Sessão | Finalizar sessão manualmente |
+| Ratings | Média de avaliações e contagem (integração com jogos) |
 
 #### Gestão de Staff (`/admin/staff`)
 
@@ -174,6 +313,7 @@ Dashboard completo para gestão do restaurante com estatísticas em tempo real.
 | Credenciais | Definir email e password |
 | Desactivar | Desactivar conta sem eliminar |
 | Atribuições | Atribuir empregados a mesas |
+| Métricas | Performance individual do empregado |
 
 #### Gestão de Clientes (`/admin/clientes`)
 
@@ -184,7 +324,45 @@ Dashboard completo para gestão do restaurante com estatísticas em tempo real.
 | Preferências | Localização preferida |
 | Marketing | Consentimento para comunicações |
 | Pontos | Sistema de pontos de fidelização |
-| Histórico | Total gasto e número de visitas |
+| Histórico | Total gasto, número de visitas, pedidos anteriores |
+| Criar de Sessão | Converter participante anónimo em cliente registado |
+
+#### Gestão de Jogos (`/admin/jogos`)
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Tab Quiz | CRUD de perguntas de quiz (texto, 4 opções, resposta correcta, categoria, dificuldade, pontos) |
+| Tab Preferência | CRUD de perguntas A vs B (texto, opção A/B com label + imagem opcional) |
+| Tab Analytics | Dashboard com métricas de jogos |
+| Preview | Pré-visualização inline com estilo dark (simula aparência no telemóvel) |
+| Toggle | Activar/desactivar perguntas inline |
+| Configuração | Jogos configurados por restaurante no modal de edição |
+
+#### Analytics de Jogos
+
+| Métrica | Descrição |
+|---------|-----------|
+| Sessões totais | Número de sessões de jogo |
+| Taxa de conclusão | % de jogos completados |
+| Respostas totais | Total de respostas submetidas |
+| Precisão quiz | Taxa de respostas correctas |
+| Score médio | Pontuação média dos jogadores |
+| Prémios | Total, resgatados, taxa de resgate, breakdown por tipo |
+| Top/Bottom Produtos | 5 produtos melhor e pior avaliados |
+| Perguntas difíceis | Perguntas com menor/maior taxa de acerto |
+| Actividade diária | Gráfico dos últimos 30 dias |
+
+#### Definições (`/admin/definicoes`)
+
+5 tabs de configuração:
+
+| Tab | Conteúdo |
+|-----|----------|
+| **Notificações** | Lembretes de reserva (véspera, dia), política de desperdício rodízio (fee por peça) |
+| **Fechos Semanais** | Definir dias recorrentes de fecho |
+| **Exportação** | Exportar sessões/pedidos em CSV/JSON com filtros de data |
+| **Mesas** | Mapa visual de mesas, criar/editar, gerar QR codes |
+| **Restaurantes** | CRUD de restaurantes, criação automática de mesas, configuração de jogos |
 
 #### QR Codes (`/admin/qrcodes`)
 
@@ -213,31 +391,42 @@ Interface dedicada para a equipa de cozinha gerir pedidos em tempo real.
 
 **Rota:** `/cozinha`
 
-#### Características
-
 | Funcionalidade | Descrição |
 |----------------|-----------|
-| Fila de Pedidos | Lista de pedidos ordenada por tempo |
+| Fila de Pedidos | Lista de pedidos ordenada por tempo de criação |
 | Agrupamento | Pedidos agrupados por mesa |
 | Estados | Actualizar estado: pendente → a preparar → pronto |
 | Filtro por Local | Ver pedidos de uma localização específica |
 | Notificações Sonoras | Alerta áudio para novos pedidos |
 | Notificações Push | Notificações do browser |
 | Indicador Visual | Header pisca quando há novos pedidos |
-| Tempo | Mostra há quanto tempo o pedido foi feito |
+| Tempo de Espera | Mostra há quanto tempo o pedido foi feito |
+| Indicador de Urgência | Destaque visual para pedidos antigos |
 
-#### Fluxo da Cozinha
+**Fluxo:** Novo pedido (som) → "A Preparar" → "Pronto" → Empregado notificado
 
-1. Novo pedido aparece com som de alerta
-2. Cozinheiro clica "A Preparar"
-3. Quando pronto, clica "Pronto"
-4. Empregado é notificado para servir
+---
+
+### Interface do Empregado
+
+Interface dedicada para empregados de mesa.
+
+**Rota:** `/waiter`
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Mesas Atribuídas | Ver apenas as mesas do empregado |
+| Sessões Activas | Sessões em curso nas mesas atribuídas |
+| Pedidos Prontos | Pedidos prontos para servir |
+| Chamadas | Alertas de chamadas de assistência |
+| Participantes | Tracking de dispositivos por sessão |
+| Atribuição Automática | Sistema de auto-assign de empregados a mesas |
 
 ---
 
 ### Sistema de Reservas
 
-Sistema completo de reservas online com confirmação por email.
+Sistema completo de reservas online com confirmação por email e lembretes automáticos.
 
 #### Formulário Público
 
@@ -249,11 +438,21 @@ Sistema completo de reservas online com confirmação por email.
 | Data | Calendário com dias fechados bloqueados |
 | Hora | Horários disponíveis |
 | Pessoas | 1 a 20 pessoas |
-| Localização | Circunvalação ou Boavista |
+| Localização | Circunvalação ou Boavista (dinâmico) |
 | Tipo | Rodízio ou À La Carte |
 | Pedidos Especiais | Campo livre para observações |
 | Ocasião | Aniversário, negócios, etc. |
 | Marketing | Consentimento para comunicações |
+
+#### Emails Automáticos
+
+| Tipo | Quando |
+|------|--------|
+| Confirmação ao Cliente | Ao submeter reserva |
+| Notificação ao Restaurante | Nova reserva recebida |
+| Confirmação de Reserva | Admin confirma reserva |
+| Lembrete Véspera | Cron job, horas configuráveis |
+| Lembrete Dia | Cron job, horas configuráveis |
 
 #### Tracking de Email
 
@@ -267,58 +466,168 @@ Sistema completo de reservas online com confirmação por email.
 
 ---
 
-## Integrações
+### Gestão Multi-Restaurante
 
-### Supabase
+Sistema dinâmico para gestão de múltiplas localizações, substituindo localizações hardcoded.
 
-Base de dados PostgreSQL com funcionalidades em tempo real.
+| Campo | Descrição |
+|-------|-----------|
+| `name` | Nome exibido (ex: "Circunvalação") |
+| `slug` | Identificador único (ex: "circunvalacao") |
+| `address` | Endereço completo |
+| `latitude/longitude` | Coordenadas (para futuro mapa) |
+| `max_capacity` | Capacidade total do restaurante |
+| `default_people_per_table` | Capacidade padrão por mesa |
+| `games_enabled` | Jogos activos nesta localização |
+| `games_prize_type` | Tipo de prémio configurado |
+| `auto_table_assignment` | Flag para futura automação |
+| `auto_reservations` | Flag para futura automação |
+| `is_active` | Restaurante activo (aparece em dropdowns) |
 
-| Funcionalidade | Uso |
-|----------------|-----|
-| **Database** | Armazenamento de todos os dados |
-| **Real-time** | Subscriptions para dashboard e pedidos |
-| **Row Level Security** | Políticas de segurança por role |
-| **Functions** | Funções PostgreSQL para lógica de negócio |
+**Criação Automática de Mesas:** Ao criar/editar restaurante, o sistema calcula `max_capacity / default_people_per_table` e cria mesas automaticamente.
 
-**Gerar tipos TypeScript a partir do schema:** O comando `gen types` escreve para o stdout, por isso é preciso redirecionar para um ficheiro. Além disso, é necessário estar autenticado e usar o **project ref** (subdomínio da URL do projeto, e.g. em `https://abcdefgh.supabase.co` o ref é `NEXT_PUBLIC_SUPABASE_PROJECT_REF`).
+**Localizações Actuais:** Circunvalação (slug: `circunvalacao`) e Boavista (slug: `boavista`).
 
-```bash
-# 1. Autenticar (uma vez)
-npx supabase login
+---
 
-# 2a. Com project ref em variável de ambiente (extrair ref da NEXT_PUBLIC_SUPABASE_URL)
-export SUPABASE_PROJECT_REF=NEXT_PUBLIC_SUPABASE_PROJECT_REF   
-# o subdomínio do teu projeto
-npm run supabase:types
+## Tempo Real
 
-# 2b. Ou, se tiveres o projeto ligado (supabase link)
-npm run supabase:types:linked
-```
+O projecto usa **Supabase Realtime** para sincronização instantânea:
 
-Os tipos são gravados em `src/types/supabase.ts`.
+| Funcionalidade | Subscrição |
+|----------------|------------|
+| Pedidos na cozinha | Novos pedidos e actualizações de estado |
+| Carrinho partilhado | Sincronização entre dispositivos na mesma mesa |
+| Chamadas de empregado | Notificação imediata ao empregado |
+| Participantes da sessão | Tracking de dispositivos ligados |
+| Leaderboard de jogos | Rankings actualizados em tempo real |
+| Respostas de jogos | Notificação quando alguém responde |
 
-### Resend (Email)
+---
 
-Serviço de envio de emails transaccionais.
+## Performance
 
-| Tipo de Email | Quando |
-|---------------|--------|
-| **Confirmação ao Cliente** | Quando submete reserva |
-| **Notificação ao Restaurante** | Nova reserva recebida |
-| **Confirmação de Reserva** | Admin confirma reserva |
-| **Webhooks** | Tracking de eventos de email |
+### React Query
 
-### Vendus POS (Branch: vendus_billing)
+| Área | Melhoria |
+|------|----------|
+| Produtos | 89% mais rápido (270ms → 30ms) com cache de 5-10 min |
+| Pedidos da cozinha | 96% mais rápido (500ms → 20ms) com refetch de 10s |
+| Actualizações | Optimistic updates com rollback automático |
 
-Integração com sistema de ponto de venda português.
+### Hooks Optimizados
 
-| Funcionalidade | Descrição |
-|----------------|-----------|
-| **Sync de Produtos** | Sincronização bidireccional |
-| **Importar Mesas** | Importar mesas/salas do Vendus |
-| **Faturação** | Emissão de faturas/recibos |
-| **Impressão Cozinha** | Enviar para impressora da cozinha |
-| **Retry Queue** | Fila de retry para operações falhadas |
+- Estratégia zero memoization (useRef + lazy init)
+- Zero re-renders desnecessários
+
+### Índices de Base de Dados
+
+18 índices estratégicos (migration 022) com melhoria esperada de 40-60%:
+- Orders: status + created_at (DESC)
+- Sessions: status + location + started_at
+- Waiter calls: location + status (pending only)
+- Staff time off: staff_id + dates
+
+---
+
+## Testes
+
+**914 testes passando** com Vitest.
+
+### Cobertura por Camada
+
+| Camada | Testes | Cobertura |
+|--------|--------|-----------|
+| **Use Cases** | 86+ testes | 100% |
+| **Domain Services** | 143+ testes | 100% (OrderService 44, SessionService 34, TableService 40, GameService 25+) |
+| **Infrastructure** | 129+ testes | Padrão estabelecido (8 repositórios testados) |
+| **Presentation Hooks** | 69+ testes | Padrão estabelecido (6 hooks testados) |
+
+### Repositórios Testados
+
+| Repositório | Testes |
+|-------------|--------|
+| SupabaseRestaurantRepository | 25 |
+| SupabaseRestaurantClosureRepository | 19 |
+| SupabaseGameQuestionRepository | 25 |
+| SupabaseGameSessionRepository | 16 |
+| SupabaseGameAnswerRepository | 15 |
+| SupabaseGamePrizeRepository | 12 |
+| SupabaseStaffTimeOffRepository | 10 |
+| SupabaseReservationSettingsRepository | 7 |
+
+### Hooks Testados
+
+| Hook | Testes |
+|------|--------|
+| useProducts | 20 |
+| useGameSession | 18 |
+| useStaffTimeOff | 12 |
+| useActivityLog | 7 |
+| useGameConfig | 7 |
+| useRestaurants | 5 |
+
+---
+
+## API Routes
+
+### Autenticação (`/api/auth/`)
+
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/api/auth/login` | POST | Login de staff |
+| `/api/auth/logout` | POST | Logout |
+| `/api/auth/me` | GET | Dados do utilizador actual |
+| `/api/auth/secure-login` | POST | Login seguro |
+| `/api/auth/mfa/enroll` | POST | Activar MFA |
+| `/api/auth/mfa/verify` | POST | Verificar código MFA |
+| `/api/auth/mfa/status` | GET | Estado do MFA |
+
+### Mesa / Jogos (`/api/mesa/`)
+
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/api/mesa/games` | GET | Leaderboard da sessão |
+| `/api/mesa/games` | POST | Iniciar sessão de jogo |
+| `/api/mesa/games/answer` | POST | Submeter resposta |
+| `/api/mesa/games/complete` | POST | Completar jogo |
+| `/api/mesa/games/redeem` | POST | Resgatar prémio |
+| `/api/mesa/ratings` | GET | Stats de ratings |
+| `/api/mesa/ratings` | POST | Guardar rating de produto |
+
+### Admin (`/api/admin/`)
+
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/api/admin/game-questions` | GET/POST/PUT/DELETE | CRUD de perguntas de jogos |
+| `/api/admin/game-stats` | GET | Analytics de jogos |
+| `/api/admin/products/stats` | GET | Estatísticas de produtos |
+| `/api/admin/products/upload` | POST | Upload de imagens |
+
+### Core
+
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/api/sessions` | GET/POST | Gestão de sessões |
+| `/api/reservations` | GET/POST | CRUD de reservas |
+| `/api/reservations/[id]` | GET/PUT/DELETE | Reserva individual |
+| `/api/closures` | GET/POST/DELETE | Gestão de fechos |
+| `/api/closures/check` | GET | Verificar se data está fechada |
+| `/api/staff-time-off` | GET/POST | CRUD de ausências |
+| `/api/staff-time-off/[id]` | GET/PUT/DELETE | Ausência individual |
+| `/api/staff/[id]/metrics` | GET | Métricas de performance |
+| `/api/customers/from-session` | POST | Criar cliente de sessão |
+| `/api/customers/[id]/history` | GET | Histórico de pedidos |
+| `/api/reservation-settings` | GET/PUT | Configurações de reservas |
+| `/api/export` | GET | Exportação de dados |
+| `/api/activity/log` | POST | Log de actividade |
+
+### Webhooks e Cron
+
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/api/webhooks/resend` | POST | Tracking de eventos de email |
+| `/api/cron/reservation-reminders` | POST | Lembretes automáticos de reservas |
 
 ---
 
@@ -328,32 +637,56 @@ Integração com sistema de ponto de venda português.
 
 | Tabela | Descrição |
 |--------|-----------|
+| `restaurants` | Localizações e configurações de restaurantes |
 | `staff` | Funcionários e credenciais |
 | `roles` | Funções (admin, kitchen, waiter, customer) |
 | `customers` | Clientes do programa de fidelização |
+| `device_profiles` | Persistência de dispositivos |
 | `tables` | Mesas do restaurante |
 | `categories` | Categorias de produtos |
 | `products` | Produtos/itens do menu |
 | `sessions` | Sessões de mesa (refeição) |
+| `session_participants` | Dispositivos numa sessão |
 | `orders` | Pedidos individuais |
 | `cart_items` | Itens no carrinho partilhado |
-| `session_participants` | Dispositivos numa sessão |
 | `reservations` | Reservas de mesa |
+| `reservation_settings` | Configurações de reservas |
 | `restaurant_closures` | Dias de fecho |
+| `staff_time_off` | Férias e folgas de funcionários |
+| `waiter_tables` | Atribuição empregado-mesa |
+| `waiter_calls` | Chamadas de assistência |
+| `product_ratings` | Avaliações de produtos (swipe game) |
+| `game_questions` | Perguntas de quiz e preferência |
+| `game_sessions` | Sessões de jogo |
+| `game_answers` | Respostas dos jogadores |
+| `game_prizes` | Prémios ganhos |
 | `email_events` | Log de eventos de email |
 | `activity_log` | Auditoria de acções |
-| `waiter_tables` | Atribuição empregado-mesa |
 
 ### Migrations
 
 ```
 supabase/migrations/
-├── 001_user_management.sql      # Staff, roles, tables base
-├── 002_table_management.sql     # Sessions, orders, cart
-├── 003_reservations.sql         # Sistema de reservas
-├── 004_email_tracking.sql       # Tracking de emails
-├── 005_restaurant_closures.sql  # Gestão de folgas
-└── 006_vendus_integration.sql   # Integração Vendus (branch)
+├── 001_user_management.sql         # Staff, roles, tables base
+├── 002_table_management.sql        # Sessions, orders, cart
+├── 003_reservations.sql            # Sistema de reservas
+├── 004_email_tracking.sql          # Tracking de emails
+├── 005_restaurant_closures.sql     # Gestão de folgas
+├── 006_vendus_integration.sql      # Integração Vendus (branch)
+├── 007_waiter_calls.sql            # Chamadas de empregados
+├── 008_session_customers.sql       # Participantes na sessão
+├── 009_waiter_calls_order_id.sql   # Relação chamadas-pedidos
+├── ...                             # Migrations intermédias
+├── 024_order_cooldown.sql          # Cooldown entre pedidos
+├── 025_progressive_registration.sql # Registo progressivo, device_profiles
+├── 026_product_images_multiple.sql # Múltiplas imagens por produto
+├── 027_products_rls_admin.sql      # RLS policy para admin
+├── 028_product_ratings.sql         # Ratings de produtos (swipe game)
+├── 029_games.sql                   # 4 tabelas de jogos + config restaurante
+├── 030_game_questions_seed.sql     # 35 perguntas seed (quiz + preferência)
+├── 031_game_answers_realtime.sql   # Real-time para respostas
+├── 031_games_mode.sql              # Modo de selecção de jogos
+└── 032_unified_game_scoring.sql    # Sistema de pontuação unificado
 ```
 
 ---
@@ -369,14 +702,15 @@ supabase/migrations/
 | **Armazenamento** | Cookie httpOnly, secure, sameSite: lax |
 | **Expiração** | 24 horas |
 | **Payload** | id, email, name, role, location |
+| **MFA** | Suporte a autenticação multi-factor |
 
 ### Roles e Permissões
 
 | Role | Permissões |
 |------|------------|
 | `admin` | Acesso total a todas as funcionalidades |
-| `kitchen` | Ecrã de cozinha, ver pedidos |
-| `waiter` | Gestão de mesas atribuídas, criar pedidos |
+| `kitchen` | Ecrã de cozinha, ver e gerir pedidos |
+| `waiter` | Gestão de mesas atribuídas, criar pedidos, chamadas |
 | `customer` | Apenas área pública |
 
 ### Rotas Protegidas
@@ -395,18 +729,59 @@ supabase/migrations/
 
 | Código | Idioma |
 |--------|--------|
-| `pt` | Português (default) |
+| `pt` | Portugues (default) |
 | `en` | Inglês |
 | `fr` | Francês |
 | `de` | Alemão |
 | `it` | Italiano |
 | `es` | Espanhol |
 
-### Configuração
-
 - **Biblioteca:** next-intl
 - **Estratégia:** Prefixo apenas quando necessário
 - **Ficheiros:** `/src/messages/[locale].json`
+- **Cobertura:** Website público (100%), mesa (100%), jogos (100%), admin (parcial)
+
+---
+
+## Integrações
+
+### Supabase
+
+| Funcionalidade | Uso |
+|----------------|-----|
+| **Database** | PostgreSQL para todos os dados |
+| **Real-time** | Subscriptions para dashboard, pedidos, jogos |
+| **Row Level Security** | Políticas de segurança por role |
+| **Storage** | Upload de imagens de produtos |
+
+**Gerar tipos TypeScript:**
+
+```bash
+npx supabase login
+npm run supabase:types
+```
+
+Os tipos são gravados em `src/types/supabase.ts`.
+
+### Resend (Email)
+
+| Tipo de Email | Quando |
+|---------------|--------|
+| Confirmação ao Cliente | Ao submeter reserva |
+| Notificação ao Restaurante | Nova reserva recebida |
+| Confirmação de Reserva | Admin confirma reserva |
+| Lembretes | Cron jobs (véspera e dia) |
+| Webhooks | Tracking de eventos de email |
+
+### Vendus POS (Branch: vendus_billing)
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Sync de Produtos | Sincronização bidireccional |
+| Importar Mesas | Importar mesas/salas do Vendus |
+| Faturação | Emissão de facturas/recibos |
+| Impressão Cozinha | Enviar para impressora da cozinha |
+| Retry Queue | Fila de retry para operações falhadas |
 
 ---
 
@@ -434,7 +809,7 @@ cp .env.local.example .env.local
 # Editar .env.local com as suas credenciais
 
 # Executar migrations no Supabase
-# (via Supabase Dashboard ou CLI)
+# (via Supabase Dashboard SQL Editor ou CLI com Docker)
 
 # Iniciar em desenvolvimento
 npm run dev
@@ -449,95 +824,32 @@ npm start
 ## Variáveis de Ambiente
 
 ```env
-# =============================================
 # Site
-# =============================================
 NEXT_PUBLIC_SITE_URL=https://seudominio.pt
 
-# =============================================
 # Autenticação
-# =============================================
 AUTH_SECRET=chave-secreta-mudar-em-producao
 ADMIN_PASSWORD=password-admin
 COZINHA_PASSWORD=password-cozinha
 
-# =============================================
 # Supabase
-# =============================================
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
-# =============================================
 # Email (Resend)
-# =============================================
 RESEND_API_KEY=re_xxxxxxxxxxxx
 FROM_EMAIL=reservas@seudominio.pt
 RESTAURANT_EMAIL_1=notificacoes@seudominio.pt
 RESTAURANT_EMAIL_2=gerente@seudominio.pt
 RESEND_WEBHOOK_SECRET=whsec_xxxxxxxxxxxx
 
-# =============================================
 # Vendus POS (opcional)
-# =============================================
 VENDUS_API_KEY=sua_api_key
 VENDUS_STORE_ID=id_da_loja
 VENDUS_REGISTER_ID=id_da_caixa
 
-# Por localização (opcional)
-# VENDUS_API_KEY_CIRCUNVALACAO=
-# VENDUS_API_KEY_BOAVISTA=
-
 # Cron Jobs
 CRON_SECRET=secret-para-cron-jobs
-```
-
----
-
-## Estrutura do Projecto
-
-```
-src/
-├── app/
-│   ├── [locale]/           # Páginas públicas com i18n
-│   │   ├── page.tsx        # Homepage
-│   │   ├── menu/           # Menu
-│   │   └── equipa/         # Equipa
-│   ├── admin/              # Painel administrativo
-│   │   ├── page.tsx        # Dashboard
-│   │   ├── mesas/          # Gestão de mesas
-│   │   ├── produtos/       # Gestão de produtos
-│   │   ├── reservas/       # Gestão de reservas
-│   │   ├── folgas/         # Gestão de folgas
-│   │   ├── sessoes/        # Gestão de sessões
-│   │   ├── staff/          # Gestão de staff
-│   │   ├── clientes/       # Gestão de clientes
-│   │   ├── qrcodes/        # Geração de QR codes
-│   │   ├── exportar/       # Exportação de dados
-│   │   └── vendus/         # Integração Vendus
-│   ├── cozinha/            # Ecrã de cozinha
-│   ├── waiter/             # Interface empregado
-│   ├── mesa/               # Sistema de pedidos por mesa
-│   ├── login/              # Página de login
-│   └── api/                # API Routes
-│       ├── auth/           # Autenticação
-│       ├── reservations/   # Reservas
-│       ├── closures/       # Folgas
-│       ├── export/         # Exportação
-│       ├── cron/           # Cron jobs
-│       └── vendus/         # API Vendus
-├── components/             # Componentes React
-│   ├── ui/                 # Componentes UI base
-│   └── ...                 # Componentes de página
-├── contexts/               # Context providers
-├── hooks/                  # Custom hooks
-├── lib/
-│   ├── auth.ts             # Utilitários de autenticação
-│   ├── supabase/           # Clientes Supabase
-│   ├── email/              # Serviço de email
-│   └── vendus/             # Serviço Vendus
-├── types/                  # Tipos TypeScript
-├── messages/               # Traduções i18n
-└── middleware.ts           # Middleware Next.js
 ```
 
 ---
@@ -550,37 +862,115 @@ src/
 | `npm run build` | Build de produção |
 | `npm start` | Iniciar em produção |
 | `npm run lint` | Verificar código com ESLint |
-| `npm test` | Executar testes unitários |
+| `npm test` | Executar testes unitários (914 testes) |
+| `npm run supabase:types` | Gerar tipos TypeScript do schema |
 
 ---
 
-## 📚 Documentação
+## Estrutura do Projecto
 
-Documentação técnica completa disponível em **[/docs/](docs/)**:
+```
+src/
+├── domain/                      # Camada de Domínio (PURA)
+│   ├── entities/                # 19 entidades de negócio
+│   ├── repositories/            # 16 interfaces de repositório
+│   ├── services/                # 7 domain services
+│   └── value-objects/           # 6 value objects (enums, configs)
+│
+├── application/                 # Camada de Aplicação
+│   ├── use-cases/               # 86+ use cases organizados por feature
+│   │   ├── orders/              # 4 use cases
+│   │   ├── sessions/            # 5 use cases
+│   │   ├── tables/              # 4 use cases
+│   │   ├── staff/               # 6 use cases
+│   │   ├── reservations/        # 9 use cases
+│   │   ├── customers/           # 7 use cases
+│   │   ├── closures/            # 6 use cases
+│   │   ├── waiter-calls/        # 5 use cases
+│   │   ├── staff-time-off/      # 5 use cases
+│   │   ├── restaurants/         # 6 use cases
+│   │   ├── games/               # 7 use cases
+│   │   ├── cart/                # 1 use case
+│   │   ├── device-profiles/     # 2 use cases
+│   │   ├── session-customers/   # 3 use cases
+│   │   └── reservation-settings/# 2 use cases
+│   └── dto/                     # Data Transfer Objects
+│
+├── infrastructure/              # Camada de Infraestrutura
+│   ├── repositories/            # 16 implementações Supabase
+│   ├── realtime/                # Handlers de real-time
+│   └── services/                # Serviços (ApiActivityLogger)
+│
+├── presentation/                # Camada de Apresentação
+│   ├── contexts/                # DependencyContext (DI)
+│   ├── hooks/                   # 24+ hooks
+│   └── providers/               # Layout providers
+│
+├── app/                         # Next.js App Router
+│   ├── [locale]/                # Páginas públicas (i18n)
+│   ├── admin/                   # Painel administrativo
+│   │   ├── page.tsx             # Dashboard
+│   │   ├── chamadas/            # Chamadas de empregado
+│   │   ├── reservas/            # Gestão de reservas
+│   │   ├── folgas/              # Gestão de folgas
+│   │   ├── sessoes/             # Gestão de sessões
+│   │   ├── produtos/            # Gestão de produtos
+│   │   ├── staff/               # Gestão de funcionários
+│   │   ├── clientes/            # Gestão de clientes
+│   │   ├── jogos/               # Gestão de jogos + analytics
+│   │   ├── definicoes/          # Configurações (5 tabs)
+│   │   ├── qrcodes/             # Geração de QR codes
+│   │   └── exportar/            # Exportação de dados
+│   ├── cozinha/                 # Ecrã de cozinha
+│   ├── waiter/                  # Interface empregado
+│   ├── mesa/[numero]/           # Pedidos por mesa (6 tabs)
+│   ├── login/                   # Página de login
+│   └── api/                     # 30+ API Routes
+│
+├── components/                  # Componentes React
+│   ├── ui/                      # Componentes base
+│   ├── mesa/                    # Componentes de mesa (jogos, ratings)
+│   └── ...                      # Componentes de página
+│
+├── __tests__/                   # 914 testes (Vitest)
+│   ├── application/use-cases/   # Testes de todos os use cases
+│   ├── domain/services/         # Testes de domain services
+│   ├── infrastructure/          # Testes de repositórios
+│   └── presentation/hooks/      # Testes de hooks
+│
+├── lib/                         # Utilitários
+│   ├── auth.ts                  # Autenticação
+│   ├── supabase/                # Clientes Supabase
+│   └── email/                   # Serviço de email
+│
+├── types/                       # Tipos TypeScript
+├── messages/                    # Traduções i18n (6 idiomas)
+└── middleware.ts                # Middleware Next.js
+```
 
-### Documentação Principal
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Clean Architecture completa
-  - 11 entidades, 12 repositórios, 50+ use cases
-  - Domain, Application, Infrastructure, Presentation layers
-  - Dependency Injection e Result pattern
+---
 
-- **[PERFORMANCE.md](docs/PERFORMANCE.md)** - Otimizações de performance
-  - React Query (89-96% faster)
-  - Hook optimization (zero memoization)
-  - Database indexes (40-60% improvement)
+## Documentação Adicional
 
-- **[TESTING.md](docs/TESTING.md)** - Guia de testes
-  - 537 testes passando
-  - Testing patterns para hooks React
-  - Unit tests com Vitest
+| Ficheiro | Descrição |
+|----------|-----------|
+| [CLAUDE.md](CLAUDE.md) | Convenções de desenvolvimento e arquitectura detalhada |
+| [GAMES_FEATURE.md](GAMES_FEATURE.md) | Documentação completa da feature de jogos |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Clean Architecture em detalhe |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Optimizações de performance |
+| [docs/TESTING.md](docs/TESTING.md) | Guia de testes |
 
-### Convenções de Desenvolvimento
-- **[CLAUDE.md](CLAUDE.md)** - Contexto e convenções do projeto
-  - Estrutura de pastas detalhada
-  - Clean Architecture patterns
-  - Como adicionar novas funcionalidades### Estado Atual (2026-02-07)
-- ✅ Clean Architecture 100% implementada
-- ✅ 537 testes passando (100% use cases, 100% domain services)
-- ✅ Performance otimizada (React Query + Hooks + Indexes)
-- ✅ Zero warnings ESLint
-- ✅ Código limpo e bem documentado
+---
+
+## Estado Actual (2026-02-11)
+
+- Clean Architecture 100% implementada (19 entidades, 86+ use cases, 16 repositórios)
+- 914 testes passando (100% use cases, 100% domain services)
+- Performance optimizada (React Query + Hooks optimizados + 18 índices DB)
+- Sistema de jogos interactivos completo (Quiz, Preference, Swipe)
+- Programa de fidelização progressivo com 4 tiers
+- Gestão multi-restaurante dinâmica
+- Suporte a 6 idiomas
+- 30+ API routes
+- Real-time em pedidos, carrinho, jogos e chamadas
+- Zero warnings ESLint
