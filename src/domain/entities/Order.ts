@@ -17,6 +17,10 @@ export interface Order {
   notes: string | null;
   status: OrderStatus;
   sessionCustomerId: string | null;
+  preparedBy: string | null;
+  preparingStartedAt: Date | null;
+  readyAt: Date | null;
+  deliveredAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +44,7 @@ export interface UpdateOrderData {
   quantity?: number;
   notes?: string | null;
   status?: OrderStatus;
+  preparedBy?: string | null;
 }
 
 /**
@@ -64,4 +69,5 @@ export interface KitchenOrder extends OrderWithProduct {
   } | null;
   customerName: string | null;
   waiterName: string | null;
+  preparerName: string | null;
 }

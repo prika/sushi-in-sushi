@@ -101,22 +101,15 @@ export default function MesaPage() {
   const [sessionOrders, setSessionOrders] = useState<OrderWithProduct[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
-  // Products actually served this session (delivered or ready) – only these are shown in the rating game
-  const productsServedInSession = useMemo(() => {
-    const order: string[] = [];
-    const seen = new Set<string>();
-    for (const o of sessionOrders) {
-      if (o.status === "delivered" || o.status === "ready") {
-        const id = String(o.product_id);
-        if (!seen.has(id)) {
-          seen.add(id);
-          order.push(id);
-        }
-      }
-    }
-    return order
-      .map((id) => products.find((p) => String(p.id) === id))
-      .filter((p): p is Product => p != null);
+  // Order items served this session (delivered or ready) – each is a ratable item in the swipe game
+  const orderItemsForRating = useMemo(() => {
+    return sessionOrders
+      .filter((o) => o.status === "delivered" || o.status === "ready")
+      .map((o) => ({
+        orderId: o.id,
+        product: products.find((p) => String(p.id) === String(o.product_id)) ?? null,
+      }))
+      .filter((item): item is { orderId: string; product: Product } => item.product !== null);
   }, [sessionOrders, products]);
 
   // UI state
@@ -169,8 +162,9 @@ export default function MesaPage() {
     tableLeader: TableLeaderInfo | null;
     userRatingCount: number;
     userRatedProductIds: number[];
+    userRatedOrderIds: string[];
     totalRatingsAtTable: number;
-  }>({ tableLeader: null, userRatingCount: 0, userRatedProductIds: [], totalRatingsAtTable: 0 });
+  }>({ tableLeader: null, userRatingCount: 0, userRatedProductIds: [], userRatedOrderIds: [], totalRatingsAtTable: 0 });
 
   // Refs
   const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -357,6 +351,7 @@ export default function MesaPage() {
         tableLeader: data.tableLeader ?? null,
         userRatingCount: data.userRatingCount ?? 0,
         userRatedProductIds: data.userRatedProductIds ?? [],
+        userRatedOrderIds: data.userRatedOrderIds ?? [],
         totalRatingsAtTable: data.totalRatingsAtTable ?? 0,
       });
     } catch (e) {
@@ -1915,8 +1910,8 @@ export default function MesaPage() {
               sessionCustomerId={currentCustomer?.id ?? null}
               restaurantId={restaurantId}
               gamesMode={gamesMode}
-              products={productsServedInSession.filter(
-                (p) => !ratingsStats.userRatedProductIds.includes(Number(p.id))
+              orderItems={orderItemsForRating.filter(
+                (item) => !ratingsStats.userRatedOrderIds.includes(item.orderId)
               )}
               tableLeader={ratingsStats.tableLeader}
               leaderProductName={

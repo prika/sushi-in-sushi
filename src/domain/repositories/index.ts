@@ -20,3 +20,4 @@ export * from './IGameQuestionRepository';
 export * from './IGameSessionRepository';
 export * from './IGameAnswerRepository';
 export * from './IGamePrizeRepository';
+export * from './IKitchenMetricsRepository';

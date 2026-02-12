@@ -60,8 +60,9 @@ export interface IOrderRepository {
 
   /**
    * Atualiza o status de um pedido
+   * @param preparedBy - Staff ID when transitioning to 'preparing'
    */
-  updateStatus(id: string, status: OrderStatus): Promise<Order>;
+  updateStatus(id: string, status: OrderStatus, preparedBy?: string | null): Promise<Order>;
 
   /**
    * Remove um pedido

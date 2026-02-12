@@ -63,7 +63,7 @@ describe('UpdateOrderStatusUseCase', () => {
       if (result.success) {
         expect(result.data.status).toBe('preparing');
       }
-      expect(mockRepository.updateStatus).toHaveBeenCalledWith('order-1', 'preparing');
+      expect(mockRepository.updateStatus).toHaveBeenCalledWith('order-1', 'preparing', null);
     });
 
     it('deve retornar erro se pedido não existe', async () => {

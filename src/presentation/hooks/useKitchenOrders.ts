@@ -320,6 +320,14 @@ export function useKitchenOrders(
           table: null,
           customerName: null,
           waiterName: null,
+          preparedBy: null,
+          preparerName: null,
+          preparingStartedAt: null,
+          readyAt: null,
+          prepTimeMinutes: null,
+          pendingMinutes: 0,
+          preparingMinutes: null,
+          readyMinutes: null,
         });
 
         // Limpar indicador após 10 segundos
@@ -360,6 +368,14 @@ export function useKitchenOrders(
             table: null,
             customerName: null,
             waiterName: null,
+            preparedBy: null,
+            preparerName: null,
+            preparingStartedAt: null,
+            readyAt: null,
+            prepTimeMinutes: null,
+            pendingMinutes: 0,
+            preparingMinutes: null,
+            readyMinutes: null,
           };
           onOrderUpdated?.(orderDTO, event.previousStatus);
         }

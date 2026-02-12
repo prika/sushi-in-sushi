@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const { data: ratings, error } = await supabase
       .from("product_ratings")
-      .select("product_id, rating, session_customer_id")
+      .select("product_id, rating, session_customer_id, order_id")
       .eq("session_id", sessionId);
 
     if (error) {
@@ -49,6 +49,9 @@ export async function GET(request: NextRequest) {
       : [];
     const userRatingCount = userRatings.length;
     const userRatedProductIds = userRatings.map((r) => Number(r.product_id));
+    const userRatedOrderIds = userRatings
+      .map((r) => r.order_id)
+      .filter((id): id is string => id !== null);
 
     const totalRatingsAtTable = list.length;
 
@@ -56,6 +59,7 @@ export async function GET(request: NextRequest) {
       tableLeader,
       userRatingCount,
       userRatedProductIds,
+      userRatedOrderIds,
       totalRatingsAtTable,
     });
   } catch (err) {
@@ -66,12 +70,14 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/mesa/ratings
- * Body: { sessionId, sessionCustomerId?, productId, rating 1-5 }
+ * Body: { sessionId, sessionCustomerId?, productId, orderId?, rating 1-5 }
+ * When orderId is provided, uses per-order-item uniqueness.
+ * When orderId is absent, falls back to per-product uniqueness (legacy).
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sessionId, sessionCustomerId, productId, rating } = body;
+    const { sessionId, sessionCustomerId, productId, orderId, rating } = body;
 
     if (!sessionId || productId == null || rating == null) {
       return NextResponse.json(
@@ -91,19 +97,37 @@ export async function POST(request: NextRequest) {
       product_id: Number(productId),
       rating: r,
       session_customer_id: (sessionCustomerId as string) || null,
+      order_id: (orderId as string) || null,
     };
 
     let result: { data: { id?: string } | null; error: { message: string } | null };
-    if (sessionCustomerId) {
-      result = await supabase
-        .from("product_ratings")
-        .upsert(row, {
-          onConflict: "session_id,session_customer_id,product_id",
-        })
-        .select("id")
-        .single();
+
+    if (orderId) {
+      // Per-order-item rating: use order_id unique constraint
+      if (sessionCustomerId) {
+        result = await supabase
+          .from("product_ratings")
+          .upsert(row, {
+            onConflict: "session_id,session_customer_id,order_id",
+          })
+          .select("id")
+          .single();
+      } else {
+        result = await supabase.from("product_ratings").insert(row).select("id").single();
+      }
     } else {
-      result = await supabase.from("product_ratings").insert(row).select("id").single();
+      // Legacy per-product rating
+      if (sessionCustomerId) {
+        result = await supabase
+          .from("product_ratings")
+          .upsert(row, {
+            onConflict: "session_id,session_customer_id,product_id",
+          })
+          .select("id")
+          .single();
+      } else {
+        result = await supabase.from("product_ratings").insert(row).select("id").single();
+      }
     }
 
     const { data, error } = result;

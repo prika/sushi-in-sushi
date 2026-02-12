@@ -44,6 +44,28 @@ export default function CozinhaPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [headerFlash, setHeaderFlash] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; role: string; location: string | null } | null>(null);
+
+  // Fetch authenticated user identity on mount
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.user) {
+          setCurrentUser({
+            id: data.user.id,
+            name: data.user.name,
+            role: data.user.role,
+            location: data.user.location ?? null,
+          });
+          // Kitchen staff: auto-lock to their assigned location
+          if (data.user.role === "kitchen" && data.user.location) {
+            setSelectedLocation(data.user.location);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Use the optimized hook with React Query for kitchen orders (96% faster)
   const {
@@ -53,6 +75,7 @@ export default function CozinhaPage() {
     updateStatus,
   } = useKitchenOrdersOptimized({
     location: selectedLocation === "all" ? undefined : (selectedLocation as "circunvalacao" | "boavista"),
+    userId: currentUser?.id,
     autoRefetch: true,
     refetchInterval: 10000, // 10s background refetch (React Query)
     onNewOrder: (order: KitchenOrderDTO) => {
@@ -211,25 +234,33 @@ export default function CozinhaPage() {
         <div className="flex items-center gap-3">
           <span className="text-2xl">🍣</span>
           <div>
-            <h1 className="text-xl font-bold">Cozinha</h1>
+            <h1 className="text-xl font-bold">
+              Cozinha{currentUser ? ` - ${currentUser.name}` : ""}
+            </h1>
             <p className="text-sm text-gray-400">Sushi in Sushi</p>
           </div>
         </div>
 
         <div className="flex items-center gap-6">
-          {/* Location Selector */}
-          <select
-            value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
-            aria-label="Filtrar por localização"
-            className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#D4AF37]"
-          >
-            {locationOptions.map((loc) => (
-              <option key={loc.value} value={loc.value}>
-                {loc.label}
-              </option>
-            ))}
-          </select>
+          {/* Location Selector — only admins can switch; kitchen staff are locked to their location */}
+          {currentUser?.role === "admin" ? (
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              aria-label="Filtrar por localização"
+              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#D4AF37]"
+            >
+              {locationOptions.map((loc) => (
+                <option key={loc.value} value={loc.value}>
+                  {loc.label}
+                </option>
+              ))}
+            </select>
+          ) : currentUser?.location ? (
+            <span className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-300 capitalize">
+              {locations.find((l) => l.slug === currentUser.location)?.name ?? currentUser.location}
+            </span>
+          ) : null}
 
           {/* Real-time Status Indicator */}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 rounded-lg border border-green-500/30 status connected live">
@@ -489,14 +520,6 @@ function Column({
                       <p className="font-semibold text-lg">
                         {order.product?.name}
                       </p>
-                      {order.customerName && (
-                        <p className="text-sm text-gray-400">
-                          <span className="text-gray-500">para</span>{" "}
-                          <span className="text-[#D4AF37]">
-                            {order.customerName}
-                          </span>
-                        </p>
-                      )}
                       {order.notes && (
                         <p className="text-sm bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded mt-2">
                           📝 {order.notes}
@@ -506,15 +529,34 @@ function Column({
                   </div>
                 </div>
 
-                {/* Waiter info (for ready orders) */}
-                {color === "green" && order.waiterName && (
-                  <div className="px-4 pb-2">
+                {/* Waiter info (all cards) */}
+                {order.waiterName && (
+                  <div className="px-4 pb-1">
                     <p className="text-xs text-gray-500">
                       Empregado:{" "}
                       <span className="text-blue-400">{order.waiterName}</span>
                     </p>
                   </div>
                 )}
+
+                {/* Stage timing */}
+                <div className="px-4 pb-2">
+                  {order.status === "pending" && (
+                    <p className="text-sm font-medium text-yellow-400">
+                      Pendente h&aacute; {order.pendingMinutes} min
+                    </p>
+                  )}
+                  {order.status === "preparing" && (
+                    <p className="text-sm font-medium text-orange-400">
+                      A preparar h&aacute; {order.preparingMinutes ?? 0} min
+                    </p>
+                  )}
+                  {order.status === "ready" && (
+                    <p className="text-sm font-medium text-green-400">
+                      Pronto h&aacute; {order.readyMinutes ?? 0} min
+                    </p>
+                  )}
+                </div>
 
                 {/* Action Button */}
                 <div className="px-4 py-3 border-t border-gray-800">

@@ -12,11 +12,16 @@ export interface TableLeaderInfo {
   voteCount: number;
 }
 
+export interface OrderItem {
+  orderId: string;
+  product: Product;
+}
+
 interface SwipeRatingGameProps {
   sessionId: string;
   sessionCustomerId: string | null;
   gameSessionId: string | null;
-  products: Product[];
+  orderItems: OrderItem[];
   tableLeader: TableLeaderInfo | null;
   leaderProductName: string | null;
   userRatingCount: number;
@@ -30,7 +35,7 @@ export function SwipeRatingGame({
   sessionId,
   sessionCustomerId,
   gameSessionId,
-  products,
+  orderItems,
   tableLeader,
   leaderProductName,
   userRatingCount,
@@ -39,7 +44,7 @@ export function SwipeRatingGame({
   onRated,
   t,
 }: SwipeRatingGameProps) {
-  const [stack, setStack] = useState<Product[]>([]);
+  const [stack, setStack] = useState<OrderItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dragDirection, setDragDirection] = useState<"left" | "right" | null>(
@@ -53,9 +58,9 @@ export function SwipeRatingGame({
   );
 
   useEffect(() => {
-    setStack([...products]);
+    setStack([...orderItems]);
     setCurrentIndex(0);
-  }, [products]);
+  }, [orderItems]);
 
   useEffect(() => {
     return () => {
@@ -67,7 +72,7 @@ export function SwipeRatingGame({
   }, []);
 
   const submitRating = useCallback(
-    async (productId: string, rating: number) => {
+    async (productId: string, orderId: string, rating: number) => {
       setIsSubmitting(true);
       try {
         if (gameSessionId) {
@@ -79,6 +84,7 @@ export function SwipeRatingGame({
               gameSessionId,
               sessionCustomerId: sessionCustomerId ?? undefined,
               productId: Number(productId),
+              orderId,
               gameType: "tinder",
               answer: { rating },
               questionPoints: 10,
@@ -107,6 +113,7 @@ export function SwipeRatingGame({
               sessionId,
               sessionCustomerId: sessionCustomerId ?? undefined,
               productId: Number(productId),
+              orderId,
               rating,
             }),
           });
@@ -133,7 +140,7 @@ export function SwipeRatingGame({
       const rating = direction === "right" ? 5 : 2;
       setExitDirection(direction);
       setDragDirection(direction);
-      submitRating(current.id, rating).finally(() => {
+      submitRating(current.product.id, current.orderId, rating).finally(() => {
         setCurrentIndex((i) => i + 1);
         setDragDirection(null);
       });
@@ -287,7 +294,7 @@ export function SwipeRatingGame({
             <div className="relative w-full max-w-[320px] aspect-[4/5] flex items-center justify-center">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={current.id}
+                  key={current.orderId}
                   className="absolute inset-0 rounded-2xl overflow-hidden shadow-xl border border-gray-700 bg-[#1A1A1A] cursor-grab active:cursor-grabbing"
                   drag="x"
                   dragConstraints={{ left: 0, right: 0 }}
@@ -313,9 +320,9 @@ export function SwipeRatingGame({
                 >
                   {/* Product image */}
                   <div className="absolute inset-0">
-                    {current.imageUrl ? (
+                    {current.product.imageUrl ? (
                       <img
-                        src={current.imageUrl}
+                        src={current.product.imageUrl}
                         alt=""
                         className="w-full h-full object-cover"
                         draggable={false}
@@ -329,11 +336,11 @@ export function SwipeRatingGame({
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 p-4 text-left">
                     <h3 className="text-xl font-bold text-white drop-shadow">
-                      {current.name}
+                      {current.product.name}
                     </h3>
-                    {current.description && (
+                    {current.product.description && (
                       <p className="text-sm text-gray-300 line-clamp-2 mt-0.5">
-                        {current.description}
+                        {current.product.description}
                       </p>
                     )}
                   </div>

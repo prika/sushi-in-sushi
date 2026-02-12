@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GetKitchenOrdersUseCase } from '@/application/use-cases/orders/GetKitchenOrdersUseCase';
 import { CreateOrderUseCase } from '@/application/use-cases/orders/CreateOrderUseCase';
 import { GetSessionOrdersUseCase } from '@/application/use-cases/orders/GetSessionOrdersUseCase';
+import { UpdateOrderStatusUseCase } from '@/application/use-cases/orders/UpdateOrderStatusUseCase';
 import { IOrderRepository } from '@/domain/repositories/IOrderRepository';
 import { IProductRepository } from '@/domain/repositories/IProductRepository';
 import { Order, OrderWithProduct, KitchenOrder } from '@/domain/entities/Order';
@@ -18,6 +19,10 @@ function createTestOrder(overrides: Partial<Order> = {}): Order {
     notes: null,
     status: 'pending',
     sessionCustomerId: null,
+    preparedBy: null,
+    preparingStartedAt: null,
+    readyAt: null,
+    deliveredAt: null,
     createdAt: new Date('2024-01-01T12:00:00Z'),
     updatedAt: new Date('2024-01-01T12:00:00Z'),
     ...overrides,
@@ -46,6 +51,7 @@ function createTestKitchenOrder(overrides: Partial<KitchenOrder> = {}): KitchenO
     },
     customerName: 'João',
     waiterName: 'Maria Silva',
+    preparerName: null,
     ...overrides,
   };
 }
@@ -209,6 +215,71 @@ describe('GetKitchenOrdersUseCase', () => {
     const result = await useCase.execute();
 
     expect(result.success).toBe(false);
+  });
+
+  it('deve calcular pendingMinutes para pedidos pendentes', async () => {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60000);
+    const orders = [
+      createTestKitchenOrder({ id: 'order-1', status: 'pending', createdAt: tenMinutesAgo }),
+    ];
+    vi.mocked(mockRepository.findForKitchen).mockResolvedValue(orders);
+
+    const result = await useCase.execute();
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.orders[0].pendingMinutes).toBeGreaterThanOrEqual(9);
+      expect(result.data.orders[0].preparingMinutes).toBeNull();
+      expect(result.data.orders[0].readyMinutes).toBeNull();
+    }
+  });
+
+  it('deve calcular preparingMinutes para pedidos em preparação', async () => {
+    const twentyMinutesAgo = new Date(Date.now() - 20 * 60000);
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60000);
+    const orders = [
+      createTestKitchenOrder({
+        id: 'order-1',
+        status: 'preparing',
+        createdAt: twentyMinutesAgo,
+        preparingStartedAt: fiveMinutesAgo,
+      }),
+    ];
+    vi.mocked(mockRepository.findForKitchen).mockResolvedValue(orders);
+
+    const result = await useCase.execute();
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.orders[0].pendingMinutes).toBeGreaterThanOrEqual(14);
+      expect(result.data.orders[0].preparingMinutes).toBeGreaterThanOrEqual(4);
+      expect(result.data.orders[0].readyMinutes).toBeNull();
+    }
+  });
+
+  it('deve calcular readyMinutes para pedidos prontos', async () => {
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60000);
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60000);
+    const threeMinutesAgo = new Date(Date.now() - 3 * 60000);
+    const orders = [
+      createTestKitchenOrder({
+        id: 'order-1',
+        status: 'ready',
+        createdAt: thirtyMinutesAgo,
+        preparingStartedAt: fifteenMinutesAgo,
+        readyAt: threeMinutesAgo,
+      }),
+    ];
+    vi.mocked(mockRepository.findForKitchen).mockResolvedValue(orders);
+
+    const result = await useCase.execute();
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.orders[0].pendingMinutes).toBeGreaterThanOrEqual(14);
+      expect(result.data.orders[0].preparingMinutes).toBeGreaterThanOrEqual(11);
+      expect(result.data.orders[0].readyMinutes).toBeGreaterThanOrEqual(2);
+    }
   });
 });
 
@@ -488,5 +559,96 @@ describe('GetSessionOrdersUseCase', () => {
     const result = await useCase.execute({ sessionId: 'session-1' });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe('UpdateOrderStatusUseCase', () => {
+  let useCase: UpdateOrderStatusUseCase;
+  let mockRepository: IOrderRepository;
+
+  beforeEach(() => {
+    mockRepository = createMockOrderRepository();
+    useCase = new UpdateOrderStatusUseCase(mockRepository);
+  });
+
+  it('deve passar preparedBy ao mudar para preparing', async () => {
+    const order = createTestOrder({ status: 'pending' });
+    const updatedOrder = createTestOrder({ status: 'preparing', preparedBy: 'staff-1' });
+
+    vi.mocked(mockRepository.findById).mockResolvedValue(order);
+    vi.mocked(mockRepository.updateStatus).mockResolvedValue(updatedOrder);
+
+    const result = await useCase.execute({
+      orderId: 'order-1',
+      newStatus: 'preparing',
+      userId: 'staff-1',
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockRepository.updateStatus).toHaveBeenCalledWith('order-1', 'preparing', 'staff-1');
+  });
+
+  it('não deve passar preparedBy ao mudar para ready', async () => {
+    const order = createTestOrder({ status: 'preparing', preparedBy: 'staff-1' });
+    const updatedOrder = createTestOrder({ status: 'ready', preparedBy: 'staff-1' });
+
+    vi.mocked(mockRepository.findById).mockResolvedValue(order);
+    vi.mocked(mockRepository.updateStatus).mockResolvedValue(updatedOrder);
+
+    const result = await useCase.execute({
+      orderId: 'order-1',
+      newStatus: 'ready',
+      userId: 'staff-1',
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockRepository.updateStatus).toHaveBeenCalledWith('order-1', 'ready', undefined);
+  });
+
+  it('deve passar null como preparedBy se userId não fornecido', async () => {
+    const order = createTestOrder({ status: 'pending' });
+    const updatedOrder = createTestOrder({ status: 'preparing' });
+
+    vi.mocked(mockRepository.findById).mockResolvedValue(order);
+    vi.mocked(mockRepository.updateStatus).mockResolvedValue(updatedOrder);
+
+    const result = await useCase.execute({
+      orderId: 'order-1',
+      newStatus: 'preparing',
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockRepository.updateStatus).toHaveBeenCalledWith('order-1', 'preparing', null);
+  });
+
+  it('deve rejeitar transição inválida', async () => {
+    const order = createTestOrder({ status: 'delivered' });
+
+    vi.mocked(mockRepository.findById).mockResolvedValue(order);
+
+    const result = await useCase.execute({
+      orderId: 'order-1',
+      newStatus: 'pending',
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe('INVALID_TRANSITION');
+    }
+    expect(mockRepository.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it('deve retornar erro se pedido não encontrado', async () => {
+    vi.mocked(mockRepository.findById).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      orderId: 'non-existent',
+      newStatus: 'preparing',
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe('ORDER_NOT_FOUND');
+    }
   });
 });

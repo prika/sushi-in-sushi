@@ -12,8 +12,8 @@ import type { GameQuestion } from "@/domain/entities/GameQuestion";
 import type { GameAnswer } from "@/domain/entities/GameAnswer";
 import type { GamePrize as GamePrizeEntity } from "@/domain/entities/GamePrize";
 import type { LeaderboardEntry } from "@/domain/repositories/IGameAnswerRepository";
-import type { Product } from "@/domain/entities";
 import type { GamesMode, GameConfig } from "@/domain/value-objects/GameConfig";
+import type { OrderItem } from "./SwipeRatingGame";
 
 type GameFlowStep = "select" | "playing" | "leaderboard" | "prize";
 type GameChoice = "quiz" | "preference" | "tinder";
@@ -26,7 +26,7 @@ interface GameHubProps {
   /** Optional: pass restaurant game config. If not provided, fetches from /api/mesa/games/config when restaurantId is set. */
   gameConfig?: GameConfig | null;
   // Props for SwipeRatingGame (tinder mode)
-  products: Product[];
+  orderItems: OrderItem[];
   tableLeader: TableLeaderInfo | null;
   leaderProductName: string | null;
   userRatingCount: number;
@@ -54,7 +54,7 @@ export function GameHub({
   restaurantId,
   gamesMode,
   gameConfig: gameConfigProp,
-  products,
+  orderItems,
   tableLeader,
   leaderProductName,
   userRatingCount,
@@ -68,7 +68,7 @@ export function GameHub({
   const [gameChoice, setGameChoice] = useState<GameChoice | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const randomPickedRef = useRef(false);
-  const hasProducts = products.length > 0;
+  const hasProducts = orderItems.length > 0;
   const availableChoices: GameChoice[] = hasProducts
     ? ALL_GAME_CHOICES
     : ALL_GAME_CHOICES.filter((c) => c !== "tinder");
@@ -369,7 +369,7 @@ export function GameHub({
         sessionId={sessionId}
         sessionCustomerId={sessionCustomerId}
         gameSessionId={gameSessionId}
-        products={products}
+        orderItems={orderItems}
         tableLeader={tableLeader}
         leaderProductName={leaderProductName}
         userRatingCount={userRatingCount}

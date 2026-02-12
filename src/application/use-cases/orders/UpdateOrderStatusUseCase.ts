@@ -43,10 +43,12 @@ export class UpdateOrderStatusUseCase {
         return Results.error(validation.error!, 'INVALID_TRANSITION');
       }
 
-      // Atualizar status
+      // Atualizar status (pass preparedBy when starting preparation)
+      const preparedBy = input.newStatus === 'preparing' ? input.userId ?? null : undefined;
       const updatedOrder = await this.orderRepository.updateStatus(
         input.orderId,
-        input.newStatus
+        input.newStatus,
+        preparedBy
       );
 
       // Registar atividade (se logger disponível)

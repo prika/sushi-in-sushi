@@ -39,22 +39,62 @@ export class GetKitchenOrdersUseCase {
       const now = new Date();
 
       // Mapear para DTOs com cálculos
-      const orderDTOs: KitchenOrderDTO[] = orders.map((order) => ({
-        id: order.id,
-        sessionId: order.sessionId,
-        quantity: order.quantity,
-        unitPrice: order.unitPrice,
-        notes: order.notes,
-        status: order.status,
-        createdAt: order.createdAt.toISOString(),
-        timeElapsedMinutes: OrderService.getTimeElapsed(order, now),
-        isLate: OrderService.isLate(order, 10, now),
-        urgencyColor: OrderService.getUrgencyColor(order, now),
-        product: order.product,
-        table: order.table,
-        customerName: order.customerName,
-        waiterName: order.waiterName,
-      }));
+      const orderDTOs: KitchenOrderDTO[] = orders.map((order) => {
+        const preparingStartedAt = order.preparingStartedAt?.toISOString() ?? null;
+        const readyAt = order.readyAt?.toISOString() ?? null;
+        const prepTimeMinutes =
+          order.preparingStartedAt && order.readyAt
+            ? Math.round((order.readyAt.getTime() - order.preparingStartedAt.getTime()) / 60000)
+            : null;
+
+        // Stage-specific timing
+        let pendingMinutes: number;
+        let preparingMinutes: number | null = null;
+        let readyMinutes: number | null = null;
+
+        if (order.status === 'pending') {
+          pendingMinutes = Math.round((now.getTime() - order.createdAt.getTime()) / 60000);
+        } else if (order.preparingStartedAt) {
+          pendingMinutes = Math.round((order.preparingStartedAt.getTime() - order.createdAt.getTime()) / 60000);
+        } else {
+          pendingMinutes = Math.round((now.getTime() - order.createdAt.getTime()) / 60000);
+        }
+
+        if (order.status === 'preparing' && order.preparingStartedAt) {
+          preparingMinutes = Math.round((now.getTime() - order.preparingStartedAt.getTime()) / 60000);
+        } else if (order.preparingStartedAt && order.readyAt) {
+          preparingMinutes = Math.round((order.readyAt.getTime() - order.preparingStartedAt.getTime()) / 60000);
+        }
+
+        if (order.status === 'ready' && order.readyAt) {
+          readyMinutes = Math.round((now.getTime() - order.readyAt.getTime()) / 60000);
+        }
+
+        return {
+          id: order.id,
+          sessionId: order.sessionId,
+          quantity: order.quantity,
+          unitPrice: order.unitPrice,
+          notes: order.notes,
+          status: order.status,
+          createdAt: order.createdAt.toISOString(),
+          timeElapsedMinutes: OrderService.getTimeElapsed(order, now),
+          isLate: OrderService.isLate(order, 10, now),
+          urgencyColor: OrderService.getUrgencyColor(order, now),
+          product: order.product,
+          table: order.table,
+          customerName: order.customerName,
+          waiterName: order.waiterName,
+          preparedBy: order.preparedBy ?? null,
+          preparerName: order.preparerName ?? null,
+          preparingStartedAt,
+          readyAt,
+          prepTimeMinutes,
+          pendingMinutes,
+          preparingMinutes,
+          readyMinutes,
+        };
+      });
 
       // Ordenar por urgência (mais antigos primeiro)
       orderDTOs.sort(

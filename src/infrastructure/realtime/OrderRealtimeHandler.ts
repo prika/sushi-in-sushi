@@ -166,6 +166,10 @@ export class OrderRealtimeHandler implements IRealtimeSubscription<Order> {
       notes: data.notes,
       status: data.status as OrderStatus,
       sessionCustomerId: data.session_customer_id,
+      preparedBy: data.prepared_by ?? null,
+      preparingStartedAt: data.preparing_started_at ? new Date(data.preparing_started_at) : null,
+      readyAt: data.ready_at ? new Date(data.ready_at) : null,
+      deliveredAt: data.delivered_at ? new Date(data.delivered_at) : null,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
@@ -184,6 +188,10 @@ interface DatabaseOrderRow {
   notes: string | null;
   status: string;
   session_customer_id: string | null;
+  prepared_by?: string | null;
+  preparing_started_at?: string | null;
+  ready_at?: string | null;
+  delivered_at?: string | null;
   created_at: string;
   updated_at: string;
 }

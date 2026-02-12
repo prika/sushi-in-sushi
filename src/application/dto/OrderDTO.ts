@@ -68,6 +68,14 @@ export interface KitchenOrderDTO {
   } | null;
   customerName: string | null;
   waiterName: string | null;
+  preparedBy: string | null;
+  preparerName: string | null;
+  preparingStartedAt: string | null;
+  readyAt: string | null;
+  prepTimeMinutes: number | null;
+  pendingMinutes: number;
+  preparingMinutes: number | null;
+  readyMinutes: number | null;
 }
 
 /**

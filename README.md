@@ -43,7 +43,7 @@ Sistema de gestão completo para uma cadeia de restaurantes de sushi portuguesa.
 | **Autenticação** | JWT com jose 6.1, cookies httpOnly |
 | **Email** | Resend API com webhook tracking |
 | **i18n** | next-intl 4.8 (6 idiomas) |
-| **Testes** | Vitest (914 testes) |
+| **Testes** | Vitest (931 testes) |
 | **Icons** | Lucide React |
 | **QR Codes** | qrcode |
 
@@ -71,12 +71,12 @@ O projecto segue **Clean Architecture** com separação rigorosa em 4 camadas:
 
 | Camada | Quantidade |
 |--------|------------|
-| **Entidades** | 19 (Order, Session, Table, Product, Category, Staff, Reservation, Restaurant, Customer, StaffTimeOff, RestaurantClosure, WaiterCall, ReservationSettings, DeviceProfile, CartItem, GameQuestion, GameSession, GameAnswer, GamePrize) |
+| **Entidades** | 20 (Order, Session, Table, Product, Category, Staff, Reservation, Restaurant, Customer, StaffTimeOff, RestaurantClosure, WaiterCall, ReservationSettings, DeviceProfile, CartItem, GameQuestion, GameSession, GameAnswer, GamePrize, KitchenMetrics) |
 | **Value Objects** | 6 (OrderStatus, SessionStatus, TableStatus, CustomerTier, Location, GameConfig) |
 | **Domain Services** | 7 (OrderService, SessionService, TableService, CartService, GameService, CustomerTierService, WaiterAssignmentService) |
-| **Repository Interfaces** | 16 |
-| **Repository Implementações** | 16 (Supabase) |
-| **Use Cases** | 86+ |
+| **Repository Interfaces** | 17 |
+| **Repository Implementações** | 17 (Supabase) |
+| **Use Cases** | 88+ |
 | **Presentation Hooks** | 24+ |
 
 ### Padrões Implementados
@@ -171,6 +171,7 @@ Sistema de jogos que permite aos clientes interagir durante a refeição, ganhar
 |----------------|-----------|
 | Drag gestures | Arrastar para a direita (LIKE, 5 estrelas) ou esquerda (NOPE, 2 estrelas) |
 | Animações | Spring physics com Framer Motion |
+| Per-Order-Item | Cada item pedido gera um cartão de avaliação (mesmo produto pedido 2x = 2 cartões) |
 | Progresso | Barra de progresso para bebida grátis (threshold: 5 ratings) |
 | Table Leader | Produto mais votado da mesa |
 | Acessibilidade | Botões manuais como alternativa ao swipe |
@@ -387,7 +388,7 @@ Dashboard completo para gestão do restaurante com estatísticas em tempo real.
 
 ### Ecrã de Cozinha
 
-Interface dedicada para a equipa de cozinha gerir pedidos em tempo real.
+Interface dedicada para a equipa de cozinha gerir pedidos em tempo real, com tracking individual de quem preparou cada pedido.
 
 **Rota:** `/cozinha`
 
@@ -396,6 +397,10 @@ Interface dedicada para a equipa de cozinha gerir pedidos em tempo real.
 | Fila de Pedidos | Lista de pedidos ordenada por tempo de criação |
 | Agrupamento | Pedidos agrupados por mesa |
 | Estados | Actualizar estado: pendente → a preparar → pronto |
+| Tracking de Preparador | Regista automaticamente quem iniciou a preparação (`prepared_by`) |
+| Identidade do Staff | Nome do funcionário autenticado exibido no header (ex: "Cozinha - Tiago") |
+| Nome do Preparador | Cartões mostram quem está a preparar/preparou cada pedido |
+| Tempo de Preparação | Calcula tempo real entre início da preparação e pedido pronto |
 | Filtro por Local | Ver pedidos de uma localização específica |
 | Notificações Sonoras | Alerta áudio para novos pedidos |
 | Notificações Push | Notificações do browser |
@@ -403,7 +408,18 @@ Interface dedicada para a equipa de cozinha gerir pedidos em tempo real.
 | Tempo de Espera | Mostra há quanto tempo o pedido foi feito |
 | Indicador de Urgência | Destaque visual para pedidos antigos |
 
-**Fluxo:** Novo pedido (som) → "A Preparar" → "Pronto" → Empregado notificado
+**Fluxo:** Novo pedido (som) → Staff clica "A Preparar" (regista `prepared_by` + timestamp) → "Pronto" (regista `ready_at`) → Empregado notificado
+
+#### Métricas de Performance da Cozinha
+
+| Métrica | Descrição |
+|---------|-----------|
+| Pedidos Preparados | Total de pedidos por funcionário |
+| Tempo Médio de Preparação | Média de `ready_at - preparing_started_at` |
+| Avaliações Recebidas | Ratings dos clientes nos pedidos preparados |
+| Avaliação Média | Média das notas recebidas (1-5) |
+
+**API:** `GET /api/admin/kitchen-metrics?location=SLUG&from=DATE&to=DATE` (admin only)
 
 ---
 
@@ -532,13 +548,13 @@ O projecto usa **Supabase Realtime** para sincronização instantânea:
 
 ## Testes
 
-**914 testes passando** com Vitest.
+**931 testes passando** com Vitest.
 
 ### Cobertura por Camada
 
 | Camada | Testes | Cobertura |
 |--------|--------|-----------|
-| **Use Cases** | 86+ testes | 100% |
+| **Use Cases** | 96+ testes | 100% |
 | **Domain Services** | 143+ testes | 100% (OrderService 44, SessionService 34, TableService 40, GameService 25+) |
 | **Infrastructure** | 129+ testes | Padrão estabelecido (8 repositórios testados) |
 | **Presentation Hooks** | 69+ testes | Padrão estabelecido (6 hooks testados) |
@@ -601,6 +617,7 @@ O projecto usa **Supabase Realtime** para sincronização instantânea:
 |----------|--------|-----------|
 | `/api/admin/game-questions` | GET/POST/PUT/DELETE | CRUD de perguntas de jogos |
 | `/api/admin/game-stats` | GET | Analytics de jogos |
+| `/api/admin/kitchen-metrics` | GET | Métricas de performance da cozinha por staff |
 | `/api/admin/products/stats` | GET | Estatísticas de produtos |
 | `/api/admin/products/upload` | POST | Upload de imagens |
 
@@ -647,7 +664,7 @@ O projecto usa **Supabase Realtime** para sincronização instantânea:
 | `products` | Produtos/itens do menu |
 | `sessions` | Sessões de mesa (refeição) |
 | `session_participants` | Dispositivos numa sessão |
-| `orders` | Pedidos individuais |
+| `orders` | Pedidos individuais (com `prepared_by`, `preparing_started_at`, `ready_at`) |
 | `cart_items` | Itens no carrinho partilhado |
 | `reservations` | Reservas de mesa |
 | `reservation_settings` | Configurações de reservas |
@@ -655,7 +672,7 @@ O projecto usa **Supabase Realtime** para sincronização instantânea:
 | `staff_time_off` | Férias e folgas de funcionários |
 | `waiter_tables` | Atribuição empregado-mesa |
 | `waiter_calls` | Chamadas de assistência |
-| `product_ratings` | Avaliações de produtos (swipe game) |
+| `product_ratings` | Avaliações de produtos (swipe game, per-order-item via `order_id`) |
 | `game_questions` | Perguntas de quiz e preferência |
 | `game_sessions` | Sessões de jogo |
 | `game_answers` | Respostas dos jogadores |
@@ -686,7 +703,9 @@ supabase/migrations/
 ├── 030_game_questions_seed.sql     # 35 perguntas seed (quiz + preferência)
 ├── 031_game_answers_realtime.sql   # Real-time para respostas
 ├── 032_unified_game_scoring.sql    # Sistema de pontuação unificado
-└── 033_games_mode.sql              # Modo de selecção de jogos
+├── 033_games_mode.sql              # Modo de selecção de jogos
+├── 034_order_prepared_by.sql       # Tracking de quem preparou cada pedido
+└── 035_order_item_ratings.sql      # Ratings per-order-item (order_id em product_ratings)
 ```
 
 ---
@@ -862,7 +881,7 @@ CRON_SECRET=secret-para-cron-jobs
 | `npm run build` | Build de produção |
 | `npm start` | Iniciar em produção |
 | `npm run lint` | Verificar código com ESLint |
-| `npm test` | Executar testes unitários (914 testes) |
+| `npm test` | Executar testes unitários (931 testes) |
 | `npm run supabase:types` | Gerar tipos TypeScript do schema |
 
 ---
@@ -872,13 +891,13 @@ CRON_SECRET=secret-para-cron-jobs
 ```
 src/
 ├── domain/                      # Camada de Domínio (PURA)
-│   ├── entities/                # 19 entidades de negócio
-│   ├── repositories/            # 16 interfaces de repositório
+│   ├── entities/                # 20 entidades de negócio
+│   ├── repositories/            # 17 interfaces de repositório
 │   ├── services/                # 7 domain services
 │   └── value-objects/           # 6 value objects (enums, configs)
 │
 ├── application/                 # Camada de Aplicação
-│   ├── use-cases/               # 86+ use cases organizados por feature
+│   ├── use-cases/               # 88+ use cases organizados por feature
 │   │   ├── orders/              # 4 use cases
 │   │   ├── sessions/            # 5 use cases
 │   │   ├── tables/              # 4 use cases
@@ -890,6 +909,7 @@ src/
 │   │   ├── staff-time-off/      # 5 use cases
 │   │   ├── restaurants/         # 6 use cases
 │   │   ├── games/               # 7 use cases
+│   │   ├── kitchen-metrics/     # 2 use cases
 │   │   ├── cart/                # 1 use case
 │   │   ├── device-profiles/     # 2 use cases
 │   │   ├── session-customers/   # 3 use cases
@@ -897,7 +917,7 @@ src/
 │   └── dto/                     # Data Transfer Objects
 │
 ├── infrastructure/              # Camada de Infraestrutura
-│   ├── repositories/            # 16 implementações Supabase
+│   ├── repositories/            # 17 implementações Supabase
 │   ├── realtime/                # Handlers de real-time
 │   └── services/                # Serviços (ApiActivityLogger)
 │
@@ -932,7 +952,7 @@ src/
 │   ├── mesa/                    # Componentes de mesa (jogos, ratings)
 │   └── ...                      # Componentes de página
 │
-├── __tests__/                   # 914 testes (Vitest)
+├── __tests__/                   # 931 testes (Vitest)
 │   ├── application/use-cases/   # Testes de todos os use cases
 │   ├── domain/services/         # Testes de domain services
 │   ├── infrastructure/          # Testes de repositórios
@@ -964,13 +984,14 @@ src/
 
 ## Estado Actual (2026-02-11)
 
-- Clean Architecture 100% implementada (19 entidades, 86+ use cases, 16 repositórios)
-- 914 testes passando (100% use cases, 100% domain services)
+- Clean Architecture 100% implementada (20 entidades, 88+ use cases, 17 repositórios)
+- 931 testes passando (100% use cases, 100% domain services)
 - Performance optimizada (React Query + Hooks optimizados + 18 índices DB)
 - Sistema de jogos interactivos completo (Quiz, Preference, Swipe)
+- Kitchen Staff Tracking — identidade individual de quem prepara cada pedido com métricas de performance
+- Avaliações per-order-item — mesmo produto pedido 2x gera 2 cartões de avaliação independentes
 - Programa de fidelização progressivo com 4 tiers
 - Gestão multi-restaurante dinâmica
 - Suporte a 6 idiomas
 - 30+ API routes
 - Real-time em pedidos, carrinho, jogos e chamadas
-- Zero warnings ESLint

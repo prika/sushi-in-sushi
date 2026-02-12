@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
       // For tinder: also write to product_ratings
       sessionId,
       productId,
+      orderId,
     } = body;
 
     if (
@@ -82,11 +83,21 @@ export async function POST(request: NextRequest) {
         product_id: Number(productId),
         rating,
         session_customer_id: (sessionCustomerId as string) || null,
+        order_id: (orderId as string) || null,
       };
 
       let ratingError: { message?: string } | null = null;
 
-      if (sessionCustomerId) {
+      if (orderId && sessionCustomerId) {
+        // Per-order-item rating with identified customer
+        const upsertResult = await supabase
+          .from("product_ratings")
+          .upsert(row, {
+            onConflict: "session_id,session_customer_id,order_id",
+          });
+        ratingError = upsertResult.error;
+      } else if (sessionCustomerId) {
+        // Legacy per-product rating with identified customer
         const upsertResult = await supabase
           .from("product_ratings")
           .upsert(row, {

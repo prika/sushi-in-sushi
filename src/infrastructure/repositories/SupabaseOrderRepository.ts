@@ -38,6 +38,10 @@ interface DatabaseOrder {
   notes: string | null;
   status: string;
   session_customer_id: string | null;
+  prepared_by: string | null;
+  preparing_started_at: string | null;
+  ready_at: string | null;
+  delivered_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -158,6 +162,10 @@ export class SupabaseOrderRepository implements IOrderRepository {
       notes: string | null;
       status: string;
       session_customer_id: string | null;
+      prepared_by: string | null;
+      preparing_started_at: string | null;
+      ready_at: string | null;
+      delivered_at: string | null;
       created_at: string;
       updated_at: string;
       product: { id: string; name: string; image_url: string | null } | null;
@@ -227,6 +235,27 @@ export class SupabaseOrderRepository implements IOrderRepository {
       });
     }
 
+    // Buscar nomes dos preparadores (kitchen staff)
+    const preparerIds = Array.from(
+      new Set(
+        filteredOrders
+          .map((o) => o.prepared_by)
+          .filter((id): id is string => id !== null)
+      )
+    );
+
+    const preparerMap = new Map<string, string>();
+    if (preparerIds.length > 0) {
+      const { data: preparers } = await this.supabase
+        .from('staff')
+        .select('id, name')
+        .in('id', preparerIds);
+
+      (preparers as { id: string; name: string }[] || []).forEach((p) => {
+        preparerMap.set(p.id, p.name);
+      });
+    }
+
     return filteredOrders.map((order) => ({
       id: order.id,
       sessionId: order.session_id,
@@ -236,6 +265,10 @@ export class SupabaseOrderRepository implements IOrderRepository {
       notes: order.notes,
       status: order.status as OrderStatus,
       sessionCustomerId: order.session_customer_id,
+      preparedBy: order.prepared_by ?? null,
+      preparingStartedAt: order.preparing_started_at ? new Date(order.preparing_started_at) : null,
+      readyAt: order.ready_at ? new Date(order.ready_at) : null,
+      deliveredAt: order.delivered_at ? new Date(order.delivered_at) : null,
       createdAt: new Date(order.created_at),
       updatedAt: new Date(order.updated_at),
       product: order.product
@@ -257,6 +290,9 @@ export class SupabaseOrderRepository implements IOrderRepository {
         : null,
       waiterName: order.session?.table?.id
         ? waiterMap.get(order.session.table.id) || null
+        : null,
+      preparerName: order.prepared_by
+        ? preparerMap.get(order.prepared_by) || null
         : null,
     }));
   }
@@ -300,13 +336,30 @@ export class SupabaseOrderRepository implements IOrderRepository {
     return this.toDomain(order);
   }
 
-  async updateStatus(id: string, status: OrderStatus): Promise<Order> {
+  async updateStatus(id: string, status: OrderStatus, preparedBy?: string | null): Promise<Order> {
+    const updateData: Record<string, unknown> = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status === 'preparing') {
+      updateData.preparing_started_at = new Date().toISOString();
+      if (preparedBy) {
+        updateData.prepared_by = preparedBy;
+      }
+    }
+
+    if (status === 'ready') {
+      updateData.ready_at = new Date().toISOString();
+    }
+
+    if (status === 'delivered') {
+      updateData.delivered_at = new Date().toISOString();
+    }
+
     const { data: order, error } = await this.supabase
       .from('orders')
-      .update({
-        status,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -363,6 +416,10 @@ export class SupabaseOrderRepository implements IOrderRepository {
       notes: data.notes,
       status: data.status as OrderStatus,
       sessionCustomerId: data.session_customer_id,
+      preparedBy: data.prepared_by ?? null,
+      preparingStartedAt: data.preparing_started_at ? new Date(data.preparing_started_at) : null,
+      readyAt: data.ready_at ? new Date(data.ready_at) : null,
+      deliveredAt: data.delivered_at ? new Date(data.delivered_at) : null,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };

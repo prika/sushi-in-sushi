@@ -32,6 +32,7 @@ import { useMemo, useRef, useEffect, useState } from 'react';
 
 interface UseKitchenOrdersOptions {
   location?: Location;
+  userId?: string;
   autoRefetch?: boolean;
   refetchInterval?: number;
   onNewOrder?: (order: KitchenOrderDTO) => void;
@@ -43,7 +44,7 @@ export function useKitchenOrdersOptimized(
   const { getKitchenOrders, updateOrderStatus } = useDependencies();
   const queryClient = useQueryClient();
 
-  const { location, autoRefetch = true, refetchInterval = 10000, onNewOrder } = options;
+  const { location, userId, autoRefetch = true, refetchInterval = 10000, onNewOrder } = options;
 
   // Track previous order IDs to detect new orders
   const previousOrderIds = useRef<Set<string>>(new Set());
@@ -131,6 +132,7 @@ export function useKitchenOrdersOptimized(
       const result = await updateOrderStatus.execute({
         orderId,
         newStatus,
+        userId,
       });
 
       if (!result.success) {

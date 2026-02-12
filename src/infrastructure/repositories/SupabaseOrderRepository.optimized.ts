@@ -192,6 +192,11 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
         ? customerMap.get(data.session_customer_id) || null
         : null,
       waiterName,
+      preparedBy: data.prepared_by ?? null,
+      preparerName: null,
+      preparingStartedAt: data.preparing_started_at ? new Date(data.preparing_started_at) : null,
+      readyAt: data.ready_at ? new Date(data.ready_at) : null,
+      deliveredAt: data.delivered_at ? new Date(data.delivered_at) : null,
     };
   }
 
@@ -311,12 +316,18 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
   }
 
   async updateStatus(id: string, status: OrderStatus): Promise<Order> {
+    const updateData: Record<string, unknown> = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status === 'delivered') {
+      updateData.delivered_at = new Date().toISOString();
+    }
+
     const { data, error } = await this.supabase
       .from('orders')
-      .update({
-        status,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -367,6 +378,10 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
       notes: data.notes,
       status: data.status as OrderStatus,
       sessionCustomerId: data.session_customer_id,
+      preparedBy: data.prepared_by ?? null,
+      preparingStartedAt: data.preparing_started_at ? new Date(data.preparing_started_at) : null,
+      readyAt: data.ready_at ? new Date(data.ready_at) : null,
+      deliveredAt: data.delivered_at ? new Date(data.delivered_at) : null,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };

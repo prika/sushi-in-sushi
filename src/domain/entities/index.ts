@@ -21,3 +21,4 @@ export * from './GameQuestion';
 export * from './GameSession';
 export * from './GameAnswer';
 export * from './GamePrize';
+export * from './KitchenMetrics';

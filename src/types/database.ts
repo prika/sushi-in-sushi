@@ -201,6 +201,10 @@ export type Database = {
           notes: string | null;
           status: OrderStatus;
           session_customer_id: string | null;
+          prepared_by: string | null;
+          preparing_started_at: string | null;
+          ready_at: string | null;
+          delivered_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -213,6 +217,10 @@ export type Database = {
           notes?: string | null;
           status?: OrderStatus;
           session_customer_id?: string | null;
+          prepared_by?: string | null;
+          preparing_started_at?: string | null;
+          ready_at?: string | null;
+          delivered_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -225,6 +233,10 @@ export type Database = {
           notes?: string | null;
           status?: OrderStatus;
           session_customer_id?: string | null;
+          prepared_by?: string | null;
+          preparing_started_at?: string | null;
+          ready_at?: string | null;
+          delivered_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -653,6 +665,7 @@ export type Database = {
           session_id: string;
           session_customer_id: string | null;
           product_id: number;
+          order_id: string | null;
           rating: number;
           created_at: string;
         };
@@ -661,6 +674,7 @@ export type Database = {
           session_id: string;
           session_customer_id?: string | null;
           product_id: number;
+          order_id?: string | null;
           rating: number;
           created_at?: string;
         };
@@ -669,6 +683,7 @@ export type Database = {
           session_id?: string;
           session_customer_id?: string | null;
           product_id?: number;
+          order_id?: string | null;
           rating?: number;
           created_at?: string;
         };
