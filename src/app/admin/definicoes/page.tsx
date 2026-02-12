@@ -330,9 +330,9 @@ function NotificationsTab() {
               Como funcionam os lembretes
             </h4>
             <p className="mt-1 text-sm text-blue-800">
-              Os emails de lembrete sao enviados automaticamente pelo sistema. O
-              cron job executa varias vezes por dia (9h, 11h, 13h, 15h, 17h,
-              19h, 21h) para verificar reservas que precisam de lembrete.
+              Os emails de lembrete são enviados automaticamente pelo sistema.
+              O cron job executa uma vez por dia de manhã para verificar
+              reservas que precisam de lembrete.
             </p>
             <ul className="mt-3 text-sm text-blue-700 space-y-1">
               <li>
