@@ -7,6 +7,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
+  // Force React to use the non-production build during tests,
+  // otherwise @testing-library/react's act() integration throws.
+  define: {
+    'process.env.NODE_ENV': '"test"',
+  },
   test: {
     environment: 'happy-dom',
     globals: true,
