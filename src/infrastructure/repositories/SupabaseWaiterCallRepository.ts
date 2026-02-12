@@ -17,6 +17,7 @@ interface DatabaseWaiterCall {
   id: string;
   table_id: string;
   session_id: string | null;
+  session_customer_id: string | null;
   call_type: string;
   message: string | null;
   status: string;
@@ -105,6 +106,7 @@ export class SupabaseWaiterCallRepository implements IWaiterCallRepository {
       .insert({
         table_id: data.tableId,
         session_id: data.sessionId || null,
+        session_customer_id: data.sessionCustomerId || null,
         call_type: data.callType || 'assistance',
         message: data.message || null,
         location: data.location,
@@ -188,6 +190,7 @@ export class SupabaseWaiterCallRepository implements IWaiterCallRepository {
       id: row.id,
       tableId: row.table_id,
       sessionId: row.session_id,
+      sessionCustomerId: row.session_customer_id ?? null,
       callType: row.call_type as WaiterCall['callType'],
       message: row.message,
       status: row.status as WaiterCall['status'],
@@ -205,6 +208,7 @@ export class SupabaseWaiterCallRepository implements IWaiterCallRepository {
       ...this.mapToEntity(row),
       tableNumber: row.table_number,
       tableName: row.table_name,
+      customerName: null,
       acknowledgedByName: row.acknowledged_by_name,
       assignedWaiterName: row.assigned_waiter_name,
       assignedWaiterId: row.assigned_waiter_id,

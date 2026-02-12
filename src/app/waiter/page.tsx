@@ -45,7 +45,7 @@ export default function WaiterDashboard() {
   const [tables, setTables] = useState<TableWithSession[]>([]);
   const [orders, setOrders] = useState<OrderWithTableInfo[]>([]);
   const [waiterCalls, setWaiterCalls] = useState<
-    (WaiterCall & { table_number: number; order_id?: string | null })[]
+    (WaiterCall & { table_number: number; order_id?: string | null; session_customer_id?: string | null; customer_name?: string | null })[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -204,14 +204,23 @@ export default function WaiterDashboard() {
         .order("created_at", { ascending: false });
 
       if (callsData) {
-        const callsWithTableNumber = (
-          callsData as (WaiterCall & { order_id?: string | null })[]
-        ).map((call) => ({
-          ...call,
-          table_number:
-            tableList.find((t) => t.id === call.table_id)?.number || 0,
-        }));
-        setWaiterCalls(callsWithTableNumber);
+        const callsWithDetails = (
+          callsData as (WaiterCall & { order_id?: string | null; session_customer_id?: string | null })[]
+        ).map((call) => {
+          // Look up customer name from session customers
+          let customerName: string | null = null;
+          if (call.session_customer_id && call.session_id) {
+            const customers = sessionCustomersMap.get(call.session_id) || [];
+            const customer = customers.find((c) => c.id === call.session_customer_id);
+            customerName = customer?.display_name || null;
+          }
+          return {
+            ...call,
+            table_number: tableList.find((t) => t.id === call.table_id)?.number || 0,
+            customer_name: customerName,
+          };
+        });
+        setWaiterCalls(callsWithDetails);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -567,6 +576,11 @@ export default function WaiterDashboard() {
                               {call.call_type === "order" &&
                                 "quer fazer pedido"}
                             </span>
+                            {call.customer_name && (
+                              <span className="text-[#D4AF37] text-sm font-medium">
+                                ({call.customer_name})
+                              </span>
+                            )}
                           </>
                         )}
                       </div>

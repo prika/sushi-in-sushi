@@ -11,6 +11,7 @@ export interface WaiterCall {
   id: string;
   tableId: string;
   sessionId: string | null;
+  sessionCustomerId: string | null;
   callType: WaiterCallType;
   message: string | null;
   status: WaiterCallStatus;
@@ -25,6 +26,7 @@ export interface WaiterCall {
 export interface CreateWaiterCallData {
   tableId: string;
   sessionId?: string | null;
+  sessionCustomerId?: string | null;
   callType?: WaiterCallType;
   message?: string | null;
   location: Location;
@@ -45,6 +47,7 @@ export interface WaiterCallFilter {
 export interface WaiterCallWithDetails extends WaiterCall {
   tableNumber: number;
   tableName: string;
+  customerName: string | null;
   acknowledgedByName: string | null;
   assignedWaiterName: string | null;
   assignedWaiterId: string | null;

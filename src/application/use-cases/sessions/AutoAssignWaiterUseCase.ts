@@ -85,7 +85,6 @@ export class AutoAssignWaiterUseCase {
       });
     } catch (error) {
       // Falha na auto-atribuição nunca bloqueia a sessão
-      console.error('[AutoAssignWaiterUseCase] Error:', error);
       return Results.success({ assigned: false });
     }
   }

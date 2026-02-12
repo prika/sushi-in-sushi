@@ -77,12 +77,6 @@ export class CreateTablesForRestaurantUseCase {
         );
       }
 
-      console.log(`[CreateTablesForRestaurantUseCase] Restaurant: ${restaurant.name}`);
-      console.log(`[CreateTablesForRestaurantUseCase] Max Capacity: ${restaurant.maxCapacity} pessoas`);
-      console.log(`[CreateTablesForRestaurantUseCase] Distribution:`, distribution);
-      console.log(`[CreateTablesForRestaurantUseCase] Total Tables: ${totalTables}`);
-      console.log(`[CreateTablesForRestaurantUseCase] Total Capacity: ${totalCapacity} pessoas`);
-
       // 3. Verificar se já existem mesas (opcional: forçar recriação)
       const existingTables = await this.tableRepository.findAll({
         location: input.restaurantSlug as any
@@ -97,8 +91,6 @@ export class CreateTablesForRestaurantUseCase {
 
       // 4. Remover mesas existentes se forceRecreate
       if (input.forceRecreate && existingTables.length > 0) {
-        console.log(`[CreateTablesForRestaurantUseCase] Removing ${existingTables.length} existing tables...`);
-
         // Verificar se alguma mesa tem sessão ativa
         const tablesWithSessions = existingTables.filter(
           table => table.status === 'occupied' || table.status === 'reserved'
@@ -147,17 +139,8 @@ export class CreateTablesForRestaurantUseCase {
         }
       }
 
-      console.log(
-        `[CreateTablesForRestaurantUseCase] ✅ Created ${createdTables.length} tables for ${input.restaurantSlug}`
-      );
-
-      // Log summary
-      const summary = distribution.map(d => `${d.count}×${d.capacity}`).join(' + ');
-      console.log(`[CreateTablesForRestaurantUseCase] 📊 Distribution: ${summary} = ${totalCapacity} pessoas`);
-
       return Results.success(createdTables);
     } catch (error) {
-      console.error('[CreateTablesForRestaurantUseCase] Error:', error);
       return Results.error(
         error instanceof Error ? error.message : 'Erro ao criar mesas'
       );

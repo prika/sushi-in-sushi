@@ -80,7 +80,6 @@ export function useReservation(options: UseReservationOptions): UseReservationRe
           setClosureWarning(null);
         }
       } catch (err) {
-        console.error('Error checking closure:', err);
         setClosureWarning(null);
       } finally {
         setIsCheckingClosure(false);

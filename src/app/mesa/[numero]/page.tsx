@@ -872,6 +872,7 @@ export default function MesaPage() {
           .insert({
             table_id: tableId,
             session_id: session?.id || null,
+            session_customer_id: currentCustomer?.id || null,
             call_type: type,
             location: localizacao,
             status: "pending",
@@ -904,7 +905,7 @@ export default function MesaPage() {
         setIsCallingWaiter(false);
       }
     },
-    [tableId, session, localizacao, waiterName, isCallingWaiter, supabase, t],
+    [tableId, session, localizacao, waiterName, isCallingWaiter, supabase, t, currentCustomer?.id],
   );
 
   // Subscribe to waiter call status updates
