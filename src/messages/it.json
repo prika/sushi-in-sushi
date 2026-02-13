@@ -341,7 +341,8 @@
       "orderSent": "Ordine inviato in cucina!",
       "billRequested": "Un membro del personale arriverà a breve.",
       "staffCalled": "Un membro del personale è stato avvisato e arriverà a breve.",
-      "staffCalledOrder": "Un membro del personale è stato avvisato per aiutarti con l'ordine."
+      "staffCalledOrder": "Un membro del personale è stato avvisato per aiutarti con l'ordine.",
+      "profileSaved": "Profilo salvato con successo!"
     },
     "cooldown": {
       "title": "Attendere prima di ordinare di nuovo",

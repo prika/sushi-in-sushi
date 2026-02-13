@@ -341,7 +341,8 @@
       "orderSent": "Bestellung an die Küche gesendet!",
       "billRequested": "Ein Mitarbeiter kommt in Kürze.",
       "staffCalled": "Ein Mitarbeiter wurde benachrichtigt und kommt in Kürze.",
-      "staffCalledOrder": "Ein Mitarbeiter wurde benachrichtigt, um bei Ihrer Bestellung zu helfen."
+      "staffCalledOrder": "Ein Mitarbeiter wurde benachrichtigt, um bei Ihrer Bestellung zu helfen.",
+      "profileSaved": "Profil erfolgreich gespeichert!"
     },
     "cooldown": {
       "title": "Bitte warten Sie vor der nächsten Bestellung",

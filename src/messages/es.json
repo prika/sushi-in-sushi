@@ -341,7 +341,8 @@
       "orderSent": "¡Pedido enviado a cocina!",
       "billRequested": "Un empleado vendrá enseguida.",
       "staffCalled": "Un empleado ha sido notificado y vendrá enseguida.",
-      "staffCalledOrder": "Un empleado ha sido notificado para ayudarte con el pedido."
+      "staffCalledOrder": "Un empleado ha sido notificado para ayudarte con el pedido.",
+      "profileSaved": "¡Perfil guardado con éxito!"
     },
     "cooldown": {
       "title": "Espere antes de pedir de nuevo",

@@ -185,16 +185,17 @@ export default function MesaPage() {
   > | null>(null);
 
   // Device ID for broadcast deduplication (prevent processing own broadcasts)
-  const deviceIdRef = useRef<string>(
-    typeof window !== "undefined"
-      ? localStorage.getItem("mesa-device-id") ||
-          (() => {
-            const id = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            localStorage.setItem("mesa-device-id", id);
-            return id;
-          })()
-      : "server",
-  );
+  // Using useState with lazy initialization to ensure stable value across renders
+  const [deviceId] = useState<string>(() => {
+    if (typeof window === "undefined") return "server";
+
+    const stored = localStorage.getItem("mesa-device-id");
+    if (stored) return stored;
+
+    const id = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem("mesa-device-id", id);
+    return id;
+  });
 
   // Ratings (swipe game) state
   const [ratingsStats, setRatingsStats] = useState<{
@@ -499,7 +500,7 @@ export default function MesaPage() {
     setOrderNotification,
     channelRef:
       broadcastChannelRef as MutableRefObject<RealtimeChannelLike | null>,
-    deviceId: deviceIdRef.current,
+    deviceId,
   });
 
   // Group orders by timestamp (rounded to minute)
@@ -885,7 +886,7 @@ export default function MesaPage() {
           payload: {
             customerName: customerName || "?",
             itemCount: cartItemsCount,
-            deviceId: deviceIdRef.current, // Identify sender
+            deviceId, // Identify sender
           },
         });
       }
@@ -917,6 +918,7 @@ export default function MesaPage() {
     supabase,
     currentCustomer?.id,
     currentCustomer?.display_name,
+    deviceId,
     t,
   ]);
 
