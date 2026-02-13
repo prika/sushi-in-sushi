@@ -32,6 +32,7 @@ interface DatabaseWaiterCall {
 interface DatabaseWaiterCallWithDetails extends DatabaseWaiterCall {
   table_number: number;
   table_name: string;
+  customer_name: string | null;
   acknowledged_by_name: string | null;
   assigned_waiter_name: string | null;
   assigned_waiter_id: string | null;
@@ -208,7 +209,7 @@ export class SupabaseWaiterCallRepository implements IWaiterCallRepository {
       ...this.mapToEntity(row),
       tableNumber: row.table_number,
       tableName: row.table_name,
-      customerName: null,
+      customerName: row.customer_name ?? null,
       acknowledgedByName: row.acknowledged_by_name,
       assignedWaiterName: row.assigned_waiter_name,
       assignedWaiterId: row.assigned_waiter_id,
