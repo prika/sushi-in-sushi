@@ -186,13 +186,14 @@ export default function MesaPage() {
 
   // Device ID for broadcast deduplication (prevent processing own broadcasts)
   const deviceIdRef = useRef<string>(
-    typeof window !== 'undefined'
-      ? localStorage.getItem('mesa-device-id') || (() => {
-          const id = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          localStorage.setItem('mesa-device-id', id);
-          return id;
-        })()
-      : 'server'
+    typeof window !== "undefined"
+      ? localStorage.getItem("mesa-device-id") ||
+          (() => {
+            const id = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            localStorage.setItem("mesa-device-id", id);
+            return id;
+          })()
+      : "server",
   );
 
   // Ratings (swipe game) state
@@ -249,6 +250,23 @@ export default function MesaPage() {
     sessionOrders,
     cooldownMinutes,
   });
+
+  // Check if profile is incomplete (missing optional fields)
+  const hasIncompleteProfile = useMemo(() => {
+    if (!currentCustomer) return false;
+    return (
+      !currentCustomer.email ||
+      !currentCustomer.full_name ||
+      !currentCustomer.birth_date
+    );
+  }, [currentCustomer]);
+
+  // Count unrated items available for games
+  const unratedItemsCount = useMemo(() => {
+    return orderItemsForRating.filter(
+      (item) => !ratingsStats.userRatedOrderIds.includes(item.orderId),
+    ).length;
+  }, [orderItemsForRating, ratingsStats.userRatedOrderIds]);
 
   // Fetch table info, waiter, and recover existing session on load
   useEffect(() => {
@@ -449,7 +467,9 @@ export default function MesaPage() {
                 // Prevent duplicates: check if order already exists
                 const exists = prev.some((order) => order.id === data.id);
                 if (exists) {
-                  console.log(`[DEBUG] Order ${data.id} already exists, skipping INSERT event`);
+                  console.log(
+                    `[DEBUG] Order ${data.id} already exists, skipping INSERT event`,
+                  );
                   return prev;
                 }
                 return [data as unknown as OrderWithProduct, ...prev];
@@ -1587,43 +1607,168 @@ export default function MesaPage() {
 
               {/* Cooldown Banner */}
               {isCooldownActive && (
-                <div className="mx-4 mt-3 p-4 rounded-xl bg-gray-900 border border-gray-700 flex items-center gap-4">
-                  <div className="relative w-14 h-14 flex-shrink-0">
-                    <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-                      <circle
-                        cx="28"
-                        cy="28"
-                        r="24"
-                        fill="none"
-                        stroke="#374151"
-                        strokeWidth="4"
-                      />
-                      <circle
-                        cx="28"
-                        cy="28"
-                        r="24"
-                        fill="none"
-                        stroke="#D4AF37"
-                        strokeWidth="4"
-                        strokeLinecap="round"
-                        strokeDasharray={`${2 * Math.PI * 24}`}
-                        strokeDashoffset={`${2 * Math.PI * 24 * (1 - progress)}`}
-                        className="transition-all duration-1000 ease-linear"
-                      />
-                    </svg>
-                    <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-[#D4AF37]">
-                      {remainingFormatted}
-                    </span>
+                <>
+                  <div className="mx-4 mt-3 p-4 rounded-xl bg-gray-900 border border-gray-700 flex items-center gap-4">
+                    <div className="relative w-14 h-14 flex-shrink-0">
+                      <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                        <circle
+                          cx="28"
+                          cy="28"
+                          r="24"
+                          fill="none"
+                          stroke="#374151"
+                          strokeWidth="4"
+                        />
+                        <circle
+                          cx="28"
+                          cy="28"
+                          r="24"
+                          fill="none"
+                          stroke="#D4AF37"
+                          strokeWidth="4"
+                          strokeLinecap="round"
+                          strokeDasharray={`${2 * Math.PI * 24}`}
+                          strokeDashoffset={`${2 * Math.PI * 24 * (1 - progress)}`}
+                          className="transition-all duration-1000 ease-linear"
+                        />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-[#D4AF37]">
+                        {remainingFormatted}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {t("mesa.cooldown.title")}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {t("mesa.cooldown.description")}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {t("mesa.cooldown.title")}
+
+                  {/* Cooldown CTA: Incentivize profile completion and games */}
+                  <div className="mx-4 mt-3 space-y-3">
+                    <p className="text-sm font-semibold text-gray-300 px-1">
+                      ⏱️ Enquanto esperas...
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {t("mesa.cooldown.description")}
-                    </p>
+
+                    {/* Complete Profile CTA */}
+                    {hasIncompleteProfile && (
+                      <button
+                        onClick={() => setShowCustomerModal(true)}
+                        className="w-full p-4 rounded-xl bg-gradient-to-r from-blue-600/20 to-blue-500/20 border border-blue-500/30 hover:border-blue-500/50 transition-all group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <svg
+                              className="w-6 h-6 text-blue-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1 text-left">
+                            <p className="text-sm font-bold text-blue-300">
+                              ✨ Completa o teu perfil
+                            </p>
+                            <p className="text-xs text-blue-400/80 mt-0.5">
+                              Adiciona email e data de nascimento para descontos
+                              exclusivos!
+                            </p>
+                          </div>
+                          <svg
+                            className="w-5 h-5 text-blue-400 group-hover:translate-x-1 transition-transform"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Play Games CTA */}
+                    {unratedItemsCount > 0 && (
+                      <button
+                        onClick={() => setActiveTab("jogos")}
+                        className="w-full p-4 rounded-xl bg-gradient-to-r from-[#D4AF37]/20 to-amber-500/20 border border-[#D4AF37]/40 hover:border-[#D4AF37]/60 transition-all group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-[#D4AF37]/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <svg
+                              className="w-6 h-6 text-[#D4AF37]"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1 text-left">
+                            <p className="text-sm font-bold text-[#D4AF37]">
+                              🎮 Joga e ganha pontos!
+                            </p>
+                            <p className="text-xs text-amber-300/80 mt-0.5">
+                              {unratedItemsCount}{" "}
+                              {unratedItemsCount === 1
+                                ? "item disponível"
+                                : "items disponíveis"}{" "}
+                              para avaliar
+                            </p>
+                          </div>
+                          <svg
+                            className="w-5 h-5 text-[#D4AF37] group-hover:translate-x-1 transition-transform"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Fallback: Just enjoy the moment if nothing to do */}
+                    {!hasIncompleteProfile && unratedItemsCount === 0 && (
+                      <div className="w-full p-4 rounded-xl bg-gray-900/50 border border-gray-700/50">
+                        <div className="flex items-center gap-3">
+                          <div className="text-3xl">☕</div>
+                          <div className="flex-1 text-left">
+                            <p className="text-sm font-semibold text-gray-300">
+                              Relaxa e aproveita!
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              A tua próxima encomenda estará disponível em breve
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                </>
               )}
 
               <div className="flex-1 overflow-y-auto px-4 py-4 pb-48">
@@ -1631,12 +1776,15 @@ export default function MesaPage() {
                   <div className="text-center py-20">
                     <div className="text-6xl mb-4">🛒</div>
                     <p className="text-gray-400 mb-2">{t("mesa.cartEmpty")}</p>
-                    <button
-                      onClick={() => setActiveTab("menu")}
-                      className="text-[#D4AF37] text-sm font-medium"
-                    >
-                      {t("mesa.tabs.menu")} →
-                    </button>
+                    {/* Hide "Go to Menu" button during cooldown (can't add items anyway) */}
+                    {!isCooldownActive && (
+                      <button
+                        onClick={() => setActiveTab("menu")}
+                        className="text-[#D4AF37] text-sm font-medium"
+                      >
+                        {t("mesa.tabs.menu")} →
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -2928,34 +3076,6 @@ export default function MesaPage() {
             </div>
 
             <div className="p-6">
-              {/* Active customers in session */}
-              {sessionCustomers.length > 0 && (
-                <div className="mb-6">
-                  <p className="text-sm text-gray-400 mb-3">
-                    {t("mesa.atTable")}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {sessionCustomers.map((customer) => (
-                      <span
-                        key={customer.id}
-                        className={`px-4 py-2 rounded-full text-sm font-medium ${
-                          currentCustomer?.id === customer.id
-                            ? "bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30"
-                            : "bg-gray-800 text-gray-300"
-                        }`}
-                      >
-                        {customer.display_name}
-                        {customer.is_session_host && (
-                          <span className="ml-1 text-xs opacity-70">
-                            {t("mesa.host")}
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Registration Form */}
               <div className="space-y-4">
                 {/* Display Name - Required */}
@@ -3013,25 +3133,6 @@ export default function MesaPage() {
                   </summary>
 
                   <div className="space-y-4 pt-4">
-                    {/* Full Name */}
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1.5">
-                        {t("mesa.fullName")}
-                      </label>
-                      <input
-                        type="text"
-                        value={customerForm.full_name}
-                        onChange={(e) =>
-                          setCustomerForm((prev) => ({
-                            ...prev,
-                            full_name: e.target.value,
-                          }))
-                        }
-                        placeholder={t("mesa.fullNamePlaceholder")}
-                        className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
-                      />
-                    </div>
-
                     {/* Email */}
                     <div>
                       <label className="block text-sm text-gray-400 mb-1.5">
@@ -3100,7 +3201,6 @@ export default function MesaPage() {
                         {[
                           { value: "email", label: "Email" },
                           { value: "phone", label: "Telemóvel" },
-                          { value: "none", label: "Nenhum" },
                         ].map((option) => (
                           <button
                             key={option.value}
@@ -3110,8 +3210,7 @@ export default function MesaPage() {
                                 ...prev,
                                 preferred_contact: option.value as
                                   | "email"
-                                  | "phone"
-                                  | "none",
+                                  | "phone",
                               }))
                             }
                             className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
@@ -3172,33 +3271,94 @@ export default function MesaPage() {
                 </details>
               </div>
 
-              {/* Submit Button */}
+              {/* Submit Button - Smart single button */}
               <div className="mt-6 pt-4 border-t border-gray-800">
                 <button
-                  onClick={registerCustomer}
+                  onClick={() => {
+                    // Check if there are changes
+                    const hasChanges =
+                      currentCustomer &&
+                      (customerForm.display_name.trim() !==
+                        currentCustomer.display_name ||
+                        customerForm.email.trim() !==
+                          (currentCustomer.email || "") ||
+                        customerForm.phone.trim() !==
+                          (currentCustomer.phone || "") ||
+                        customerForm.birth_date !==
+                          (currentCustomer.birth_date || "") ||
+                        customerForm.marketing_consent !==
+                          (currentCustomer.marketing_consent || false) ||
+                        customerForm.preferred_contact !==
+                          (currentCustomer.preferred_contact || "email"));
+
+                    if (hasChanges || !currentCustomer) {
+                      // Save changes or register new customer
+                      registerCustomer();
+                    } else {
+                      // No changes, just close modal
+                      setShowCustomerModal(false);
+                    }
+                  }}
                   disabled={!customerForm.display_name.trim()}
                   className="w-full py-4 rounded-xl bg-[#D4AF37] text-black font-bold text-lg hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {currentCustomer &&
-                  customerForm.display_name.trim() ===
-                    currentCustomer.display_name
-                    ? t("mesa.saveProfile") || "Guardar perfil"
-                    : sessionCustomers.length === 0
-                      ? t("mesa.startOrdering")
-                      : t("mesa.addPerson")}
-                </button>
+                  {(() => {
+                    // Smart button text based on context
+                    if (!currentCustomer) {
+                      return sessionCustomers.length === 0
+                        ? t("mesa.startOrdering")
+                        : t("mesa.addPerson");
+                    }
 
-                {currentCustomer && (
-                  <button
-                    onClick={() => setShowCustomerModal(false)}
-                    className="w-full mt-3 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
-                  >
-                    {t("mesa.continueAs", {
-                      name: currentCustomer.display_name,
-                    })}
-                  </button>
-                )}
+                    // Check if editing current customer
+                    const hasChanges =
+                      customerForm.display_name.trim() !==
+                        currentCustomer.display_name ||
+                      customerForm.email.trim() !==
+                        (currentCustomer.email || "") ||
+                      customerForm.phone.trim() !==
+                        (currentCustomer.phone || "") ||
+                      customerForm.birth_date !==
+                        (currentCustomer.birth_date || "") ||
+                      customerForm.marketing_consent !==
+                        (currentCustomer.marketing_consent || false) ||
+                      customerForm.preferred_contact !==
+                        (currentCustomer.preferred_contact || "email");
+
+                    return hasChanges
+                      ? t("mesa.saveChanges") || "Guardar Alterações"
+                      : t("mesa.continue") || "Continuar";
+                  })()}
+                </button>
               </div>
+
+              {/* Active customers in session - Moved to bottom with less importance */}
+              {sessionCustomers.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-gray-800/50">
+                  <p className="text-xs text-gray-500 mb-2.5 uppercase tracking-wide">
+                    {t("mesa.atTable")}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {sessionCustomers.map((customer) => (
+                      <span
+                        key={customer.id}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium ${
+                          currentCustomer?.id === customer.id
+                            ? "bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30"
+                            : "bg-gray-800/50 text-gray-400"
+                        }`}
+                      >
+                        {customer.display_name}
+                        {customer.is_session_host && (
+                          <span className="ml-1 opacity-70">
+                            {t("mesa.host")}
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

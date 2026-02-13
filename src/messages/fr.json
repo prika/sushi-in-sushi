@@ -224,6 +224,8 @@
     "receivePromotions": "Je souhaite recevoir les promotions et nouveautés par e-mail/SMS",
     "startOrdering": "Commencer à Commander",
     "addPerson": "Ajouter une Personne",
+    "saveChanges": "Enregistrer les Modifications",
+    "continue": "Continuer",
     "continueAs": "Continuer en tant que {name}",
     "tabs": {
       "menu": "Menu",
