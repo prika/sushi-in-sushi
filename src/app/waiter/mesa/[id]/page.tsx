@@ -275,7 +275,7 @@ export default function WaiterMesaPage() {
             </Link>
             <div>
               <h1 className="text-lg font-bold text-white">
-                Mesa #{table.number}
+                Painel da Mesa #{table.number}
               </h1>
               <p className="text-sm text-gray-400">{table.name}</p>
             </div>
@@ -432,7 +432,7 @@ export default function WaiterMesaPage() {
                 <section>
                   <h3 className="text-sm font-semibold text-green-400 mb-3 flex items-center gap-2">
                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                    Pronto para Entregar ({readyOrders.length})
+                    Prontos para Servir ({readyOrders.length})
                   </h3>
                   <div className="space-y-2">
                     {readyOrders.map((order) => (
@@ -601,7 +601,7 @@ function OrderCard({
   const statusLabels: Record<string, string> = {
     pending: "Pendente",
     preparing: "A Preparar",
-    ready: "Pronto",
+    ready: "Pronto para servir",
     delivered: "Entregue",
     cancelled: "Cancelado",
   };

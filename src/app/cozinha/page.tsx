@@ -377,13 +377,13 @@ export default function CozinhaPage() {
 
         {/* Ready Column */}
         <Column
-          title="Prontos"
+          title="Prontos para Servir"
           icon="✅"
           color="green"
           count={sortedReady.length}
           orders={sortedReady}
           newOrderIds={newOrderIds}
-          actionLabel="Entregue"
+          actionLabel={null}
           onAction={(order) => handleUpdateStatus(order, "delivered")}
         />
       </main>
@@ -415,7 +415,7 @@ function Column({
   count: number;
   orders: KitchenOrderDTO[];
   newOrderIds: Set<string>;
-  actionLabel: string;
+  actionLabel: string | null;
   onAction: (order: KitchenOrderDTO) => void;
 }) {
   const colorClasses = {
@@ -493,11 +493,16 @@ function Column({
                     <span className="text-3xl font-bold text-white">
                       {order.table?.number || "?"}
                     </span>
-                    <div className="text-sm text-gray-400">
-                      <p>Mesa</p>
-                      <p className="capitalize">
+                    <div className="text-sm">
+                      <p className="text-gray-400">Mesa</p>
+                      <p className="capitalize text-gray-400">
                         {order.table?.location || ""}
                       </p>
+                      {order.waiterName && (
+                        <p className="text-blue-400 font-medium mt-0.5">
+                          👤 {order.waiterName}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
@@ -529,16 +534,6 @@ function Column({
                   </div>
                 </div>
 
-                {/* Waiter info (all cards) */}
-                {order.waiterName && (
-                  <div className="px-4 pb-1">
-                    <p className="text-xs text-gray-500">
-                      Empregado:{" "}
-                      <span className="text-blue-400">{order.waiterName}</span>
-                    </p>
-                  </div>
-                )}
-
                 {/* Stage timing */}
                 <div className="px-4 pb-2">
                   {order.status === "pending" && (
@@ -559,19 +554,21 @@ function Column({
                 </div>
 
                 {/* Action Button */}
-                <div className="px-4 py-3 border-t border-gray-800">
-                  <button
-                    onClick={() => onAction(order)}
-                    className={`
-                      w-full py-2 rounded-lg font-semibold transition-colors
-                      ${color === "yellow" ? "bg-orange-500 hover:bg-orange-600 text-white" : ""}
-                      ${color === "orange" ? "bg-green-500 hover:bg-green-600 text-white" : ""}
-                      ${color === "green" ? "bg-gray-600 hover:bg-gray-700 text-white" : ""}
-                    `}
-                  >
-                    {actionLabel}
-                  </button>
-                </div>
+                {actionLabel && (
+                  <div className="px-4 py-3 border-t border-gray-800">
+                    <button
+                      onClick={() => onAction(order)}
+                      className={`
+                        w-full py-2 rounded-lg font-semibold transition-colors
+                        ${color === "yellow" ? "bg-orange-500 hover:bg-orange-600 text-white" : ""}
+                        ${color === "orange" ? "bg-green-500 hover:bg-green-600 text-white" : ""}
+                        ${color === "green" ? "bg-gray-600 hover:bg-gray-700 text-white" : ""}
+                      `}
+                    >
+                      {actionLabel}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })

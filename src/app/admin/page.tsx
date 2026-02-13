@@ -329,7 +329,7 @@ function StatusBadge({ status }: { status: string }) {
   const configs: Record<string, { bg: string; text: string; label: string }> = {
     pending: { bg: "bg-yellow-100", text: "text-yellow-700", label: "Pendente" },
     preparing: { bg: "bg-orange-100", text: "text-orange-700", label: "A Preparar" },
-    ready: { bg: "bg-blue-100", text: "text-blue-700", label: "Pronto" },
+    ready: { bg: "bg-blue-100", text: "text-blue-700", label: "Pronto para servir" },
     delivered: { bg: "bg-green-100", text: "text-green-700", label: "Entregue" },
     cancelled: { bg: "bg-red-100", text: "text-red-700", label: "Cancelado" },
   };

@@ -25,7 +25,7 @@ const STATUS_CONFIG: Record<OrderStatus, { icon: string; label: string; color: s
   },
   ready: {
     icon: "✅",
-    label: "Pronto",
+    label: "Pronto para servir",
     color: "text-green-700",
     bgColor: "bg-green-100",
   },

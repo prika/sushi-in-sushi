@@ -78,7 +78,7 @@ const SESSION_STATUS_LABELS: Record<string, string> = {
 const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: "Pendente",
   preparing: "A preparar",
-  ready: "Pronto",
+  ready: "Pronto para servir",
   delivered: "Entregue",
   cancelled: "Cancelado",
 };

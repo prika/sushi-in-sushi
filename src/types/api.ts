@@ -85,7 +85,7 @@ export interface StatusConfig {
 export const ORDER_STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
   pending: { icon: "⏳", label: "Na fila", color: "text-yellow-500" },
   preparing: { icon: "🔥", label: "A preparar", color: "text-orange-500" },
-  ready: { icon: "✅", label: "Pronto", color: "text-green-500" },
+  ready: { icon: "✅", label: "Pronto para servir", color: "text-green-500" },
   delivered: { icon: "✓", label: "Entregue", color: "text-gray-400" },
   cancelled: { icon: "✕", label: "Cancelado", color: "text-red-500" },
 };

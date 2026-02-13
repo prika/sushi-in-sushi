@@ -226,7 +226,7 @@ function translateOrderStatus(status: string): string {
   const translations: Record<string, string> = {
     pending: "Pendente",
     preparing: "A Preparar",
-    ready: "Pronto",
+    ready: "Pronto para servir",
     delivered: "Entregue",
     cancelled: "Cancelado",
   };

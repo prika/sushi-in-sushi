@@ -45,18 +45,26 @@ export default function WaiterDashboard() {
   const [tables, setTables] = useState<TableWithSession[]>([]);
   const [orders, setOrders] = useState<OrderWithTableInfo[]>([]);
   const [waiterCalls, setWaiterCalls] = useState<
-    (WaiterCall & { table_number: number; order_id?: string | null; session_customer_id?: string | null; customer_name?: string | null })[]
+    (WaiterCall & {
+      table_number: number;
+      order_id?: string | null;
+      session_customer_id?: string | null;
+      customer_name?: string | null;
+    })[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Use memoized supabase client to prevent real-time subscription issues
   const supabase = useMemo(() => createClient(), []);
-  const extendedSupabase = useMemo(() => getExtendedSupabase(supabase), [supabase]);
+  const extendedSupabase = useMemo(
+    () => getExtendedSupabase(supabase),
+    [supabase],
+  );
 
   // Helper to get location label
   const getLocationLabel = (location: string | null) => {
     if (!location) return "";
-    return locations.find(loc => loc.slug === location)?.name || location;
+    return locations.find((loc) => loc.slug === location)?.name || location;
   };
 
   // Ref for fetchData to avoid useEffect dependency issues
@@ -128,8 +136,7 @@ export default function WaiterDashboard() {
 
         if (customersData) {
           (customersData as SessionCustomer[]).forEach((customer) => {
-            const existing =
-              sessionCustomersMap.get(customer.session_id) || [];
+            const existing = sessionCustomersMap.get(customer.session_id) || [];
             sessionCustomersMap.set(customer.session_id, [
               ...existing,
               customer,
@@ -205,18 +212,24 @@ export default function WaiterDashboard() {
 
       if (callsData) {
         const callsWithDetails = (
-          callsData as (WaiterCall & { order_id?: string | null; session_customer_id?: string | null })[]
+          callsData as (WaiterCall & {
+            order_id?: string | null;
+            session_customer_id?: string | null;
+          })[]
         ).map((call) => {
           // Look up customer name from session customers
           let customerName: string | null = null;
           if (call.session_customer_id && call.session_id) {
             const customers = sessionCustomersMap.get(call.session_id) || [];
-            const customer = customers.find((c) => c.id === call.session_customer_id);
+            const customer = customers.find(
+              (c) => c.id === call.session_customer_id,
+            );
             customerName = customer?.display_name || null;
           }
           return {
             ...call,
-            table_number: tableList.find((t) => t.id === call.table_id)?.number || 0,
+            table_number:
+              tableList.find((t) => t.id === call.table_id)?.number || 0,
             customer_name: customerName,
           };
         });
@@ -265,43 +278,52 @@ export default function WaiterDashboard() {
     };
   }, [supabase]);
 
-  const handleAcknowledgeCall = useCallback(async (callId: string) => {
-    if (!user) return;
-    await extendedSupabase
-      .from("waiter_calls")
-      .update({
-        status: "acknowledged",
-        acknowledged_by: user.id,
-        acknowledged_at: new Date().toISOString(),
-      })
-      .eq("id", callId);
-  }, [user, extendedSupabase]);
+  const handleAcknowledgeCall = useCallback(
+    async (callId: string) => {
+      if (!user) return;
+      await extendedSupabase
+        .from("waiter_calls")
+        .update({
+          status: "acknowledged",
+          acknowledged_by: user.id,
+          acknowledged_at: new Date().toISOString(),
+        })
+        .eq("id", callId);
+    },
+    [user, extendedSupabase],
+  );
 
-  const handleCompleteCall = useCallback(async (callId: string, orderId?: string | null) => {
-    // Mark the waiter_call as completed
-    await extendedSupabase
-      .from("waiter_calls")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", callId);
+  const handleCompleteCall = useCallback(
+    async (callId: string, orderId?: string | null) => {
+      // Mark the waiter_call as completed
+      await extendedSupabase
+        .from("waiter_calls")
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", callId);
 
-    // If there's an associated order, mark it as delivered
-    if (orderId) {
+      // If there's an associated order, mark it as delivered
+      if (orderId) {
+        await supabase
+          .from("orders")
+          .update({ status: "delivered" })
+          .eq("id", orderId);
+      }
+    },
+    [supabase, extendedSupabase],
+  );
+
+  const handleMarkDelivered = useCallback(
+    async (orderId: string) => {
       await supabase
         .from("orders")
         .update({ status: "delivered" })
         .eq("id", orderId);
-    }
-  }, [supabase, extendedSupabase]);
-
-  const handleMarkDelivered = useCallback(async (orderId: string) => {
-    await supabase
-      .from("orders")
-      .update({ status: "delivered" })
-      .eq("id", orderId);
-  }, [supabase]);
+    },
+    [supabase],
+  );
 
   if (authLoading || isLoading) {
     return (
@@ -314,17 +336,11 @@ export default function WaiterDashboard() {
   const activeTables = tables.filter((t) => t.activeSession);
   const availableTables = tables.filter((t) => !t.activeSession);
 
-  // Separate kitchen "ready" notifications from customer calls
-  const kitchenReadyNotifications = waiterCalls.filter(
-    (c) => c.call_type === "other" && c.message?.startsWith("Mesa"),
-  );
+  // Filter customer calls (excluding kitchen notifications)
   const customerCalls = waiterCalls.filter(
     (c) => c.call_type !== "other" || !c.message?.startsWith("Mesa"),
   );
   const pendingCustomerCalls = customerCalls.filter(
-    (c) => c.status === "pending",
-  );
-  const pendingKitchenNotifications = kitchenReadyNotifications.filter(
     (c) => c.status === "pending",
   );
 
@@ -347,7 +363,7 @@ export default function WaiterDashboard() {
       border: "border-blue-500/30",
     },
     ready: {
-      label: "Pronto",
+      label: "Pronto para servir",
       color: "text-green-400",
       bg: "bg-green-500/20",
       border: "border-green-500/30",
@@ -362,9 +378,7 @@ export default function WaiterDashboard() {
           <div className="flex items-center gap-4">
             <span className="text-2xl">🍣</span>
             <div>
-              <h1 className="text-lg font-bold text-white">
-                Painel do Empregado
-              </h1>
+              <h1 className="text-lg font-bold text-white">Painel da Garçom</h1>
               <p className="text-sm text-gray-400">
                 {user?.name} • {getLocationLabel(user?.location || null)}
               </p>
@@ -432,94 +446,6 @@ export default function WaiterDashboard() {
               )}
             </div>
 
-            {/* Kitchen Ready Notifications - Separate Section */}
-            {kitchenReadyNotifications.length > 0 && (
-              <div className="mb-6 space-y-2">
-                <h2 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
-                  <span
-                    className={`w-2 h-2 rounded-full ${pendingKitchenNotifications.length > 0 ? "bg-green-500 animate-pulse" : "bg-green-700"}`}
-                  />
-                  Prontos para Entregar ({kitchenReadyNotifications.length})
-                </h2>
-                {kitchenReadyNotifications.map((call) => {
-                  // Parse message: "Mesa X: Nx Product para CustomerName"
-                  const message = call.message || "";
-                  const mesaMatch = message.match(/^Mesa (\d+):/);
-                  const tableNum = mesaMatch ? mesaMatch[1] : "?";
-                  const restOfMessage = message.replace(/^Mesa \d+:\s*/, "");
-                  const paraMatch = restOfMessage.match(
-                    /^(.+?)\s+para\s+(.+)$/,
-                  );
-                  const productInfo = paraMatch ? paraMatch[1] : restOfMessage;
-                  const customerName = paraMatch ? paraMatch[2] : null;
-
-                  // Find the associated order - by order_id if available, or by session_id
-                  const associatedOrder = call.order_id
-                    ? orders.find(o => o.id === call.order_id)
-                    : orders.find(o => o.session_id === call.session_id && o.status === "ready");
-
-                  // Use order_id from call, or from the found order
-                  const orderIdToUse = call.order_id || associatedOrder?.id;
-
-                  return (
-                    <div
-                      key={call.id}
-                      className={`rounded-lg p-3 border ${
-                        call.status === "pending"
-                          ? "bg-green-500/20 border-green-500/50"
-                          : "bg-green-500/10 border-green-500/30"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <span className="text-lg flex-shrink-0">✅</span>
-                          <Link
-                            href={`/waiter/mesa/${call.table_id}`}
-                            className="text-xl font-bold text-green-400 hover:underline"
-                          >
-                            #{tableNum}
-                          </Link>
-                          <div className="flex-1 min-w-0">
-                            <span className="font-semibold text-white">
-                              {productInfo}
-                            </span>
-                            {/* Show order status badge */}
-                            {associatedOrder && (
-                              <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
-                                associatedOrder.status === "ready"
-                                  ? "bg-green-500/30 text-green-400"
-                                  : associatedOrder.status === "delivered"
-                                  ? "bg-gray-500/30 text-gray-400"
-                                  : "bg-blue-500/30 text-blue-400"
-                              }`}>
-                                {associatedOrder.status === "ready" ? "Pronto" :
-                                 associatedOrder.status === "delivered" ? "Entregue" :
-                                 associatedOrder.status === "preparing" ? "A preparar" : "Pendente"}
-                              </span>
-                            )}
-                            <br />
-                            {customerName && (
-                              <span className="text-sm">
-                                <span className="text-gray-400">para</span>{" "}
-                                <span className="text-[#D4AF37] font-medium">
-                                  {customerName}
-                                </span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleCompleteCall(call.id, orderIdToUse)}
-                          className="px-3 py-1 text-xs bg-green-500/30 text-green-400 rounded hover:bg-green-500/40 transition-colors font-semibold"
-                        >
-                          Entregue
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
 
             {/* Customer Calls Alert */}
             {customerCalls.length > 0 && (
@@ -613,7 +539,7 @@ export default function WaiterDashboard() {
                 <section>
                   <h2 className="text-lg font-semibold text-green-400 mb-3 flex items-center gap-2">
                     <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                    Pronto para Entregar ({readyOrders.length})
+                    Prontos para Servir ({readyOrders.length})
                   </h2>
                   <div className="grid gap-3">
                     {readyOrders.map((order) => (

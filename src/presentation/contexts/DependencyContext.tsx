@@ -31,7 +31,7 @@ import { IGamePrizeRepository } from '@/domain/repositories/IGamePrizeRepository
 import { IActivityLogger } from '@/application/ports/IActivityLogger';
 
 // Implementações Supabase
-import { SupabaseOrderRepository } from '@/infrastructure/repositories/SupabaseOrderRepository';
+import { SupabaseOrderRepositoryOptimized as SupabaseOrderRepository } from '@/infrastructure/repositories/SupabaseOrderRepository.optimized';
 import { SupabaseProductRepository } from '@/infrastructure/repositories/SupabaseProductRepository';
 import { SupabaseCategoryRepository } from '@/infrastructure/repositories/SupabaseCategoryRepository';
 import { SupabaseSessionRepository } from '@/infrastructure/repositories/SupabaseSessionRepository';

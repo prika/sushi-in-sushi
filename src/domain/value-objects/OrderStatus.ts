@@ -8,7 +8,7 @@ export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'can
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   pending: 'Na fila',
   preparing: 'A preparar',
-  ready: 'Pronto',
+  ready: 'Pronto para servir',
   delivered: 'Entregue',
   cancelled: 'Cancelado',
 };
