@@ -238,6 +238,7 @@
     "rate": {
       "title": "Rate your favourites",
       "close": "Close",
+      "skip": "Skip",
       "tableLeader": "Table favourite",
       "freeDrinkWon": "You won a free drink! Show this screen to staff.",
       "freeDrinkProgress": "{count} more ratings and you get a free drink (min. {min}).",
@@ -255,6 +256,7 @@
     "games": {
       "leaderboard": "Leaderboard",
       "close": "Close",
+      "skip": "Skip",
       "leaderboardEmpty": "No results yet. Play to appear on the ranking!",
       "points": "pts",
       "viewLeaderboard": "View Leaderboard",

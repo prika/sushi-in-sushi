@@ -313,6 +313,22 @@ export function QuizGame({
                 })}
               </div>
 
+              {/* Skip button */}
+              {answerState === "idle" && (
+                <div className="mt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (timerRef.current) clearInterval(timerRef.current);
+                      advanceQuestion();
+                    }}
+                    className="px-6 py-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white transition-colors text-sm font-medium"
+                  >
+                    {t("mesa.games.skip")} →
+                  </button>
+                </div>
+              )}
+
               {/* Feedback message */}
               <AnimatePresence>
                 {answerState !== "idle" && (

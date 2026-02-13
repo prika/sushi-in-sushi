@@ -328,20 +328,15 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
 
     if (status === 'preparing') {
       updateData.preparing_started_at = now;
-      console.log(`[DEBUG] Setting preparing_started_at for order ${id}:`, now);
     }
 
     if (status === 'ready') {
       updateData.ready_at = now;
-      console.log(`[DEBUG] Setting ready_at for order ${id}:`, now);
     }
 
     if (status === 'delivered') {
       updateData.delivered_at = now;
-      console.log(`[DEBUG] Setting delivered_at for order ${id}:`, now);
     }
-
-    console.log(`[DEBUG] Updating order ${id} with data:`, updateData);
 
     const { data, error } = await this.supabase
       .from('orders')
@@ -354,14 +349,6 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
       console.error(`[ERROR] Failed to update order ${id}:`, error);
       throw new Error(error.message);
     }
-
-    console.log(`[DEBUG] Order ${id} updated successfully. Returned data:`, {
-      id: data.id,
-      status: data.status,
-      preparing_started_at: data.preparing_started_at,
-      ready_at: data.ready_at,
-      delivered_at: data.delivered_at,
-    });
 
     return this.toDomain(data);
   }

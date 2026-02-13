@@ -238,6 +238,7 @@
     "rate": {
       "title": "Bewerten Sie Ihre Favoriten",
       "close": "Schließen",
+      "skip": "Skip",
       "tableLeader": "Tisch-Favorit",
       "freeDrinkWon": "Sie haben ein Getränk gewonnen! Zeigen Sie diesen Bildschirm dem Service.",
       "freeDrinkProgress": "Noch {count} Bewertungen und Sie erhalten ein Getränk (min. {min}).",
@@ -255,6 +256,7 @@
     "games": {
       "leaderboard": "Rangliste",
       "close": "Schließen",
+      "skip": "Überspringen",
       "leaderboardEmpty": "Noch keine Ergebnisse. Spiele, um in der Rangliste zu erscheinen!",
       "points": "Pkt",
       "viewLeaderboard": "Rangliste anzeigen",

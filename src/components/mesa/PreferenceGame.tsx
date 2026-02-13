@@ -262,6 +262,20 @@ export function PreferenceGame({
                 </motion.button>
               </div>
 
+              {/* Skip button */}
+              {choiceState === "idle" && (
+                <div className="mt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentIndex((i) => i + 1)}
+                    disabled={isSubmitting}
+                    className="px-6 py-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white transition-colors text-sm font-medium disabled:opacity-50"
+                  >
+                    {t("mesa.games.skip")} →
+                  </button>
+                </div>
+              )}
+
               {/* Hint */}
               <p className="text-center text-gray-600 text-xs mt-4">
                 {t("mesa.games.preference.noWrongAnswer")}

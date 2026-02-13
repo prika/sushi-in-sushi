@@ -62,24 +62,12 @@ export class GetKitchenOrdersUseCase {
 
         if (order.status === 'preparing' && order.preparingStartedAt) {
           preparingMinutes = Math.round((now.getTime() - order.preparingStartedAt.getTime()) / 60000);
-          console.log(`[DEBUG] Order ${order.id} preparing minutes:`, {
-            status: order.status,
-            preparingStartedAt: order.preparingStartedAt,
-            now,
-            calculatedMinutes: preparingMinutes,
-          });
         } else if (order.preparingStartedAt && order.readyAt) {
           preparingMinutes = Math.round((order.readyAt.getTime() - order.preparingStartedAt.getTime()) / 60000);
         }
 
         if (order.status === 'ready' && order.readyAt) {
           readyMinutes = Math.round((now.getTime() - order.readyAt.getTime()) / 60000);
-          console.log(`[DEBUG] Order ${order.id} ready minutes:`, {
-            status: order.status,
-            readyAt: order.readyAt,
-            now,
-            calculatedMinutes: readyMinutes,
-          });
         }
 
         return {

@@ -212,14 +212,6 @@ export default function MesaPage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
 
-  // Debug: log verification modal state changes
-  useEffect(() => {
-    console.log(
-      "[DEBUG] Verification modal state changed:",
-      showVerificationModal,
-    );
-  }, [showVerificationModal]);
-
   // Ratings (swipe game) state
   const [ratingsStats, setRatingsStats] = useState<{
     tableLeader: TableLeaderInfo | null;
@@ -491,9 +483,6 @@ export default function MesaPage() {
                 // Prevent duplicates: check if order already exists
                 const exists = prev.some((order) => order.id === data.id);
                 if (exists) {
-                  console.log(
-                    `[DEBUG] Order ${data.id} already exists, skipping INSERT event`,
-                  );
                   return prev;
                 }
                 return [data as unknown as OrderWithProduct, ...prev];
@@ -898,29 +887,17 @@ export default function MesaPage() {
         setCurrentCustomer(updatedCustomer);
 
         // Send verification if email or phone was added/changed
-        console.log("[DEBUG] Verification check:", {
-          emailChanged,
-          phoneChanged,
-          emailTrim,
-          phoneTrim,
-          currentEmail: currentCustomer?.email,
-          currentPhone: currentCustomer?.phone,
-        });
-
         if (emailChanged || phoneChanged) {
           const type = emailChanged ? "email" : "phone";
           const contact = emailChanged ? emailTrim : phoneTrim;
 
-          console.log("[DEBUG] Sending verification:", { type, contact });
           const result = await sendVerificationCode(
             currentCustomer.id,
             type,
             contact,
           );
-          console.log("[DEBUG] Verification result:", result);
 
           if (result.success) {
-            console.log("[DEBUG] Showing verification modal");
             setVerificationSessionCustomerId(currentCustomer.id);
             setVerificationType(type);
             setVerificationContact(contact);
@@ -993,29 +970,17 @@ export default function MesaPage() {
       localStorage.setItem(`customer_${session.id}`, newCustomer.id);
 
       // Send verification if new customer has email or phone
-      console.log("[DEBUG] New customer verification check:", {
-        hasNewContact,
-        emailTrim,
-        phoneTrim,
-      });
-
       if (hasNewContact) {
         const type = emailTrim ? "email" : "phone";
         const contact = emailTrim || phoneTrim;
 
-        console.log("[DEBUG] Sending verification for new customer:", {
-          type,
-          contact,
-        });
         const result = await sendVerificationCode(
           newCustomer.id,
           type,
           contact,
         );
-        console.log("[DEBUG] New customer verification result:", result);
 
         if (result.success) {
-          console.log("[DEBUG] Showing verification modal for new customer");
           setVerificationSessionCustomerId(newCustomer.id);
           setVerificationType(type);
           setVerificationContact(contact);

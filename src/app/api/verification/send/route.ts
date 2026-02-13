@@ -114,8 +114,6 @@ export async function POST(request: NextRequest) {
     // Send verification code
     if (verificationType === 'email') {
       try {
-        console.log(`📧 Sending verification email to: ${contactValue} from: ${process.env.FROM_EMAIL}`);
-
         // Create verification link with token pre-filled
         const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/mesa/verify?token=${token}&customerId=${sessionCustomerId}`;
 
@@ -233,8 +231,6 @@ export async function POST(request: NextRequest) {
             </html>
           `,
         });
-
-        console.log(`✅ Verification email sent successfully to: ${contactValue}`);
 
         return NextResponse.json({
           success: true,

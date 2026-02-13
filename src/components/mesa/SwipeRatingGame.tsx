@@ -379,40 +379,52 @@ export function SwipeRatingGame({
             </div>
 
             {/* Buttons for accessibility */}
-            <div className="flex gap-4 mt-6">
+            <div className="flex flex-col gap-3 mt-6">
+              <div className="flex gap-4 justify-center">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => handleSwipe("left")}
+                  className="w-14 h-14 rounded-full border-2 border-red-500/70 text-red-400 flex items-center justify-center hover:bg-red-500/20 disabled:opacity-50"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => handleSwipe("right")}
+                  className="w-14 h-14 rounded-full border-2 border-green-500/70 text-green-400 flex items-center justify-center hover:bg-green-500/20 disabled:opacity-50"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Skip button */}
               <button
                 type="button"
+                onClick={() => setCurrentIndex((i) => i + 1)}
                 disabled={isSubmitting}
-                onClick={() => handleSwipe("left")}
-                className="w-14 h-14 rounded-full border-2 border-red-500/70 text-red-400 flex items-center justify-center hover:bg-red-500/20 disabled:opacity-50"
+                className="px-6 py-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white transition-colors text-sm font-medium disabled:opacity-50"
               >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={() => handleSwipe("right")}
-                className="w-14 h-14 rounded-full border-2 border-green-500/70 text-green-400 flex items-center justify-center hover:bg-green-500/20 disabled:opacity-50"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
+                {t("mesa.games.skip")} →
               </button>
             </div>
           </>

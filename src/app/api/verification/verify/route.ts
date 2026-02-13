@@ -140,8 +140,6 @@ export async function POST(request: NextRequest) {
         console.error('Error updating other customers:', bulkUpdateError);
         // Continue anyway
       }
-
-      console.log(`✅ Associated ${otherCustomers.length} other people at table ${tableId} with verified ${verificationType}`);
     }
 
     // If email is verified and customer_id exists, also verify in customers table

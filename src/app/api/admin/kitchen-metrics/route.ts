@@ -4,6 +4,9 @@ import { verifyAuth } from "@/lib/auth";
 import { SupabaseKitchenMetricsRepository } from "@/infrastructure/repositories/SupabaseKitchenMetricsRepository";
 import { GetKitchenMetricsUseCase } from "@/application/use-cases/kitchen-metrics/GetKitchenMetricsUseCase";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/admin/kitchen-metrics?location=SLUG&from=DATE&to=DATE
  * Returns per-staff kitchen performance metrics (admin only).

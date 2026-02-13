@@ -4,6 +4,9 @@ import { SupabaseRestaurantRepository } from "@/infrastructure/repositories/Supa
 import { GetGameConfigUseCase } from "@/application/use-cases/games/GetGameConfigUseCase";
 import type { GameConfig } from "@/domain/value-objects/GameConfig";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/mesa/games/config?restaurantId=... | ?restaurantSlug=...
  * Returns the restaurant's game configuration for use in game completion.

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 /** Stats window: last N days for overview aggregates */
 const STATS_DAYS = 90;
 /** Upper bound per table to avoid unbounded result sets */

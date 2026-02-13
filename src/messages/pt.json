@@ -255,6 +255,7 @@
     "games": {
       "leaderboard": "Classificação",
       "close": "Fechar",
+      "skip": "Saltar",
       "leaderboardEmpty": "Ainda não há resultados. Joga para apareceres no ranking!",
       "points": "pts",
       "viewLeaderboard": "Ver Classificação",

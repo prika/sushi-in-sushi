@@ -238,6 +238,7 @@
     "rate": {
       "title": "Valora tus favoritos",
       "close": "Cerrar",
+      "skip": "Skip",
       "tableLeader": "Favorito de la mesa",
       "freeDrinkWon": "¡Has ganado una bebida! Muestra esta pantalla al camarero.",
       "freeDrinkProgress": "{count} valoraciones más y ganas una bebida (mín. {min}).",
@@ -255,6 +256,7 @@
     "games": {
       "leaderboard": "Clasificación",
       "close": "Cerrar",
+      "skip": "Saltar",
       "leaderboardEmpty": "Aún no hay resultados. ¡Juega para aparecer en el ranking!",
       "points": "pts",
       "viewLeaderboard": "Ver clasificación",

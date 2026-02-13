@@ -1,11 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
-export default function VerifyPage() {
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
+
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#1a1a1a] via-[#2a2a2a] to-[#1a1a1a] flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-[#2a2a2a] rounded-2xl shadow-2xl border border-[#D4AF37]/20 overflow-hidden">
+        <div className="bg-gradient-to-r from-[#D4AF37] to-[#F4E5B8] p-6 text-center">
+          <h1 className="text-2xl font-bold text-[#1a1a1a]">🍣 Sushi in Sushi</h1>
+          <p className="text-sm text-[#2a2a2a] mt-1">Verificação de Email</p>
+        </div>
+        <div className="p-8 text-center">
+          <Loader2 className="w-16 h-16 text-[#D4AF37] mx-auto mb-4 animate-spin" />
+          <h2 className="text-xl font-semibold text-white mb-2">A carregar...</h2>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main verification component that uses useSearchParams
+function VerifyContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -133,5 +155,14 @@ export default function VerifyPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Page component with Suspense boundary
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <VerifyContent />
+    </Suspense>
   );
 }

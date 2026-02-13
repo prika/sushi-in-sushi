@@ -560,6 +560,36 @@ export function GameHub({
               )}
             </div>
 
+            {/* View Leaderboard Link */}
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsLoading(true);
+                  await refreshLeaderboard();
+                  setStep("leaderboard");
+                  setIsLoading(false);
+                }}
+                disabled={isLoading}
+                className="text-[#D4AF37] hover:text-[#F4E5B8] text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2 mx-auto"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+                {t("mesa.games.viewLeaderboard")}
+              </button>
+            </div>
+
             {/* Loading overlay */}
             {isLoading && (
               <motion.div
