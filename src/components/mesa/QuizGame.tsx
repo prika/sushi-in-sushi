@@ -77,6 +77,12 @@ export function QuizGame({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, answerState, isFinished]);
 
+  const advanceQuestion = useCallback(() => {
+    setAnswerState("idle");
+    setSelectedOption(null);
+    setCurrentIndex((i) => i + 1);
+  }, []);
+
   const handleTimeout = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     setAnswerState("timeout");
@@ -87,13 +93,7 @@ export function QuizGame({
       timeoutRef.current = null;
       advanceQuestion();
     }, 1500);
-  }, []);
-
-  const advanceQuestion = useCallback(() => {
-    setAnswerState("idle");
-    setSelectedOption(null);
-    setCurrentIndex((i) => i + 1);
-  }, []);
+  }, [advanceQuestion]);
 
   const handleSelectOption = useCallback(
     async (optionIndex: number) => {

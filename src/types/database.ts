@@ -191,6 +191,90 @@ export type Database = {
           },
         ];
       };
+      session_customers: {
+        Row: {
+          id: string;
+          session_id: string;
+          display_name: string;
+          full_name: string | null;
+          email: string | null;
+          phone: string | null;
+          birth_date: string | null;
+          preferred_contact: string | null;
+          marketing_consent: boolean | null;
+          customer_id: string | null;
+          is_session_host: boolean | null;
+          device_id: string | null;
+          tier: number;
+          email_verified: boolean;
+          phone_verified: boolean;
+          verification_token: string | null;
+          verification_expires_at: string | null;
+          verification_type: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          display_name: string;
+          full_name?: string | null;
+          email?: string | null;
+          phone?: string | null;
+          birth_date?: string | null;
+          preferred_contact?: string | null;
+          marketing_consent?: boolean | null;
+          customer_id?: string | null;
+          is_session_host?: boolean | null;
+          device_id?: string | null;
+          tier?: number;
+          email_verified?: boolean;
+          phone_verified?: boolean;
+          verification_token?: string | null;
+          verification_expires_at?: string | null;
+          verification_type?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          display_name?: string;
+          full_name?: string | null;
+          email?: string | null;
+          phone?: string | null;
+          birth_date?: string | null;
+          preferred_contact?: string | null;
+          marketing_consent?: boolean | null;
+          customer_id?: string | null;
+          is_session_host?: boolean | null;
+          device_id?: string | null;
+          tier?: number;
+          email_verified?: boolean;
+          phone_verified?: boolean;
+          verification_token?: string | null;
+          verification_expires_at?: string | null;
+          verification_type?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "session_customers_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "session_customers_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       orders: {
         Row: {
           id: string;
@@ -374,6 +458,8 @@ export type Database = {
           total_spent: number;
           visit_count: number;
           is_active: boolean;
+          email_verified: boolean;
+          phone_verified: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -389,6 +475,8 @@ export type Database = {
           total_spent?: number;
           visit_count?: number;
           is_active?: boolean;
+          email_verified?: boolean;
+          phone_verified?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -404,6 +492,8 @@ export type Database = {
           total_spent?: number;
           visit_count?: number;
           is_active?: boolean;
+          email_verified?: boolean;
+          phone_verified?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -704,12 +794,78 @@ export type Database = {
           },
         ];
       };
+      verification_logs: {
+        Row: {
+          id: string;
+          session_customer_id: string | null;
+          customer_id: string | null;
+          verification_type: string;
+          contact_value: string;
+          token: string;
+          expires_at: string;
+          status: string;
+          verified_at: string | null;
+          ip_address: unknown;
+          user_agent: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          session_customer_id?: string | null;
+          customer_id?: string | null;
+          verification_type: string;
+          contact_value: string;
+          token: string;
+          expires_at: string;
+          status?: string;
+          verified_at?: string | null;
+          ip_address?: unknown;
+          user_agent?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          session_customer_id?: string | null;
+          customer_id?: string | null;
+          verification_type?: string;
+          contact_value?: string;
+          token?: string;
+          expires_at?: string;
+          status?: string;
+          verified_at?: string | null;
+          ip_address?: unknown;
+          user_agent?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "verification_logs_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "verification_logs_session_customer_id_fkey";
+            columns: ["session_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "session_customers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      generate_verification_token: {
+        Args: never;
+        Returns: string;
+      };
     };
     Enums: {
       session_status: SessionStatus;
@@ -1183,6 +1339,8 @@ export type SessionCustomer = {
   full_name: string | null;
   email: string | null;
   phone: string | null;
+  email_verified: boolean;
+  phone_verified: boolean;
   birth_date: string | null;
   marketing_consent: boolean;
   preferred_contact: PreferredContact;

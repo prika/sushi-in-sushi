@@ -197,6 +197,29 @@ export default function MesaPage() {
     return id;
   });
 
+  // Verification state
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationSessionCustomerId, setVerificationSessionCustomerId] =
+    useState<string | null>(null);
+  const [verificationType, setVerificationType] = useState<"email" | "phone">(
+    "email",
+  );
+  const [verificationContact, setVerificationContact] = useState("");
+  const [verificationError, setVerificationError] = useState<string | null>(
+    null,
+  );
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+
+  // Debug: log verification modal state changes
+  useEffect(() => {
+    console.log(
+      "[DEBUG] Verification modal state changed:",
+      showVerificationModal,
+    );
+  }, [showVerificationModal]);
+
   // Ratings (swipe game) state
   const [ratingsStats, setRatingsStats] = useState<{
     tableLeader: TableLeaderInfo | null;
@@ -690,6 +713,143 @@ export default function MesaPage() {
     [customerForm, t],
   );
 
+  // Send verification code
+  const sendVerificationCode = useCallback(
+    async (
+      sessionCustomerId: string,
+      type: "email" | "phone",
+      contact: string,
+    ) => {
+      try {
+        const response = await fetch("/api/verification/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionCustomerId,
+            verificationType: type,
+            contactValue: contact,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          // If SMS is not configured, show friendly message
+          if (response.status === 503 && type === "phone") {
+            setError(
+              "Verificação por SMS não está configurada. Use email por favor.",
+            );
+            return { success: false, error: "SMS not configured" };
+          }
+          throw new Error(data.error || "Failed to send verification code");
+        }
+
+        return { success: true, expiresAt: data.expiresAt };
+      } catch (err) {
+        console.error("Error sending verification:", err);
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : "Unknown error",
+        };
+      }
+    },
+    [],
+  );
+
+  // Resend verification code
+  const resendVerificationCode = useCallback(async () => {
+    if (!verificationSessionCustomerId || !verificationContact) return;
+
+    setIsResending(true);
+    setVerificationError(null);
+
+    const result = await sendVerificationCode(
+      verificationSessionCustomerId,
+      verificationType,
+      verificationContact,
+    );
+
+    setIsResending(false);
+
+    if (result.success) {
+      setSuccessMessage("✅ Código reenviado com sucesso!");
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } else {
+      setVerificationError(result.error || "Falha ao reenviar código");
+    }
+  }, [
+    verificationSessionCustomerId,
+    verificationType,
+    verificationContact,
+    sendVerificationCode,
+  ]);
+
+  // Verify the code
+  const verifyCode = useCallback(async () => {
+    if (!verificationSessionCustomerId || !verificationCode.trim()) return;
+
+    setIsVerifying(true);
+    setVerificationError(null);
+
+    try {
+      const response = await fetch("/api/verification/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionCustomerId: verificationSessionCustomerId,
+          token: verificationCode.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Verification failed");
+      }
+
+      // Update currentCustomer with verified status
+      const verifiedField =
+        verificationType === "email" ? "email_verified" : "phone_verified";
+
+      setCurrentCustomer((prev) =>
+        prev ? { ...prev, [verifiedField]: true } : prev,
+      );
+
+      setSessionCustomers((prev) =>
+        prev.map((c) =>
+          c.id === verificationSessionCustomerId
+            ? { ...c, [verifiedField]: true }
+            : c,
+        ),
+      );
+
+      // Show success message
+      const associatedCount = data.associatedCount || 0;
+      if (associatedCount > 0) {
+        setSuccessMessage(
+          `✅ ${verificationType === "email" ? "Email" : "Telefone"} verificado! ${associatedCount} pessoa(s) na mesa também foram associadas.`,
+        );
+      } else {
+        setSuccessMessage(
+          `✅ ${verificationType === "email" ? "Email" : "Telefone"} verificado com sucesso!`,
+        );
+      }
+      setTimeout(() => setSuccessMessage(null), 5000);
+
+      // Close modal and reset
+      setShowVerificationModal(false);
+      setVerificationCode("");
+      setVerificationSessionCustomerId(null);
+    } catch (err) {
+      console.error("Error verifying code:", err);
+      setVerificationError(
+        err instanceof Error ? err.message : "Código inválido ou expirado",
+      );
+    } finally {
+      setIsVerifying(false);
+    }
+  }, [verificationSessionCustomerId, verificationCode, verificationType]);
+
   // Register customer (new person) or update existing session_customer (edit profile)
   const registerCustomer = useCallback(async () => {
     if (!session || !customerForm.display_name.trim()) return;
@@ -699,9 +859,17 @@ export default function MesaPage() {
       from: (table: string) => ReturnType<typeof supabase.from>;
     };
     const emailTrim = customerForm.email.trim();
+    const phoneTrim = customerForm.phone.trim();
     const isEditingCurrent =
       currentCustomer &&
       customerForm.display_name.trim() === currentCustomer.display_name;
+
+    // Check if email or phone is being added/changed
+    const emailChanged =
+      isEditingCurrent && emailTrim && emailTrim !== currentCustomer?.email;
+    const phoneChanged =
+      isEditingCurrent && phoneTrim && phoneTrim !== currentCustomer?.phone;
+    const hasNewContact = !isEditingCurrent && (emailTrim || phoneTrim);
 
     try {
       if (isEditingCurrent && currentCustomer) {
@@ -712,7 +880,7 @@ export default function MesaPage() {
             display_name: customerForm.display_name.trim(),
             full_name: customerForm.full_name.trim() || null,
             email: emailTrim || null,
-            phone: customerForm.phone.trim() || null,
+            phone: phoneTrim || null,
             birth_date: customerForm.birth_date || null,
             marketing_consent: customerForm.marketing_consent,
             preferred_contact: customerForm.preferred_contact,
@@ -728,6 +896,42 @@ export default function MesaPage() {
           prev.map((c) => (c.id === currentCustomer.id ? updatedCustomer : c)),
         );
         setCurrentCustomer(updatedCustomer);
+
+        // Send verification if email or phone was added/changed
+        console.log("[DEBUG] Verification check:", {
+          emailChanged,
+          phoneChanged,
+          emailTrim,
+          phoneTrim,
+          currentEmail: currentCustomer?.email,
+          currentPhone: currentCustomer?.phone,
+        });
+
+        if (emailChanged || phoneChanged) {
+          const type = emailChanged ? "email" : "phone";
+          const contact = emailChanged ? emailTrim : phoneTrim;
+
+          console.log("[DEBUG] Sending verification:", { type, contact });
+          const result = await sendVerificationCode(
+            currentCustomer.id,
+            type,
+            contact,
+          );
+          console.log("[DEBUG] Verification result:", result);
+
+          if (result.success) {
+            console.log("[DEBUG] Showing verification modal");
+            setVerificationSessionCustomerId(currentCustomer.id);
+            setVerificationType(type);
+            setVerificationContact(contact);
+            setShowCustomerModal(false);
+            setShowVerificationModal(true);
+            return;
+          } else {
+            // Even if verification fails, continue with normal flow
+            console.error("Failed to send verification:", result.error);
+          }
+        }
 
         if (emailTrim) {
           const customerId = await syncToLoyaltyCustomer(
@@ -788,6 +992,55 @@ export default function MesaPage() {
       setCurrentCustomer(newCustomer);
       localStorage.setItem(`customer_${session.id}`, newCustomer.id);
 
+      // Send verification if new customer has email or phone
+      console.log("[DEBUG] New customer verification check:", {
+        hasNewContact,
+        emailTrim,
+        phoneTrim,
+      });
+
+      if (hasNewContact) {
+        const type = emailTrim ? "email" : "phone";
+        const contact = emailTrim || phoneTrim;
+
+        console.log("[DEBUG] Sending verification for new customer:", {
+          type,
+          contact,
+        });
+        const result = await sendVerificationCode(
+          newCustomer.id,
+          type,
+          contact,
+        );
+        console.log("[DEBUG] New customer verification result:", result);
+
+        if (result.success) {
+          console.log("[DEBUG] Showing verification modal for new customer");
+          setVerificationSessionCustomerId(newCustomer.id);
+          setVerificationType(type);
+          setVerificationContact(contact);
+
+          // Clear form and close customer modal
+          setCustomerForm({
+            display_name: "",
+            full_name: "",
+            email: "",
+            phone: "",
+            birth_date: "",
+            marketing_consent: false,
+            preferred_contact: "email",
+          });
+          setShowCustomerModal(false);
+
+          // Show verification modal
+          setShowVerificationModal(true);
+          return;
+        } else {
+          // Even if verification fails, continue with normal flow
+          console.error("Failed to send verification:", result.error);
+        }
+      }
+
       if (emailTrim) {
         const customerId = await syncToLoyaltyCustomer(
           newCustomer.id,
@@ -832,6 +1085,7 @@ export default function MesaPage() {
     supabase,
     t,
     syncToLoyaltyCustomer,
+    sendVerificationCode,
   ]);
 
   // Select existing customer
@@ -3100,20 +3354,46 @@ export default function MesaPage() {
                   />
                 </div>
 
-                {/* Incentive Message */}
-                <div className="bg-gradient-to-r from-[#D4AF37]/10 to-transparent border border-[#D4AF37]/20 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">🎁</span>
-                    <div>
-                      <p className="text-sm font-medium text-[#D4AF37]">
-                        {t("mesa.exclusiveBenefits")}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {t("mesa.benefitsDesc")}
-                      </p>
+                {/* Incentive Message - Only show if no additional data has been provided */}
+                {!currentCustomer?.email &&
+                  !currentCustomer?.phone &&
+                  !currentCustomer?.birth_date && (
+                    <div className="bg-gradient-to-r from-[#D4AF37]/10 to-transparent border border-[#D4AF37]/20 rounded-xl p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">🎁</span>
+                        <div>
+                          <p className="text-sm font-medium text-[#D4AF37]">
+                            {t("mesa.exclusiveBenefits")}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {t("mesa.benefitsDesc")}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  )}
+
+                {/* Incomplete profile reminder - Show if some data is filled but not all */}
+                {currentCustomer &&
+                  (currentCustomer.email ||
+                    currentCustomer.phone ||
+                    currentCustomer.birth_date) &&
+                  hasIncompleteProfile && (
+                    <div className="bg-blue-900/10 border border-blue-500/20 rounded-xl p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="text-xl">ℹ️</span>
+                        <div>
+                          <p className="text-sm font-medium text-blue-300">
+                            Complete o seu perfil
+                          </p>
+                          <p className="text-xs text-blue-400/80 mt-1">
+                            Adicione os dados em falta para desbloquear todos os
+                            benefícios
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                 {/* Optional Fields - Collapsible */}
                 <details className="group">
@@ -3137,8 +3417,24 @@ export default function MesaPage() {
                   <div className="space-y-4 pt-4">
                     {/* Email */}
                     <div>
-                      <label className="block text-sm text-gray-400 mb-1.5">
+                      <label className="block text-sm text-gray-400 mb-1.5 flex items-center gap-2">
                         {t("mesa.email")}
+                        {currentCustomer?.email_verified && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
+                            <svg
+                              className="w-3 h-3"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Verificado
+                          </span>
+                        )}
                       </label>
                       <input
                         type="email"
@@ -3156,8 +3452,24 @@ export default function MesaPage() {
 
                     {/* Phone */}
                     <div>
-                      <label className="block text-sm text-gray-400 mb-1.5">
+                      <label className="block text-sm text-gray-400 mb-1.5 flex items-center gap-2">
                         {t("mesa.phone")}
+                        {currentCustomer?.phone_verified && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
+                            <svg
+                              className="w-3 h-3"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Verificado
+                          </span>
+                        )}
                       </label>
                       <input
                         type="tel"
@@ -3171,6 +3483,20 @@ export default function MesaPage() {
                         placeholder={t("mesa.phonePlaceholder")}
                         className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
                       />
+                      <p className="text-xs text-amber-500/70 mt-1 flex items-center gap-1">
+                        <svg
+                          className="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        Verificação por SMS requer configuração. Use email.
+                      </p>
                     </div>
 
                     {/* Birth Date */}
@@ -3361,6 +3687,128 @@ export default function MesaPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Code Modal */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          {/* Backdrop - no onClick to prevent accidental dismissal */}
+          <div className="absolute inset-0 bg-black/80" />
+          <div className="relative bg-[#1A1A1A] rounded-2xl p-6 max-w-md w-full border border-gray-800 animate-scale-up">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-3">📧</div>
+              <h3 className="text-xl font-bold text-white mb-2">
+                Verificar {verificationType === "email" ? "Email" : "Telefone"}
+              </h3>
+              <p className="text-sm text-gray-400">
+                Enviámos um código de 6 dígitos para:
+              </p>
+              <p className="text-base text-[#D4AF37] font-semibold mt-1">
+                {verificationContact}
+              </p>
+            </div>
+
+            {/* Code Input */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Código de Verificação
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={verificationCode}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  setVerificationCode(value);
+                  setVerificationError(null);
+                }}
+                placeholder="000000"
+                className="w-full px-4 py-3 bg-black/50 border border-gray-700 rounded-xl text-white text-center text-2xl font-mono tracking-widest focus:outline-none focus:border-[#D4AF37] transition-colors"
+                autoFocus
+              />
+              {verificationError && (
+                <p className="mt-2 text-sm text-red-400 flex items-center gap-1">
+                  <svg
+                    className="w-4 h-4"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  {verificationError}
+                </p>
+              )}
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowVerificationModal(false);
+                  setVerificationCode("");
+                  setVerificationError(null);
+                }}
+                className="flex-1 px-4 py-3 bg-gray-800 text-white rounded-xl font-semibold hover:bg-gray-700 transition-colors"
+                disabled={isVerifying}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={verifyCode}
+                disabled={isVerifying || verificationCode.length !== 6}
+                className="flex-1 px-4 py-3 bg-[#D4AF37] text-black rounded-xl font-semibold hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isVerifying ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    A verificar...
+                  </>
+                ) : (
+                  "Verificar"
+                )}
+              </button>
+            </div>
+
+            {/* Help Text & Resend */}
+            <div className="mt-4 space-y-3">
+              <p className="text-xs text-gray-500 text-center">
+                Não recebeu o código? Verifique a pasta de spam.
+              </p>
+              <button
+                onClick={resendVerificationCode}
+                disabled={isResending || isVerifying}
+                className="w-full text-sm text-[#D4AF37] hover:text-[#C4A030] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isResending ? "A reenviar..." : "📧 Reenviar Código"}
+              </button>
+              <p className="text-xs text-gray-600 text-center italic">
+                Para fechar esta janela, clique em &quot;Cancelar&quot;
+              </p>
             </div>
           </div>
         </div>

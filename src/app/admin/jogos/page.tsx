@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import type { GameQuestion, GameType } from "@/domain/entities/GameQuestion";
 
 type TabType = "quiz" | "preference";
@@ -1327,9 +1328,11 @@ function PreviewCard({
           <div className="flex gap-3">
             <div className="flex-1 rounded-xl border-2 border-gray-700 bg-[#1A1A1A] p-4 text-center">
               {question.optionA?.imageUrl && (
-                <img
+                <Image
                   src={question.optionA.imageUrl}
-                  alt=""
+                  alt={question.optionA.label || "Option A"}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 rounded-lg object-cover mx-auto mb-2"
                 />
               )}
@@ -1342,9 +1345,11 @@ function PreviewCard({
             </div>
             <div className="flex-1 rounded-xl border-2 border-gray-700 bg-[#1A1A1A] p-4 text-center">
               {question.optionB?.imageUrl && (
-                <img
+                <Image
                   src={question.optionB.imageUrl}
-                  alt=""
+                  alt={question.optionB.label || "Option B"}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 rounded-lg object-cover mx-auto mb-2"
                 />
               )}

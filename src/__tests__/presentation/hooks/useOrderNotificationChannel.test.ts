@@ -11,10 +11,10 @@ describe('useOrderNotificationChannel', () => {
   let mockSetOrderNotification: ReturnType<typeof vi.fn>;
   let mockFetchSessionOrders: ReturnType<typeof vi.fn>;
   let mockRemoveChannel: ReturnType<typeof vi.fn>;
-  let broadcastCallback: (payload: { payload: { customerName: string; itemCount: number } }) => void;
+  let broadcastCallback: (payload: { payload: { customerName: string; itemCount: number; deviceId?: string } }) => void;
 
   const createMockChannel = (): RealtimeChannelLike => ({
-    on: vi.fn().mockImplementation((_type: string, _opts: Record<string, string>, cb: (payload: { payload: { customerName: string; itemCount: number } }) => void) => {
+    on: vi.fn().mockImplementation((_type: string, _opts: Record<string, string>, cb: (payload: { payload: { customerName: string; itemCount: number; deviceId?: string } }) => void) => {
       broadcastCallback = cb;
       return { subscribe: vi.fn() };
     }),
@@ -55,6 +55,7 @@ describe('useOrderNotificationChannel', () => {
         fetchSessionOrders: mockFetchSessionOrders,
         setOrderNotification: mockSetOrderNotification,
         channelRef,
+        deviceId: 'device-123',
       })
     );
 
@@ -74,6 +75,7 @@ describe('useOrderNotificationChannel', () => {
         fetchSessionOrders: mockFetchSessionOrders,
         setOrderNotification: mockSetOrderNotification,
         channelRef,
+        deviceId: 'device-123',
       })
     );
 
@@ -94,6 +96,7 @@ describe('useOrderNotificationChannel', () => {
         fetchSessionOrders: mockFetchSessionOrders,
         setOrderNotification: mockSetOrderNotification,
         channelRef,
+        deviceId: 'device-123',
       })
     );
 
@@ -119,12 +122,13 @@ describe('useOrderNotificationChannel', () => {
         fetchSessionOrders: mockFetchSessionOrders,
         setOrderNotification: mockSetOrderNotification,
         channelRef,
+        deviceId: 'device-123',
       })
     );
 
     act(() => {
       broadcastCallback({
-        payload: { customerName: 'Maria', itemCount: 3 },
+        payload: { customerName: 'Maria', itemCount: 3, deviceId: 'device-456' }, // Different device
       });
     });
 
@@ -155,12 +159,13 @@ describe('useOrderNotificationChannel', () => {
         fetchSessionOrders: mockFetchSessionOrders,
         setOrderNotification: mockSetOrderNotification,
         channelRef,
+        deviceId: 'device-123',
       })
     );
 
     act(() => {
       broadcastCallback({
-        payload: { customerName: 'João', itemCount: 2 },
+        payload: { customerName: 'João', itemCount: 2, deviceId: 'device-789' }, // Different device
       });
     });
 
@@ -174,5 +179,33 @@ describe('useOrderNotificationChannel', () => {
 
     expect(mockSetOrderNotification).toHaveBeenCalledTimes(1);
     expect(mockSetOrderNotification).not.toHaveBeenCalledWith(null);
+  });
+
+  it('ignora broadcasts do mesmo device (prevent duplicates)', () => {
+    const supabase = createMockSupabase();
+    const channelRef = createChannelRef();
+
+    renderHook(() =>
+      useOrderNotificationChannel({
+        session: { id: 'sess-1' },
+        step: 'active',
+        supabase,
+        t: (key, opts) => (opts ? `${key}:${opts.name}:${opts.count}` : key),
+        fetchSessionOrders: mockFetchSessionOrders,
+        setOrderNotification: mockSetOrderNotification,
+        channelRef,
+        deviceId: 'device-123',
+      })
+    );
+
+    act(() => {
+      broadcastCallback({
+        payload: { customerName: 'Ana', itemCount: 1, deviceId: 'device-123' }, // Same device
+      });
+    });
+
+    // Should not call setOrderNotification or fetchSessionOrders
+    expect(mockSetOrderNotification).not.toHaveBeenCalled();
+    expect(mockFetchSessionOrders).not.toHaveBeenCalled();
   });
 });

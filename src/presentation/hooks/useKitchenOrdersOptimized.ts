@@ -78,16 +78,24 @@ export function useKitchenOrdersOptimized(
   });
 
   // Extract data from response (use case already returns organized data)
-  const orders = response?.orders || [];
-  const byStatus = response?.byStatus || { pending: [], preparing: [], ready: [] };
-  const counts = response?.counts || {
-    total: 0,
-    pending: 0,
-    preparing: 0,
-    ready: 0,
-    delivered: 0,
-    cancelled: 0,
-  };
+  // Stabilize with useMemo to prevent dependency changes on every render
+  const orders = useMemo(() => response?.orders || [], [response?.orders]);
+  const byStatus = useMemo(
+    () => response?.byStatus || { pending: [], preparing: [], ready: [] },
+    [response?.byStatus]
+  );
+  const counts = useMemo(
+    () =>
+      response?.counts || {
+        total: 0,
+        pending: 0,
+        preparing: 0,
+        ready: 0,
+        delivered: 0,
+        cancelled: 0,
+      },
+    [response?.counts]
+  );
 
   // Detect new orders and trigger callback
   useEffect(() => {
@@ -171,9 +179,9 @@ export function useKitchenOrdersOptimized(
             updated.preparingStartedAt = now;
           } else if (newStatus === 'ready') {
             updated.readyAt = now;
-          } else if (newStatus === 'delivered') {
-            updated.deliveredAt = now;
           }
+          // Note: deliveredAt not set here as KitchenOrderDTO doesn't include it
+          // (delivered orders are filtered out from kitchen display)
 
           return updated;
         });

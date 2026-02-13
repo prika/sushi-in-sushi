@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { generateQRCodeDataURL } from "@/lib/qrcode";
 import { useToast } from "@/components/ui";
@@ -139,12 +140,13 @@ export function GamePrize({ prize, onRedeem, onClose, t }: GamePrizeProps) {
               {/* QR Code */}
               {qrDataUrl && (
                 <div className="bg-white rounded-2xl p-4 mb-4">
-                  <img
+                  <Image
                     src={qrDataUrl}
-                    alt=""
+                    alt="QR Code for prize redemption"
                     className="w-40 h-40 block"
                     width={160}
                     height={160}
+                    unoptimized
                   />
                 </div>
               )}

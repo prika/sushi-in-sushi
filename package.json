@@ -46,7 +46,8 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "resend": "^6.9.1",
-    "tailwind-merge": "^2.2.0"
+    "tailwind-merge": "^2.2.0",
+    "twilio": "^5.12.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",

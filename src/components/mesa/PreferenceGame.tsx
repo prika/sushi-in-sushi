@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import type { GameQuestion } from "@/domain/entities/GameQuestion";
 import type { GameAnswer } from "@/domain/entities/GameAnswer";
 
@@ -182,9 +183,11 @@ export function PreferenceGame({
                   whileTap={choiceState === "idle" ? { scale: 0.95 } : {}}
                 >
                   {current.optionA?.imageUrl && (
-                    <img
+                    <Image
                       src={current.optionA.imageUrl}
-                      alt=""
+                      alt={`Option ${current.optionA.label}`}
+                      width={64}
+                      height={64}
                       className="w-16 h-16 rounded-xl object-cover mb-3"
                       draggable={false}
                     />
@@ -229,9 +232,11 @@ export function PreferenceGame({
                   whileTap={choiceState === "idle" ? { scale: 0.95 } : {}}
                 >
                   {current.optionB?.imageUrl && (
-                    <img
+                    <Image
                       src={current.optionB.imageUrl}
-                      alt=""
+                      alt={`Option ${current.optionB.label}`}
+                      width={64}
+                      height={64}
                       className="w-16 h-16 rounded-xl object-cover mb-3"
                       draggable={false}
                     />

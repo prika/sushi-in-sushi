@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import type { Product } from "@/domain/entities";
 
 const MIN_RATINGS_FOR_DRINK = 5;
@@ -321,10 +322,11 @@ export function SwipeRatingGame({
                   {/* Product image */}
                   <div className="absolute inset-0">
                     {current.product.imageUrl ? (
-                      <img
+                      <Image
                         src={current.product.imageUrl}
-                        alt=""
-                        className="w-full h-full object-cover"
+                        alt={current.product.name || "Product image"}
+                        fill
+                        className="object-cover"
                         draggable={false}
                       />
                     ) : (
