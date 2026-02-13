@@ -9,12 +9,48 @@ import { useToast } from "@/components/ui";
 import { useKitchenOrdersOptimized } from "@/presentation/hooks";
 import type { KitchenOrderDTO } from "@/application/dto/OrderDTO";
 import type { OrderStatus } from "@/domain/value-objects/OrderStatus";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 
 // Helper to get extended supabase client (only for waiter notifications)
 function getExtendedSupabase(supabase: ReturnType<typeof createClient>) {
   return supabase as unknown as {
     from: (table: string) => ReturnType<typeof supabase.from>;
   };
+}
+
+// Status order for detecting backward movement
+const STATUS_ORDER: OrderStatus[] = ["pending", "preparing", "ready"];
+
+// Helper to check if moving backward
+function isBackwardMove(fromStatus: OrderStatus, toStatus: OrderStatus): boolean {
+  const fromIndex = STATUS_ORDER.indexOf(fromStatus);
+  const toIndex = STATUS_ORDER.indexOf(toStatus);
+  return fromIndex > toIndex;
+}
+
+// Helper to get status label
+function getStatusLabel(status?: OrderStatus): string {
+  const labels: Record<OrderStatus, string> = {
+    pending: "Pendentes",
+    preparing: "A Preparar",
+    ready: "Prontos para Servir",
+    delivered: "Entregue",
+    cancelled: "Cancelado",
+  };
+  return status ? labels[status] : "";
 }
 
 export default function CozinhaPage() {
@@ -45,6 +81,32 @@ export default function CozinhaPage() {
   const [headerFlash, setHeaderFlash] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; role: string; location: string | null } | null>(null);
+  const [showReadyColumn, setShowReadyColumn] = useState(() => {
+    // Load preference from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('kitchen-show-ready-column');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+
+  // Drag and drop state
+  const [activeOrder, setActiveOrder] = useState<KitchenOrderDTO | null>(null);
+  const [pendingMove, setPendingMove] = useState<{
+    order: KitchenOrderDTO;
+    fromStatus: OrderStatus;
+    toStatus: OrderStatus;
+  } | null>(null);
+
+  // Sensors for drag and drop (requires holding for 250ms to start dragging)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  );
 
   // Fetch authenticated user identity on mount
   useEffect(() => {
@@ -67,6 +129,19 @@ export default function CozinhaPage() {
       .catch(() => {});
   }, []);
 
+  // Memoize the new order handler to prevent infinite loops
+  const handleNewOrder = useCallback((order: KitchenOrderDTO) => {
+    // Play sound and show notification for new orders
+    playNewOrderSound();
+    showNotification(
+      "Novo Pedido!",
+      `Mesa ${order.table?.number || "?"}`
+    );
+    // Flash header
+    setHeaderFlash(true);
+    setTimeout(() => setHeaderFlash(false), 1000);
+  }, [playNewOrderSound, showNotification]);
+
   // Use the optimized hook with React Query for kitchen orders (96% faster)
   const {
     byStatus,
@@ -78,17 +153,7 @@ export default function CozinhaPage() {
     userId: currentUser?.id,
     autoRefetch: true,
     refetchInterval: 10000, // 10s background refetch (React Query)
-    onNewOrder: (order: KitchenOrderDTO) => {
-      // Play sound and show notification for new orders
-      playNewOrderSound();
-      showNotification(
-        "Novo Pedido!",
-        `Mesa ${order.table?.number || "?"}`
-      );
-      // Flash header
-      setHeaderFlash(true);
-      setTimeout(() => setHeaderFlash(false), 1000);
-    },
+    onNewOrder: handleNewOrder,
   });
 
   const handleLogout = async () => {
@@ -103,16 +168,26 @@ export default function CozinhaPage() {
     }
   };
 
+  const toggleReadyColumn = () => {
+    setShowReadyColumn((prev) => {
+      const newValue = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('kitchen-show-ready-column', String(newValue));
+      }
+      return newValue;
+    });
+  };
+
   // Update clock every second
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Request notification permission on mount
+  // Request notification permission on mount (only once)
   useEffect(() => {
     requestNotificationPermission();
-  }, [requestNotificationPermission]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Notify waiter when order is ready
   const notifyWaiter = useCallback(
@@ -193,35 +268,73 @@ export default function CozinhaPage() {
     [updateStatus, notifyWaiter, logActivity, showToast]
   );
 
-  // Sort orders by creation time
-  const sortedPending = useMemo(
-    () =>
-      [...byStatus.pending].sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      ),
-    [byStatus.pending]
-  );
+  // Drag handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const orderId = active.id as string;
 
-  const sortedPreparing = useMemo(
-    () =>
-      [...byStatus.preparing].sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      ),
-    [byStatus.preparing]
-  );
+    // Find the order being dragged
+    const allOrders = [...byStatus.pending, ...byStatus.preparing, ...byStatus.ready];
+    const order = allOrders.find((o) => o.id === orderId);
 
-  const sortedReady = useMemo(
-    () =>
-      [...byStatus.ready].sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      ),
-    [byStatus.ready]
-  );
+    if (order) {
+      setActiveOrder(order);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveOrder(null);
+
+    if (!over) return;
+
+    const orderId = active.id as string;
+    const toStatus = over.id as OrderStatus;
+
+    // Find the order
+    const allOrders = [...byStatus.pending, ...byStatus.preparing, ...byStatus.ready];
+    const order = allOrders.find((o) => o.id === orderId);
+
+    if (!order || order.status === toStatus) return;
+
+    // Check if moving backward
+    if (isBackwardMove(order.status, toStatus)) {
+      // Show confirmation dialog
+      setPendingMove({
+        order,
+        fromStatus: order.status,
+        toStatus,
+      });
+    } else {
+      // Move forward without confirmation
+      handleUpdateStatus(order, toStatus);
+    }
+  };
+
+  const handleConfirmRevert = () => {
+    if (pendingMove) {
+      handleUpdateStatus(pendingMove.order, pendingMove.toStatus);
+      setPendingMove(null);
+    }
+  };
+
+  const handleCancelRevert = () => {
+    setPendingMove(null);
+  };
+
+  // Orders already sorted by use case (by state timestamp)
+  // No need to re-sort here
+  const sortedPending = byStatus.pending;
+  const sortedPreparing = byStatus.preparing;
+  const sortedReady = byStatus.ready;
 
   return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
     <div className="h-screen flex flex-col overflow-hidden">
       {/* Header */}
       <header
@@ -350,9 +463,10 @@ export default function CozinhaPage() {
       </header>
 
       {/* Main Content - Kanban */}
-      <main className="flex-1 grid grid-cols-3 gap-4 p-4 overflow-hidden">
+      <main className={`flex-1 grid ${showReadyColumn ? 'grid-cols-3' : 'grid-cols-2'} gap-4 p-4 overflow-hidden`}>
         {/* Pending Column */}
         <Column
+          id="pending"
           title="Pendentes"
           icon="⏳"
           color="yellow"
@@ -365,6 +479,7 @@ export default function CozinhaPage() {
 
         {/* Preparing Column */}
         <Column
+          id="preparing"
           title="A Preparar"
           icon="🔥"
           color="orange"
@@ -375,17 +490,21 @@ export default function CozinhaPage() {
           onAction={(order) => handleUpdateStatus(order, "ready")}
         />
 
-        {/* Ready Column */}
-        <Column
-          title="Prontos para Servir"
-          icon="✅"
-          color="green"
-          count={sortedReady.length}
-          orders={sortedReady}
-          newOrderIds={newOrderIds}
-          actionLabel={null}
-          onAction={(order) => handleUpdateStatus(order, "delivered")}
-        />
+        {/* Ready Column - conditionally rendered */}
+        {showReadyColumn && (
+          <Column
+            id="ready"
+            title="Prontos para Servir"
+            icon="✅"
+            color="green"
+            count={sortedReady.length}
+            orders={sortedReady}
+            newOrderIds={newOrderIds}
+            actionLabel={null}
+            onAction={(order) => handleUpdateStatus(order, "delivered")}
+            onToggleVisibility={toggleReadyColumn}
+          />
+        )}
       </main>
 
       {/* Loading Overlay */}
@@ -394,12 +513,61 @@ export default function CozinhaPage() {
           <div className="animate-spin h-12 w-12 border-4 border-[#D4AF37] border-t-transparent rounded-full" />
         </div>
       )}
+
+      {/* Show Ready Column Button (when hidden) */}
+      {!showReadyColumn && (
+        <button
+          onClick={toggleReadyColumn}
+          className="fixed bottom-6 right-6 p-4 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg transition-all hover:scale-110 z-10"
+          title="Mostrar coluna 'Prontos para Servir'"
+          aria-label="Mostrar coluna escondida"
+        >
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+            />
+          </svg>
+        </button>
+      )}
     </div>
+
+    {/* Drag Overlay */}
+    <DragOverlay>
+      {activeOrder ? <OrderCardOverlay order={activeOrder} /> : null}
+    </DragOverlay>
+
+    {/* Confirm Dialog for reverting status */}
+    <ConfirmDialog
+      isOpen={!!pendingMove}
+      title="Pretende mesmo reverter?"
+      message={`Deseja mover o pedido da mesa ${pendingMove?.order.table?.number} de volta de "${getStatusLabel(pendingMove?.fromStatus)}" para "${getStatusLabel(pendingMove?.toStatus)}"?`}
+      confirmText="Sim, reverter"
+      cancelText="Cancelar"
+      variant="warning"
+      onConfirm={handleConfirmRevert}
+      onCancel={handleCancelRevert}
+    />
+    </DndContext>
   );
 }
 
 // Column Component
 function Column({
+  id,
   title,
   icon,
   color,
@@ -408,7 +576,9 @@ function Column({
   newOrderIds,
   actionLabel,
   onAction,
+  onToggleVisibility,
 }: {
+  id: string;
   title: string;
   icon: string;
   color: "yellow" | "orange" | "green";
@@ -417,7 +587,12 @@ function Column({
   newOrderIds: Set<string>;
   actionLabel: string | null;
   onAction: (order: KitchenOrderDTO) => void;
+  onToggleVisibility?: () => void;
 }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id,
+  });
+
   const colorClasses = {
     yellow: "bg-yellow-500/10 border-yellow-500/30",
     orange: "bg-orange-500/10 border-orange-500/30",
@@ -438,17 +613,44 @@ function Column({
 
   return (
     <div
-      className={`flex flex-col rounded-xl border ${colorClasses[color]} overflow-hidden`}
+      ref={setNodeRef}
+      className={`flex flex-col rounded-xl border ${colorClasses[color]} overflow-hidden transition-all ${
+        isOver ? "ring-2 ring-[#D4AF37] ring-opacity-50 bg-[#D4AF37]/5" : ""
+      }`}
     >
       {/* Column Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+      <div className="flex items-center justify-between px-4 py-3 pt-6 border-b border-gray-800">
         <div className="flex items-center gap-2">
           <span className="text-xl">{icon}</span>
           <h2 className={`font-bold ${headerColors[color]}`}>{title}</h2>
         </div>
-        <span className={`text-2xl font-bold ${headerColors[color]}`}>
-          {count}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className={`text-2xl font-bold ${headerColors[color]}`}>
+            {count}
+          </span>
+          {onToggleVisibility && (
+            <button
+              onClick={onToggleVisibility}
+              className="p-1.5 rounded-lg bg-gray-800 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
+              title="Esconder esta coluna"
+              aria-label="Esconder coluna"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Orders List */}
@@ -456,122 +658,15 @@ function Column({
         {orders.length === 0 ? (
           <p className="text-center text-gray-500 py-8">Sem pedidos</p>
         ) : (
-          orders.map((order) => {
-            const createdAt = new Date(order.createdAt);
-            const isNew = newOrderIds.has(order.id);
-            const timestamp = createdAt.toLocaleTimeString("pt-PT", {
-              hour: "2-digit",
-              minute: "2-digit",
-            });
-
-            return (
-              <div
-                key={order.id}
-                className={`
-                  relative bg-gray-900 rounded-xl border-l-4 overflow-hidden
-                  ${borderColorMap[order.urgencyColor]}
-                  ${isNew ? "animate-pulse-once" : ""}
-                `}
-              >
-                {/* New Badge */}
-                {isNew && (
-                  <div className="absolute top-2 right-2 bg-[#D4AF37] text-black text-xs font-bold px-2 py-0.5 rounded-full animate-bounce">
-                    NOVO!
-                  </div>
-                )}
-
-                {/* Late Badge */}
-                {order.isLate && !isNew && (
-                  <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                    ATRASADO
-                  </div>
-                )}
-
-                {/* Header */}
-                <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl font-bold text-white">
-                      {order.table?.number || "?"}
-                    </span>
-                    <div className="text-sm">
-                      <p className="text-gray-400">Mesa</p>
-                      <p className="capitalize text-gray-400">
-                        {order.table?.location || ""}
-                      </p>
-                      {order.waiterName && (
-                        <p className="text-blue-400 font-medium mt-0.5">
-                          👤 {order.waiterName}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-400">{timestamp}</p>
-                    <p
-                      className={`text-lg font-bold ${order.isLate ? "text-red-500" : "text-gray-300"}`}
-                    >
-                      {order.timeElapsedMinutes} min
-                    </p>
-                  </div>
-                </div>
-
-                {/* Item */}
-                <div className="px-4 py-3">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl font-bold text-[#D4AF37]">
-                      {order.quantity}×
-                    </span>
-                    <div className="flex-1">
-                      <p className="font-semibold text-lg">
-                        {order.product?.name}
-                      </p>
-                      {order.notes && (
-                        <p className="text-sm bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded mt-2">
-                          📝 {order.notes}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stage timing */}
-                <div className="px-4 pb-2">
-                  {order.status === "pending" && (
-                    <p className="text-sm font-medium text-yellow-400">
-                      Pendente h&aacute; {order.pendingMinutes} min
-                    </p>
-                  )}
-                  {order.status === "preparing" && (
-                    <p className="text-sm font-medium text-orange-400">
-                      A preparar h&aacute; {order.preparingMinutes ?? 0} min
-                    </p>
-                  )}
-                  {order.status === "ready" && (
-                    <p className="text-sm font-medium text-green-400">
-                      Pronto h&aacute; {order.readyMinutes ?? 0} min
-                    </p>
-                  )}
-                </div>
-
-                {/* Action Button */}
-                {actionLabel && (
-                  <div className="px-4 py-3 border-t border-gray-800">
-                    <button
-                      onClick={() => onAction(order)}
-                      className={`
-                        w-full py-2 rounded-lg font-semibold transition-colors
-                        ${color === "yellow" ? "bg-orange-500 hover:bg-orange-600 text-white" : ""}
-                        ${color === "orange" ? "bg-green-500 hover:bg-green-600 text-white" : ""}
-                        ${color === "green" ? "bg-gray-600 hover:bg-gray-700 text-white" : ""}
-                      `}
-                    >
-                      {actionLabel}
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })
+          orders.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              isNew={newOrderIds.has(order.id)}
+              actionLabel={actionLabel}
+              onAction={onAction}
+            />
+          ))
         )}
       </div>
 
@@ -589,6 +684,202 @@ function Column({
           animation: pulse-once 0.5s ease-in-out 3;
         }
       `}</style>
+    </div>
+  );
+}
+
+// Order Card Component (Draggable)
+function OrderCard({
+  order,
+  isNew,
+  actionLabel,
+  onAction,
+}: {
+  order: KitchenOrderDTO;
+  isNew: boolean;
+  actionLabel: string | null;
+  onAction: (order: KitchenOrderDTO) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: order.id,
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const borderColorMap = {
+    red: "border-red-500",
+    yellow: "border-yellow-500",
+    green: "border-green-500",
+  };
+
+  const createdAt = new Date(order.createdAt);
+  const timestamp = createdAt.toLocaleTimeString("pt-PT", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`
+        relative bg-gray-900 rounded-xl border-l-4 cursor-grab active:cursor-grabbing
+        select-none touch-none
+        ${borderColorMap[order.urgencyColor]}
+        ${isNew ? "animate-pulse-once" : ""}
+      `}
+    >
+      {/* New Badge - half outside the card */}
+      {isNew && (
+        <div className="absolute top-0 right-4 -translate-y-1/2 bg-[#D4AF37] text-black text-xs font-bold px-2 py-0.5 rounded-full animate-bounce pointer-events-none z-10 shadow-lg">
+          NOVO!
+        </div>
+      )}
+
+      {/* Late Badge - half outside the card */}
+      {order.isLate && !isNew && (
+        <div className="absolute top-0 right-4 -translate-y-1/2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full pointer-events-none z-10 shadow-lg">
+          ATRASADO
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+        <div className="flex items-center gap-3">
+          <span className="text-3xl font-bold text-white">
+            {order.table?.number || "?"}
+          </span>
+          <div className="text-sm">
+            <p className="text-gray-400">Mesa</p>
+            <p className="capitalize text-gray-400">
+              {order.table?.location || ""}
+            </p>
+            {order.waiterName && (
+              <p className="text-blue-400 font-medium mt-0.5">
+                👤 {order.waiterName}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-sm text-gray-400">{timestamp}</p>
+          <p
+            className={`text-lg font-bold ${order.isLate ? "text-red-500" : "text-gray-300"}`}
+          >
+            {order.timeElapsedMinutes} min
+          </p>
+        </div>
+      </div>
+
+      {/* Item */}
+      <div className="px-4 py-3">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl font-bold text-[#D4AF37]">
+            {order.quantity}×
+          </span>
+          <div className="flex-1">
+            <p className="font-semibold text-lg">
+              {order.product?.name}
+            </p>
+            {order.notes && (
+              <p className="text-sm bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded mt-2">
+                📝 {order.notes}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Stage timing */}
+      <div className="px-4 pb-2">
+        {order.status === "pending" && (
+          <p className="text-sm font-medium text-yellow-400">
+            Pendente h&aacute; {order.pendingMinutes} min
+          </p>
+        )}
+        {order.status === "preparing" && (
+          <p className="text-sm font-medium text-orange-400">
+            A preparar h&aacute; {order.preparingMinutes ?? 0} min
+          </p>
+        )}
+        {order.status === "ready" && (
+          <p className="text-sm font-medium text-green-400">
+            Pronto h&aacute; {order.readyMinutes ?? 0} min
+          </p>
+        )}
+      </div>
+
+      {/* Action Button */}
+      {actionLabel && (
+        <div className="px-4 py-3 border-t border-gray-800">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAction(order);
+            }}
+            className={`
+              w-full py-2 rounded-lg font-semibold transition-colors
+              ${order.status === "pending" ? "bg-orange-500 hover:bg-orange-600 text-white" : ""}
+              ${order.status === "preparing" ? "bg-green-500 hover:bg-green-600 text-white" : ""}
+              ${order.status === "ready" ? "bg-gray-600 hover:bg-gray-700 text-white" : ""}
+            `}
+          >
+            {actionLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Order Card Overlay (shown while dragging)
+function OrderCardOverlay({ order }: { order: KitchenOrderDTO }) {
+  const borderColorMap = {
+    red: "border-red-500",
+    yellow: "border-yellow-500",
+    green: "border-green-500",
+  };
+
+  return (
+    <div
+      className={`
+        bg-gray-900 rounded-xl border-l-4 overflow-hidden w-80 shadow-2xl opacity-90
+        ${borderColorMap[order.urgencyColor]}
+      `}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+        <div className="flex items-center gap-3">
+          <span className="text-3xl font-bold text-white">
+            {order.table?.number || "?"}
+          </span>
+          <div className="text-sm">
+            <p className="text-gray-400">Mesa</p>
+            <p className="capitalize text-gray-400">
+              {order.table?.location || ""}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Item */}
+      <div className="px-4 py-3">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl font-bold text-[#D4AF37]">
+            {order.quantity}×
+          </span>
+          <div className="flex-1">
+            <p className="font-semibold text-lg">
+              {order.product?.name}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

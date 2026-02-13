@@ -295,21 +295,34 @@ export default function WaiterDashboard() {
 
   const handleCompleteCall = useCallback(
     async (callId: string, orderId?: string | null) => {
-      // Mark the waiter_call as completed
-      await extendedSupabase
-        .from("waiter_calls")
-        .update({
-          status: "completed",
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", callId);
+      try {
+        // Mark the waiter_call as completed
+        const { error: callError } = await extendedSupabase
+          .from("waiter_calls")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", callId);
 
-      // If there's an associated order, mark it as delivered
-      if (orderId) {
-        await supabase
-          .from("orders")
-          .update({ status: "delivered" })
-          .eq("id", orderId);
+        if (callError) {
+          console.error("Error completing waiter call:", callError);
+          return;
+        }
+
+        // If there's an associated order, mark it as delivered
+        if (orderId) {
+          const { error: orderError } = await supabase
+            .from("orders")
+            .update({ status: "delivered" })
+            .eq("id", orderId);
+
+          if (orderError) {
+            console.error("Error marking order as delivered:", orderError);
+          }
+        }
+      } catch (error) {
+        console.error("Error in handleCompleteCall:", error);
       }
     },
     [supabase, extendedSupabase],
@@ -445,7 +458,6 @@ export default function WaiterDashboard() {
                 </div>
               )}
             </div>
-
 
             {/* Customer Calls Alert */}
             {customerCalls.length > 0 && (

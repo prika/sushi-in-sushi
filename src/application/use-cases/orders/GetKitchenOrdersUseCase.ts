@@ -62,12 +62,24 @@ export class GetKitchenOrdersUseCase {
 
         if (order.status === 'preparing' && order.preparingStartedAt) {
           preparingMinutes = Math.round((now.getTime() - order.preparingStartedAt.getTime()) / 60000);
+          console.log(`[DEBUG] Order ${order.id} preparing minutes:`, {
+            status: order.status,
+            preparingStartedAt: order.preparingStartedAt,
+            now,
+            calculatedMinutes: preparingMinutes,
+          });
         } else if (order.preparingStartedAt && order.readyAt) {
           preparingMinutes = Math.round((order.readyAt.getTime() - order.preparingStartedAt.getTime()) / 60000);
         }
 
         if (order.status === 'ready' && order.readyAt) {
           readyMinutes = Math.round((now.getTime() - order.readyAt.getTime()) / 60000);
+          console.log(`[DEBUG] Order ${order.id} ready minutes:`, {
+            status: order.status,
+            readyAt: order.readyAt,
+            now,
+            calculatedMinutes: readyMinutes,
+          });
         }
 
         return {
@@ -96,10 +108,44 @@ export class GetKitchenOrdersUseCase {
         };
       });
 
-      // Ordenar por urgência (mais antigos primeiro)
-      orderDTOs.sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
+      // Ordenar por timestamp do estado atual (mais antigos primeiro)
+      // Quando um pedido muda de estado, vai para o fim da lista
+      orderDTOs.sort((a, b) => {
+        let timeA: number;
+        let timeB: number;
+
+        // Para pedidos 'pending', usar created_at
+        if (a.status === 'pending') {
+          timeA = new Date(a.createdAt).getTime();
+        }
+        // Para pedidos 'preparing', usar preparing_started_at (ou created_at se não existir)
+        else if (a.status === 'preparing') {
+          timeA = a.preparingStartedAt ? new Date(a.preparingStartedAt).getTime() : new Date(a.createdAt).getTime();
+        }
+        // Para pedidos 'ready', usar ready_at (ou created_at se não existir)
+        else if (a.status === 'ready') {
+          timeA = a.readyAt ? new Date(a.readyAt).getTime() : new Date(a.createdAt).getTime();
+        }
+        else {
+          timeA = new Date(a.createdAt).getTime();
+        }
+
+        // Mesma lógica para pedido B
+        if (b.status === 'pending') {
+          timeB = new Date(b.createdAt).getTime();
+        }
+        else if (b.status === 'preparing') {
+          timeB = b.preparingStartedAt ? new Date(b.preparingStartedAt).getTime() : new Date(b.createdAt).getTime();
+        }
+        else if (b.status === 'ready') {
+          timeB = b.readyAt ? new Date(b.readyAt).getTime() : new Date(b.createdAt).getTime();
+        }
+        else {
+          timeB = new Date(b.createdAt).getTime();
+        }
+
+        return timeA - timeB;
+      });
 
       // Agrupar por status
       const byStatus = {

@@ -52,6 +52,16 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 
 ### 🚀 Features Recentes
 
+**Kitchen Workflow Optimization** (2026-02-13):
+- Kitchen display ends at "Pronto para servir" (Ready to serve) without action button
+- OrderStatus label updated: "Pronto" → "Pronto para servir"
+- Waiter names displayed on kitchen order cards (👤 icon)
+- DependencyContext uses `SupabaseOrderRepositoryOptimized` for proper JOINs
+- Waiter panel simplified: single "Prontos para Servir" section (removed duplicates)
+- Mesa panel title: "Painel da Mesa #{number}"
+- SQL scripts fixed: proper JOIN with roles table, UUID handling via CTEs
+- Files: OrderStatus.ts, cozinha/page.tsx, waiter/page.tsx, waiter/mesa/[id]/page.tsx, DependencyContext.tsx
+
 **Restaurant Management** (Gestão Dinâmica de Restaurantes):
 - Sistema completo de CRUD para restaurantes
 - Substituiu hardcoded locations (circunvalacao, boavista) por sistema dinâmico
@@ -169,7 +179,7 @@ npx supabase db reset
 
 ### Tabelas Principais
 - `restaurants` - **NOVO** Localizações e configurações de restaurantes (substituiu hardcoded locations)
-- `staff` - Funcionários e credenciais
+- `staff` - Funcionários e credenciais (**IMPORTANTE:** tem `role_id` FK, não coluna `role` direta)
 - `roles` - Definições de roles (admin, kitchen, waiter, customer)
 - `tables` - Mesas do restaurante (criadas automaticamente baseado em restaurant.max_capacity)
 - `categories` - Categorias de produtos
@@ -178,17 +188,45 @@ npx supabase db reset
 - `orders` - Pedidos individuais
 - `reservations` - Reservas
 - `customers` - Programa de fidelização
-- `waiter_tables` - Atribuições empregado-mesa
+- `waiter_tables` - Atribuições empregado-mesa (**UUID types:** staff_id é UUID, não integer)
 - `waiter_calls` - Chamadas de assistência
 - `restaurant_closures` - Dias de fecho do restaurante
 - `staff_time_off` - Férias e folgas dos funcionários
 
+### SQL Scripts de Utilidade
+Scripts no diretório raiz do projeto:
+- `check-waiter-data.sql` - Verifica empregados disponíveis e suas atribuições
+- `assign-waiters-to-tables.sql` - Atribui empregado específico a mesas (requer UUID manual)
+- `quick-assign-waiter.sql` - **RECOMENDADO:** Atribui automaticamente primeiro empregado disponível (usa CTE)
+
+**Notas importantes:**
+- Sempre fazer JOIN com roles: `JOIN roles r ON s.role_id = r.id`
+- staff_id é UUID, nunca usar valores integer
+- Para automação, usar quick-assign-waiter.sql que pega UUID automaticamente
+
 ### Enums Importantes
 - **SessionStatus:** active, pending_payment, paid, closed
 - **OrderStatus:** pending, preparing, ready, delivered, cancelled
+  - Labels: "Na fila", "A preparar", "Pronto para servir", "Entregue", "Cancelado"
 - **TableStatus:** available, reserved, occupied, inactive
 - **ReservationStatus:** pending, confirmed, cancelled, completed, no_show
 - **Location:** circunvalacao, boavista
+
+### Kitchen Workflow (Order Status Flow)
+**Display da Cozinha** (`/cozinha`):
+- **pending** → "Na fila" (awaiting preparation)
+- **preparing** → "A preparar" (in progress)
+- **ready** → "Pronto para servir" (final step for kitchen - view-only, no action button)
+
+**Painel do Empregado** (`/waiter/mesa/[id]`):
+- **ready** → "Prontos para Servir" (waiters can mark as delivered)
+- **delivered** → "Entregue" (final state)
+
+**Important:**
+- Kitchen display does NOT advance orders from "ready" to "delivered"
+- Waiters handle the delivered status transition
+- Kitchen cards show waiter names: `👤 {waiterName}` in header
+- Requires `SupabaseOrderRepositoryOptimized` in DependencyContext for waiter data
 
 ## Autenticação e Roles
 
@@ -367,6 +405,9 @@ if (result.success) {
 
 **Repositories** (`/infrastructure/repositories/`):
 - `SupabaseOrderRepository` - Implementação IOrderRepository
+  - **IMPORTANTE:** Usar `SupabaseOrderRepositoryOptimized` no DependencyContext
+  - Versão otimizada inclui JOINs corretos para waiter_tables e staff
+  - Garante que KitchenOrderDTO contém waiterName
 - `SupabaseSessionRepository` - Implementação ISessionRepository
 - `SupabaseTableRepository` - Implementação ITableRepository
 - `SupabaseProductRepository` - Implementação IProductRepository
@@ -384,6 +425,10 @@ if (result.success) {
 - Tratamento de erros Supabase
 - Conversão de tipos (Date, enums)
 - Queries otimizadas com joins
+- **Repository Optimization Pattern:**
+  - Criar versão `.optimized.ts` quando precisar de JOINs adicionais
+  - Sempre preferir versão otimizada no DependencyContext
+  - Exemplo: `SupabaseOrderRepositoryOptimized` para incluir dados de waiter
 
 **Real-time Handlers** (`/infrastructure/realtime/`):
 - `OrderRealtimeHandler` - Subscrição a mudanças em pedidos
@@ -400,6 +445,8 @@ const { getKitchenOrders, updateOrderStatus } = useDependencies();
 
 **Hooks** (`/presentation/hooks/`):
 - `useKitchenOrders()` - Pedidos para cozinha com real-time
+  - Versão otimizada disponível: `useKitchenOrdersOptimized()`
+  - Inclui waiterName nos KitchenOrderDTO
 - `useSessionOrders()` - Pedidos de uma sessão
 - `useProducts()` - Catálogo de produtos
 - `useSessionManagement()` - Gestão de sessões
@@ -682,3 +729,11 @@ As migrações estão em `/supabase/migrations/`:
 - Emails são enviados via Resend com webhook tracking
 - Activity log regista todas as ações dos funcionários
 - Row Level Security (RLS) está ativo em todas as tabelas
+
+### Kitchen & Waiter Flow
+- **Kitchen display** termina no status "ready" (sem botão de ação)
+- **Waiter panel** avança de "ready" para "delivered"
+- Nomes de empregados aparecem nos cartões da cozinha (👤 icon)
+- DependencyContext deve usar `SupabaseOrderRepositoryOptimized`
+- Painel do waiter tem título "Painel da Mesa #{number}"
+- Uma única seção "Prontos para Servir" (não duplicar)

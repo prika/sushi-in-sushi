@@ -73,4 +73,10 @@ export interface IOrderRepository {
    * Conta pedidos por status
    */
   countByStatus(sessionId?: string): Promise<Record<OrderStatus, number>>;
+
+  /**
+   * Obtém o tempo médio de preparação por produto (em minutos)
+   * Baseado em pedidos completados (ready ou delivered)
+   */
+  getAveragePreparationTime(productId: string): Promise<number | null>;
 }

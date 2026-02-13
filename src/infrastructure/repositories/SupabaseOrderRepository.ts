@@ -444,4 +444,36 @@ export class SupabaseOrderRepository implements IOrderRepository {
         : { id: '', name: 'Produto desconhecido', imageUrl: null },
     };
   }
+
+  async getAveragePreparationTime(productId: string): Promise<number | null> {
+    // Get completed orders (ready or delivered) with preparation timestamps
+    const { data, error } = await this.supabase
+      .from('orders')
+      .select('preparing_started_at, ready_at')
+      .eq('product_id', productId)
+      .in('status', ['ready', 'delivered'])
+      .not('preparing_started_at', 'is', null)
+      .not('ready_at', 'is', null)
+      .limit(50); // Last 50 orders for more accurate recent average
+
+    if (error || !data || data.length === 0) {
+      return null;
+    }
+
+    // Calculate average preparation time in minutes
+    const times = data
+      .map((order: any) => {
+        const start = new Date(order.preparing_started_at).getTime();
+        const ready = new Date(order.ready_at).getTime();
+        return Math.round((ready - start) / 60000); // Convert to minutes
+      })
+      .filter((time: number) => time > 0 && time < 180); // Filter out anomalies (0 min or > 3 hours)
+
+    if (times.length === 0) {
+      return null;
+    }
+
+    const average = times.reduce((sum: number, time: number) => sum + time, 0) / times.length;
+    return Math.round(average);
+  }
 }

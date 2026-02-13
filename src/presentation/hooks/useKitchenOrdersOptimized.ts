@@ -154,14 +154,53 @@ export function useKitchenOrdersOptimized(
       // Optimistically update UI (update orders in response)
       if (previousResponse && typeof previousResponse === 'object' && 'orders' in previousResponse) {
         const typedResponse = previousResponse as { orders: KitchenOrderDTO[]; byStatus: any; counts: any };
-        const updated = {
-          ...typedResponse,
-          orders: typedResponse.orders.map((order) =>
-            order.id === orderId
-              ? { ...order, status: newStatus, updatedAt: new Date().toISOString() }
-              : order
-          ),
+
+        // Update the order status and set timestamps
+        const now = new Date().toISOString();
+        const updatedOrders = typedResponse.orders.map((order) => {
+          if (order.id !== orderId) return order;
+
+          const updated = {
+            ...order,
+            status: newStatus,
+            updatedAt: now
+          };
+
+          // Set timestamps based on new status
+          if (newStatus === 'preparing') {
+            updated.preparingStartedAt = now;
+          } else if (newStatus === 'ready') {
+            updated.readyAt = now;
+          } else if (newStatus === 'delivered') {
+            updated.deliveredAt = now;
+          }
+
+          return updated;
+        });
+
+        // Recalculate byStatus and counts from updated orders
+        const newByStatus = {
+          pending: updatedOrders.filter((o) => o.status === 'pending'),
+          preparing: updatedOrders.filter((o) => o.status === 'preparing'),
+          ready: updatedOrders.filter((o) => o.status === 'ready'),
         };
+
+        const newCounts = {
+          pending: newByStatus.pending.length,
+          preparing: newByStatus.preparing.length,
+          ready: newByStatus.ready.length,
+          delivered: 0,
+          cancelled: 0,
+          total: updatedOrders.length,
+          active: updatedOrders.length,
+        };
+
+        const updated = {
+          orders: updatedOrders,
+          byStatus: newByStatus,
+          counts: newCounts,
+        };
+
         queryClient.setQueryData(['kitchen-orders', location], updated);
       }
 

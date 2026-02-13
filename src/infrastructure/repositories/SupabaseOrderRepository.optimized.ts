@@ -74,6 +74,10 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
         session_customer_id,
         created_at,
         updated_at,
+        preparing_started_at,
+        ready_at,
+        delivered_at,
+        prepared_by,
         product:products!inner(
           id,
           name,
@@ -316,14 +320,28 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
   }
 
   async updateStatus(id: string, status: OrderStatus): Promise<Order> {
+    const now = new Date().toISOString();
     const updateData: Record<string, unknown> = {
       status,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
     };
 
-    if (status === 'delivered') {
-      updateData.delivered_at = new Date().toISOString();
+    if (status === 'preparing') {
+      updateData.preparing_started_at = now;
+      console.log(`[DEBUG] Setting preparing_started_at for order ${id}:`, now);
     }
+
+    if (status === 'ready') {
+      updateData.ready_at = now;
+      console.log(`[DEBUG] Setting ready_at for order ${id}:`, now);
+    }
+
+    if (status === 'delivered') {
+      updateData.delivered_at = now;
+      console.log(`[DEBUG] Setting delivered_at for order ${id}:`, now);
+    }
+
+    console.log(`[DEBUG] Updating order ${id} with data:`, updateData);
 
     const { data, error } = await this.supabase
       .from('orders')
@@ -332,7 +350,19 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error(`[ERROR] Failed to update order ${id}:`, error);
+      throw new Error(error.message);
+    }
+
+    console.log(`[DEBUG] Order ${id} updated successfully. Returned data:`, {
+      id: data.id,
+      status: data.status,
+      preparing_started_at: data.preparing_started_at,
+      ready_at: data.ready_at,
+      delivered_at: data.delivered_at,
+    });
+
     return this.toDomain(data);
   }
 
@@ -398,6 +428,38 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
           }
         : { id: '', name: 'Produto desconhecido', imageUrl: null },
     };
+  }
+
+  async getAveragePreparationTime(productId: string): Promise<number | null> {
+    // Get completed orders (ready or delivered) with preparation timestamps
+    const { data, error } = await this.supabase
+      .from('orders')
+      .select('preparing_started_at, ready_at')
+      .eq('product_id', productId)
+      .in('status', ['ready', 'delivered'])
+      .not('preparing_started_at', 'is', null)
+      .not('ready_at', 'is', null)
+      .limit(50); // Last 50 orders for more accurate recent average
+
+    if (error || !data || data.length === 0) {
+      return null;
+    }
+
+    // Calculate average preparation time in minutes
+    const times = data
+      .map((order: any) => {
+        const start = new Date(order.preparing_started_at).getTime();
+        const ready = new Date(order.ready_at).getTime();
+        return Math.round((ready - start) / 60000); // Convert to minutes
+      })
+      .filter((time: number) => time > 0 && time < 180); // Filter out anomalies (0 min or > 3 hours)
+
+    if (times.length === 0) {
+      return null;
+    }
+
+    const average = times.reduce((sum: number, time: number) => sum + time, 0) / times.length;
+    return Math.round(average);
   }
 }
 

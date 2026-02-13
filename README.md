@@ -84,6 +84,7 @@ O projecto segue **Clean Architecture** com separação rigorosa em 4 camadas:
 - **Result Pattern** — Tratamento de erros tipado (`Result<T>` com success/error)
 - **Dependency Injection** — Via `DependencyContext` (React Context)
 - **Repository Pattern** — Interfaces no Domain, implementações na Infrastructure
+- **Repository Optimization** — Versões `.optimized.ts` com JOINs adicionais para melhor performance
 - **Use Case Pattern** — Uma classe por operação, responsabilidade única
 - **Optimistic Updates** — UI instantânea com rollback automático em caso de erro
 
@@ -143,10 +144,14 @@ Sistema de pedidos colaborativo via QR code, permitindo múltiplos dispositivos 
 #### Estados dos Pedidos
 
 ```
-pending → preparing → ready → delivered
-                                  ↓
-                             cancelled
+pending (Na fila) → preparing (A preparar) → ready (Pronto para servir) → delivered (Entregue)
+                                                                                ↓
+                                                                           cancelled
 ```
+
+**Separação de Responsabilidades:**
+- **Cozinha:** Avança até "Pronto para servir" (ready) - estado final no display da cozinha
+- **Empregado:** Avança de "Pronto para servir" para "Entregue" (delivered) no painel do empregado
 
 #### Fluxo do Cliente
 
@@ -396,7 +401,9 @@ Interface dedicada para a equipa de cozinha gerir pedidos em tempo real, com tra
 |----------------|-----------|
 | Fila de Pedidos | Lista de pedidos ordenada por tempo de criação |
 | Agrupamento | Pedidos agrupados por mesa |
-| Estados | Actualizar estado: pendente → a preparar → pronto |
+| Estados | Actualizar estado: pendente → a preparar → pronto para servir |
+| Fluxo da Cozinha | Kitchen display termina em "Pronto para servir" (sem botão de avanço) |
+| Nome do Empregado | Cartões mostram nome do empregado atribuído à mesa (👤 icon) |
 | Tracking de Preparador | Regista automaticamente quem iniciou a preparação (`prepared_by`) |
 | Identidade do Staff | Nome do funcionário autenticado exibido no header (ex: "Cozinha - Tiago") |
 | Nome do Preparador | Cartões mostram quem está a preparar/preparou cada pedido |
@@ -408,7 +415,9 @@ Interface dedicada para a equipa de cozinha gerir pedidos em tempo real, com tra
 | Tempo de Espera | Mostra há quanto tempo o pedido foi feito |
 | Indicador de Urgência | Destaque visual para pedidos antigos |
 
-**Fluxo:** Novo pedido (som) → Staff clica "A Preparar" (regista `prepared_by` + timestamp) → "Pronto" (regista `ready_at`) → Empregado notificado
+**Fluxo:** Novo pedido (som) → Staff clica "A Preparar" (regista `prepared_by` + timestamp) → "Pronto para servir" (regista `ready_at`, view-only) → Empregado marca como "Entregue"
+
+**Importante:** A cozinha NÃO avança pedidos de "pronto para servir" para "entregue". Essa transição é feita pelo empregado de mesa.
 
 #### Métricas de Performance da Cozinha
 
@@ -427,16 +436,20 @@ Interface dedicada para a equipa de cozinha gerir pedidos em tempo real, com tra
 
 Interface dedicada para empregados de mesa.
 
-**Rota:** `/waiter`
+**Rota:** `/waiter` · `/waiter/mesa/[id]`
 
 | Funcionalidade | Descrição |
 |----------------|-----------|
 | Mesas Atribuídas | Ver apenas as mesas do empregado |
+| Painel da Mesa | Título "Painel da Mesa #{número}" para cada mesa |
 | Sessões Activas | Sessões em curso nas mesas atribuídas |
-| Pedidos Prontos | Pedidos prontos para servir |
+| Pedidos Prontos | Pedidos prontos para servir (única secção consolidada) |
+| Marcar como Entregue | Empregado avança pedidos de "pronto para servir" para "entregue" |
 | Chamadas | Alertas de chamadas de assistência |
 | Participantes | Tracking de dispositivos por sessão |
 | Atribuição Automática | Sistema de auto-assign de empregados a mesas |
+
+**Nota:** O empregado é responsável pela transição final do estado do pedido (ready → delivered).
 
 ---
 
@@ -707,6 +720,22 @@ supabase/migrations/
 ├── 034_order_prepared_by.sql       # Tracking de quem preparou cada pedido
 └── 035_order_item_ratings.sql      # Ratings per-order-item (order_id em product_ratings)
 ```
+
+### Scripts SQL de Utilidade
+
+Scripts no diretório raiz do projeto para gestão de empregados:
+
+| Script | Descrição |
+|--------|-----------|
+| `check-waiter-data.sql` | Verificar empregados disponíveis e suas atribuições a mesas |
+| `assign-waiters-to-tables.sql` | Atribuir empregado específico a mesas (requer UUID manual) |
+| `quick-assign-waiter.sql` | **Recomendado:** Atribui automaticamente primeiro empregado disponível (usa CTE) |
+
+**Notas importantes:**
+- Tabela `staff` tem coluna `role_id` (FK para `roles`), não coluna `role` direta
+- Sempre fazer JOIN: `JOIN roles r ON s.role_id = r.id`
+- `staff_id` é tipo UUID, nunca usar valores integer
+- Para automação, usar `quick-assign-waiter.sql` que seleciona UUID automaticamente via CTE
 
 ---
 
@@ -982,11 +1011,13 @@ src/
 
 ---
 
-## Estado Actual (2026-02-11)
+## Estado Actual (2026-02-13)
 
 - Clean Architecture 100% implementada (20 entidades, 88+ use cases, 17 repositórios)
 - 931 testes passando (100% use cases, 100% domain services)
 - Performance optimizada (React Query + Hooks optimizados + 18 índices DB)
+- **Kitchen Workflow Optimization** — Fluxo da cozinha termina em "Pronto para servir" (view-only), empregados avançam para "Entregue"
+- **Waiter Display** — Nomes de empregados exibidos nos cartões da cozinha via repositório optimizado
 - Sistema de jogos interactivos completo (Quiz, Preference, Swipe)
 - Kitchen Staff Tracking — identidade individual de quem prepara cada pedido com métricas de performance
 - Avaliações per-order-item — mesmo produto pedido 2x gera 2 cartões de avaliação independentes
@@ -995,3 +1026,4 @@ src/
 - Suporte a 6 idiomas
 - 30+ API routes
 - Real-time em pedidos, carrinho, jogos e chamadas
+- Scripts SQL de utilidade para atribuição de empregados a mesas

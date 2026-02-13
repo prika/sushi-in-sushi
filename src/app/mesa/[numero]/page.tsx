@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo, type MutableRefObject } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+  type MutableRefObject,
+} from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -8,6 +15,7 @@ import { useProductsOptimized } from "@/presentation/hooks";
 import { useCart } from "@/presentation/hooks/useCart";
 import { useOrderReview } from "@/presentation/hooks/useOrderReview";
 import { useOrderCooldown } from "@/presentation/hooks/useOrderCooldown";
+import { useProductPreparationTimes } from "@/hooks/useProductPreparationTimes";
 import {
   useOrderNotificationChannel,
   type OrderNotificationSupabaseLike,
@@ -77,9 +85,18 @@ export default function MesaPage() {
   const [tableId, setTableId] = useState<string | null>(null);
 
   // Products state - Use optimized hook (89% faster: 270ms → 30ms)
-  const { products, categories: rawCategories, isLoading: isLoadingProducts } = useProductsOptimized({
+  const {
+    products,
+    categories: rawCategories,
+    isLoading: isLoadingProducts,
+  } = useProductsOptimized({
     availableOnly: true, // Only show available products
   });
+
+  // Average preparation times for products
+  const { times: preparationTimes } = useProductPreparationTimes(
+    products.map((p) => p.id),
+  );
 
   // Game config (for gamesMode: 'selection' | 'random')
   const [gamesMode, setGamesMode] = useState<GamesMode>("selection");
@@ -90,7 +107,9 @@ export default function MesaPage() {
     return rawCategories
       .map((category) => ({
         ...category,
-        products: products.filter((product) => product.categoryId === category.id),
+        products: products.filter(
+          (product) => product.categoryId === category.id,
+        ),
       }))
       .filter((category) => category.products.length > 0);
   }, [rawCategories, products]);
@@ -107,9 +126,13 @@ export default function MesaPage() {
       .filter((o) => o.status === "delivered" || o.status === "ready")
       .map((o) => ({
         orderId: o.id,
-        product: products.find((p) => String(p.id) === String(o.product_id)) ?? null,
+        product:
+          products.find((p) => String(p.id) === String(o.product_id)) ?? null,
       }))
-      .filter((item): item is { orderId: string; product: Product } => item.product !== null);
+      .filter(
+        (item): item is { orderId: string; product: Product } =>
+          item.product !== null,
+      );
   }, [sessionOrders, products]);
 
   // UI state
@@ -154,8 +177,12 @@ export default function MesaPage() {
   });
 
   // Broadcast notification state
-  const [orderNotification, setOrderNotification] = useState<string | null>(null);
-  const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const [orderNotification, setOrderNotification] = useState<string | null>(
+    null,
+  );
+  const broadcastChannelRef = useRef<ReturnType<
+    typeof supabase.channel
+  > | null>(null);
 
   // Ratings (swipe game) state
   const [ratingsStats, setRatingsStats] = useState<{
@@ -164,7 +191,13 @@ export default function MesaPage() {
     userRatedProductIds: number[];
     userRatedOrderIds: string[];
     totalRatingsAtTable: number;
-  }>({ tableLeader: null, userRatingCount: 0, userRatedProductIds: [], userRatedOrderIds: [], totalRatingsAtTable: 0 });
+  }>({
+    tableLeader: null,
+    userRatingCount: 0,
+    userRatedProductIds: [],
+    userRatedOrderIds: [],
+    totalRatingsAtTable: 0,
+  });
 
   // Refs
   const categoryRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -343,7 +376,8 @@ export default function MesaPage() {
     if (!session?.id) return;
     try {
       const params = new URLSearchParams({ sessionId: session.id });
-      if (currentCustomer?.id) params.set("sessionCustomerId", currentCustomer.id);
+      if (currentCustomer?.id)
+        params.set("sessionCustomerId", currentCustomer.id);
       const res = await fetch(`/api/mesa/ratings?${params}`);
       if (!res.ok) return;
       const data = await res.json();
@@ -398,7 +432,10 @@ export default function MesaPage() {
               .single();
 
             if (data) {
-              setSessionOrders((prev) => [data as unknown as OrderWithProduct, ...prev]);
+              setSessionOrders((prev) => [
+                data as unknown as OrderWithProduct,
+                ...prev,
+              ]);
             }
           } else if (payload.eventType === "DELETE") {
             setSessionOrders((prev) =>
@@ -422,7 +459,8 @@ export default function MesaPage() {
     t,
     fetchSessionOrders,
     setOrderNotification,
-    channelRef: broadcastChannelRef as MutableRefObject<RealtimeChannelLike | null>,
+    channelRef:
+      broadcastChannelRef as MutableRefObject<RealtimeChannelLike | null>,
   });
 
   // Group orders by timestamp (rounded to minute)
@@ -494,7 +532,8 @@ export default function MesaPage() {
       setTableId(foundTableId);
 
       // 2. Create session via API (handles table status + auto waiter assignment)
-      const totalAmount = orderType === "rodizio" ? rodizioPrice * numPessoas : 0;
+      const totalAmount =
+        orderType === "rodizio" ? rodizioPrice * numPessoas : 0;
 
       const response = await fetch("/api/sessions", {
         method: "POST",
@@ -529,7 +568,15 @@ export default function MesaPage() {
     } finally {
       setIsStartingSession(false);
     }
-  }, [orderType, mesaNumero, localizacao, numPessoas, rodizioPrice, supabase, t]);
+  }, [
+    orderType,
+    mesaNumero,
+    localizacao,
+    numPessoas,
+    rodizioPrice,
+    supabase,
+    t,
+  ]);
 
   // Fetch session customers
   const fetchSessionCustomers = useCallback(
@@ -593,14 +640,14 @@ export default function MesaPage() {
         console.error("[mesa] sync to customers failed:", res.status, errBody);
         setError(
           t("mesa.errors.syncLoyalty") ||
-            "Não foi possível sincronizar com o programa de fidelização. Verifique SUPABASE_SERVICE_ROLE_KEY no servidor."
+            "Não foi possível sincronizar com o programa de fidelização. Verifique SUPABASE_SERVICE_ROLE_KEY no servidor.",
         );
         return null;
       }
       const { customerId } = (await res.json()) as { customerId: string };
       return customerId;
     },
-    [customerForm, t]
+    [customerForm, t],
   );
 
   // Register customer (new person) or update existing session_customer (edit profile)
@@ -638,35 +685,36 @@ export default function MesaPage() {
 
         const updatedCustomer = updated as SessionCustomer;
         setSessionCustomers((prev) =>
-          prev.map((c) => (c.id === currentCustomer.id ? updatedCustomer : c))
+          prev.map((c) => (c.id === currentCustomer.id ? updatedCustomer : c)),
         );
         setCurrentCustomer(updatedCustomer);
 
         if (emailTrim) {
           const customerId = await syncToLoyaltyCustomer(
             currentCustomer.id,
-            emailTrim
+            emailTrim,
           );
           if (customerId) {
             setSessionCustomers((prev) =>
               prev.map((c) =>
                 c.id === currentCustomer.id
                   ? { ...c, customer_id: customerId }
-                  : c
-              )
+                  : c,
+              ),
             );
             setCurrentCustomer((prev) =>
               prev?.id === currentCustomer.id
                 ? { ...prev, customer_id: customerId }
-                : prev
+                : prev,
             );
             setSuccessMessage(
-              t("mesa.success.profileSaved") || "Perfil guardado. Aparecerá no painel Clientes."
+              t("mesa.success.profileSaved") ||
+                "Perfil guardado. Aparecerá no painel Clientes.",
             );
           }
         } else {
           setSuccessMessage(
-            t("mesa.success.profileSaved") || "Perfil guardado."
+            t("mesa.success.profileSaved") || "Perfil guardado.",
           );
         }
         setTimeout(() => setSuccessMessage(null), 3000);
@@ -701,17 +749,20 @@ export default function MesaPage() {
       localStorage.setItem(`customer_${session.id}`, newCustomer.id);
 
       if (emailTrim) {
-        const customerId = await syncToLoyaltyCustomer(newCustomer.id, emailTrim);
+        const customerId = await syncToLoyaltyCustomer(
+          newCustomer.id,
+          emailTrim,
+        );
         if (customerId) {
           setSessionCustomers((prev) =>
             prev.map((c) =>
-              c.id === newCustomer.id ? { ...c, customer_id: customerId } : c
-            )
+              c.id === newCustomer.id ? { ...c, customer_id: customerId } : c,
+            ),
           );
           setCurrentCustomer((prev) =>
             prev?.id === newCustomer.id
               ? { ...prev, customer_id: customerId }
-              : prev
+              : prev,
           );
         }
       }
@@ -791,7 +842,10 @@ export default function MesaPage() {
         broadcastChannelRef.current.send({
           type: "broadcast",
           event: "order-submitted",
-          payload: { customerName: customerName || "?", itemCount: cartItemsCount },
+          payload: {
+            customerName: customerName || "?",
+            itemCount: cartItemsCount,
+          },
         });
       }
 
@@ -905,7 +959,16 @@ export default function MesaPage() {
         setIsCallingWaiter(false);
       }
     },
-    [tableId, session, localizacao, waiterName, isCallingWaiter, supabase, t, currentCustomer?.id],
+    [
+      tableId,
+      session,
+      localizacao,
+      waiterName,
+      isCallingWaiter,
+      supabase,
+      t,
+      currentCustomer?.id,
+    ],
   );
 
   // Subscribe to waiter call status updates
@@ -963,9 +1026,22 @@ export default function MesaPage() {
         <div className="fixed top-4 left-4 right-4 z-[60] bg-blue-500/90 text-white px-4 py-3 rounded-xl flex items-center gap-3 animate-slide-down">
           <span className="text-lg">🔔</span>
           <p className="text-sm flex-1">{orderNotification}</p>
-          <button onClick={() => setOrderNotification(null)} className="text-white/70 hover:text-white">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <button
+            onClick={() => setOrderNotification(null)}
+            className="text-white/70 hover:text-white"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -1211,240 +1287,264 @@ export default function MesaPage() {
       {/* Active Session - Tab Panels */}
       {step === "active" && (
         <div className="flex-1 flex flex-col bg-[#0D0D0D]">
-
           {/* Menu Tab */}
           {activeTab === "menu" && (
             <div className="flex-1 flex flex-col">
-          {/* Fixed Header - Compact */}
-          <div className="sticky top-0 z-20 bg-[#0D0D0D]">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
-              <div className="flex items-center gap-2">
-                <span className="text-[#D4AF37] font-bold">#{mesaNumero}</span>
-                <span className="text-xs text-gray-500">•</span>
-                <span className="text-xs text-gray-400">
-                  {orderType === "rodizio"
-                    ? `Rodízio ${numPessoas}p`
-                    : "À Carta"}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Customer indicator */}
-                <button
-                  onClick={() => setShowCustomerModal(true)}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-colors ${
-                    currentCustomer
-                      ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                      : "bg-gray-800 text-gray-400 border border-gray-700 hover:border-[#D4AF37]"
-                  }`}
-                >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                  <span className="max-w-[60px] truncate">
-                    {currentCustomer?.display_name || t("mesa.login")}
-                  </span>
-                </button>
-
-              </div>
-            </div>
-
-            <div
-              ref={tabsRef}
-              className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide border-b border-gray-800 categories"
-              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-            >
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  onClick={() => scrollToCategory(category.id)}
-                  data-testid="category"
-                  className={`category flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap transition-all ${
-                    activeCategory === category.id
-                      ? "bg-[#D4AF37] text-black font-semibold"
-                      : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                  }`}
-                >
-                  {category.icon && (
-                    <span className="text-sm">{category.icon}</span>
-                  )}
-                  <span className="text-xs">{category.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Menu Content */}
-          <div className="flex-1 overflow-y-auto pb-24" data-testid="menu">
-            {isLoadingProducts ? (
-              <div className="flex items-center justify-center py-20">
-                <svg
-                  className="animate-spin h-10 w-10 text-[#D4AF37]"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-              </div>
-            ) : categories.length === 0 ? (
-              <p className="text-gray-400 text-center py-20">
-                {t("mesa.menuUnavailable")}
-              </p>
-            ) : (
-              <div className="px-4 py-4 products" data-testid="categories">
-                {categories.map((category) => (
-                  <div
-                    key={category.id}
-                    ref={(el) => {
-                      categoryRefs.current[category.id] = el;
-                    }}
-                    className="mb-8"
-                  >
-                    <div className="flex items-center gap-2 mb-4">
-                      {category.icon && (
-                        <span className="text-2xl">{category.icon}</span>
-                      )}
-                      <h2 className="text-xl font-semibold text-[#D4AF37]">
-                        {category.name}
-                      </h2>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      {category.products.map((product) => {
-                        const cartQty = getCartQuantity(product.id);
-                        const isIncludedInRodizio =
-                          orderType === "rodizio" && product.isRodizio;
-                        const hasQuantity = cartQty > 0;
-
-                        return (
-                          <div
-                            key={product.id}
-                            className={`relative bg-gray-900 rounded-xl overflow-hidden border-2 transition-all ${
-                              hasQuantity
-                                ? "border-[#D4AF37]"
-                                : "border-transparent"
-                            }`}
-                          >
-                            <div className="relative aspect-square bg-gray-800">
-                              {product.imageUrl ? (
-                                <Image
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                  fill
-                                  className="object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-4xl text-gray-600">
-                                  🍣
-                                </div>
-                              )}
-
-                              {isIncludedInRodizio && (
-                                <div className="absolute top-2 left-2 bg-[#D4AF37] text-black text-[10px] font-bold px-2 py-1 rounded-full">
-                                  INCLUÍDO
-                                </div>
-                              )}
-
-                              {hasQuantity && (
-                                <div className="absolute top-2 right-2 bg-[#D4AF37] text-black text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center">
-                                  {cartQty}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="p-3">
-                              <h3 className="font-medium text-sm leading-tight mb-1 line-clamp-2">
-                                {product.name}
-                              </h3>
-
-                              <div className="flex items-center justify-between mt-2">
-                                <div>
-                                  {orderType === "carta" && (
-                                    <span className="text-[#D4AF37] font-bold">
-                                      €{product.price.toFixed(2)}
-                                    </span>
-                                  )}
-                                  {orderType === "rodizio" &&
-                                    !product.isRodizio && (
-                                      <span className="text-[#D4AF37] font-bold text-sm">
-                                        +€{product.price.toFixed(2)}
-                                      </span>
-                                    )}
-                                </div>
-
-                                {hasQuantity ? (
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      onClick={() =>
-                                        updateQuantity(product.id, cartQty - 1)
-                                      }
-                                      className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-gray-700 transition-colors"
-                                    >
-                                      −
-                                    </button>
-                                    <span className="w-6 text-center font-semibold text-sm">
-                                      {cartQty}
-                                    </span>
-                                    <button
-                                      onClick={() => addToCart(product, currentCustomer?.display_name || "?")}
-                                      className="w-8 h-8 rounded-full bg-[#D4AF37] flex items-center justify-center text-black font-bold hover:bg-[#C4A030] transition-colors"
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={() => addToCart(product, currentCustomer?.display_name || "?")}
-                                    className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center text-black hover:bg-[#C4A030] transition-colors"
-                                  >
-                                    <svg
-                                      className="w-5 h-5"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2.5}
-                                        d="M12 4v16m8-8H4"
-                                      />
-                                    </svg>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+              {/* Fixed Header - Compact */}
+              <div className="sticky top-0 z-20 bg-[#0D0D0D]">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#D4AF37] font-bold">
+                      #{mesaNumero}
+                    </span>
+                    <span className="text-xs text-gray-500">•</span>
+                    <span className="text-xs text-gray-400">
+                      {orderType === "rodizio"
+                        ? `Rodízio ${numPessoas}p`
+                        : "À Carta"}
+                    </span>
                   </div>
-                ))}
+
+                  <div className="flex items-center gap-2">
+                    {/* Customer indicator */}
+                    <button
+                      onClick={() => setShowCustomerModal(true)}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-colors ${
+                        currentCustomer
+                          ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                          : "bg-gray-800 text-gray-400 border border-gray-700 hover:border-[#D4AF37]"
+                      }`}
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
+                      <span className="max-w-[60px] truncate">
+                        {currentCustomer?.display_name || t("mesa.login")}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  ref={tabsRef}
+                  className="flex gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide border-b border-gray-800 categories"
+                  style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                >
+                  {categories.map((category) => (
+                    <button
+                      key={category.id}
+                      onClick={() => scrollToCategory(category.id)}
+                      data-testid="category"
+                      className={`category flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap transition-all ${
+                        activeCategory === category.id
+                          ? "bg-[#D4AF37] text-black font-semibold"
+                          : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                      }`}
+                    >
+                      {category.icon && (
+                        <span className="text-sm">{category.icon}</span>
+                      )}
+                      <span className="text-xs">{category.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Menu Content */}
+              <div className="flex-1 overflow-y-auto pb-24" data-testid="menu">
+                {isLoadingProducts ? (
+                  <div className="flex items-center justify-center py-20">
+                    <svg
+                      className="animate-spin h-10 w-10 text-[#D4AF37]"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                  </div>
+                ) : categories.length === 0 ? (
+                  <p className="text-gray-400 text-center py-20">
+                    {t("mesa.menuUnavailable")}
+                  </p>
+                ) : (
+                  <div className="px-4 py-4 products" data-testid="categories">
+                    {categories.map((category) => (
+                      <div
+                        key={category.id}
+                        ref={(el) => {
+                          categoryRefs.current[category.id] = el;
+                        }}
+                        className="mb-8"
+                      >
+                        <div className="flex items-center gap-2 mb-4">
+                          {category.icon && (
+                            <span className="text-2xl">{category.icon}</span>
+                          )}
+                          <h2 className="text-xl font-semibold text-[#D4AF37]">
+                            {category.name}
+                          </h2>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          {category.products.map((product) => {
+                            const cartQty = getCartQuantity(product.id);
+                            const isIncludedInRodizio =
+                              orderType === "rodizio" && product.isRodizio;
+                            const hasQuantity = cartQty > 0;
+
+                            return (
+                              <div
+                                key={product.id}
+                                className={`relative bg-gray-900 rounded-xl overflow-hidden border-2 transition-all ${
+                                  hasQuantity
+                                    ? "border-[#D4AF37]"
+                                    : "border-transparent"
+                                }`}
+                              >
+                                <div className="relative aspect-square bg-gray-800">
+                                  {product.imageUrl ? (
+                                    <Image
+                                      src={product.imageUrl}
+                                      alt={product.name}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-4xl text-gray-600">
+                                      🍣
+                                    </div>
+                                  )}
+
+                                  {isIncludedInRodizio && (
+                                    <div className="absolute top-2 left-2 bg-[#D4AF37] text-black text-[10px] font-bold px-2 py-1 rounded-full">
+                                      INCLUÍDO
+                                    </div>
+                                  )}
+
+                                  {hasQuantity && (
+                                    <div className="absolute top-2 right-2 bg-[#D4AF37] text-black text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center">
+                                      {cartQty}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="p-3">
+                                  <h3 className="font-medium text-sm leading-tight mb-1 line-clamp-2">
+                                    {product.name}
+                                  </h3>
+
+                                  {preparationTimes[product.id] && (
+                                    <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                                      <span>⏱️</span>
+                                      <span>
+                                        ~{preparationTimes[product.id]} min
+                                      </span>
+                                    </p>
+                                  )}
+
+                                  <div className="flex items-center justify-between mt-2">
+                                    <div>
+                                      {orderType === "carta" && (
+                                        <span className="text-[#D4AF37] font-bold">
+                                          €{product.price.toFixed(2)}
+                                        </span>
+                                      )}
+                                      {orderType === "rodizio" &&
+                                        !product.isRodizio && (
+                                          <span className="text-[#D4AF37] font-bold text-sm">
+                                            +€{product.price.toFixed(2)}
+                                          </span>
+                                        )}
+                                    </div>
+
+                                    {hasQuantity ? (
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          onClick={() =>
+                                            updateQuantity(
+                                              product.id,
+                                              cartQty - 1,
+                                            )
+                                          }
+                                          className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-gray-700 transition-colors"
+                                        >
+                                          −
+                                        </button>
+                                        <span className="w-6 text-center font-semibold text-sm">
+                                          {cartQty}
+                                        </span>
+                                        <button
+                                          onClick={() =>
+                                            addToCart(
+                                              product,
+                                              currentCustomer?.display_name ||
+                                                "?",
+                                            )
+                                          }
+                                          className="w-8 h-8 rounded-full bg-[#D4AF37] flex items-center justify-center text-black font-bold hover:bg-[#C4A030] transition-colors"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={() =>
+                                          addToCart(
+                                            product,
+                                            currentCustomer?.display_name ||
+                                              "?",
+                                          )
+                                        }
+                                        className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center text-black hover:bg-[#C4A030] transition-colors"
+                                      >
+                                        <svg
+                                          className="w-5 h-5"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2.5}
+                                            d="M12 4v16m8-8H4"
+                                          />
+                                        </svg>
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1454,7 +1554,9 @@ export default function MesaPage() {
               {/* Header */}
               <div className="sticky top-0 z-20 bg-[#0D0D0D] border-b border-gray-800">
                 <div className="flex items-center justify-between px-4 py-3">
-                  <h2 className="text-lg font-semibold">{t("mesa.yourOrder")}</h2>
+                  <h2 className="text-lg font-semibold">
+                    {t("mesa.yourOrder")}
+                  </h2>
                   <span className="text-sm text-gray-400">
                     {cartItemsCount} {t("mesa.review.itemsCount")}
                   </span>
@@ -1466,10 +1568,21 @@ export default function MesaPage() {
                 <div className="mx-4 mt-3 p-4 rounded-xl bg-gray-900 border border-gray-700 flex items-center gap-4">
                   <div className="relative w-14 h-14 flex-shrink-0">
                     <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-                      <circle cx="28" cy="28" r="24" fill="none" stroke="#374151" strokeWidth="4" />
                       <circle
-                        cx="28" cy="28" r="24" fill="none"
-                        stroke="#D4AF37" strokeWidth="4"
+                        cx="28"
+                        cy="28"
+                        r="24"
+                        fill="none"
+                        stroke="#374151"
+                        strokeWidth="4"
+                      />
+                      <circle
+                        cx="28"
+                        cy="28"
+                        r="24"
+                        fill="none"
+                        stroke="#D4AF37"
+                        strokeWidth="4"
                         strokeLinecap="round"
                         strokeDasharray={`${2 * Math.PI * 24}`}
                         strokeDashoffset={`${2 * Math.PI * 24 * (1 - progress)}`}
@@ -1481,8 +1594,12 @@ export default function MesaPage() {
                     </span>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-white">{t("mesa.cooldown.title")}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{t("mesa.cooldown.description")}</p>
+                    <p className="text-sm font-semibold text-white">
+                      {t("mesa.cooldown.title")}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {t("mesa.cooldown.description")}
+                    </p>
                   </div>
                 </div>
               )}
@@ -1502,7 +1619,10 @@ export default function MesaPage() {
                 ) : (
                   <div className="space-y-3">
                     {cart.map((item) => (
-                      <div key={item.productId} className="bg-gray-900 rounded-xl p-4">
+                      <div
+                        key={item.productId}
+                        className="bg-gray-900 rounded-xl p-4"
+                      >
                         <div className="flex gap-3">
                           <div className="relative w-16 h-16 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
                             {item.product.imageUrl ? (
@@ -1522,7 +1642,9 @@ export default function MesaPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <h3 className="font-medium text-sm line-clamp-1">{item.product.name}</h3>
+                                <h3 className="font-medium text-sm line-clamp-1">
+                                  {item.product.name}
+                                </h3>
                                 {item.addedBy && (
                                   <span className="text-[10px] text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded-full">
                                     {item.addedBy}
@@ -1533,32 +1655,60 @@ export default function MesaPage() {
                                 onClick={() => removeFromCart(item.productId)}
                                 className="p-1 text-gray-500 hover:text-red-500 transition-colors flex-shrink-0"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
                                 </svg>
                               </button>
                             </div>
 
                             <div className="flex items-center justify-between mt-1.5">
                               <div>
-                                {orderType === "rodizio" && item.product.isRodizio ? (
-                                  <span className="text-green-500 text-xs">{t("mesa.included")}</span>
+                                {orderType === "rodizio" &&
+                                item.product.isRodizio ? (
+                                  <span className="text-green-500 text-xs">
+                                    {t("mesa.included")}
+                                  </span>
                                 ) : (
                                   <span className="text-[#D4AF37] font-semibold text-sm">
-                                    €{(item.product.price * item.quantity).toFixed(2)}
+                                    €
+                                    {(
+                                      item.product.price * item.quantity
+                                    ).toFixed(2)}
                                   </span>
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
                                 <button
-                                  onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                                  onClick={() =>
+                                    updateQuantity(
+                                      item.productId,
+                                      item.quantity - 1,
+                                    )
+                                  }
                                   className="w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 text-sm"
                                 >
                                   −
                                 </button>
-                                <span className="w-5 text-center font-semibold text-sm">{item.quantity}</span>
+                                <span className="w-5 text-center font-semibold text-sm">
+                                  {item.quantity}
+                                </span>
                                 <button
-                                  onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                                  onClick={() =>
+                                    updateQuantity(
+                                      item.productId,
+                                      item.quantity + 1,
+                                    )
+                                  }
                                   className="w-7 h-7 rounded-full bg-[#D4AF37] text-black flex items-center justify-center hover:bg-[#C4A030] text-sm"
                                 >
                                   +
@@ -1573,19 +1723,36 @@ export default function MesaPage() {
                                   placeholder={t("mesa.notePlaceholder")}
                                   defaultValue={item.notes || ""}
                                   className="w-full bg-gray-800 text-xs px-3 py-1.5 rounded-lg border border-gray-700 focus:border-[#D4AF37] focus:outline-none"
-                                  onBlur={(e) => { updateNotes(item.productId, e.target.value); setEditingNotes(null); }}
-                                  onKeyDown={(e) => { if (e.key === "Enter") { updateNotes(item.productId, e.currentTarget.value); setEditingNotes(null); } }}
+                                  onBlur={(e) => {
+                                    updateNotes(item.productId, e.target.value);
+                                    setEditingNotes(null);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      updateNotes(
+                                        item.productId,
+                                        e.currentTarget.value,
+                                      );
+                                      setEditingNotes(null);
+                                    }
+                                  }}
                                   autoFocus
                                 />
                               ) : (
                                 <button
-                                  onClick={() => setEditingNotes(item.productId)}
+                                  onClick={() =>
+                                    setEditingNotes(item.productId)
+                                  }
                                   className="text-xs text-gray-400 hover:text-white transition-colors"
                                 >
                                   {item.notes ? (
-                                    <span className="flex items-center gap-1">📝 {item.notes}</span>
+                                    <span className="flex items-center gap-1">
+                                      📝 {item.notes}
+                                    </span>
                                   ) : (
-                                    <span className="flex items-center gap-1">+ {t("mesa.addNote")}</span>
+                                    <span className="flex items-center gap-1">
+                                      + {t("mesa.addNote")}
+                                    </span>
                                   )}
                                 </button>
                               )}
@@ -1600,11 +1767,19 @@ export default function MesaPage() {
 
               {/* Cart Footer - Totals + Review Button */}
               {cart.length > 0 && (
-                <div className="fixed bottom-16 left-0 right-0 z-30 bg-[#0D0D0D] border-t border-gray-800 px-4 py-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)" }}>
+                <div
+                  className="fixed bottom-16 left-0 right-0 z-30 bg-[#0D0D0D] border-t border-gray-800 px-4 py-3"
+                  style={{
+                    paddingBottom:
+                      "calc(env(safe-area-inset-bottom) + 0.75rem)",
+                  }}
+                >
                   <div className="space-y-1 mb-3">
                     {orderType === "rodizio" && (
                       <div className="flex justify-between text-xs text-gray-400">
-                        <span>{t("mesa.rodizioFor", { count: numPessoas })}</span>
+                        <span>
+                          {t("mesa.rodizioFor", { count: numPessoas })}
+                        </span>
                         <span>€{(rodizioPrice * numPessoas).toFixed(2)}</span>
                       </div>
                     )}
@@ -1616,7 +1791,9 @@ export default function MesaPage() {
                     )}
                     <div className="flex justify-between font-bold">
                       <span>{t("mesa.total")}</span>
-                      <span className="text-[#D4AF37]">€{finalTotal.toFixed(2)}</span>
+                      <span className="text-[#D4AF37]">
+                        €{finalTotal.toFixed(2)}
+                      </span>
                     </div>
                   </div>
                   <button
@@ -1630,15 +1807,37 @@ export default function MesaPage() {
                   >
                     {isCooldownActive ? (
                       <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
                         </svg>
-                        {t("mesa.cooldown.waitMessage", { time: remainingFormatted })}
+                        {t("mesa.cooldown.waitMessage", {
+                          time: remainingFormatted,
+                        })}
                       </>
                     ) : (
                       <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                          />
                         </svg>
                         {t("mesa.review.reviewAndSend")}
                       </>
@@ -1656,7 +1855,9 @@ export default function MesaPage() {
               <div className="sticky top-0 z-20 bg-[#0D0D0D] border-b border-gray-800">
                 <div className="flex items-center justify-between px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[#D4AF37] font-bold">#{mesaNumero}</span>
+                    <span className="text-[#D4AF37] font-bold">
+                      #{mesaNumero}
+                    </span>
                     <span className="text-xs text-gray-500">•</span>
                     <span className="text-xs text-gray-400">
                       {orderType === "rodizio"
@@ -1694,7 +1895,9 @@ export default function MesaPage() {
                 ) : sessionOrders.length === 0 ? (
                   <div className="text-center py-20">
                     <div className="text-6xl mb-4">🍽️</div>
-                    <p className="text-gray-400 mb-2">{t("mesa.noOrdersYet")}</p>
+                    <p className="text-gray-400 mb-2">
+                      {t("mesa.noOrdersYet")}
+                    </p>
                     <button
                       onClick={() => setActiveTab("menu")}
                       className="text-[#D4AF37] font-semibold hover:underline"
@@ -1718,13 +1921,19 @@ export default function MesaPage() {
                         <div className="space-y-2">
                           {group.orders.map((order) => {
                             const statusConfig = STATUS_ICONS[order.status];
-                            const statusLabel = t(`mesa.status.${order.status}`);
+                            const statusLabel = t(
+                              `mesa.status.${order.status}`,
+                            );
+                            const estimatedTime =
+                              preparationTimes[order.product_id];
 
                             return (
                               <div
                                 key={order.id}
                                 className={`flex items-center justify-between p-4 rounded-xl bg-gray-900/50 ${
-                                  order.status === "delivered" ? "opacity-60" : ""
+                                  order.status === "delivered"
+                                    ? "opacity-60"
+                                    : ""
                                 }`}
                               >
                                 <div className="flex items-center gap-3">
@@ -1743,10 +1952,19 @@ export default function MesaPage() {
                                     )}
                                   </div>
                                 </div>
-                                <div
-                                  className={`text-sm font-medium ${statusConfig.color}`}
-                                >
-                                  {statusLabel}
+                                <div className="text-right">
+                                  <div
+                                    className={`text-sm font-medium ${statusConfig.color}`}
+                                  >
+                                    {statusLabel}
+                                  </div>
+                                  {estimatedTime &&
+                                    order.status !== "delivered" && (
+                                      <p className="text-xs text-gray-400 mt-1 flex items-center gap-1 justify-end">
+                                        <span>⏱️</span>
+                                        <span>~{estimatedTime} min</span>
+                                      </p>
+                                    )}
                                 </div>
                               </div>
                             );
@@ -1769,13 +1987,27 @@ export default function MesaPage() {
                   <div className="w-full max-w-sm mb-8">
                     <div className="flex items-center gap-4 p-5 bg-gray-900/50 rounded-2xl border border-gray-800">
                       <div className="w-14 h-14 bg-[#D4AF37]/20 rounded-full flex items-center justify-center">
-                        <svg className="w-7 h-7 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        <svg
+                          className="w-7 h-7 text-[#D4AF37]"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                          />
                         </svg>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-400">{t("mesa.yourWaiter")}</p>
-                        <p className="text-lg font-semibold text-white">{waiterName}</p>
+                        <p className="text-sm text-gray-400">
+                          {t("mesa.yourWaiter")}
+                        </p>
+                        <p className="text-lg font-semibold text-white">
+                          {waiterName}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1783,18 +2015,28 @@ export default function MesaPage() {
 
                 {/* Status indicator when call is active */}
                 {waiterCallStatus !== "idle" && (
-                  <div className={`w-full max-w-sm mb-6 p-5 rounded-2xl border-2 text-center ${
-                    waiterCallStatus === "pending"
-                      ? "border-yellow-500/30 bg-yellow-500/10"
-                      : "border-green-500/30 bg-green-500/10"
-                  }`}>
-                    <div className={`text-4xl mb-3 ${waiterCallStatus === "pending" ? "animate-pulse" : ""}`}>
+                  <div
+                    className={`w-full max-w-sm mb-6 p-5 rounded-2xl border-2 text-center ${
+                      waiterCallStatus === "pending"
+                        ? "border-yellow-500/30 bg-yellow-500/10"
+                        : "border-green-500/30 bg-green-500/10"
+                    }`}
+                  >
+                    <div
+                      className={`text-4xl mb-3 ${waiterCallStatus === "pending" ? "animate-pulse" : ""}`}
+                    >
                       {waiterCallStatus === "pending" ? "🔔" : "✅"}
                     </div>
-                    <p className={`text-lg font-semibold ${
-                      waiterCallStatus === "pending" ? "text-yellow-500" : "text-green-500"
-                    }`}>
-                      {waiterCallStatus === "pending" ? t("mesa.status.pending") + "..." : "A caminho!"}
+                    <p
+                      className={`text-lg font-semibold ${
+                        waiterCallStatus === "pending"
+                          ? "text-yellow-500"
+                          : "text-green-500"
+                      }`}
+                    >
+                      {waiterCallStatus === "pending"
+                        ? t("mesa.status.pending") + "..."
+                        : "A caminho!"}
                     </p>
                   </div>
                 )}
@@ -1802,7 +2044,9 @@ export default function MesaPage() {
                 {/* Call type buttons */}
                 {waiterCallStatus === "idle" && (
                   <div className="w-full max-w-sm space-y-3">
-                    <p className="text-sm text-gray-400 text-center mb-4">{t("mesa.staffNotified")}</p>
+                    <p className="text-sm text-gray-400 text-center mb-4">
+                      {t("mesa.staffNotified")}
+                    </p>
 
                     <button
                       onClick={() => callWaiter("assistance")}
@@ -1812,8 +2056,12 @@ export default function MesaPage() {
                       <div className="flex items-center gap-4">
                         <span className="text-3xl">🙋</span>
                         <div>
-                          <p className="font-semibold text-lg">{t("mesa.needHelp")}</p>
-                          <p className="text-sm text-gray-400">{t("mesa.generalAssistance")}</p>
+                          <p className="font-semibold text-lg">
+                            {t("mesa.needHelp")}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            {t("mesa.generalAssistance")}
+                          </p>
                         </div>
                       </div>
                     </button>
@@ -1826,8 +2074,12 @@ export default function MesaPage() {
                       <div className="flex items-center gap-4">
                         <span className="text-3xl">📝</span>
                         <div>
-                          <p className="font-semibold text-lg">{t("mesa.orderHelp")}</p>
-                          <p className="text-sm text-gray-400">{t("mesa.menuQuestions")}</p>
+                          <p className="font-semibold text-lg">
+                            {t("mesa.orderHelp")}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            {t("mesa.menuQuestions")}
+                          </p>
                         </div>
                       </div>
                     </button>
@@ -1844,14 +2096,18 @@ export default function MesaPage() {
                 {/* Session total - hero card */}
                 {session && (
                   <div className="bg-gray-900/50 rounded-2xl p-6 mb-6 border border-gray-800">
-                    <p className="text-sm text-gray-400 mb-2">{t("mesa.sessionTotal")}</p>
+                    <p className="text-sm text-gray-400 mb-2">
+                      {t("mesa.sessionTotal")}
+                    </p>
                     <p className="text-4xl font-bold text-[#D4AF37]">
                       €{session.total_amount.toFixed(2)}
                     </p>
                     {orderType === "rodizio" && (
                       <div className="mt-4 pt-4 border-t border-gray-800 space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">{t("mesa.rodizioFor", { count: numPessoas })}</span>
+                          <span className="text-gray-400">
+                            {t("mesa.rodizioFor", { count: numPessoas })}
+                          </span>
                           <span>€{(rodizioPrice * numPessoas).toFixed(2)}</span>
                         </div>
                       </div>
@@ -1863,13 +2119,27 @@ export default function MesaPage() {
                 {waiterName && (
                   <div className="flex items-center gap-3 p-4 bg-gray-900/50 rounded-xl border border-gray-800 mb-6">
                     <div className="w-10 h-10 bg-[#D4AF37]/20 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      <svg
+                        className="w-5 h-5 text-[#D4AF37]"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
                       </svg>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-400">{t("mesa.yourWaiter")}</p>
-                      <p className="text-sm font-semibold text-white">{waiterName}</p>
+                      <p className="text-xs text-gray-400">
+                        {t("mesa.yourWaiter")}
+                      </p>
+                      <p className="text-sm font-semibold text-white">
+                        {waiterName}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -1886,15 +2156,35 @@ export default function MesaPage() {
                 >
                   {billRequested ? (
                     <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                       {t("mesa.success.billRequested")}
                     </>
                   ) : (
                     <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                        />
                       </svg>
                       {t("mesa.requestBill")}
                     </>
@@ -1912,12 +2202,17 @@ export default function MesaPage() {
               restaurantId={restaurantId}
               gamesMode={gamesMode}
               orderItems={orderItemsForRating.filter(
-                (item) => !ratingsStats.userRatedOrderIds.includes(item.orderId)
+                (item) =>
+                  !ratingsStats.userRatedOrderIds.includes(item.orderId),
               )}
               tableLeader={ratingsStats.tableLeader}
               leaderProductName={
                 ratingsStats.tableLeader
-                  ? products.find((p) => String(p.id) === String(ratingsStats.tableLeader!.productId))?.name ?? null
+                  ? (products.find(
+                      (p) =>
+                        String(p.id) ===
+                        String(ratingsStats.tableLeader!.productId),
+                    )?.name ?? null)
                   : null
               }
               userRatingCount={ratingsStats.userRatingCount}
@@ -1929,7 +2224,10 @@ export default function MesaPage() {
           )}
 
           {/* Bottom Tab Bar */}
-          <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#0D0D0D] border-t border-gray-800" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+          <div
+            className="fixed bottom-0 left-0 right-0 z-40 bg-[#0D0D0D] border-t border-gray-800"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+          >
             <div className="flex items-center justify-around h-16">
               <button
                 onClick={() => setActiveTab("menu")}
@@ -1937,10 +2235,22 @@ export default function MesaPage() {
                   activeTab === "menu" ? "text-[#D4AF37]" : "text-gray-500"
                 }`}
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+                  />
                 </svg>
-                <span className="text-[10px] font-medium">{t("mesa.tabs.menu")}</span>
+                <span className="text-[10px] font-medium">
+                  {t("mesa.tabs.menu")}
+                </span>
               </button>
               <button
                 onClick={() => setActiveTab("cart")}
@@ -1949,16 +2259,30 @@ export default function MesaPage() {
                 }`}
               >
                 <div className="relative">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                    />
                   </svg>
                   {cartItemsCount > 0 && (
                     <div className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] rounded-full bg-[#D4AF37] flex items-center justify-center">
-                      <span className="text-[10px] font-bold text-black leading-none">{cartItemsCount}</span>
+                      <span className="text-[10px] font-bold text-black leading-none">
+                        {cartItemsCount}
+                      </span>
                     </div>
                   )}
                 </div>
-                <span className="text-[10px] font-medium">{t("mesa.tabs.cart")}</span>
+                <span className="text-[10px] font-medium">
+                  {t("mesa.tabs.cart")}
+                </span>
               </button>
               <button
                 onClick={() => setActiveTab("pedidos")}
@@ -1966,10 +2290,22 @@ export default function MesaPage() {
                   activeTab === "pedidos" ? "text-[#D4AF37]" : "text-gray-500"
                 }`}
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                  />
                 </svg>
-                <span className="text-[10px] font-medium">{t("mesa.tabs.orders")}</span>
+                <span className="text-[10px] font-medium">
+                  {t("mesa.tabs.orders")}
+                </span>
               </button>
               <button
                 onClick={() => setActiveTab("chamar")}
@@ -1978,16 +2314,32 @@ export default function MesaPage() {
                 }`}
               >
                 <div className="relative">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                    />
                   </svg>
                   {waiterCallStatus !== "idle" && (
-                    <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${
-                      waiterCallStatus === "pending" ? "bg-yellow-500 animate-pulse" : "bg-green-500"
-                    }`} />
+                    <div
+                      className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${
+                        waiterCallStatus === "pending"
+                          ? "bg-yellow-500 animate-pulse"
+                          : "bg-green-500"
+                      }`}
+                    />
                   )}
                 </div>
-                <span className="text-[10px] font-medium">{t("mesa.tabs.callStaff")}</span>
+                <span className="text-[10px] font-medium">
+                  {t("mesa.tabs.callStaff")}
+                </span>
               </button>
               <button
                 onClick={() => setActiveTab("jogos")}
@@ -1995,11 +2347,27 @@ export default function MesaPage() {
                   activeTab === "jogos" ? "text-[#D4AF37]" : "text-gray-500"
                 }`}
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
-                <span className="text-[10px] font-medium">{t("mesa.tabs.games")}</span>
+                <span className="text-[10px] font-medium">
+                  {t("mesa.tabs.games")}
+                </span>
               </button>
               <button
                 onClick={() => setActiveTab("conta")}
@@ -2007,14 +2375,25 @@ export default function MesaPage() {
                   activeTab === "conta" ? "text-[#D4AF37]" : "text-gray-500"
                 }`}
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"
+                  />
                 </svg>
-                <span className="text-[10px] font-medium">{t("mesa.tabs.bill")}</span>
+                <span className="text-[10px] font-medium">
+                  {t("mesa.tabs.bill")}
+                </span>
               </button>
             </div>
           </div>
-
         </div>
       )}
 
@@ -2191,189 +2570,300 @@ export default function MesaPage() {
             </div>
 
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
-              <h2 className="text-lg font-semibold">{t("mesa.review.title")}</h2>
+              <h2 className="text-lg font-semibold">
+                {t("mesa.review.title")}
+              </h2>
               <button
                 onClick={() => closeReview()}
                 className="p-2 -mr-2 text-gray-400 hover:text-white"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
             <>
-                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-                    {/* Anti-waste policy banner */}
-                    <div className="bg-amber-900/30 border border-amber-700/50 rounded-xl p-3">
-                      <p className="text-amber-200 text-xs leading-relaxed">
-                        ⚠️ {t("mesa.review.wastePolicy")}
-                      </p>
-                    </div>
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                {/* Anti-waste policy banner */}
+                <div className="bg-amber-900/30 border border-amber-700/50 rounded-xl p-3">
+                  <p className="text-amber-200 text-xs leading-relaxed">
+                    ⚠️ {t("mesa.review.wastePolicy")}
+                  </p>
+                </div>
 
-                    {/* Duplicate alerts - must be confirmed before submitting */}
-                    {duplicateItems.length > 0 && (
+                {/* Duplicate alerts - must be confirmed before submitting */}
+                {duplicateItems.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-amber-400 uppercase tracking-wide">
+                      {t("mesa.review.duplicatesFound")}
+                    </p>
+                    {duplicateItems.map((item) => {
+                      const existing = duplicateMap.get(item.productId)!;
+                      const isConfirmed = confirmedDuplicates.has(
+                        item.productId,
+                      );
+                      return (
+                        <div
+                          key={`dup-${item.productId}`}
+                          className={`rounded-xl border p-3 transition-all ${isConfirmed ? "border-green-700/50 bg-green-900/20" : "border-amber-600/50 bg-amber-900/20"}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="relative w-10 h-10 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
+                              {item.product.imageUrl ? (
+                                <Image
+                                  src={item.product.imageUrl}
+                                  alt={item.product.name}
+                                  fill
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-sm">
+                                  🍣
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium line-clamp-1">
+                                {item.product.name}
+                              </p>
+                              <p className="text-xs text-amber-300 mt-0.5">
+                                {t("mesa.review.alreadyOrdered", {
+                                  qty: existing.totalQty,
+                                })}{" "}
+                                +{" "}
+                                {t("mesa.review.newQty", {
+                                  qty: item.quantity,
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 mt-2.5">
+                            {isConfirmed ? (
+                              <div className="flex items-center gap-2 w-full">
+                                <span className="text-xs text-green-400 flex items-center gap-1 flex-1">
+                                  <svg
+                                    className="w-3.5 h-3.5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                  {t("mesa.review.confirmed")}
+                                </span>
+                                <button
+                                  onClick={() =>
+                                    undoConfirmDuplicate(item.productId)
+                                  }
+                                  className="text-[10px] text-gray-400 hover:text-white underline"
+                                >
+                                  {t("mesa.review.undo")}
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() =>
+                                    confirmDuplicate(item.productId)
+                                  }
+                                  className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-amber-600/30 text-amber-200 hover:bg-amber-600/50 transition-colors"
+                                >
+                                  {t("mesa.review.keepAll", {
+                                    qty: existing.totalQty + item.quantity,
+                                  })}
+                                </button>
+                                <button
+                                  onClick={() => removeFromCart(item.productId)}
+                                  className="py-1.5 px-3 text-xs font-semibold rounded-lg border border-gray-600 text-gray-300 hover:border-gray-500 transition-colors"
+                                >
+                                  {t("mesa.review.remove")}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Items grouped by person */}
+                {Object.entries(CartService.groupByPerson(cart)).map(
+                  ([person, items]) => (
+                    <div key={person}>
+                      <p className="text-xs text-gray-400 mb-2 font-medium">
+                        {t("mesa.review.groupedBy", { name: person })} (
+                        {items.length})
+                      </p>
                       <div className="space-y-2">
-                        <p className="text-xs font-semibold text-amber-400 uppercase tracking-wide">
-                          {t("mesa.review.duplicatesFound")}
-                        </p>
-                        {duplicateItems.map((item) => {
-                          const existing = duplicateMap.get(item.productId)!;
-                          const isConfirmed = confirmedDuplicates.has(item.productId);
+                        {items.map((item) => {
+                          const isDuplicate = duplicateMap.has(item.productId);
                           return (
-                            <div key={`dup-${item.productId}`} className={`rounded-xl border p-3 transition-all ${isConfirmed ? "border-green-700/50 bg-green-900/20" : "border-amber-600/50 bg-amber-900/20"}`}>
-                              <div className="flex items-center gap-3">
-                                <div className="relative w-10 h-10 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
-                                  {item.product.imageUrl ? (
-                                    <Image src={item.product.imageUrl} alt={item.product.name} fill className="object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-sm">🍣</div>
+                            <div
+                              key={item.productId}
+                              className={`flex items-center gap-3 rounded-lg p-2.5 ${isDuplicate ? "bg-amber-900/10 border border-amber-800/30" : "bg-gray-900/50"}`}
+                            >
+                              <div className="relative w-10 h-10 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
+                                {item.product.imageUrl ? (
+                                  <Image
+                                    src={item.product.imageUrl}
+                                    alt={item.product.name}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-sm">
+                                    🍣
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium line-clamp-1">
+                                    {item.product.name}
+                                  </span>
+                                  {isDuplicate && (
+                                    <span className="text-[10px] bg-amber-600/30 text-amber-300 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                      {t("mesa.review.duplicateWarning")}
+                                    </span>
                                   )}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium line-clamp-1">{item.product.name}</p>
-                                  <p className="text-xs text-amber-300 mt-0.5">
-                                    {t("mesa.review.alreadyOrdered", { qty: existing.totalQty })} + {t("mesa.review.newQty", { qty: item.quantity })}
-                                  </p>
-                                </div>
+                                <span className="text-xs text-gray-400">
+                                  x{item.quantity}
+                                </span>
                               </div>
-                              <div className="flex items-center gap-2 mt-2.5">
-                                {isConfirmed ? (
-                                  <div className="flex items-center gap-2 w-full">
-                                    <span className="text-xs text-green-400 flex items-center gap-1 flex-1">
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                      {t("mesa.review.confirmed")}
-                                    </span>
-                                    <button
-                                      onClick={() => undoConfirmDuplicate(item.productId)}
-                                      className="text-[10px] text-gray-400 hover:text-white underline"
-                                    >
-                                      {t("mesa.review.undo")}
-                                    </button>
-                                  </div>
+                              <div className="text-sm text-right flex-shrink-0">
+                                {orderType === "rodizio" &&
+                                item.product.isRodizio ? (
+                                  <span className="text-green-500 text-xs">
+                                    {t("mesa.included")}
+                                  </span>
                                 ) : (
-                                  <>
-                                    <button
-                                      onClick={() => confirmDuplicate(item.productId)}
-                                      className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-amber-600/30 text-amber-200 hover:bg-amber-600/50 transition-colors"
-                                    >
-                                      {t("mesa.review.keepAll", { qty: existing.totalQty + item.quantity })}
-                                    </button>
-                                    <button
-                                      onClick={() => removeFromCart(item.productId)}
-                                      className="py-1.5 px-3 text-xs font-semibold rounded-lg border border-gray-600 text-gray-300 hover:border-gray-500 transition-colors"
-                                    >
-                                      {t("mesa.review.remove")}
-                                    </button>
-                                  </>
+                                  <span className="text-[#D4AF37] font-medium">
+                                    €
+                                    {(
+                                      item.product.price * item.quantity
+                                    ).toFixed(2)}
+                                  </span>
                                 )}
                               </div>
                             </div>
                           );
                         })}
                       </div>
-                    )}
-
-                    {/* Items grouped by person */}
-                    {Object.entries(CartService.groupByPerson(cart)).map(([person, items]) => (
-                      <div key={person}>
-                        <p className="text-xs text-gray-400 mb-2 font-medium">
-                          {t("mesa.review.groupedBy", { name: person })} ({items.length})
-                        </p>
-                        <div className="space-y-2">
-                          {items.map((item) => {
-                            const isDuplicate = duplicateMap.has(item.productId);
-                            return (
-                              <div key={item.productId} className={`flex items-center gap-3 rounded-lg p-2.5 ${isDuplicate ? "bg-amber-900/10 border border-amber-800/30" : "bg-gray-900/50"}`}>
-                                <div className="relative w-10 h-10 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
-                                  {item.product.imageUrl ? (
-                                    <Image src={item.product.imageUrl} alt={item.product.name} fill className="object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-sm">🍣</div>
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium line-clamp-1">{item.product.name}</span>
-                                    {isDuplicate && (
-                                      <span className="text-[10px] bg-amber-600/30 text-amber-300 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                                        {t("mesa.review.duplicateWarning")}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className="text-xs text-gray-400">x{item.quantity}</span>
-                                </div>
-                                <div className="text-sm text-right flex-shrink-0">
-                                  {orderType === "rodizio" && item.product.isRodizio ? (
-                                    <span className="text-green-500 text-xs">{t("mesa.included")}</span>
-                                  ) : (
-                                    <span className="text-[#D4AF37] font-medium">€{(item.product.price * item.quantity).toFixed(2)}</span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Totals */}
-                    <div className="border-t border-gray-800 pt-3 space-y-1">
-                      {orderType === "rodizio" && (
-                        <div className="flex justify-between text-xs text-gray-400">
-                          <span>{t("mesa.rodizioFor", { count: numPessoas })}</span>
-                          <span>€{(rodizioPrice * numPessoas).toFixed(2)}</span>
-                        </div>
-                      )}
-                      {cartTotal > 0 && orderType === "rodizio" && (
-                        <div className="flex justify-between text-xs text-gray-400">
-                          <span>{t("mesa.extras")}</span>
-                          <span>€{cartTotal.toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between font-bold text-lg pt-1">
-                        <span>{t("mesa.total")}</span>
-                        <span className="text-[#D4AF37]">€{finalTotal.toFixed(2)}</span>
-                      </div>
                     </div>
-                  </div>
+                  ),
+                )}
 
-                  {/* Footer Buttons */}
-                  <div className="border-t border-gray-800 px-5 py-4 space-y-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}>
-                    {hasUnconfirmedDuplicates && (
-                      <p className="text-xs text-amber-400 text-center">
-                        {t("mesa.review.confirmDuplicatesFirst")}
-                      </p>
-                    )}
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => closeReview()}
-                        className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
-                      >
-                        {t("mesa.review.cancel")}
-                      </button>
-                      <button
-                        onClick={() => { closeReview(); submitOrder(); }}
-                        disabled={isSubmittingOrder || hasUnconfirmedDuplicates || isCooldownActive}
-                        className="flex-1 py-3 rounded-xl bg-[#D4AF37] text-black font-bold hover:bg-[#C4A030] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {isSubmittingOrder ? (
-                          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                        ) : (
-                          <>
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                            </svg>
-                            {t("mesa.review.sendToKitchen")}
-                          </>
-                        )}
-                      </button>
+                {/* Totals */}
+                <div className="border-t border-gray-800 pt-3 space-y-1">
+                  {orderType === "rodizio" && (
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>{t("mesa.rodizioFor", { count: numPessoas })}</span>
+                      <span>€{(rodizioPrice * numPessoas).toFixed(2)}</span>
                     </div>
+                  )}
+                  {cartTotal > 0 && orderType === "rodizio" && (
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>{t("mesa.extras")}</span>
+                      <span>€{cartTotal.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-lg pt-1">
+                    <span>{t("mesa.total")}</span>
+                    <span className="text-[#D4AF37]">
+                      €{finalTotal.toFixed(2)}
+                    </span>
                   </div>
-                </>
+                </div>
+              </div>
+
+              {/* Footer Buttons */}
+              <div
+                className="border-t border-gray-800 px-5 py-4 space-y-3"
+                style={{
+                  paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)",
+                }}
+              >
+                {hasUnconfirmedDuplicates && (
+                  <p className="text-xs text-amber-400 text-center">
+                    {t("mesa.review.confirmDuplicatesFirst")}
+                  </p>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => closeReview()}
+                    className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
+                  >
+                    {t("mesa.review.cancel")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      closeReview();
+                      submitOrder();
+                    }}
+                    disabled={
+                      isSubmittingOrder ||
+                      hasUnconfirmedDuplicates ||
+                      isCooldownActive
+                    }
+                    className="flex-1 py-3 rounded-xl bg-[#D4AF37] text-black font-bold hover:bg-[#C4A030] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isSubmittingOrder ? (
+                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                          />
+                        </svg>
+                        {t("mesa.review.sendToKitchen")}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </>
           </div>
         </div>
       )}
@@ -2668,8 +3158,9 @@ export default function MesaPage() {
                   className="w-full py-4 rounded-xl bg-[#D4AF37] text-black font-bold text-lg hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {currentCustomer &&
-                  customerForm.display_name.trim() === currentCustomer.display_name
-                    ? (t("mesa.saveProfile") || "Guardar perfil")
+                  customerForm.display_name.trim() ===
+                    currentCustomer.display_name
+                    ? t("mesa.saveProfile") || "Guardar perfil"
                     : sessionCustomers.length === 0
                       ? t("mesa.startOrdering")
                       : t("mesa.addPerson")}

@@ -1,6 +1,4 @@
 -- Script para atribuir empregados às mesas
--- Execute isto no Supabase Dashboard SQL Editor:
--- https://supabase.com/dashboard/project/xrmzhvpkvkgoryvfozfy/sql
 
 -- PASSO 1: Ver os IDs dos empregados disponíveis
 SELECT
