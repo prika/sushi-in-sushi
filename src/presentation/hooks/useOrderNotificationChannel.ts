@@ -25,11 +25,15 @@ export interface UseOrderNotificationChannelParams {
   fetchSessionOrders: () => void;
   setOrderNotification: (value: string | null) => void;
   channelRef: MutableRefObject<RealtimeChannelLike | null>;
+  deviceId: string; // Current device ID to ignore own broadcasts
 }
 
 /**
  * Subscribes to Supabase broadcast "order-submitted" for the session,
  * shows a notification and clears it after 5s. Cleans up timer and channel on unmount.
+ *
+ * Ignores broadcasts from the same device to prevent duplicate orders from appearing
+ * (real-time INSERT events already handle adding orders for the submitting device).
  */
 export function useOrderNotificationChannel({
   session,
@@ -39,6 +43,7 @@ export function useOrderNotificationChannel({
   fetchSessionOrders,
   setOrderNotification,
   channelRef,
+  deviceId,
 }: UseOrderNotificationChannelParams): void {
   useEffect(() => {
     if (!session || step !== "active") return;
@@ -48,7 +53,14 @@ export function useOrderNotificationChannel({
 
     channel
       .on("broadcast", { event: "order-submitted" }, (payload) => {
-        const msg = payload.payload as { customerName: string; itemCount: number };
+        const msg = payload.payload as { customerName: string; itemCount: number; deviceId?: string };
+
+        // Ignore broadcasts from this device (prevent duplicates)
+        // Real-time INSERT events already handle adding orders for the submitting device
+        if (msg.deviceId === deviceId) {
+          return;
+        }
+
         setOrderNotification(
           t("mesa.review.reviewNotification", {
             name: msg.customerName,
@@ -67,5 +79,5 @@ export function useOrderNotificationChannel({
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [session, step, supabase, t, fetchSessionOrders, setOrderNotification, channelRef]);
+  }, [session, step, supabase, t, fetchSessionOrders, setOrderNotification, channelRef, deviceId]);
 }

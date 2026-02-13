@@ -184,6 +184,17 @@ export default function MesaPage() {
     typeof supabase.channel
   > | null>(null);
 
+  // Device ID for broadcast deduplication (prevent processing own broadcasts)
+  const deviceIdRef = useRef<string>(
+    typeof window !== 'undefined'
+      ? localStorage.getItem('mesa-device-id') || (() => {
+          const id = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          localStorage.setItem('mesa-device-id', id);
+          return id;
+        })()
+      : 'server'
+  );
+
   // Ratings (swipe game) state
   const [ratingsStats, setRatingsStats] = useState<{
     tableLeader: TableLeaderInfo | null;
@@ -400,18 +411,20 @@ export default function MesaPage() {
   }, [step, session?.id, fetchRatingsStats]);
 
   // Real-time subscription for order updates
+  // Use session?.id in dependencies to prevent channel recreation when session properties change
+  const sessionId = session?.id;
   useEffect(() => {
-    if (!session || step !== "active") return;
+    if (!sessionId || step !== "active") return;
 
     const channel = supabase
-      .channel(`orders-${session.id}`)
+      .channel(`orders-${sessionId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "orders",
-          filter: `session_id=eq.${session.id}`,
+          filter: `session_id=eq.${sessionId}`,
         },
         async (payload) => {
           if (payload.eventType === "UPDATE") {
@@ -432,10 +445,15 @@ export default function MesaPage() {
               .single();
 
             if (data) {
-              setSessionOrders((prev) => [
-                data as unknown as OrderWithProduct,
-                ...prev,
-              ]);
+              setSessionOrders((prev) => {
+                // Prevent duplicates: check if order already exists
+                const exists = prev.some((order) => order.id === data.id);
+                if (exists) {
+                  console.log(`[DEBUG] Order ${data.id} already exists, skipping INSERT event`);
+                  return prev;
+                }
+                return [data as unknown as OrderWithProduct, ...prev];
+              });
             }
           } else if (payload.eventType === "DELETE") {
             setSessionOrders((prev) =>
@@ -449,7 +467,7 @@ export default function MesaPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session, step, supabase]);
+  }, [sessionId, step, supabase]);
 
   // Broadcast channel for cross-device order notifications (timer cleanup on unmount in hook)
   useOrderNotificationChannel({
@@ -461,6 +479,7 @@ export default function MesaPage() {
     setOrderNotification,
     channelRef:
       broadcastChannelRef as MutableRefObject<RealtimeChannelLike | null>,
+    deviceId: deviceIdRef.current,
   });
 
   // Group orders by timestamp (rounded to minute)
@@ -808,7 +827,8 @@ export default function MesaPage() {
 
   // Submit order
   const submitOrder = useCallback(async () => {
-    if (!session || cart.length === 0) return;
+    // Prevent double-clicks and double submissions
+    if (isSubmittingOrder || !session || cart.length === 0) return;
 
     setIsSubmittingOrder(true);
     setError(null);
@@ -845,6 +865,7 @@ export default function MesaPage() {
           payload: {
             customerName: customerName || "?",
             itemCount: cartItemsCount,
+            deviceId: deviceIdRef.current, // Identify sender
           },
         });
       }
@@ -867,6 +888,7 @@ export default function MesaPage() {
       setIsSubmittingOrder(false);
     }
   }, [
+    isSubmittingOrder,
     session,
     cart,
     cartTotal,
