@@ -3,7 +3,12 @@
  * Define o contrato para acesso a dados de produtos
  */
 
-import { Product, CreateProductData, UpdateProductData, ProductWithCategory } from '../entities/Product';
+import {
+  Product,
+  CreateProductData,
+  UpdateProductData,
+  ProductWithCategory,
+} from '../entities/Product';
 
 /**
  * Filtros para busca de produtos
@@ -68,4 +73,14 @@ export interface IProductRepository {
    * Remove um produto
    */
   delete(id: string): Promise<void>;
+
+  /**
+   * Busca um produto pelo identificador do Vendus
+   */
+  findByVendusProductId(vendusProductId: string): Promise<Product | null>;
+
+  /**
+   * Marca uma lista de produtos como sincronizados com o Vendus
+   */
+  markProductsSynced(products: Product[], syncedAt: Date): Promise<void>;
 }

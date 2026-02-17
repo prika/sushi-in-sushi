@@ -13,6 +13,7 @@ import {
   CreateProductData,
   UpdateProductData,
   ProductWithCategory,
+  VendusSyncStatus,
 } from '@/domain/entities/Product';
 
 /**
@@ -29,6 +30,15 @@ interface DatabaseProduct {
   is_available: boolean;
   is_rodizio: boolean;
   sort_order: number;
+  vendus_product_id: string | null;
+  vendus_sku: string | null;
+  vendus_sync_status: VendusSyncStatus | null;
+  vendus_last_synced_at: string | null;
+  is_visible_online: boolean | null;
+  online_name: string | null;
+  online_description: string | null;
+  online_image_url: string | null;
+  online_sort_order: number | null;
   created_at: string;
   updated_at?: string; // optional: products table may not have this column
 }
@@ -146,6 +156,43 @@ export class SupabaseProductRepository implements IProductRepository {
     return this.findAll({ searchQuery: query, onlyAvailable: true });
   }
 
+  async findByVendusProductId(vendusProductId: string): Promise<Product | null> {
+    const { data, error } = await this.supabase
+      .from('products')
+      .select('*')
+      .eq('vendus_product_id', vendusProductId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return this.toDomain(data as DatabaseProduct);
+  }
+
+  async markProductsSynced(products: Product[], syncedAt: Date): Promise<void> {
+    if (products.length === 0) {
+      return;
+    }
+
+    const ids = products.map((p) => p.id);
+    const { error } = await this.supabase
+      .from('products')
+      .update({
+        vendus_sync_status: 'in_sync' as VendusSyncStatus,
+        vendus_last_synced_at: syncedAt.toISOString(),
+      })
+      .in('id', ids);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
   async create(data: CreateProductData): Promise<Product> {
     const imageUrls = data.imageUrls ?? (data.imageUrl ? [data.imageUrl] : []);
     const firstImage = imageUrls[0] ?? data.imageUrl ?? null;
@@ -161,6 +208,17 @@ export class SupabaseProductRepository implements IProductRepository {
         is_available: data.isAvailable ?? true,
         is_rodizio: data.isRodizio ?? false,
         sort_order: data.sortOrder ?? 0,
+        vendus_product_id: data.vendusProductId ?? null,
+        vendus_sku: data.vendusSku ?? null,
+        vendus_sync_status: data.vendusSyncStatus ?? 'never_synced',
+        vendus_last_synced_at: data.vendusLastSyncedAt
+          ? data.vendusLastSyncedAt.toISOString()
+          : null,
+        is_visible_online: data.isVisibleOnline ?? false,
+        online_name: data.onlineName ?? null,
+        online_description: data.onlineDescription ?? null,
+        online_image_url: data.onlineImageUrl ?? null,
+        online_sort_order: data.onlineSortOrder ?? null,
       })
       .select()
       .single();
@@ -185,6 +243,34 @@ export class SupabaseProductRepository implements IProductRepository {
     if (data.isAvailable !== undefined) updateData.is_available = data.isAvailable;
     if (data.isRodizio !== undefined) updateData.is_rodizio = data.isRodizio;
     if (data.sortOrder !== undefined) updateData.sort_order = data.sortOrder;
+    if (data.vendusProductId !== undefined) {
+      updateData.vendus_product_id = data.vendusProductId;
+    }
+    if (data.vendusSku !== undefined) {
+      updateData.vendus_sku = data.vendusSku;
+    }
+    if (data.vendusSyncStatus !== undefined) {
+      updateData.vendus_sync_status = data.vendusSyncStatus;
+    }
+    if (data.vendusLastSyncedAt !== undefined) {
+      updateData.vendus_last_synced_at =
+        data.vendusLastSyncedAt !== null ? data.vendusLastSyncedAt.toISOString() : null;
+    }
+    if (data.isVisibleOnline !== undefined) {
+      updateData.is_visible_online = data.isVisibleOnline;
+    }
+    if (data.onlineName !== undefined) {
+      updateData.online_name = data.onlineName;
+    }
+    if (data.onlineDescription !== undefined) {
+      updateData.online_description = data.onlineDescription;
+    }
+    if (data.onlineImageUrl !== undefined) {
+      updateData.online_image_url = data.onlineImageUrl;
+    }
+    if (data.onlineSortOrder !== undefined) {
+      updateData.online_sort_order = data.onlineSortOrder;
+    }
 
     const { data: product, error } = await this.supabase
       .from('products')
@@ -229,6 +315,17 @@ export class SupabaseProductRepository implements IProductRepository {
       isAvailable: data.is_available,
       isRodizio: data.is_rodizio,
       sortOrder: data.sort_order,
+      vendusProductId: data.vendus_product_id ?? null,
+      vendusSku: data.vendus_sku ?? null,
+      vendusSyncStatus: data.vendus_sync_status ?? 'never_synced',
+      vendusLastSyncedAt: data.vendus_last_synced_at
+        ? new Date(data.vendus_last_synced_at)
+        : null,
+      isVisibleOnline: data.is_visible_online ?? false,
+      onlineName: data.online_name ?? null,
+      onlineDescription: data.online_description ?? null,
+      onlineImageUrl: data.online_image_url ?? null,
+      onlineSortOrder: data.online_sort_order ?? null,
       createdAt: new Date(data.created_at),
       updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(data.created_at),
     };

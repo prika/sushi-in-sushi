@@ -53,7 +53,8 @@ type TabId =
   | "weekly-closures"
   | "export"
   | "tables"
-  | "restaurants";
+  | "restaurants"
+  | "integrations";
 
 // =============================================
 // NOTIFICATIONS TAB COMPONENT
@@ -3117,6 +3118,308 @@ function RestaurantManagementTab() {
 }
 
 // =============================================
+// VENDUS INTEGRATIONS TAB COMPONENT
+// =============================================
+
+function VendusIntegrationsTab() {
+  const [syncingProducts, setSyncingProducts] = useState(false);
+  const [syncResult, setSyncResult] = useState<{
+    type: "success" | "error";
+    message: string;
+    summary?: { created: number; updated: number; skipped: number };
+  } | null>(null);
+
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(true);
+  const [pushingOrder, setPushingOrder] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  const fetchSessions = async () => {
+    setIsLoadingSessions(true);
+    try {
+      const supabase = createClient();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { data, error } = await supabase
+        .from("sessions")
+        .select(`
+          *,
+          tables (number, name),
+          orders (*, products(name, vendus_product_id))
+        `)
+        .gte("created_at", today.toISOString())
+        .in("status", ["pending_payment", "closed"])
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setSessions(data);
+      }
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  };
+
+  const handleSyncProducts = async () => {
+    setSyncingProducts(true);
+    setSyncResult(null);
+
+    try {
+      const response = await fetch("/api/integrations/vendus/sync-products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun: false }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSyncResult({
+          type: "success",
+          message: `Sincronização concluída com sucesso!`,
+          summary: data.summary,
+        });
+      } else {
+        setSyncResult({
+          type: "error",
+          message: data.error || "Erro ao sincronizar produtos",
+        });
+      }
+    } catch (error) {
+      setSyncResult({
+        type: "error",
+        message: "Erro ao comunicar com o servidor",
+      });
+    } finally {
+      setSyncingProducts(false);
+    }
+  };
+
+  const handlePushOrder = async (sessionId: string) => {
+    setPushingOrder(sessionId);
+
+    try {
+      const response = await fetch("/api/integrations/vendus/push-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(
+          `Fatura emitida no Vendus com sucesso!\nNúmero: ${data.documentNumber}`
+        );
+        await fetchSessions();
+      } else {
+        alert(`Erro ao emitir fatura: ${data.error || "Erro desconhecido"}`);
+      }
+    } catch (error) {
+      alert("Erro ao comunicar com o servidor");
+    } finally {
+      setPushingOrder(null);
+    }
+  };
+
+  const calculateSessionTotal = (session: any) => {
+    if (!session.orders) return 0;
+    return session.orders
+      .filter((o: any) => o.status !== "cancelled")
+      .reduce(
+        (sum: number, order: any) =>
+          sum + order.quantity * (order.unit_price || 0),
+        0
+      );
+  };
+
+  const hasVendusMapping = (session: any) => {
+    if (!session.orders || session.orders.length === 0) return false;
+    return session.orders.every(
+      (o: any) => o.products?.vendus_product_id !== null
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Product Sync Section */}
+      <Card variant="light">
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Sincronização de Produtos
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Importa produtos do Vendus para o sistema. Produtos novos serão
+              criados e produtos existentes serão atualizados com preços e
+              disponibilidade.
+            </p>
+          </div>
+
+          {syncResult && (
+            <div
+              className={`p-4 rounded-lg ${
+                syncResult.type === "success"
+                  ? "bg-green-50 border border-green-200 text-green-800"
+                  : "bg-red-50 border border-red-200 text-red-800"
+              }`}
+            >
+              <div className="font-medium">{syncResult.message}</div>
+              {syncResult.summary && (
+                <div className="mt-2 text-sm">
+                  <div>Criados: {syncResult.summary.created}</div>
+                  <div>Atualizados: {syncResult.summary.updated}</div>
+                  <div>Ignorados: {syncResult.summary.skipped}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={handleSyncProducts}
+            disabled={syncingProducts}
+            className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {syncingProducts ? (
+              <>
+                <div className="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full" />
+                Sincronizando...
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                Sincronizar Produtos com Vendus
+              </>
+            )}
+          </button>
+        </div>
+      </Card>
+
+      {/* Sessions Section */}
+      <Card variant="light">
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Emitir Faturas no Vendus
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Envia contas de sessões fechadas ou com conta pedida para o
+              Vendus. Certifique-se de que todos os produtos têm mapeamento
+              Vendus antes de emitir.
+            </p>
+          </div>
+
+          {isLoadingSessions ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D4AF37]" />
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              Nenhuma sessão encontrada para emitir fatura
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sessions.map((session) => {
+                const total = calculateSessionTotal(session);
+                const canPush = hasVendusMapping(session);
+                const isPushing = pushingOrder === session.id;
+
+                return (
+                  <div
+                    key={session.id}
+                    className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">
+                          Mesa {session.tables?.number || "N/A"}
+                          {session.tables?.name &&
+                            ` - ${session.tables.name}`}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          <div>
+                            Status:{" "}
+                            <span className="font-medium">
+                              {session.status === "pending_payment"
+                                ? "Conta Pedida"
+                                : "Fechada"}
+                            </span>
+                          </div>
+                          <div>
+                            Total:{" "}
+                            <span className="font-medium">
+                              €{total.toFixed(2)}
+                            </span>
+                          </div>
+                          <div>
+                            Pedidos: {session.orders?.length || 0}
+                          </div>
+                          {!canPush && (
+                            <div className="text-orange-600 mt-1">
+                              ⚠️ Alguns produtos não têm mapeamento Vendus
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handlePushOrder(session.id)}
+                        disabled={!canPush || isPushing}
+                        className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {isPushing ? (
+                          <>
+                            <div className="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full" />
+                            A emitir...
+                          </>
+                        ) : (
+                          <>
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                            Emitir Fatura
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// =============================================
 // MAIN SETTINGS PAGE
 // =============================================
 
@@ -3129,6 +3432,7 @@ export default function SettingsPage() {
     { id: "export", label: "Exportar" },
     { id: "tables", label: "Gestao de Mesas" },
     { id: "restaurants", label: "Gestao de Restaurantes" },
+    { id: "integrations", label: "Integracoes" },
   ];
 
   return (
@@ -3168,6 +3472,7 @@ export default function SettingsPage() {
         {activeTab === "export" && <ExportTab />}
         {activeTab === "tables" && <TableManagementTab />}
         {activeTab === "restaurants" && <RestaurantManagementTab />}
+        {activeTab === "integrations" && <VendusIntegrationsTab />}
       </div>
     </div>
   );
