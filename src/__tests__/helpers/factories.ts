@@ -172,6 +172,24 @@ export function createTestClosure(overrides: Record<string, unknown> = {}) {
 }
 
 // ============================================
+// STAFF FACTORY
+// ============================================
+export function createTestStaff(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'staff-1',
+    email: 'staff@test.com',
+    name: 'João Silva',
+    role: 'admin',
+    location: 'circunvalacao',
+    auth_user_id: 'auth-user-1',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+// ============================================
 // HELPER FUNCTIONS
 // ============================================
 

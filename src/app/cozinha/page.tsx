@@ -77,7 +77,7 @@ export default function CozinhaPage() {
   }, [locations]);
 
   const [selectedLocation, setSelectedLocation] = useState("all");
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [headerFlash, setHeaderFlash] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; role: string; location: string | null } | null>(null);
@@ -180,6 +180,7 @@ export default function CozinhaPage() {
 
   // Update clock every second
   useEffect(() => {
+    setCurrentTime(new Date()); // Set initial time on client
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -429,12 +430,12 @@ export default function CozinhaPage() {
           </button>
 
           {/* Clock */}
-          <div className="text-2xl font-mono font-bold text-[#D4AF37]" suppressHydrationWarning>
-            {currentTime.toLocaleTimeString("pt-PT", {
+          <div className="text-2xl font-mono font-bold text-[#D4AF37]">
+            {currentTime ? currentTime.toLocaleTimeString("pt-PT", {
               hour: "2-digit",
               minute: "2-digit",
               second: "2-digit",
-            })}
+            }) : "--:--:--"}
           </div>
 
           {/* Logout */}

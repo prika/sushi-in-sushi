@@ -409,10 +409,13 @@ describe('ReservationForm', () => {
             json: () => Promise.resolve({ isClosed: false }),
           });
         }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ id: 'test-id' }),
-        });
+        if (url === '/api/reservations') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ id: 'test-id' }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
       });
 
       render(<ReservationForm />);

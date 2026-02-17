@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SessionTimeoutWarning } from "@/components/auth/SessionTimeoutWarning";
@@ -99,6 +99,16 @@ export default function AdminLayout({
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [currentDate, setCurrentDate] = useState<string | null>(null);
+
+  // Set current date on client side only
+  useEffect(() => {
+    setCurrentDate(new Date().toLocaleDateString("pt-PT", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }));
+  }, []);
 
   // Get current page title
   const currentPage = navigation.find((item) => item.href === pathname)?.name || "Dashboard";
@@ -243,13 +253,9 @@ export default function AdminLayout({
             </div>
 
             <div className="flex items-center gap-4">
-              {/* Current time */}
+              {/* Current date */}
               <div className="text-sm text-gray-500">
-                {new Date().toLocaleDateString("pt-PT", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })}
+                {currentDate || "..."}
               </div>
             </div>
           </div>
