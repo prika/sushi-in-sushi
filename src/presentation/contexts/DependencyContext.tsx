@@ -62,6 +62,7 @@ import { AutoAssignWaiterUseCase } from '@/application/use-cases/sessions/AutoAs
 import { CloseSessionUseCase } from '@/application/use-cases/sessions/CloseSessionUseCase';
 import { RequestBillUseCase } from '@/application/use-cases/sessions/RequestBillUseCase';
 import { GetActiveSessionsUseCase } from '@/application/use-cases/sessions/GetActiveSessionsUseCase';
+import { UpdateSessionOrderingModeUseCase } from '@/application/use-cases/sessions/UpdateSessionOrderingModeUseCase';
 
 // Use Cases - Staff
 import {
@@ -142,6 +143,7 @@ export interface Dependencies {
   closeSession: CloseSessionUseCase;
   requestBill: RequestBillUseCase;
   getActiveSessions: GetActiveSessionsUseCase;
+  updateSessionOrderingMode: UpdateSessionOrderingModeUseCase;
 
   // Use Cases - Staff
   getAllStaff: GetAllStaffUseCase;
@@ -424,6 +426,10 @@ export function DependencyProvider({
       customDependencies?.activityLogger ||
       new ApiActivityLogger();
 
+    const updateSessionOrderingMode =
+      customDependencies?.updateSessionOrderingMode ||
+      new UpdateSessionOrderingModeUseCase(sessionRepository, activityLogger);
+
     return {
       // Repositórios
       orderRepository,
@@ -449,6 +455,7 @@ export function DependencyProvider({
       closeSession,
       requestBill,
       getActiveSessions,
+      updateSessionOrderingMode,
 
       // Use Cases - Staff
       getAllStaff,

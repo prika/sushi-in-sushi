@@ -6,12 +6,14 @@ import { ISessionRepository } from '@/domain/repositories/ISessionRepository';
 import { ITableRepository } from '@/domain/repositories/ITableRepository';
 import { Session, CreateSessionData } from '@/domain/entities/Session';
 import { SessionService } from '@/domain/services/SessionService';
+import { OrderingMode } from '@/domain/value-objects/OrderingMode';
 import { AutoAssignWaiterUseCase } from './AutoAssignWaiterUseCase';
 
 export interface StartSessionInput {
   tableId: string;
   isRodizio: boolean;
   numPeople: number;
+  orderingMode?: OrderingMode;
 }
 
 export interface StartSessionResult {
@@ -70,6 +72,7 @@ export class StartSessionUseCase {
         tableId: input.tableId,
         isRodizio: input.isRodizio,
         numPeople: input.numPeople,
+        orderingMode: input.orderingMode, // Defaults to 'client' in repository if not provided
       };
 
       const session = await this.sessionRepository.create(sessionData);

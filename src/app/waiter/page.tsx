@@ -53,6 +53,8 @@ export default function WaiterDashboard() {
     })[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [assigningTableId, setAssigningTableId] = useState<string | null>(null);
+  const [unassignedTables, setUnassignedTables] = useState<Table[]>([]);
 
   // Use memoized supabase client to prevent real-time subscription issues
   const supabase = useMemo(() => createClient(), []);
@@ -77,22 +79,29 @@ export default function WaiterDashboard() {
       let tableList: Table[] = [];
       let sessionIds: string[] = [];
 
-      // For waiters, fetch only their assigned tables
+      // For waiters, fetch only their assigned tables from their location
       // For admins, fetch all tables
       if (user.role === "waiter") {
-        const { data: assignments } = await supabase
-          .from("waiter_tables")
-          .select(
-            `
-            table:tables(*)
-          `,
-          )
-          .eq("staff_id", user.id);
+        // Waiters can only see tables from their assigned location
+        if (!user.location) {
+          console.warn("Waiter has no location assigned");
+          tableList = [];
+        } else {
+          const { data: assignments } = await supabase
+            .from("waiter_tables")
+            .select(
+              `
+              table:tables!inner(*)
+            `,
+            )
+            .eq("staff_id", user.id)
+            .eq("table.location", user.location); // Filter by waiter's location
 
-        if (assignments) {
-          tableList = assignments
-            .filter((a) => a.table)
-            .map((a) => a.table as Table);
+          if (assignments) {
+            tableList = assignments
+              .filter((a) => a.table)
+              .map((a) => a.table as Table);
+          }
         }
       } else {
         // Admin sees all tables
@@ -115,12 +124,12 @@ export default function WaiterDashboard() {
 
       const tableIds = tableList.map((t) => t.id);
 
-      // Fetch active sessions for these tables
+      // Fetch active sessions for these tables (active or pending_payment)
       const { data: sessions } = await supabase
         .from("sessions")
         .select("*")
         .in("table_id", tableIds)
-        .eq("status", "active");
+        .in("status", ["active", "pending_payment"]);
 
       // Get session IDs for orders fetch
       sessionIds = (sessions || []).map((s) => s.id);
@@ -200,6 +209,35 @@ export default function WaiterDashboard() {
         }
       } else {
         setOrders([]);
+      }
+
+      // Fetch unassigned tables (for waiters only - tables without assignment in their location)
+      if (user.role === "waiter" && user.location) {
+        const { data: allTablesData } = await supabase
+          .from("tables")
+          .select("*")
+          .eq("location", user.location)
+          .eq("is_active", true)
+          .order("number");
+
+        if (allTablesData) {
+          // Fetch ALL table assignments (from any waiter) in this location
+          const { data: allAssignments } = await supabase
+            .from("waiter_tables")
+            .select("table_id, table:tables!inner(location)")
+            .eq("table.location", user.location);
+
+          // Create set of ALL assigned table IDs (not just current waiter's)
+          const allAssignedTableIds = new Set(
+            (allAssignments || []).map((a) => a.table_id),
+          );
+
+          // Filter out tables that are already assigned to ANY waiter
+          const unassigned = allTablesData.filter(
+            (t) => !allAssignedTableIds.has(t.id),
+          );
+          setUnassignedTables(unassigned);
+        }
       }
 
       // Fetch pending waiter calls for these tables
@@ -336,6 +374,52 @@ export default function WaiterDashboard() {
         .eq("id", orderId);
     },
     [supabase],
+  );
+
+  const handleCommandTable = useCallback(
+    async (tableId: string, event: React.MouseEvent) => {
+      event.preventDefault(); // Prevent navigation
+      event.stopPropagation();
+
+      if (!user) return;
+
+      setAssigningTableId(tableId);
+
+      try {
+        const response = await fetch(`/api/tables/${tableId}/assign-waiter`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include", // Include authentication cookies
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          if (result.code === "LOCATION_MISMATCH") {
+            alert(`⚠️ ${result.error}`);
+          } else if (result.code === "ALREADY_ASSIGNED") {
+            alert(`⚠️ Mesa já atribuída a ${result.assignedTo}`);
+          } else {
+            alert(
+              `Erro: ${result.error || "Não foi possível comandar a mesa"}`,
+            );
+          }
+          return;
+        }
+
+        // Success - refresh data to update UI
+        await fetchDataRef.current();
+
+        // Show success message briefly
+        alert(`✅ ${result.message || "Mesa comandada com sucesso!"}`);
+      } catch (error) {
+        console.error("Error assigning table:", error);
+        alert("Erro ao comandar mesa");
+      } finally {
+        setAssigningTableId(null);
+      }
+    },
+    [user],
   );
 
   if (authLoading || isLoading) {
@@ -703,10 +787,59 @@ export default function WaiterDashboard() {
             {/* Divider */}
             <div className="border-t border-gray-800 my-8" />
 
+            {/* Unassigned Tables Section - For Waiters Only */}
+            {user?.role === "waiter" && unassignedTables.length > 0 && (
+              <section className="mb-8">
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <span>🎯</span>
+                  Mesas Disponíveis para Comandar ({unassignedTables.length})
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {unassignedTables.map((table) => (
+                    <div
+                      key={table.id}
+                      className="rounded-xl p-4 bg-gray-800/50 border border-gray-700 hover:border-blue-500/50 transition-all"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <span className="text-2xl font-bold text-gray-300">
+                          #{table.number}
+                        </span>
+                        <span className="px-2 py-0.5 text-xs bg-gray-700 text-gray-400 rounded-full">
+                          Disponível
+                        </span>
+                      </div>
+
+                      <p className="text-sm text-gray-500 mb-3 truncate">
+                        {table.name}
+                      </p>
+
+                      <button
+                        onClick={(e) => handleCommandTable(table.id, e)}
+                        disabled={assigningTableId === table.id}
+                        className="w-full px-3 py-2 text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {assigningTableId === table.id ? (
+                          <>
+                            <span className="animate-spin">⏳</span>
+                            Comandando...
+                          </>
+                        ) : (
+                          <>
+                            <span>👋</span>
+                            Comandar Mesa
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Tables Section - Secondary */}
             <section>
               <h2 className="text-lg font-semibold text-white mb-4">
-                Minhas Mesas
+                Minhas Mesas ({tables.length})
               </h2>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">

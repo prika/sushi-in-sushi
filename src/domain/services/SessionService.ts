@@ -143,6 +143,42 @@ export class SessionService {
   }
 
   /**
+   * Verifica se um cliente pode fazer pedidos nesta sessão
+   */
+  static canClientOrder(session: Session): ValidationResult {
+    if (!isSessionActive(session.status)) {
+      return { isValid: false, error: 'Sessão não está ativa' };
+    }
+
+    if (session.orderingMode === 'waiter_only') {
+      return {
+        isValid: false,
+        error: 'Apenas o empregado pode fazer pedidos nesta sessão',
+      };
+    }
+
+    return { isValid: true };
+  }
+
+  /**
+   * Verifica se pode alterar o modo de pedidos de uma sessão
+   */
+  static canChangeOrderingMode(
+    session: Session,
+    newMode: 'client' | 'waiter_only'
+  ): ValidationResult {
+    if (isSessionClosed(session.status)) {
+      return { isValid: false, error: 'Não pode alterar sessão fechada' };
+    }
+
+    if (session.orderingMode === newMode) {
+      return { isValid: false, error: 'Já está neste modo' };
+    }
+
+    return { isValid: true };
+  }
+
+  /**
    * Obtém estatísticas de uma sessão
    */
   static getStats(session: Session, orders: Order[]): {

@@ -14,6 +14,7 @@ function createTestSession(overrides: Partial<Session> = {}): Session {
     isRodizio: false,
     numPeople: 4,
     totalAmount: 0,
+    orderingMode: 'client',
     startedAt: new Date('2024-01-01T12:00:00Z'),
     closedAt: null,
     createdAt: new Date('2024-01-01T12:00:00Z'),
@@ -360,6 +361,114 @@ describe('SessionService', () => {
       expect(stats.perPerson).toBe(18); // ceil(35/2)
       expect(stats.orderCount).toBe(2);
       expect(stats.pendingCount).toBe(1); // 1 pending
+    });
+  });
+
+  describe('canClientOrder', () => {
+    it('deve permitir pedidos quando sessão está ativa e modo é client', () => {
+      const session = createTestSession({
+        status: 'active',
+        orderingMode: 'client',
+      });
+
+      const result = SessionService.canClientOrder(session);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it('deve bloquear pedidos quando modo é waiter_only', () => {
+      const session = createTestSession({
+        status: 'active',
+        orderingMode: 'waiter_only',
+      });
+
+      const result = SessionService.canClientOrder(session);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('Apenas o empregado pode fazer pedidos nesta sessão');
+    });
+
+    it('deve bloquear pedidos quando sessão não está ativa (paid)', () => {
+      const session = createTestSession({
+        status: 'paid',
+        orderingMode: 'client',
+      });
+
+      const result = SessionService.canClientOrder(session);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('Sessão não está ativa');
+    });
+
+    it('deve bloquear pedidos quando sessão está fechada', () => {
+      const session = createTestSession({
+        status: 'closed',
+        orderingMode: 'client',
+      });
+
+      const result = SessionService.canClientOrder(session);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('Sessão não está ativa');
+    });
+  });
+
+  describe('canChangeOrderingMode', () => {
+    it('deve permitir mudar de client para waiter_only', () => {
+      const session = createTestSession({
+        status: 'active',
+        orderingMode: 'client',
+      });
+
+      const result = SessionService.canChangeOrderingMode(session, 'waiter_only');
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it('deve permitir mudar de waiter_only para client', () => {
+      const session = createTestSession({
+        status: 'active',
+        orderingMode: 'waiter_only',
+      });
+
+      const result = SessionService.canChangeOrderingMode(session, 'client');
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it('deve bloquear mudança quando sessão está fechada', () => {
+      const session = createTestSession({
+        status: 'closed',
+        orderingMode: 'client',
+      });
+
+      const result = SessionService.canChangeOrderingMode(session, 'waiter_only');
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('Não pode alterar sessão fechada');
+    });
+
+    it('deve bloquear mudança quando já está no modo pretendido', () => {
+      const session = createTestSession({
+        status: 'active',
+        orderingMode: 'client',
+      });
+
+      const result = SessionService.canChangeOrderingMode(session, 'client');
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('Já está neste modo');
+    });
+
+    it('deve permitir mudança em sessão pending_payment', () => {
+      const session = createTestSession({
+        status: 'pending_payment',
+        orderingMode: 'client',
+      });
+
+      const result = SessionService.canChangeOrderingMode(session, 'waiter_only');
+
+      expect(result.isValid).toBe(true);
     });
   });
 });

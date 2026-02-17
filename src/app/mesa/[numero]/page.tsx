@@ -144,6 +144,8 @@ export default function MesaPage() {
   const [showBillModal, setShowBillModal] = useState(false);
   const [isRequestingBill, setIsRequestingBill] = useState(false);
   const [billRequested, setBillRequested] = useState(false);
+  const [showLeaveTableModal, setShowLeaveTableModal] = useState(false);
+  const [isLeavingTable, setIsLeavingTable] = useState(false);
 
   // Cooldown state
   const [cooldownMinutes, setCooldownMinutes] = useState(0);
@@ -501,6 +503,45 @@ export default function MesaPage() {
       supabase.removeChannel(channel);
     };
   }, [sessionId, step, supabase]);
+
+  // Real-time subscription for session updates (ordering_mode changes)
+  useEffect(() => {
+    if (!sessionId || step !== "active") return;
+
+    const channel = supabase
+      .channel(`session-${sessionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "sessions",
+          filter: `id=eq.${sessionId}`,
+        },
+        (payload) => {
+          if (payload.new.ordering_mode !== session?.ordering_mode) {
+            // Update session with new ordering_mode
+            setSession((prev) =>
+              prev ? { ...prev, ordering_mode: payload.new.ordering_mode } : null
+            );
+
+            // Show notification toast
+            if (payload.new.ordering_mode === 'waiter_only') {
+              setError(t("mesa.orderingLockedNotification") || "O empregado bloqueou os pedidos");
+              setTimeout(() => setError(null), 3000);
+            } else {
+              setSuccessMessage(t("mesa.orderingUnlockedNotification") || "Já pode fazer pedidos novamente");
+              setTimeout(() => setSuccessMessage(null), 3000);
+            }
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [sessionId, step, session?.ordering_mode, supabase, t]);
 
   // Broadcast channel for cross-device order notifications (timer cleanup on unmount in hook)
   useOrderNotificationChannel({
@@ -1070,6 +1111,12 @@ export default function MesaPage() {
     // Prevent double-clicks and double submissions
     if (isSubmittingOrder || !session || cart.length === 0) return;
 
+    // Check if ordering is locked by waiter
+    if (session.ordering_mode === 'waiter_only') {
+      setError(t("mesa.errors.orderingLocked") || "Apenas o empregado pode fazer pedidos neste momento");
+      return;
+    }
+
     setIsSubmittingOrder(true);
     setError(null);
 
@@ -1170,6 +1217,47 @@ export default function MesaPage() {
       setIsRequestingBill(false);
     }
   }, [session, supabase, t]);
+
+  // Leave table (only if no orders/consumption)
+  const leaveTable = useCallback(async () => {
+    if (!session) return;
+
+    // Check if there are any orders or consumption
+    if ((session.total_amount || 0) > 0 || sessionOrders.length > 0) {
+      setError("Não pode sair da mesa com pedidos. Por favor, chame o empregado.");
+      setShowLeaveTableModal(false);
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+
+    setIsLeavingTable(true);
+    setError(null);
+
+    try {
+      // Use RPC function to close session and free table atomically
+      const { error: rpcError } = await (supabase as any).rpc(
+        "close_session_and_free_table",
+        { session_id_param: session.id }
+      );
+
+      if (rpcError) throw rpcError;
+
+      setSession(null);
+      setShowLeaveTableModal(false);
+      setSuccessMessage("Sessão encerrada. Obrigado pela visita!");
+
+      // Redirect to welcome screen after 2 seconds
+      setTimeout(() => {
+        setStep("welcome");
+        setSuccessMessage(null);
+      }, 2000);
+    } catch (err) {
+      console.error("Error leaving table:", err);
+      setError("Erro ao sair da mesa. Por favor, tente novamente.");
+    } finally {
+      setIsLeavingTable(false);
+    }
+  }, [session, sessionOrders, tableId, supabase]);
 
   // Call waiter function
   const callWaiter = useCallback(
@@ -1623,6 +1711,23 @@ export default function MesaPage() {
                 </div>
               </div>
 
+              {/* Lock Mode Banner */}
+              {session?.ordering_mode === 'waiter_only' && (
+                <div className="bg-red-500/20 border-y border-red-500/50 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🔒</span>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-red-400 text-sm">
+                        {t("mesa.orderingLocked") || "Pedidos Bloqueados"}
+                      </h3>
+                      <p className="text-xs text-red-300 mt-0.5">
+                        {t("mesa.orderingLockedMessage") || "O empregado está a gerir os pedidos. Pode visualizar o menu e chamar para assistência."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Menu Content */}
               <div className="flex-1 overflow-y-auto pb-24" data-testid="menu">
                 {isLoadingProducts ? (
@@ -1751,7 +1856,8 @@ export default function MesaPage() {
                                               cartQty - 1,
                                             )
                                           }
-                                          className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-gray-700 transition-colors"
+                                          disabled={session?.ordering_mode === 'waiter_only'}
+                                          className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                           −
                                         </button>
@@ -1766,7 +1872,8 @@ export default function MesaPage() {
                                                 "?",
                                             )
                                           }
-                                          className="w-8 h-8 rounded-full bg-[#D4AF37] flex items-center justify-center text-black font-bold hover:bg-[#C4A030] transition-colors"
+                                          disabled={session?.ordering_mode === 'waiter_only'}
+                                          className="w-8 h-8 rounded-full bg-[#D4AF37] flex items-center justify-center text-black font-bold hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                           +
                                         </button>
@@ -1780,21 +1887,26 @@ export default function MesaPage() {
                                               "?",
                                           )
                                         }
-                                        className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center text-black hover:bg-[#C4A030] transition-colors"
+                                        disabled={session?.ordering_mode === 'waiter_only'}
+                                        className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center text-black hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                       >
-                                        <svg
-                                          className="w-5 h-5"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2.5}
-                                            d="M12 4v16m8-8H4"
-                                          />
-                                        </svg>
+                                        {session?.ordering_mode === 'waiter_only' ? (
+                                          <span className="text-lg">🔒</span>
+                                        ) : (
+                                          <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2.5}
+                                              d="M12 4v16m8-8H4"
+                                            />
+                                          </svg>
+                                        )}
                                       </button>
                                     )}
                                   </div>
@@ -2491,7 +2603,7 @@ export default function MesaPage() {
                       {t("mesa.sessionTotal")}
                     </p>
                     <p className="text-4xl font-bold text-[#D4AF37]">
-                      €{session.total_amount.toFixed(2)}
+                      €{(session.total_amount || 0).toFixed(2)}
                     </p>
                     {orderType === "rodizio" && (
                       <div className="mt-4 pt-4 border-t border-gray-800 space-y-2">
@@ -2581,6 +2693,29 @@ export default function MesaPage() {
                     </>
                   )}
                 </button>
+
+                {/* Leave Table Button - Only show if no consumption */}
+                {session && (session.total_amount || 0) === 0 && sessionOrders.length === 0 && !billRequested && (
+                  <button
+                    onClick={() => setShowLeaveTableModal(true)}
+                    className="w-full py-3 mt-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 hover:bg-gray-900/50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                    Sair da Mesa
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -2807,7 +2942,7 @@ export default function MesaPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">{t("mesa.totalToPay")}</span>
                   <span className="text-2xl font-bold text-[#D4AF37]">
-                    €{session.total_amount.toFixed(2)}
+                    €{(session.total_amount || 0).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -2844,6 +2979,78 @@ export default function MesaPage() {
                   </svg>
                 ) : (
                   t("mesa.confirm")
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Table Modal */}
+      {showLeaveTableModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setShowLeaveTableModal(false)}
+          />
+
+          <div className="relative bg-[#1A1A1A] rounded-2xl p-6 max-w-sm w-full animate-scale-up">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <h3 className="text-xl font-semibold mb-2 text-center">
+              Sair da Mesa?
+            </h3>
+            <p className="text-gray-400 mb-6 text-center">
+              Como não consumiu nada, pode sair da mesa sem pagar. A sessão será encerrada.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLeaveTableModal(false)}
+                className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={leaveTable}
+                disabled={isLeavingTable}
+                className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLeavingTable ? (
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                ) : (
+                  "Sim, Sair"
                 )}
               </button>
             </div>
@@ -3212,11 +3419,17 @@ export default function MesaPage() {
                     disabled={
                       isSubmittingOrder ||
                       hasUnconfirmedDuplicates ||
-                      isCooldownActive
+                      isCooldownActive ||
+                      session?.ordering_mode === 'waiter_only'
                     }
-                    className="flex-1 py-3 rounded-xl bg-[#D4AF37] text-black font-bold hover:bg-[#C4A030] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 rounded-xl bg-[#D4AF37] text-black font-bold hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {isSubmittingOrder ? (
+                    {session?.ordering_mode === 'waiter_only' ? (
+                      <>
+                        <span className="text-lg">🔒</span>
+                        <span>{t("mesa.orderingLocked") || "Pedidos Bloqueados"}</span>
+                      </>
+                    ) : isSubmittingOrder ? (
                       <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                         <circle
                           className="opacity-25"

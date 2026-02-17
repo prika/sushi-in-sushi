@@ -16,6 +16,7 @@ import {
   SessionWithOrders,
 } from '@/domain/entities/Session';
 import { SessionStatus } from '@/domain/value-objects/SessionStatus';
+import { OrderingMode, toOrderingMode } from '@/domain/value-objects/OrderingMode';
 import { Location } from '@/types/database';
 
 /**
@@ -28,6 +29,7 @@ interface DatabaseSession {
   is_rodizio: boolean;
   num_people: number;
   total_amount: number;
+  ordering_mode?: string;
   started_at: string;
   closed_at: string | null;
   created_at: string;
@@ -168,6 +170,7 @@ export class SupabaseSessionRepository implements ISessionRepository {
         table_id: data.tableId,
         is_rodizio: data.isRodizio,
         num_people: data.numPeople,
+        ordering_mode: data.orderingMode || 'client',
         status: 'active',
         total_amount: 0,
         started_at: new Date().toISOString(),
@@ -188,6 +191,7 @@ export class SupabaseSessionRepository implements ISessionRepository {
     if (data.numPeople !== undefined) updateData.num_people = data.numPeople;
     if (data.totalAmount !== undefined) updateData.total_amount = data.totalAmount;
     if (data.closedAt !== undefined) updateData.closed_at = data.closedAt?.toISOString() || null;
+    if (data.orderingMode !== undefined) updateData.ordering_mode = data.orderingMode;
 
     const { data: session, error } = await this.supabase
       .from('sessions')
@@ -288,6 +292,7 @@ export class SupabaseSessionRepository implements ISessionRepository {
       isRodizio: data.is_rodizio,
       numPeople: data.num_people,
       totalAmount: data.total_amount,
+      orderingMode: toOrderingMode(data.ordering_mode, 'client'),
       startedAt: new Date(data.started_at),
       closedAt: data.closed_at ? new Date(data.closed_at) : null,
       createdAt: new Date(data.created_at),

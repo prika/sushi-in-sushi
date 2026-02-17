@@ -11,7 +11,7 @@ import { AutoAssignWaiterUseCase } from "@/application/use-cases/sessions/AutoAs
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tableId, isRodizio, numPeople, totalAmount } = body;
+    const { tableId, isRodizio, numPeople, totalAmount, orderingMode } = body;
 
     if (!tableId) {
       return NextResponse.json(
@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       tableId,
       isRodizio: isRodizio ?? false,
       numPeople: numPeople ?? 1,
+      orderingMode: orderingMode ?? 'client', // Defaults to 'client' mode
     });
 
     if (!result.success) {

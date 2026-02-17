@@ -330,8 +330,8 @@ function NotificationsTab() {
               Como funcionam os lembretes
             </h4>
             <p className="mt-1 text-sm text-blue-800">
-              Os emails de lembrete são enviados automaticamente pelo sistema.
-              O cron job executa de hora a hora (8h–21h) para verificar reservas
+              Os emails de lembrete são enviados automaticamente pelo sistema. O
+              cron job executa de hora a hora (8h–21h) para verificar reservas
               que precisam de lembrete no dia.
             </p>
             <ul className="mt-3 text-sm text-blue-700 space-y-1">
@@ -1651,13 +1651,13 @@ function TableManagementTab() {
           )}
 
           {/* Livre */}
-          {!table.reservation_name && !table.session && table.is_active && (
+          {/* {!table.reservation_name && !table.session && table.is_active && (
             <div className="p-2 bg-green-50 rounded-lg border border-green-200 text-center">
               <div className="text-xs text-green-700 font-medium">
                 Disponível
               </div>
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Waiter Responsável */}

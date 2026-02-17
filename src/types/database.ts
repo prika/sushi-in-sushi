@@ -152,6 +152,7 @@ export type Database = {
           status: SessionStatus;
           notes: string | null;
           total_amount: number;
+          ordering_mode: string;
           created_at: string;
           updated_at: string;
         };
@@ -165,6 +166,7 @@ export type Database = {
           status?: SessionStatus;
           notes?: string | null;
           total_amount?: number;
+          ordering_mode?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -178,6 +180,7 @@ export type Database = {
           status?: SessionStatus;
           notes?: string | null;
           total_amount?: number;
+          ordering_mode?: string;
           created_at?: string;
           updated_at?: string;
         };

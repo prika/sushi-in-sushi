@@ -88,39 +88,34 @@ export async function POST(request: NextRequest) {
 
       let ratingError: { message?: string } | null = null;
 
-      if (orderId && sessionCustomerId) {
-        // Per-order-item rating with identified customer
-        const upsertResult = await supabase
-          .from("product_ratings")
-          .upsert(row, {
-            onConflict: "session_id,session_customer_id,order_id",
-          });
-        ratingError = upsertResult.error;
-      } else if (sessionCustomerId) {
-        // Legacy per-product rating with identified customer
-        const upsertResult = await supabase
-          .from("product_ratings")
-          .upsert(row, {
-            onConflict: "session_id,session_customer_id,product_id",
-          });
-        ratingError = upsertResult.error;
-      } else {
-        // Anonymous: partial unique index isn't usable for PostgREST upsert,
-        // so try insert first and fall back to update on conflict.
-        const insertResult = await supabase.from("product_ratings").insert(row);
+      // Partial unique indexes (with WHERE clauses) can't be used with upsert onConflict.
+      // Use INSERT + UPDATE fallback for all cases.
+      const insertResult = await supabase.from("product_ratings").insert(row);
 
-        if (insertResult.error?.code === "23505") {
-          // Duplicate — another request inserted first, update instead
-          const updateResult = await supabase
-            .from("product_ratings")
-            .update({ rating })
-            .eq("session_id", sessionId)
-            .eq("product_id", Number(productId))
-            .is("session_customer_id", null);
-          ratingError = updateResult.error;
+      if (insertResult.error?.code === "23505") {
+        // Duplicate - update the existing rating instead
+        let updateQuery = supabase
+          .from("product_ratings")
+          .update({ rating })
+          .eq("session_id", sessionId)
+          .eq("product_id", Number(productId));
+
+        if (sessionCustomerId) {
+          updateQuery = updateQuery.eq("session_customer_id", sessionCustomerId);
         } else {
-          ratingError = insertResult.error;
+          updateQuery = updateQuery.is("session_customer_id", null);
         }
+
+        if (orderId) {
+          updateQuery = updateQuery.eq("order_id", orderId);
+        } else {
+          updateQuery = updateQuery.is("order_id", null);
+        }
+
+        const updateResult = await updateQuery;
+        ratingError = updateResult.error;
+      } else {
+        ratingError = insertResult.error;
       }
 
       if (ratingError) {

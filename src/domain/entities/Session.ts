@@ -4,6 +4,7 @@
  */
 
 import { SessionStatus } from '../value-objects/SessionStatus';
+import { OrderingMode } from '../value-objects/OrderingMode';
 
 /**
  * Entidade Session - Representa uma sessão de mesa
@@ -15,6 +16,7 @@ export interface Session {
   isRodizio: boolean;
   numPeople: number;
   totalAmount: number;
+  orderingMode: OrderingMode;
   startedAt: Date;
   closedAt: Date | null;
   createdAt: Date;
@@ -28,6 +30,7 @@ export interface CreateSessionData {
   tableId: string;
   isRodizio: boolean;
   numPeople: number;
+  orderingMode?: OrderingMode;
 }
 
 /**
@@ -38,6 +41,7 @@ export interface UpdateSessionData {
   numPeople?: number;
   totalAmount?: number;
   closedAt?: Date | null;
+  orderingMode?: OrderingMode;
 }
 
 /**

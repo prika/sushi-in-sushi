@@ -12,7 +12,24 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 - Interface para empregados de mesa
 - Suporte multi-localização (Circunvalação e Boavista)
 
-## 🎉 Estado Atual do Projeto (2026-02-08)
+## 🎉 Estado Atual do Projeto
+
+### Última Atualização: 2026-02-13
+
+**Alterações Recentes:**
+- ✅ **Nomes de Waiter no Admin** - Exibição de waiter atribuído em mapas de mesa
+- ✅ **Funcionalidade "Sair da Mesa"** - Clientes podem sair quando não consumiram nada
+- ✅ **Status Uniformizado** - Status calculado dinamicamente baseado em sessões
+- ✅ **Correções no Painel do Waiter**:
+  - Busca sessões `pending_payment` (conta pedida)
+  - Filtra mesas de outros waiters corretamente
+  - Fix autenticação API (legada vs Supabase Auth)
+- ✅ **Migration 043** - Função `close_session_and_free_table` para atomicidade
+- ✅ **Scripts SQL consolidados** - Diagnóstico e correção de inconsistências
+
+Ver detalhes completos em [RECENT_CHANGES.md](RECENT_CHANGES.md)
+
+### Estado do Projeto (2026-02-08)
 
 ### ✅ Clean Architecture - 100% Implementada
 

@@ -7,6 +7,10 @@ import { useParams } from "next/navigation";
 import { useRequireWaiter } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import { useActivityLog } from "@/presentation/hooks";
+import { useTableManagement } from "@/presentation/hooks/useTableManagement";
+import { useSessionOrderingMode } from "@/presentation/hooks/useSessionOrderingMode";
+import { ORDERING_MODE_LABELS, ORDERING_MODE_ICONS, type OrderingMode } from "@/domain/value-objects/OrderingMode";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { Table, Session, OrderWithProduct, Product, Category, WaiterCall } from "@/types/database";
 
 // Helper to bypass Supabase type checking for tables not in the generated types
@@ -38,9 +42,24 @@ export default function WaiterMesaPage() {
   const [quantity, setQuantity] = useState(1);
   const [waiterCalls, setWaiterCalls] = useState<WaiterCall[]>([]);
 
+  // State for start session modal
+  const [showStartSessionModal, setShowStartSessionModal] = useState(false);
+  const [showOrderingModeModal, setShowOrderingModeModal] = useState(false);
+  const [sessionForm, setSessionForm] = useState({
+    isRodizio: false,
+    numPeople: 2,
+  });
+
   // Use memoized supabase client to prevent real-time subscription issues
   const supabase = useMemo(() => createClient(), []);
   const extendedSupabase = useMemo(() => getExtendedSupabase(supabase), [supabase]);
+
+  // Hooks for table management and ordering mode
+  const { startWalkInSession } = useTableManagement();
+  const { orderingMode, updateMode, isUpdating } = useSessionOrderingMode(
+    table?.activeSession?.id || null,
+    table?.activeSession?.ordering_mode as OrderingMode
+  );
 
   // Ref for fetchData to avoid useEffect dependency issues
   const fetchDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
@@ -48,22 +67,7 @@ export default function WaiterMesaPage() {
   const fetchData = useCallback(async () => {
     if (!user) return;
 
-    // Verify access to this table
-    if (user.role === "waiter") {
-      const { data: assignment } = await supabase
-        .from("waiter_tables")
-        .select("id")
-        .eq("staff_id", user.id)
-        .eq("table_id", id)
-        .single();
-
-      if (!assignment) {
-        router.push("/waiter");
-        return;
-      }
-    }
-
-    // Fetch table details
+    // Fetch table details first
     const { data: tableData } = await supabase
       .from("tables")
       .select("*")
@@ -75,13 +79,36 @@ export default function WaiterMesaPage() {
       return;
     }
 
-    // Fetch active session
+    // Verify access to this table
+    if (user.role === "waiter") {
+      // Check if waiter has this table assigned
+      const { data: assignment } = await supabase
+        .from("waiter_tables")
+        .select("id")
+        .eq("staff_id", user.id)
+        .eq("table_id", id)
+        .single();
+
+      if (!assignment) {
+        router.push("/waiter");
+        return;
+      }
+
+      // Check if table is from waiter's location
+      if (user.location && tableData.location !== user.location) {
+        console.warn(`Waiter location mismatch: ${user.location} !== ${tableData.location}`);
+        router.push("/waiter");
+        return;
+      }
+    }
+
+    // Fetch active session (active or pending_payment)
     const { data: sessionData } = await supabase
       .from("sessions")
       .select("*")
       .eq("table_id", id)
-      .eq("status", "active")
-      .single();
+      .in("status", ["active", "pending_payment"])
+      .maybeSingle();
 
     setTable({
       ...tableData,
@@ -233,6 +260,46 @@ export default function WaiterMesaPage() {
       .eq("id", callId);
   }, [extendedSupabase]);
 
+  const handleStartSession = useCallback(async () => {
+    if (!table || !user) return;
+
+    const result = await startWalkInSession(
+      table.id,
+      sessionForm.isRodizio,
+      sessionForm.numPeople
+    );
+
+    if (result.success) {
+      await logActivity("session_started", "session", result.sessionId || "", {
+        tableNumber: table.number,
+        location: table.location,
+        isRodizio: sessionForm.isRodizio,
+        numPeople: sessionForm.numPeople,
+        orderingMode: 'client',
+      });
+      setShowStartSessionModal(false);
+      fetchData(); // Refresh data
+    }
+  }, [table, user, sessionForm, startWalkInSession, logActivity, fetchData]);
+
+  const handleToggleOrderingMode = useCallback(async () => {
+    if (!table?.activeSession || !orderingMode) return;
+
+    const newMode = orderingMode === 'client' ? 'waiter_only' : 'client';
+    const result = await updateMode(newMode);
+
+    if (result.success) {
+      await logActivity("ordering_mode_changed", "session", table.activeSession.id, {
+        tableNumber: table.number,
+        location: table.location,
+        oldMode: orderingMode,
+        newMode,
+      });
+    }
+
+    setShowOrderingModeModal(false);
+  }, [table, orderingMode, updateMode, logActivity]);
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-[#0D0D0D] flex items-center justify-center">
@@ -291,6 +358,18 @@ export default function WaiterMesaPage() {
                   Rodízio
                 </span>
               )}
+              {orderingMode && (
+                <button
+                  onClick={() => setShowOrderingModeModal(true)}
+                  className={`px-3 py-1 text-sm rounded-full font-medium transition-colors ${
+                    orderingMode === 'waiter_only'
+                      ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                      : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                  }`}
+                >
+                  {ORDERING_MODE_ICONS[orderingMode]} {ORDERING_MODE_LABELS[orderingMode]}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -307,8 +386,14 @@ export default function WaiterMesaPage() {
             <p className="text-gray-400 mb-4">
               A aguardar que o cliente inicie a sessão via QR code.
             </p>
-            <p className="text-gray-500 text-sm">
-              O tipo de sessão (normal ou rodízio) é escolhido pelo cliente.
+            <button
+              onClick={() => setShowStartSessionModal(true)}
+              className="mt-6 px-6 py-3 bg-[#D4AF37] text-black font-semibold rounded-xl hover:bg-[#C4A030] transition-colors"
+            >
+              Iniciar Sessão para Cliente
+            </button>
+            <p className="text-gray-500 text-sm mt-4">
+              Ou aguarde que o cliente escaneie o QR code na mesa
             </p>
           </div>
         )}
@@ -578,6 +663,95 @@ export default function WaiterMesaPage() {
           </div>
         </div>
       )}
+
+      {/* Start Session Modal */}
+      {showStartSessionModal && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl max-w-md w-full p-6 border border-gray-800">
+            <h2 className="text-xl font-semibold text-white mb-6">Iniciar Sessão</h2>
+
+            <div className="space-y-4 mb-6">
+              {/* Rodízio Toggle */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Tipo de Sessão</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setSessionForm({ ...sessionForm, isRodizio: false })}
+                    className={`py-3 px-4 rounded-xl font-medium transition-colors ${
+                      !sessionForm.isRodizio
+                        ? 'bg-[#D4AF37] text-black'
+                        : 'bg-gray-800 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    À La Carte
+                  </button>
+                  <button
+                    onClick={() => setSessionForm({ ...sessionForm, isRodizio: true })}
+                    className={`py-3 px-4 rounded-xl font-medium transition-colors ${
+                      sessionForm.isRodizio
+                        ? 'bg-[#D4AF37] text-black'
+                        : 'bg-gray-800 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Rodízio
+                  </button>
+                </div>
+              </div>
+
+              {/* Number of People */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Número de Pessoas</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                    <button
+                      key={num}
+                      onClick={() => setSessionForm({ ...sessionForm, numPeople: num })}
+                      className={`py-3 rounded-xl font-medium transition-colors ${
+                        sessionForm.numPeople === num
+                          ? 'bg-[#D4AF37] text-black'
+                          : 'bg-gray-800 text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowStartSessionModal(false)}
+                className="flex-1 py-3 bg-gray-800 text-gray-400 font-semibold rounded-xl hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleStartSession}
+                className="flex-1 py-3 bg-[#D4AF37] text-black font-semibold rounded-xl hover:bg-[#C4A030] transition-colors"
+              >
+                Iniciar Sessão
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ordering Mode Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showOrderingModeModal}
+        title={orderingMode === 'client' ? 'Ativar Modo Bloqueio?' : 'Desativar Modo Bloqueio?'}
+        message={
+          orderingMode === 'client'
+            ? 'Os clientes não poderão fazer pedidos. Apenas você poderá adicionar itens ao pedido.'
+            : 'Os clientes voltarão a poder fazer pedidos normalmente através do menu.'
+        }
+        variant="warning"
+        confirmText="Confirmar"
+        cancelText="Cancelar"
+        onConfirm={handleToggleOrderingMode}
+        onCancel={() => setShowOrderingModeModal(false)}
+      />
     </div>
   );
 }

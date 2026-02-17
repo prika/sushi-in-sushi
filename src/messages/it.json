@@ -238,7 +238,7 @@
     "rate": {
       "title": "Valuta i tuoi preferiti",
       "close": "Chiudi",
-      "skip": "Skip",
+      "skip": "Salta",
       "tableLeader": "Preferito del tavolo",
       "freeDrinkWon": "Hai vinto una bevanda! Mostra questa schermata al cameriere.",
       "freeDrinkProgress": "Ancora {count} valutazioni e ricevi una bevanda (min. {min}).",
