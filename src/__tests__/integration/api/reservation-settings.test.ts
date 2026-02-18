@@ -4,6 +4,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { GET, PATCH } from '@/app/api/reservation-settings/route';
+import { NextRequest } from 'next/server';
+
+// Mock auth first (must be before Supabase mock to avoid hoisting issues)
+const mockVerifyAuth = vi.fn();
+vi.mock('@/lib/auth', () => ({
+  verifyAuth: () => mockVerifyAuth(),
+}));
 
 // Mock Supabase
 const mockSupabaseFrom = vi.fn();
@@ -11,12 +19,6 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => Promise.resolve({
     from: mockSupabaseFrom,
   })),
-}));
-
-// Mock auth
-const mockVerifyAuth = vi.fn();
-vi.mock('@/lib/auth', () => ({
-  verifyAuth: mockVerifyAuth,
 }));
 
 // Helper to create test settings
@@ -35,6 +37,14 @@ function createTestSettings(overrides: Record<string, unknown> = {}) {
   };
 }
 
+// Helper to create mock PATCH request
+function createMockPatchRequest(body: unknown): NextRequest {
+  return {
+    json: async () => body,
+    headers: new Headers(),
+  } as NextRequest;
+}
+
 describe('GET /api/reservation-settings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -43,24 +53,67 @@ describe('GET /api/reservation-settings', () => {
   describe('Autenticação', () => {
     it('requer autenticação', async () => {
       mockVerifyAuth.mockResolvedValue(null);
-      const auth = await mockVerifyAuth();
 
-      expect(auth).toBeNull();
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toBe('Unauthorized');
+      expect(mockVerifyAuth).toHaveBeenCalled();
     });
 
     it('requer role admin', async () => {
-      mockVerifyAuth.mockResolvedValue({ role: 'waiter' });
-      const auth = await mockVerifyAuth();
-      const isAdmin = auth?.role === 'admin';
+      mockVerifyAuth.mockResolvedValue({ role: 'waiter', id: 'waiter-1', email: 'waiter@test.com' });
 
-      expect(isAdmin).toBe(false);
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toBe('Unauthorized');
+      expect(mockVerifyAuth).toHaveBeenCalled();
     });
 
     it('permite admin aceder', async () => {
-      mockVerifyAuth.mockResolvedValue({ role: 'admin' });
-      const auth = await mockVerifyAuth();
+      mockVerifyAuth.mockResolvedValue({ role: 'admin', id: 'admin-1', email: 'admin@test.com' });
 
-      expect(auth?.role).toBe('admin');
+      // Mock Supabase response for settings (chain: .from().select().eq().single())
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: 1,
+          day_before_reminder_enabled: true,
+          day_before_reminder_hours: 18,
+          same_day_reminder_enabled: true,
+          same_day_reminder_hours: 10,
+          rodizio_waste_policy_enabled: true,
+          rodizio_waste_fee_per_piece: 2.50,
+          updated_at: new Date().toISOString(),
+          updated_by: 'admin-1',
+        },
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        single: mockSingle,
+      });
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toHaveProperty('day_before_reminder_enabled');
+      expect(data).toHaveProperty('same_day_reminder_enabled');
+      expect(data).toHaveProperty('rodizio_waste_policy_enabled');
+
+      // Verify mocks were called
+      expect(mockVerifyAuth).toHaveBeenCalled();
+      expect(mockSupabaseFrom).toHaveBeenCalledWith('reservation_settings');
+      expect(mockSelect).toHaveBeenCalledWith('*');
+      expect(mockEq).toHaveBeenCalledWith('id', 1);
+      expect(mockSingle).toHaveBeenCalled();
     });
   });
 
@@ -172,25 +225,74 @@ describe('PATCH /api/reservation-settings', () => {
   describe('Autenticação', () => {
     it('requer autenticação', async () => {
       mockVerifyAuth.mockResolvedValue(null);
-      const auth = await mockVerifyAuth();
 
-      expect(auth).toBeNull();
+      const request = createMockPatchRequest({ day_before_reminder_hours: 18 });
+      const response = await PATCH(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toBe('Unauthorized');
+      expect(mockVerifyAuth).toHaveBeenCalled();
     });
 
     it('requer role admin', async () => {
-      mockVerifyAuth.mockResolvedValue({ role: 'kitchen' });
-      const auth = await mockVerifyAuth();
-      const isAdmin = auth?.role === 'admin';
+      mockVerifyAuth.mockResolvedValue({ role: 'kitchen', id: 'kitchen-1', email: 'kitchen@test.com' });
 
-      expect(isAdmin).toBe(false);
+      const request = createMockPatchRequest({ day_before_reminder_hours: 18 });
+      const response = await PATCH(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.error).toBe('Unauthorized');
+      expect(mockVerifyAuth).toHaveBeenCalled();
     });
 
     it('permite admin atualizar', async () => {
-      mockVerifyAuth.mockResolvedValue({ role: 'admin', id: 'admin-1' });
-      const auth = await mockVerifyAuth();
+      mockVerifyAuth.mockResolvedValue({ role: 'admin', id: 'admin-1', email: 'admin@test.com' });
 
-      expect(auth?.role).toBe('admin');
-      expect(auth?.id).toBe('admin-1');
+      // Mock Supabase update chain: .from().update().eq().select().single()
+      const mockUpdate = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: 1,
+          day_before_reminder_enabled: true,
+          day_before_reminder_hours: 20,
+          same_day_reminder_enabled: true,
+          same_day_reminder_hours: 10,
+          rodizio_waste_policy_enabled: true,
+          rodizio_waste_fee_per_piece: 2.50,
+          updated_at: new Date().toISOString(),
+          updated_by: 'admin-1',
+        },
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        update: mockUpdate,
+        eq: mockEq,
+        select: mockSelect,
+        single: mockSingle,
+      });
+
+      const request = createMockPatchRequest({ day_before_reminder_hours: 20 });
+      const response = await PATCH(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toHaveProperty('day_before_reminder_hours');
+      expect(data.day_before_reminder_hours).toBe(20);
+
+      // Verify mocks were called with expected arguments
+      expect(mockVerifyAuth).toHaveBeenCalled();
+      expect(mockSupabaseFrom).toHaveBeenCalledWith('reservation_settings');
+      expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        updated_by: 'admin-1',
+      }));
+      expect(mockEq).toHaveBeenCalledWith('id', 1);
+      expect(mockSelect).toHaveBeenCalled(); // PATCH uses .select() without arguments
+      expect(mockSingle).toHaveBeenCalled();
     });
   });
 
@@ -249,55 +351,202 @@ describe('PATCH /api/reservation-settings', () => {
   });
 
   describe('Validação de horas', () => {
-    it('valida horas entre 0-23', () => {
-      const hours = 18;
-      const isValid = hours >= 0 && hours <= 23;
+    it('valida horas entre 1-168 (reminder hours)', async () => {
+      mockVerifyAuth.mockResolvedValue({ role: 'admin', id: 'admin-1', email: 'admin@test.com' });
 
-      expect(isValid).toBe(true);
+      // Mock successful Supabase update
+      const mockUpdate = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: 1,
+          day_before_reminder_enabled: true,
+          day_before_reminder_hours: 18,
+          same_day_reminder_enabled: true,
+          same_day_reminder_hours: 10,
+          rodizio_waste_policy_enabled: true,
+          rodizio_waste_fee_per_piece: 2.50,
+          updated_at: new Date().toISOString(),
+          updated_by: 'admin-1',
+        },
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        update: mockUpdate,
+        eq: mockEq,
+        select: mockSelect,
+        single: mockSingle,
+      });
+
+      const request = createMockPatchRequest({ day_before_reminder_hours: 18 });
+      const response = await PATCH(request);
+
+      expect(response.status).toBe(200);
+      expect(mockVerifyAuth).toHaveBeenCalled();
+      expect(mockSupabaseFrom).toHaveBeenCalledWith('reservation_settings');
     });
 
-    it('rejeita horas negativas', () => {
-      const hours = -1;
-      const isValid = hours >= 0 && hours <= 23;
+    it('rejeita horas negativas', async () => {
+      mockVerifyAuth.mockResolvedValue({ role: 'admin', id: 'admin-1', email: 'admin@test.com' });
 
-      expect(isValid).toBe(false);
+      const request = createMockPatchRequest({ day_before_reminder_hours: -1 });
+      const response = await PATCH(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBeDefined();
+      expect(mockVerifyAuth).toHaveBeenCalled();
     });
 
-    it('rejeita horas >= 24', () => {
-      const hours = 24;
-      const isValid = hours >= 0 && hours <= 23;
+    it('rejeita horas zero', async () => {
+      mockVerifyAuth.mockResolvedValue({ role: 'admin', id: 'admin-1', email: 'admin@test.com' });
 
-      expect(isValid).toBe(false);
+      const request = createMockPatchRequest({ day_before_reminder_hours: 0 });
+      const response = await PATCH(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBeDefined();
+      expect(mockVerifyAuth).toHaveBeenCalled();
+    });
+
+    it('rejeita horas > 168 (1 semana)', async () => {
+      mockVerifyAuth.mockResolvedValue({ role: 'admin', id: 'admin-1', email: 'admin@test.com' });
+
+      const request = createMockPatchRequest({ day_before_reminder_hours: 200 });
+      const response = await PATCH(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBeDefined();
+      expect(mockVerifyAuth).toHaveBeenCalled();
     });
   });
 
   describe('Validação de fees', () => {
-    it('valida fee positivo', () => {
-      const fee = 2.50;
-      const isValid = fee >= 0;
+    it('valida fee positivo', async () => {
+      mockVerifyAuth.mockResolvedValue({ role: 'admin', id: 'admin-1', email: 'admin@test.com' });
 
-      expect(isValid).toBe(true);
+      // Mock successful Supabase update
+      const mockUpdate = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: 1,
+          day_before_reminder_enabled: true,
+          day_before_reminder_hours: 18,
+          same_day_reminder_enabled: true,
+          same_day_reminder_hours: 10,
+          rodizio_waste_policy_enabled: true,
+          rodizio_waste_fee_per_piece: 2.50,
+          updated_at: new Date().toISOString(),
+          updated_by: 'admin-1',
+        },
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        update: mockUpdate,
+        eq: mockEq,
+        select: mockSelect,
+        single: mockSingle,
+      });
+
+      const request = createMockPatchRequest({ rodizio_waste_fee_per_piece: 2.50 });
+      const response = await PATCH(request);
+
+      expect(response.status).toBe(200);
+      expect(mockVerifyAuth).toHaveBeenCalled();
+      expect(mockSupabaseFrom).toHaveBeenCalledWith('reservation_settings');
     });
 
-    it('aceita fee zero', () => {
-      const fee = 0;
-      const isValid = fee >= 0;
+    it('aceita fee zero', async () => {
+      mockVerifyAuth.mockResolvedValue({ role: 'admin', id: 'admin-1', email: 'admin@test.com' });
 
-      expect(isValid).toBe(true);
+      // Mock successful Supabase update
+      const mockUpdate = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: 1,
+          day_before_reminder_enabled: true,
+          day_before_reminder_hours: 18,
+          same_day_reminder_enabled: true,
+          same_day_reminder_hours: 10,
+          rodizio_waste_policy_enabled: false,
+          rodizio_waste_fee_per_piece: 0,
+          updated_at: new Date().toISOString(),
+          updated_by: 'admin-1',
+        },
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        update: mockUpdate,
+        eq: mockEq,
+        select: mockSelect,
+        single: mockSingle,
+      });
+
+      const request = createMockPatchRequest({ rodizio_waste_fee_per_piece: 0 });
+      const response = await PATCH(request);
+
+      expect(response.status).toBe(200);
+      expect(mockVerifyAuth).toHaveBeenCalled();
+      expect(mockSupabaseFrom).toHaveBeenCalledWith('reservation_settings');
     });
 
-    it('rejeita fee negativo', () => {
-      const fee = -1.50;
-      const isValid = fee >= 0;
+    it('rejeita fee negativo', async () => {
+      mockVerifyAuth.mockResolvedValue({ role: 'admin', id: 'admin-1', email: 'admin@test.com' });
 
-      expect(isValid).toBe(false);
+      const request = createMockPatchRequest({ rodizio_waste_fee_per_piece: -1.50 });
+      const response = await PATCH(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBeDefined();
+      expect(mockVerifyAuth).toHaveBeenCalled();
     });
 
-    it('valida precisão decimal (2 casas)', () => {
-      const fee = 2.50;
-      const rounded = Math.round(fee * 100) / 100;
+    it('valida precisão decimal (2 casas)', async () => {
+      mockVerifyAuth.mockResolvedValue({ role: 'admin', id: 'admin-1', email: 'admin@test.com' });
 
-      expect(fee).toBe(rounded);
+      // Mock successful Supabase update
+      const mockUpdate = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: 1,
+          day_before_reminder_enabled: true,
+          day_before_reminder_hours: 18,
+          same_day_reminder_enabled: true,
+          same_day_reminder_hours: 10,
+          rodizio_waste_policy_enabled: true,
+          rodizio_waste_fee_per_piece: 2.50,
+          updated_at: new Date().toISOString(),
+          updated_by: 'admin-1',
+        },
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        update: mockUpdate,
+        eq: mockEq,
+        select: mockSelect,
+        single: mockSingle,
+      });
+
+      const request = createMockPatchRequest({ rodizio_waste_fee_per_piece: 2.50 });
+      const response = await PATCH(request);
+
+      expect(response.status).toBe(200);
+      expect(mockVerifyAuth).toHaveBeenCalled();
+      expect(mockSupabaseFrom).toHaveBeenCalledWith('reservation_settings');
     });
   });
 

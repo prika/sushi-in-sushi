@@ -4,6 +4,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { POST as sendPOST } from '@/app/api/verification/send/route';
+import { POST as verifyPOST } from '@/app/api/verification/verify/route';
+import { NextRequest } from 'next/server';
 
 // Mock Supabase
 const mockSupabaseFrom = vi.fn();
@@ -15,91 +18,287 @@ vi.mock('@/lib/supabase/server', () => ({
   })),
 }));
 
+// Mock Resend
+vi.mock('resend', () => {
+  return {
+    Resend: class MockResend {
+      emails = {
+        send: vi.fn().mockResolvedValue({ data: { id: 'test-email-id' } }),
+      };
+    },
+  };
+});
+
+// Mock Twilio
+vi.mock('twilio', () => {
+  return {
+    default: function MockTwilio() {
+      return {
+        messages: {
+          create: vi.fn().mockResolvedValue({ sid: 'test-sms-id' }),
+        },
+      };
+    },
+  };
+});
+
+// Helper to create mock NextRequest
+function createMockRequest(body: unknown): NextRequest {
+  return {
+    json: async () => body,
+    headers: new Headers({
+      'x-forwarded-for': '192.168.1.1',
+      'user-agent': 'Mozilla/5.0',
+    }),
+  } as NextRequest;
+}
+
 describe('POST /api/verification/send', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('Validação de entrada', () => {
-    it('requer sessionCustomerId', () => {
+    it('requer sessionCustomerId', async () => {
       const body = { verificationType: 'email', contactValue: 'test@example.com' };
-      const isValid = !!(body.sessionCustomerId);
+      const request = createMockRequest(body);
 
-      expect(isValid).toBe(false);
+      const response = await sendPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Missing required fields');
     });
 
-    it('requer verificationType', () => {
+    it('requer verificationType', async () => {
       const body = { sessionCustomerId: '123', contactValue: 'test@example.com' };
-      const isValid = !!('verificationType' in body);
+      const request = createMockRequest(body);
 
-      expect(isValid).toBe(false);
+      const response = await sendPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Missing required fields');
     });
 
-    it('requer contactValue', () => {
+    it('requer contactValue', async () => {
       const body = { sessionCustomerId: '123', verificationType: 'email' };
-      const isValid = !!('contactValue' in body);
+      const request = createMockRequest(body);
 
-      expect(isValid).toBe(false);
+      const response = await sendPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Missing required fields');
     });
 
-    it('valida verificationType como email ou phone', () => {
+    it('valida verificationType como email ou phone', async () => {
+      // Test that 'email' and 'phone' pass validation (don't return 400 for invalid type)
       const validTypes = ['email', 'phone'];
 
-      expect(validTypes.includes('email')).toBe(true);
-      expect(validTypes.includes('phone')).toBe(true);
-      expect(validTypes.includes('sms')).toBe(false);
+      for (const type of validTypes) {
+        // Mock Supabase to prevent errors after validation passes
+        const mockSelect = vi.fn().mockReturnThis();
+        const mockEq = vi.fn().mockReturnThis();
+        const mockGte = vi.fn().mockReturnThis();
+        const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
+
+        mockSupabaseFrom.mockReturnValue({
+          select: mockSelect,
+          eq: mockEq,
+          gte: mockGte,
+          limit: mockLimit,
+        });
+
+        const body = {
+          sessionCustomerId: '123',
+          verificationType: type,
+          contactValue: 'test@example.com'
+        };
+        const request = createMockRequest(body);
+        const response = await sendPOST(request);
+        const data = await response.json();
+
+        // Should NOT return 400 with "Invalid verification type" error
+        if (response.status === 400) {
+          expect(data.error).not.toBe('Invalid verification type');
+        }
+      }
     });
 
-    it('rejeita tipos inválidos', () => {
+    it('rejeita tipos inválidos', async () => {
       const invalidTypes = ['sms', 'whatsapp', 'invalid'];
 
-      invalidTypes.forEach(type => {
-        expect(['email', 'phone'].includes(type)).toBe(false);
-      });
+      for (const type of invalidTypes) {
+        const body = {
+          sessionCustomerId: '123',
+          verificationType: type,
+          contactValue: 'test@example.com'
+        };
+        const request = createMockRequest(body);
+        const response = await sendPOST(request);
+        const data = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(data.error).toBe('Invalid verification type');
+      }
     });
   });
 
   describe('Rate limiting', () => {
-    it('permite até 3 tentativas por hora', () => {
+    it('permite até 3 tentativas por hora', async () => {
+      // Mock Supabase to return 2 recent logs (below rate limit)
       const recentLogs = [
         { id: '1', created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString() },
         { id: '2', created_at: new Date(Date.now() - 20 * 60 * 1000).toISOString() },
       ];
 
-      const isAllowed = recentLogs.length < 3;
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLimit = vi.fn().mockResolvedValue({ data: recentLogs, error: null });
 
-      expect(isAllowed).toBe(true);
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        gte: mockGte,
+        limit: mockLimit,
+      });
+
+      // Mock RPC for token generation
+      mockSupabaseRpc.mockResolvedValue({ data: '123456', error: null });
+
+      const body = {
+        sessionCustomerId: '123',
+        verificationType: 'email',
+        contactValue: 'test@example.com'
+      };
+      const request = createMockRequest(body);
+      const response = await sendPOST(request);
+
+      // Should NOT return 429 (rate limit) with only 2 recent attempts
+      expect(response.status).not.toBe(429);
     });
 
-    it('bloqueia após 3 tentativas', () => {
+    it('bloqueia após 3 tentativas', async () => {
+      // Mock Supabase to return 3 recent logs (at rate limit)
       const recentLogs = [
-        { id: '1' },
-        { id: '2' },
-        { id: '3' },
+        { id: '1', created_at: new Date(Date.now() - 50 * 60 * 1000).toISOString() },
+        { id: '2', created_at: new Date(Date.now() - 40 * 60 * 1000).toISOString() },
+        { id: '3', created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString() },
       ];
 
-      const isAllowed = recentLogs.length < 3;
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLimit = vi.fn().mockResolvedValue({ data: recentLogs, error: null });
 
-      expect(isAllowed).toBe(false);
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        gte: mockGte,
+        limit: mockLimit,
+      });
+
+      const body = {
+        sessionCustomerId: '123',
+        verificationType: 'email',
+        contactValue: 'test@example.com'
+      };
+      const request = createMockRequest(body);
+      const response = await sendPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(429);
+      expect(data.error).toContain('Too many verification attempts');
+      expect(data.error).toContain('1 hour');
     });
 
-    it('usa janela de 1 hora para rate limit', () => {
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-
-      expect(oneHourAgo.getTime()).toBeGreaterThan(twoHoursAgo.getTime());
-    });
-
-    it('conta apenas logs recentes (última hora)', () => {
+    it('usa janela de 1 hora para rate limit', async () => {
+      // Mock Supabase to return logs with different timestamps
+      // Only logs within last hour should count
       const allLogs = [
-        { created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString() }, // 30 min ago - count
-        { created_at: new Date(Date.now() - 90 * 60 * 1000).toISOString() }, // 90 min ago - skip
+        { id: '1', created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString() }, // 30 min ago - counts
+        { id: '2', created_at: new Date(Date.now() - 90 * 60 * 1000).toISOString() }, // 90 min ago - too old
+        { id: '3', created_at: new Date(Date.now() - 120 * 60 * 1000).toISOString() }, // 2 hours ago - too old
       ];
 
+      // The route filters by gte(oneHourAgo), so Supabase should only return logs within 1 hour
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       const recentLogs = allLogs.filter(log => new Date(log.created_at) >= oneHourAgo);
 
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLimit = vi.fn().mockResolvedValue({ data: recentLogs, error: null });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        gte: mockGte,
+        limit: mockLimit,
+      });
+
+      mockSupabaseRpc.mockResolvedValue({ data: '123456', error: null });
+
+      const body = {
+        sessionCustomerId: '123',
+        verificationType: 'email',
+        contactValue: 'test@example.com'
+      };
+      const request = createMockRequest(body);
+      const response = await sendPOST(request);
+
+      // Verify the gte filter was called with a timestamp approximately 1 hour ago
+      expect(mockGte).toHaveBeenCalled();
+      const gteArg = mockGte.mock.calls[0][1]; // Second argument to gte()
+      const gteTime = new Date(gteArg).getTime();
+      const expectedTime = Date.now() - 60 * 60 * 1000;
+      // Allow 1 second tolerance for test execution time
+      expect(Math.abs(gteTime - expectedTime)).toBeLessThan(1000);
+
+      // With only 1 recent log, should not hit rate limit
+      expect(response.status).not.toBe(429);
+    });
+
+    it('conta apenas logs recentes (última hora)', async () => {
+      // Test that old logs outside 1-hour window don't count
+      const allLogs = [
+        { id: '1', created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString() }, // 30 min ago - count
+        { id: '2', created_at: new Date(Date.now() - 90 * 60 * 1000).toISOString() }, // 90 min ago - skip
+      ];
+
+      // Simulate Supabase filtering (only returns logs from last hour)
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const recentLogs = allLogs.filter(log => new Date(log.created_at) >= oneHourAgo);
+
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLimit = vi.fn().mockResolvedValue({ data: recentLogs, error: null });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        gte: mockGte,
+        limit: mockLimit,
+      });
+
+      mockSupabaseRpc.mockResolvedValue({ data: '123456', error: null });
+
+      const body = {
+        sessionCustomerId: '123',
+        verificationType: 'email',
+        contactValue: 'test@example.com'
+      };
+      const request = createMockRequest(body);
+      const response = await sendPOST(request);
+
+      // Should have filtered to only 1 recent log
       expect(recentLogs).toHaveLength(1);
+
+      // With only 1 recent log, should not hit rate limit
+      expect(response.status).not.toBe(429);
     });
   });
 
@@ -233,22 +432,111 @@ describe('POST /api/verification/send', () => {
       });
     });
 
-    it('retorna 503 se Twilio não configurado', () => {
-      const twilioConfigured = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
+    it('retorna 503 se Twilio não configurado', async () => {
+      try {
+        // Stub Twilio env vars as empty
+        vi.stubEnv('TWILIO_ACCOUNT_SID', '');
+        vi.stubEnv('TWILIO_AUTH_TOKEN', '');
+        vi.stubEnv('TWILIO_PHONE_NUMBER', '');
 
-      // Se não configurado, status deveria ser 503
-      const expectedStatus = twilioConfigured ? 200 : 503;
+        // Mock Supabase for rate limiting check and update
+        const mockSelect = vi.fn().mockReturnThis();
+        const mockEq = vi.fn().mockReturnThis();
+        const mockGte = vi.fn().mockReturnThis();
+        const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
+        const mockUpdate = vi.fn().mockReturnThis();
+        const mockInsert = vi.fn().mockResolvedValue({ data: {}, error: null });
 
-      expect([200, 503].includes(expectedStatus)).toBe(true);
+        let callCount = 0;
+        mockSupabaseFrom.mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) {
+            // First call: rate limiting check
+            return { select: mockSelect, eq: mockEq, gte: mockGte, limit: mockLimit };
+          } else if (callCount === 2) {
+            // Second call: update session_customer
+            return { update: mockUpdate, eq: mockEq };
+          } else {
+            // Third call: insert verification_logs
+            return { insert: mockInsert };
+          }
+        });
+
+        // Mock RPC for token generation
+        mockSupabaseRpc.mockResolvedValue({ data: '123456', error: null });
+
+        const body = {
+          sessionCustomerId: '123',
+          verificationType: 'phone',
+          contactValue: '+351912345678',
+        };
+        const request = createMockRequest(body);
+
+        const response = await sendPOST(request);
+        const data = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(data.error).toContain('not configured');
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
 
-    it('previne envio para o próprio número', () => {
-      const senderNumber = '+351912345678';
-      const recipientNumber = '+351912345678';
+    it('previne envio para o próprio número', async () => {
+      // This test validates the same-number check via the route.
+      // The validation logic is extracted to validateContactNotSameAsSender()
+      // (tested separately in twilio.test.ts), and the route uses it to return 400.
 
-      const isSameNumber = senderNumber === recipientNumber;
+      try {
+        const sameNumber = '+351912345678';
 
-      expect(isSameNumber).toBe(true);
+        // Stub Twilio env vars with the sender number
+        vi.stubEnv('TWILIO_ACCOUNT_SID', 'test-account-sid');
+        vi.stubEnv('TWILIO_AUTH_TOKEN', 'test-auth-token');
+        vi.stubEnv('TWILIO_PHONE_NUMBER', sameNumber);
+
+        // Mock Supabase for rate limiting check and update
+        const mockSelect = vi.fn().mockReturnThis();
+        const mockEq = vi.fn().mockReturnThis();
+        const mockGte = vi.fn().mockReturnThis();
+        const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
+        const mockUpdate = vi.fn().mockReturnThis();
+        const mockInsert = vi.fn().mockResolvedValue({ data: {}, error: null });
+
+        let callCount = 0;
+        mockSupabaseFrom.mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) {
+            // First call: rate limiting check
+            return { select: mockSelect, eq: mockEq, gte: mockGte, limit: mockLimit };
+          } else if (callCount === 2) {
+            // Second call: update session_customer
+            return { update: mockUpdate, eq: mockEq };
+          } else {
+            // Third call: insert verification_logs
+            return { insert: mockInsert };
+          }
+        });
+
+        // Mock RPC for token generation
+        mockSupabaseRpc.mockResolvedValue({ data: '123456', error: null });
+
+        const body = {
+          sessionCustomerId: '123',
+          verificationType: 'phone',
+          contactValue: sameNumber, // Same as Twilio sender
+        };
+        const request = createMockRequest(body);
+
+        const response = await sendPOST(request);
+        const data = await response.json();
+
+        // Should return 400 with same-number error
+        expect(response.status).toBe(400);
+        expect(data.error).toContain('Cannot send SMS to the same number');
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
   });
 
@@ -310,60 +598,223 @@ describe('POST /api/verification/send', () => {
 });
 
 describe('POST /api/verification/verify', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('Validação de entrada', () => {
-    it('requer sessionCustomerId', () => {
+    it('requer sessionCustomerId', async () => {
       const body = { token: '123456' };
-      const isValid = !!('sessionCustomerId' in body);
+      const request = createMockRequest(body);
 
-      expect(isValid).toBe(false);
+      const response = await verifyPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Missing required fields');
     });
 
-    it('requer token', () => {
+    it('requer token', async () => {
       const body = { sessionCustomerId: '123' };
-      const isValid = !!('token' in body);
+      const request = createMockRequest(body);
 
-      expect(isValid).toBe(false);
+      const response = await verifyPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Missing required fields');
     });
 
-    it('aceita ambos os campos', () => {
+    it('aceita ambos os campos', async () => {
       const body = { sessionCustomerId: '123', token: '123456' };
+      const request = createMockRequest(body);
 
-      expect(body.sessionCustomerId).toBeDefined();
-      expect(body.token).toBeDefined();
+      // Mock Supabase - will fail later, but not due to missing fields
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Not found' },
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        single: mockSingle,
+      });
+
+      const response = await verifyPOST(request);
+      const data = await response.json();
+
+      // Should not return 400 for missing fields
+      // May return 404 (not found) or other error, but not 400 missing fields
+      if (response.status === 400) {
+        expect(data.error).not.toBe('Missing required fields');
+      }
+      // More likely: returns 404 because session_customer not found
+      // This proves the input validation passed
+      expect([404, 500]).toContain(response.status);
     });
   });
 
   describe('Validação de token', () => {
-    it('verifica se token corresponde', () => {
-      const storedToken = '123456';
-      const providedToken = '123456';
+    it('verifica se token corresponde', async () => {
+      const body = { sessionCustomerId: '123', token: '123456' };
+      const request = createMockRequest(body);
 
-      expect(storedToken === providedToken).toBe(true);
+      // Mock Supabase to return matching token
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: '123',
+          verification_token: '123456', // Matching token
+          verification_expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          verification_type: 'email',
+          email: 'test@example.com',
+          phone: null,
+          customer_id: null,
+          session: { id: 'session-1', table_id: 'table-1' },
+        },
+        error: null,
+      });
+
+      // Mock update to fail (to avoid complex mocking), but after token validation
+      const mockUpdate = vi.fn().mockReturnThis();
+      const mockUpdateEq = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Update failed' },
+      });
+
+      mockSupabaseFrom.mockReturnValueOnce({
+        select: mockSelect,
+        eq: mockEq,
+        single: mockSingle,
+      }).mockReturnValueOnce({
+        update: mockUpdate,
+        eq: mockUpdateEq,
+      });
+
+      const response = await verifyPOST(request);
+
+      // Should not return 400 for invalid token
+      // May return 500 (update error), but not 400 invalid token
+      if (response.status === 400) {
+        const data = await response.json();
+        expect(data.error).not.toBe('Invalid verification code');
+      }
+      // More likely: returns 500 because update failed
+      // This proves token validation passed
+      expect([500]).toContain(response.status);
     });
 
-    it('rejeita token incorreto', () => {
-      const storedToken = '123456';
-      const providedToken = '654321';
+    it('rejeita token incorreto', async () => {
+      const body = { sessionCustomerId: '123', token: '654321' };
+      const request = createMockRequest(body);
 
-      expect(storedToken === providedToken).toBe(false);
+      // Mock Supabase to return different token
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: '123',
+          verification_token: '123456', // Different from provided
+          verification_expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          verification_type: 'email',
+          email: 'test@example.com',
+          session: { id: 'session-1', table_id: 'table-1' },
+        },
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        single: mockSingle,
+      });
+
+      const response = await verifyPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Invalid verification code');
     });
 
-    it('verifica se token não expirou', () => {
-      const now = new Date();
-      const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 min no futuro
+    it('verifica se token não expirou', async () => {
+      const body = { sessionCustomerId: '123', token: '123456' };
+      const request = createMockRequest(body);
 
-      expect(now <= expiresAt).toBe(true);
+      // Mock token that expires in the future
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: '123',
+          verification_token: '123456',
+          verification_expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          verification_type: 'email',
+          email: 'test@example.com',
+          customer_id: null,
+          session: { id: 'session-1', table_id: 'table-1' },
+        },
+        error: null,
+      });
+
+      // Mock update to fail (to avoid complex mocking), but after expiry validation
+      const mockUpdate = vi.fn().mockReturnThis();
+      const mockUpdateEq = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Update failed' },
+      });
+
+      mockSupabaseFrom.mockReturnValueOnce({
+        select: mockSelect,
+        eq: mockEq,
+        single: mockSingle,
+      }).mockReturnValueOnce({
+        update: mockUpdate,
+        eq: mockUpdateEq,
+      });
+
+      const response = await verifyPOST(request);
+
+      // Should not return 400 for expired token
+      // May return 500 (update error), but not 400 expired token
+      if (response.status === 400) {
+        const data = await response.json();
+        expect(data.error).not.toBe('Verification code has expired');
+      }
+      // More likely: returns 500 because update failed
+      // This proves expiry validation passed
+      expect([500]).toContain(response.status);
     });
 
-    it('rejeita token expirado', () => {
-      const now = new Date();
-      const expiresAt = new Date(now.getTime() - 5 * 60 * 1000); // 5 min no passado
+    it('rejeita token expirado', async () => {
+      const body = { sessionCustomerId: '123', token: '123456' };
+      const request = createMockRequest(body);
 
-      expect(now > expiresAt).toBe(true);
+      // Mock token that expired in the past
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: '123',
+          verification_token: '123456',
+          verification_expires_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+          verification_type: 'email',
+          email: 'test@example.com',
+          session: { id: 'session-1', table_id: 'table-1' },
+        },
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        single: mockSingle,
+      });
+
+      const response = await verifyPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Verification code has expired');
     });
 
     it('valida formato de data ISO', () => {
@@ -605,40 +1056,178 @@ describe('POST /api/verification/verify', () => {
   });
 
   describe('Tratamento de erros', () => {
-    it('retorna 400 para campos ausentes', () => {
-      const error = { code: 'MISSING_FIELDS', status: 400 };
+    it('retorna 400 para campos ausentes', async () => {
+      const body = { token: '123456' }; // Missing sessionCustomerId
+      const request = createMockRequest(body);
 
-      expect(error.status).toBe(400);
+      const response = await verifyPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Missing required fields');
     });
 
-    it('retorna 404 se session_customer não encontrado', () => {
-      const error = { code: 'NOT_FOUND', status: 404 };
+    it('retorna 404 se session_customer não encontrado', async () => {
+      const body = { sessionCustomerId: 'non-existent', token: '123456' };
+      const request = createMockRequest(body);
 
-      expect(error.status).toBe(404);
+      // Mock Supabase to return null (not found)
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Not found' },
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        single: mockSingle,
+      });
+
+      const response = await verifyPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.error).toBe('Session customer not found');
     });
 
-    it('retorna 400 para token inválido', () => {
-      const error = { code: 'INVALID_TOKEN', status: 400 };
+    it('retorna 400 para token inválido', async () => {
+      const body = { sessionCustomerId: '123', token: 'wrong-token' };
+      const request = createMockRequest(body);
 
-      expect(error.status).toBe(400);
+      // Mock Supabase with different token
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: '123',
+          verification_token: '123456',
+          verification_expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          verification_type: 'email',
+          email: 'test@example.com',
+          session: { id: 'session-1', table_id: 'table-1' },
+        },
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        single: mockSingle,
+      });
+
+      const response = await verifyPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Invalid verification code');
     });
 
-    it('retorna 400 para token expirado', () => {
-      const error = { code: 'EXPIRED_TOKEN', status: 400 };
+    it('retorna 400 para token expirado', async () => {
+      const body = { sessionCustomerId: '123', token: '123456' };
+      const request = createMockRequest(body);
 
-      expect(error.status).toBe(400);
+      // Mock expired token
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: '123',
+          verification_token: '123456',
+          verification_expires_at: new Date(Date.now() - 1000).toISOString(),
+          verification_type: 'email',
+          email: 'test@example.com',
+          session: { id: 'session-1', table_id: 'table-1' },
+        },
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        single: mockSingle,
+      });
+
+      const response = await verifyPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Verification code has expired');
     });
 
-    it('retorna 400 para tipo inválido', () => {
-      const error = { code: 'INVALID_TYPE', status: 400 };
+    it('retorna 400 para tipo inválido', async () => {
+      const body = { sessionCustomerId: '123', token: '123456' };
+      const request = createMockRequest(body);
 
-      expect(error.status).toBe(400);
+      // Mock with invalid verification type
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: '123',
+          verification_token: '123456',
+          verification_expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          verification_type: 'invalid-type',
+          email: 'test@example.com',
+          session: { id: 'session-1', table_id: 'table-1' },
+        },
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        single: mockSingle,
+      });
+
+      const response = await verifyPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Invalid verification type');
     });
 
-    it('retorna 500 para erro ao atualizar', () => {
-      const error = { code: 'UPDATE_FAILED', status: 500 };
+    it('retorna 500 para erro ao atualizar', async () => {
+      const body = { sessionCustomerId: '123', token: '123456' };
+      const request = createMockRequest(body);
 
-      expect(error.status).toBe(500);
+      // Mock successful fetch but failed update
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockSingle = vi.fn().mockResolvedValue({
+        data: {
+          id: '123',
+          verification_token: '123456',
+          verification_expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          verification_type: 'email',
+          email: 'test@example.com',
+          customer_id: null,
+          session: { id: 'session-1', table_id: 'table-1' },
+        },
+        error: null,
+      });
+
+      const mockUpdate = vi.fn().mockReturnThis();
+      const mockUpdateEq = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Update failed' },
+      });
+
+      mockSupabaseFrom.mockReturnValueOnce({
+        select: mockSelect,
+        eq: mockEq,
+        single: mockSingle,
+      }).mockReturnValueOnce({
+        update: mockUpdate,
+        eq: mockUpdateEq,
+      });
+
+      const response = await verifyPOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('Failed to verify');
     });
   });
 });

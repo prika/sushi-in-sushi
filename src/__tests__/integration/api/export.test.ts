@@ -4,6 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { GET } from '@/app/api/export/route';
+import { NextRequest } from 'next/server';
 
 // Mock Supabase
 const mockSupabaseFrom = vi.fn();
@@ -13,43 +15,381 @@ vi.mock('@supabase/supabase-js', () => ({
   })),
 }));
 
+// Helper to create mock request with query params
+function createMockExportRequest(params: Record<string, string>): NextRequest {
+  const url = new URL('http://localhost/api/export');
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+
+  return {
+    nextUrl: {
+      searchParams: url.searchParams,
+    },
+  } as NextRequest;
+}
+
 describe('GET /api/export', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
+  describe('Integration tests (API handler)', () => {
+    it('retorna 400 se startDate ausente', async () => {
+      const request = createMockExportRequest({ endDate: '2026-02-28' });
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Missing date range');
+    });
+
+    it('retorna 400 se endDate ausente', async () => {
+      const request = createMockExportRequest({ startDate: '2026-02-01' });
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Missing date range');
+    });
+
+    it('retorna 404 se nenhum dado encontrado', async () => {
+      const request = createMockExportRequest({
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+      });
+
+      // Mock empty result
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLte = vi.fn().mockReturnThis();
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: [],
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        gte: mockGte,
+        lte: mockLte,
+        order: mockOrder,
+      });
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.error).toBe('No data found');
+      expect(mockSupabaseFrom).toHaveBeenCalledWith('sessions');
+      expect(mockGte).toHaveBeenCalledWith('created_at', '2026-02-01');
+      expect(mockLte).toHaveBeenCalledWith('created_at', '2026-02-28');
+    });
+
+    it('retorna 500 se erro no Supabase', async () => {
+      const request = createMockExportRequest({
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+      });
+
+      // Mock Supabase error
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLte = vi.fn().mockReturnThis();
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Database error' },
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        gte: mockGte,
+        lte: mockLte,
+        order: mockOrder,
+      });
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('Failed to fetch data');
+    });
+
+    it('exporta dados em formato CSV com sucesso', async () => {
+      const request = createMockExportRequest({
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+        format: 'csv',
+      });
+
+      // Mock successful data
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLte = vi.fn().mockReturnThis();
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'session-1',
+            created_at: '2026-02-15T10:00:00Z',
+            closed_at: '2026-02-15T12:00:00Z',
+            status: 'closed',
+            tables: [{ number: 5 }],
+            orders: [
+              {
+                id: 'order-1',
+                quantity: 2,
+                unit_price: 12.50,
+                status: 'delivered',
+                notes: 'Sem wasabi',
+                created_at: '2026-02-15T10:15:00Z',
+                products: [{ name: 'Sushi Salmão' }],
+              },
+            ],
+          },
+        ],
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        gte: mockGte,
+        lte: mockLte,
+        order: mockOrder,
+      });
+
+      const response = await GET(request);
+      const text = await response.text();
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toBe('text/csv; charset=utf-8');
+      expect(response.headers.get('Content-Disposition')).toContain('.csv');
+      expect(text).toContain('Sessão ID');
+      expect(text).toContain('session-1');
+      expect(text).toContain('Sushi Salmão');
+      // Note: BOM character is included but may not be visible in text()
+    });
+
+    it('exporta dados em formato JSON com sucesso', async () => {
+      const request = createMockExportRequest({
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+        format: 'json',
+      });
+
+      // Mock successful data
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLte = vi.fn().mockReturnThis();
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'session-1',
+            created_at: '2026-02-15T10:00:00Z',
+            closed_at: '2026-02-15T12:00:00Z',
+            status: 'closed',
+            tables: [{ number: 5 }],
+            orders: [
+              {
+                id: 'order-1',
+                quantity: 2,
+                unit_price: 12.50,
+                status: 'delivered',
+                notes: null,
+                created_at: '2026-02-15T10:15:00Z',
+                products: [{ name: 'Sushi Salmão' }],
+              },
+            ],
+          },
+        ],
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        gte: mockGte,
+        lte: mockLte,
+        order: mockOrder,
+      });
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toBe('application/json');
+      expect(response.headers.get('Content-Disposition')).toContain('.json');
+      expect(Array.isArray(data)).toBe(true);
+      expect(data[0]).toHaveProperty('sessao_id', 'session-1');
+      expect(data[0]).toHaveProperty('mesa', 5);
+      expect(data[0]).toHaveProperty('produto', 'Sushi Salmão');
+      expect(data[0]).toHaveProperty('preco_total', 25);
+    });
+
+    it('gera linha vazia para sessão sem pedidos', async () => {
+      const request = createMockExportRequest({
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+        format: 'json',
+      });
+
+      // Mock session without orders
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLte = vi.fn().mockReturnThis();
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 'session-1',
+            created_at: '2026-02-15T10:00:00Z',
+            closed_at: null,
+            status: 'active',
+            tables: [{ number: 3 }],
+            orders: [],
+          },
+        ],
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        gte: mockGte,
+        lte: mockLte,
+        order: mockOrder,
+      });
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(data).toHaveLength(1);
+      expect(data[0].pedido_id).toBe('');
+      expect(data[0].produto).toBe('');
+      expect(data[0].quantidade).toBe(0);
+    });
+  });
+
   describe('Validação de parâmetros', () => {
-    it('requer startDate', () => {
-      const params = { endDate: '2026-02-28' };
-      const isValid = !!('startDate' in params);
+    it('requer startDate', async () => {
+      const request = createMockExportRequest({ endDate: '2026-02-28' });
+      const response = await GET(request);
+      const data = await response.json();
 
-      expect(isValid).toBe(false);
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Missing date range');
     });
 
-    it('requer endDate', () => {
-      const params = { startDate: '2026-02-01' };
-      const isValid = !!('endDate' in params);
+    it('requer endDate', async () => {
+      const request = createMockExportRequest({ startDate: '2026-02-01' });
+      const response = await GET(request);
+      const data = await response.json();
 
-      expect(isValid).toBe(false);
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Missing date range');
     });
 
-    it('aceita range de datas válido', () => {
-      const params = { startDate: '2026-02-01', endDate: '2026-02-28' };
+    it('aceita range de datas válido', async () => {
+      const request = createMockExportRequest({
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+      });
 
-      expect(params.startDate).toBeDefined();
-      expect(params.endDate).toBeDefined();
+      // Mock successful query
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLte = vi.fn().mockReturnThis();
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: [{
+          id: 'session-1',
+          created_at: '2026-02-15T10:00:00Z',
+          closed_at: null,
+          status: 'active',
+          tables: [{ number: 1 }],
+          orders: [],
+        }],
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        gte: mockGte,
+        lte: mockLte,
+        order: mockOrder,
+      });
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(200);
+      expect(mockGte).toHaveBeenCalledWith('created_at', '2026-02-01');
+      expect(mockLte).toHaveBeenCalledWith('created_at', '2026-02-28');
     });
 
-    it('status é opcional', () => {
-      const params = { startDate: '2026-02-01', endDate: '2026-02-28' };
+    it('status é opcional', async () => {
+      const request = createMockExportRequest({
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+        // status omitted
+      });
 
-      expect(params).not.toHaveProperty('status');
+      // Mock successful query
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLte = vi.fn().mockReturnThis();
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: [{
+          id: 'session-1',
+          created_at: '2026-02-15T10:00:00Z',
+          closed_at: null,
+          status: 'active',
+          tables: [{ number: 1 }],
+          orders: [],
+        }],
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        gte: mockGte,
+        lte: mockLte,
+        order: mockOrder,
+      });
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(200);
+      // Should succeed without status parameter
     });
 
-    it('format é opcional (default csv)', () => {
-      const format = 'csv'; // default
+    it('format é opcional (default csv)', async () => {
+      const request = createMockExportRequest({
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+        // format omitted - should default to CSV
+      });
 
-      expect(['csv', 'json'].includes(format)).toBe(true);
+      // Mock successful query
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLte = vi.fn().mockReturnThis();
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: [{
+          id: 'session-1',
+          created_at: '2026-02-15T10:00:00Z',
+          closed_at: null,
+          status: 'active',
+          tables: [{ number: 1 }],
+          orders: [],
+        }],
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        gte: mockGte,
+        lte: mockLte,
+        order: mockOrder,
+      });
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toBe('text/csv; charset=utf-8');
     });
   });
 
@@ -284,9 +624,16 @@ describe('GET /api/export', () => {
     it('formata data em pt-PT (dd/mm/yyyy hh:mm)', () => {
       const isoString = '2026-02-13T15:30:00.000Z';
       const date = new Date(isoString);
+      const formatted = date.toLocaleString('pt-PT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/Lisbon'
+      });
 
-      // Format should be like "13/02/2026, 15:30"
-      expect(date).toBeInstanceOf(Date);
+      expect(formatted).toBe('13/02/2026, 15:30');
     });
 
     it('usa 2 dígitos para dia e mês', () => {
@@ -347,23 +694,72 @@ describe('GET /api/export', () => {
   });
 
   describe('Tratamento de erros', () => {
-    it('retorna 400 se datas ausentes', () => {
-      const error = { code: 'MISSING_DATES', status: 400 };
+    it('retorna 400 se datas ausentes', async () => {
+      // Call API without required date parameters
+      const request = createMockExportRequest({ format: 'csv' });
+      const response = await GET(request);
+      const data = await response.json();
 
-      expect(error.status).toBe(400);
+      expect(response.status).toBe(400);
+      expect(data.error).toBe('Missing date range');
     });
 
-    it('retorna 404 se nenhum dado encontrado', () => {
-      const sessions: unknown[] = [];
-      const status = sessions.length === 0 ? 404 : 200;
+    it('retorna 404 se nenhum dado encontrado', async () => {
+      const request = createMockExportRequest({
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+      });
 
-      expect(status).toBe(404);
+      // Mock Supabase to return empty array
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLte = vi.fn().mockReturnThis();
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: [],
+        error: null,
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        gte: mockGte,
+        lte: mockLte,
+        order: mockOrder,
+      });
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.error).toBe('No data found');
     });
 
-    it('retorna 500 se erro na query', () => {
-      const error = { code: 'QUERY_FAILED', status: 500 };
+    it('retorna 500 se erro na query', async () => {
+      const request = createMockExportRequest({
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+      });
 
-      expect(error.status).toBe(500);
+      // Mock Supabase to return an error
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockGte = vi.fn().mockReturnThis();
+      const mockLte = vi.fn().mockReturnThis();
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Query failed', code: 'QUERY_FAILED' },
+      });
+
+      mockSupabaseFrom.mockReturnValue({
+        select: mockSelect,
+        gte: mockGte,
+        lte: mockLte,
+        order: mockOrder,
+      });
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('Failed to fetch data');
     });
   });
 

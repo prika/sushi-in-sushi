@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { Resend } from 'resend';
 import twilio from 'twilio';
+import {
+  validateContactNotSameAsSender,
+  isTwilioConfigured,
+} from '@/lib/validation/twilio';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-
-// Initialize Twilio client (only if credentials are provided)
-const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-  : null;
 
 /**
  * POST /api/verification/send
@@ -245,22 +244,33 @@ export async function POST(request: NextRequest) {
         );
       }
     } else if (verificationType === 'phone') {
-      if (!twilioClient) {
+      // Check if Twilio is configured
+      if (!isTwilioConfigured()) {
         return NextResponse.json(
           { error: 'SMS service not configured. Please set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.' },
           { status: 503 }
         );
       }
 
-      try {
-        // Check if trying to send to the same number as the sender
-        if (contactValue === process.env.TWILIO_PHONE_NUMBER) {
-          return NextResponse.json(
-            { error: 'Cannot send SMS to the same number as the Twilio sender. Please use a different phone number for testing.' },
-            { status: 400 }
-          );
-        }
+      // Validate contact is not same as sender
+      const validation = validateContactNotSameAsSender(
+        contactValue,
+        process.env.TWILIO_PHONE_NUMBER
+      );
+      if (!validation.isValid) {
+        return NextResponse.json(
+          { error: validation.error },
+          { status: 400 }
+        );
+      }
 
+      // Initialize Twilio client (safe to do here after config validation)
+      const twilioClient = twilio(
+        process.env.TWILIO_ACCOUNT_SID!,
+        process.env.TWILIO_AUTH_TOKEN!
+      );
+
+      try {
         await twilioClient.messages.create({
           body: `Sushi in Sushi - O seu código de verificação é: ${token}. Válido por 15 minutos.`,
           from: process.env.TWILIO_PHONE_NUMBER || '',
