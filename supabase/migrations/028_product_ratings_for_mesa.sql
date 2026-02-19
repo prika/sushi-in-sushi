@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS product_ratings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id uuid NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   session_customer_id uuid REFERENCES session_customers(id) ON DELETE SET NULL,
-  product_id integer NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  product_id uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   rating smallint NOT NULL CHECK (rating >= 1 AND rating <= 5),
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(session_id, session_customer_id, product_id)

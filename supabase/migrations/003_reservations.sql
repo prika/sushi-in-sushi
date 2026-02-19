@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS reservations (
 
     -- Location and table
     location VARCHAR(50) NOT NULL CHECK (location IN ('circunvalacao', 'boavista')),
-    table_id INTEGER REFERENCES tables(id) ON DELETE SET NULL,
+    table_id UUID REFERENCES tables(id) ON DELETE SET NULL,
 
     -- Service type preference
     is_rodizio BOOLEAN DEFAULT true,
@@ -147,7 +147,7 @@ CREATE OR REPLACE FUNCTION check_table_availability(
     p_duration_minutes INTEGER DEFAULT 120
 )
 RETURNS TABLE (
-    table_id INTEGER,
+    table_id UUID,
     table_number INTEGER,
     table_name VARCHAR(255),
     is_available BOOLEAN

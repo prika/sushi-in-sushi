@@ -1,5 +1,5 @@
 -- Add order_id to product_ratings for per-order-item ratings
-ALTER TABLE product_ratings ADD COLUMN IF NOT EXISTS order_id integer REFERENCES orders(id) ON DELETE SET NULL;
+ALTER TABLE product_ratings ADD COLUMN IF NOT EXISTS order_id uuid REFERENCES orders(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_product_ratings_order ON product_ratings(order_id) WHERE order_id IS NOT NULL;
 

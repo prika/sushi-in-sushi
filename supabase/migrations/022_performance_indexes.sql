@@ -87,7 +87,7 @@ COMMENT ON INDEX idx_products_available_name IS
 -- Composite index for date and status
 -- Used by: Reservation calendar, availability check
 CREATE INDEX IF NOT EXISTS idx_reservations_date_status
-  ON reservations(date, status);
+  ON reservations(reservation_date, status);
 
 COMMENT ON INDEX idx_reservations_date_status IS
   'Optimizes reservation lookup by date with status filter';
@@ -95,7 +95,7 @@ COMMENT ON INDEX idx_reservations_date_status IS
 -- Index for pending/confirmed reservations
 -- Used by: Admin dashboard, reminder jobs
 CREATE INDEX IF NOT EXISTS idx_reservations_datetime_status
-  ON reservations(date, time, status)
+  ON reservations(reservation_date, reservation_time, status)
   WHERE status IN ('pending', 'confirmed');
 
 COMMENT ON INDEX idx_reservations_datetime_status IS

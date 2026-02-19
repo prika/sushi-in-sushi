@@ -1,6 +1,6 @@
 -- =============================================
 -- VENDUS CATEGORIES SYNC
--- Migration: 007_vendus_categories.sql
+-- Migration: 047_vendus_categories.sql
 -- =============================================
 
 -- Add Vendus columns to categories for sync mapping

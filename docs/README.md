@@ -21,7 +21,13 @@ Documentação completa do projeto **Sushi in Sushi**, um sistema de gestão de 
    - Testing patterns para hooks React
    - Unit tests com Vitest
    - Mocking strategies
-   - 537 testes passando
+   - 1581 testes passando
+
+4. **[VENDUS_SYNC.md](VENDUS_SYNC.md)** - Integracao Vendus POS
+   - Configuracao passo a passo (API Key, Store ID, Register ID)
+   - Sincronizacao de produtos e categorias (push/pull)
+   - Faturacao certificada AT
+   - Impressao de cozinha, migracoes, resolucao de problemas
 
 ### Convenções de Desenvolvimento
 
@@ -49,7 +55,7 @@ O projeto segue **Clean Architecture** com 4 camadas bem definidas:
 - ✅ 12 repositórios (interfaces + implementações)
 - ✅ 50+ use cases testados
 - ✅ 3 domain services
-- ✅ 537 testes passando
+- ✅ 1581 testes passando
 
 ## ⚡ Performance
 
@@ -72,7 +78,7 @@ O projeto segue **Clean Architecture** com 4 camadas bem definidas:
 ## 🧪 Testes
 
 **Cobertura Exemplar:**
-- ✅ 537 testes passando
+- ✅ 1581 testes passando
 - ✅ Use Cases: 100% testados
 - ✅ Domain Services: 100% testados
 - ✅ Infrastructure: Padrão estabelecido
@@ -84,6 +90,7 @@ O projeto segue **Clean Architecture** com 4 camadas bem definidas:
 1. Leia [ARCHITECTURE.md](ARCHITECTURE.md) para entender a estrutura
 2. Reveja [PERFORMANCE.md](PERFORMANCE.md) para conhecer as otimizações
 3. Consulte [TESTING.md](TESTING.md) ao escrever testes
+4. Consulte [VENDUS_SYNC.md](VENDUS_SYNC.md) para configurar o Vendus POS
 
 ### Para Adicionar Funcionalidades
 1. Comece pelo Domain Layer (entidades + interfaces)
@@ -105,7 +112,8 @@ docs/
 ├── README.md           # Este ficheiro (índice completo)
 ├── ARCHITECTURE.md     # Arquitetura Clean Architecture
 ├── PERFORMANCE.md      # Otimizações de performance
-└── TESTING.md          # Guia de testes e padrões
+├── TESTING.md          # Guia de testes e padrões
+└── VENDUS_SYNC.md      # Integracao Vendus POS
 ```
 
 ## 🔗 Links Úteis
@@ -130,16 +138,17 @@ docs/
 - **`CLAUDE.md`** - Convenções oficiais para desenvolvimento
 - **`docs/`** - Toda a documentação técnica
 
-## 🚀 Estado Atual (2026-02-07)
+## 🚀 Estado Atual (2026-02-19)
 
 - ✅ Clean Architecture 100% implementada
-- ✅ 537 testes passando
+- ✅ 1581 testes passando (66 ficheiros)
 - ✅ Performance otimizada (React Query + Hooks + Indexes)
 - ✅ Zero warnings ESLint
-- ✅ Código limpo e bem documentado
+- ✅ Integracao Vendus POS (faturacao, sync, impressao cozinha)
+- ✅ Vendus: 131 testes, 88% cobertura
 
 ---
 
-**Última atualização:** 2026-02-07
-**Versão:** 1.0
+**Ultima atualizacao:** 2026-02-19
+**Versao:** 1.1
 **Mantido por:** Equipa de Desenvolvimento Sushi in Sushi

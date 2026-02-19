@@ -70,7 +70,7 @@ ALTER TABLE restaurants
   ADD COLUMN IF NOT EXISTS games_prize_type VARCHAR(30) DEFAULT 'none'
     CHECK (games_prize_type IN ('none', 'discount_percentage', 'free_product', 'free_dinner')),
   ADD COLUMN IF NOT EXISTS games_prize_value TEXT,
-  ADD COLUMN IF NOT EXISTS games_prize_product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS games_prize_product_id UUID REFERENCES products(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS games_min_rounds_for_prize INTEGER NOT NULL DEFAULT 1,
   ADD COLUMN IF NOT EXISTS games_questions_per_round INTEGER NOT NULL DEFAULT 6;
 

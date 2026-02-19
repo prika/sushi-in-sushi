@@ -406,15 +406,56 @@ Hooks que seguem os mesmos padrões e podem ser testados conforme necessário:
 
 ---
 
+## Vendus Integration Tests
+
+A integracao Vendus tem **131 testes** (88% cobertura) distribuidos por 7 ficheiros:
+
+| Ficheiro | Testes | Cobertura |
+|----------|--------|-----------|
+| `client.test.ts` | 35 | HTTP client, retry, rate limit, errors |
+| `config.test.ts` | 21 | Configuracao, constantes IVA |
+| `invoices.test.ts` | 27 | Faturacao, anulacao, retry queue |
+| `tables.test.ts` | 17 | Import de mesas/rooms |
+| `products.test.ts` | 15 | Sync push/pull, conflitos |
+| `kitchen.test.ts` | 12 | Impressao cozinha |
+| `categories.test.ts` | 4 | Sync categorias |
+
+### Padrao de Mock Vendus
+
+```typescript
+// Mock Supabase com routing por tabela
+function createSupabaseMock(config) {
+  return {
+    from: (table) => {
+      if (table === "products") return { ... };
+      if (table === "invoices") return { ... };
+    }
+  };
+}
+
+// Callback trackers para DB writes
+let insertCalled = false;
+const supabase = createSupabaseMock({
+  onInsert: () => (insertCalled = true),
+});
+expect(insertCalled).toBe(true);
+```
+
+Ver detalhes completos em [VENDUS_SYNC.md](VENDUS_SYNC.md#testes).
+
+---
+
 ## Estatísticas
 
-- **Total de testes:** 537
+- **Total de testes:** 1581 (66 ficheiros)
 - **Hooks testados:** 3 de 13
-- **Padrões estabelecidos:** ✅
+- **Vendus testados:** 7 de 7 modulos (88% cobertura)
+- **Padrões estabelecidos:**
   - Hooks com DependencyContext
   - Hooks com Fetch API
   - Hooks com estado complexo
   - Testes de carregamento, erros, mutações, filtros
+  - Vendus: Supabase mocks, API client mocks, env var manipulation
 
 ---
 

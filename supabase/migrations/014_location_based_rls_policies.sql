@@ -75,51 +75,8 @@ BEGIN
         RETURN EXISTS (
             SELECT 1 FROM waiter_tables wt
             WHERE wt.table_id = table_id_param
-            AND wt.waiter_id = v_staff_id
-            AND wt.is_active = true
+            AND wt.staff_id = v_staff_id
         );
-    END IF;
-
-    -- Anonymous/customers can access for ordering
-    RETURN true;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
-
--- Function to check if waiter can access a specific table (INTEGER version for backwards compatibility)
-CREATE OR REPLACE FUNCTION waiter_can_access_table(table_id_param INTEGER)
-RETURNS BOOLEAN AS $$
-DECLARE
-    v_role_name VARCHAR(50);
-    v_staff_id UUID;
-    v_table_uuid UUID;
-BEGIN
-    v_role_name := get_current_staff_role();
-
-    -- Admins can access all tables
-    IF v_role_name = 'admin' THEN
-        RETURN true;
-    END IF;
-
-    -- Kitchen staff can access all tables (for orders)
-    IF v_role_name = 'kitchen' THEN
-        RETURN true;
-    END IF;
-
-    -- Get UUID from integer ID (if tables uses integer primary key)
-    SELECT id INTO v_table_uuid FROM tables WHERE id::text = table_id_param::text LIMIT 1;
-
-    -- Waiters can only access assigned tables
-    IF v_role_name = 'waiter' THEN
-        v_staff_id := get_current_staff_id();
-        IF v_table_uuid IS NOT NULL THEN
-            RETURN EXISTS (
-                SELECT 1 FROM waiter_tables wt
-                WHERE wt.table_id = v_table_uuid
-                AND wt.waiter_id = v_staff_id
-                AND wt.is_active = true
-            );
-        END IF;
-        RETURN false;
     END IF;
 
     -- Anonymous/customers can access for ordering
@@ -129,8 +86,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 COMMENT ON FUNCTION can_access_location(VARCHAR) IS 'Check if current user can access data from a specific location';
 COMMENT ON FUNCTION get_current_staff_id() IS 'Get the staff ID of the currently authenticated user';
-COMMENT ON FUNCTION waiter_can_access_table(UUID) IS 'Check if current waiter can access a specific table (UUID version)';
-COMMENT ON FUNCTION waiter_can_access_table(INTEGER) IS 'Check if current waiter can access a specific table (INTEGER version for backwards compatibility)';
+COMMENT ON FUNCTION waiter_can_access_table(UUID) IS 'Check if current waiter can access a specific table';
 
 -- =============================================
 -- TABLES POLICIES (Location-based)

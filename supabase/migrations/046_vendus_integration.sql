@@ -1,6 +1,6 @@
 -- =============================================
 -- SUSHI IN SUSHI - VENDUS POS INTEGRATION
--- Migration: 006_vendus_integration.sql
+-- Migration: 046_vendus_integration.sql
 -- =============================================
 
 -- =============================================

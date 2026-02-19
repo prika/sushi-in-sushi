@@ -1,5 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "@/types/database";
+import { getSupabaseUrl, getSupabaseAnonKey } from "./env";
 
 // Singleton instance for browser client
 let browserClient: ReturnType<typeof createBrowserClient<Database>> | null = null;
@@ -12,8 +13,8 @@ let browserClient: ReturnType<typeof createBrowserClient<Database>> | null = nul
 export function createClient() {
   if (!browserClient) {
     browserClient = createBrowserClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      getSupabaseUrl(),
+      getSupabaseAnonKey()
     );
   }
   return browserClient;

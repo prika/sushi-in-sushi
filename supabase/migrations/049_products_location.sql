@@ -1,6 +1,6 @@
 -- =============================================
 -- PRODUCTS LOCATION SUPPORT
--- Migration: 009_products_location.sql
+-- Migration: 049_products_location.sql
 -- =============================================
 -- Adds location_id to products so the sync page can show location-filtered
 -- stats and product lists. Products with NULL location_id are treated as
@@ -13,6 +13,8 @@ ALTER TABLE products
 CREATE INDEX IF NOT EXISTS idx_products_location_id ON products(location_id);
 
 -- Update view to include location_id and location_slug for filtering
+-- Must DROP first because p.* expansion changed (new location_id column shifts positions)
+DROP VIEW IF EXISTS products_with_vendus_status;
 CREATE OR REPLACE VIEW products_with_vendus_status AS
 SELECT
     p.*,

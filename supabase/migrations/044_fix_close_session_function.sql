@@ -1,6 +1,6 @@
 -- =============================================
 -- Migration 044: Fix close_session_and_free_table function
--- Corrects table_id_var type from UUID to INTEGER
+-- Corrects table_id_var type to UUID (sessions.table_id is UUID)
 -- =============================================
 
 -- Drop and recreate function with correct type
@@ -13,7 +13,7 @@ RETURNS VOID
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  table_id_var INTEGER;  -- FIXED: Changed from UUID to INTEGER
+  table_id_var UUID;  -- sessions.table_id is UUID
 BEGIN
   -- Get table_id from session
   SELECT table_id INTO table_id_var
@@ -42,4 +42,4 @@ GRANT EXECUTE ON FUNCTION close_session_and_free_table(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION close_session_and_free_table(UUID) TO anon;
 
 COMMENT ON FUNCTION close_session_and_free_table IS
-  'Closes a session and frees the table by setting status to available. Fixed: table_id_var is INTEGER.';
+  'Closes a session and frees the table by setting status to available.';

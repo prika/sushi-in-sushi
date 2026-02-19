@@ -702,7 +702,7 @@ supabase/migrations/
 ├── 003_reservations.sql            # Sistema de reservas
 ├── 004_email_tracking.sql          # Tracking de emails
 ├── 005_restaurant_closures.sql     # Gestão de folgas
-├── 006_vendus_integration.sql      # Integração Vendus (branch)
+├── 046_vendus_integration.sql      # Integração Vendus
 ├── 007_waiter_calls.sql            # Chamadas de empregados
 ├── 008_session_customers.sql       # Participantes na sessão
 ├── 009_waiter_calls_order_id.sql   # Relação chamadas-pedidos

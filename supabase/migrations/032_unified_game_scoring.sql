@@ -11,7 +11,7 @@ ALTER TABLE game_answers ALTER COLUMN question_id DROP NOT NULL;
 
 -- 3. Add product_id column for tinder answers
 ALTER TABLE game_answers
-ADD COLUMN IF NOT EXISTS product_id INTEGER REFERENCES products(id) ON DELETE SET NULL;
+ADD COLUMN IF NOT EXISTS product_id UUID REFERENCES products(id) ON DELETE SET NULL;
 
 -- 4. Drop old unique constraint, replace with partial unique indexes
 ALTER TABLE game_answers

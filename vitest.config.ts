@@ -1,9 +1,15 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    "process.env.NODE_ENV": '"test"',
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -42,9 +48,21 @@ export default defineConfig({
     ],
     coverage: {
       provider: "v8",
-      reporter: ["text", "lcov"],
-      include: ["src/lib/vendus/**/*.ts"],
-      exclude: ["**/*.test.ts", "**/types.ts"],
+      reporter: ["text", "json", "html", "lcov"],
+      include: [
+        "src/domain/**",
+        "src/application/**",
+        "src/lib/**",
+        "src/components/**",
+      ],
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/**/*.spec.{ts,tsx}",
+        "src/__tests__/**",
+        "src/types/**",
+      ],
     },
+    testTimeout: 10000,
+    hookTimeout: 10000,
   },
 });

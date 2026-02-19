@@ -4,9 +4,8 @@
 -- =============================================
 
 -- Add order_id column to waiter_calls
--- Note: orders.id is INTEGER in this database
 ALTER TABLE waiter_calls
-ADD COLUMN IF NOT EXISTS order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL;
+ADD COLUMN IF NOT EXISTS order_id UUID REFERENCES orders(id) ON DELETE SET NULL;
 
 -- Create index for order lookups
 CREATE INDEX IF NOT EXISTS idx_waiter_calls_order ON waiter_calls(order_id) WHERE order_id IS NOT NULL;
