@@ -24,12 +24,18 @@ export default function VendusMappingPage() {
   const [tables, setTables] = useState<TableMapping[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<string>("circunvalacao");
+  const [locations, setLocations] = useState<
+    { id: string; name: string; slug: string }[]
+  >([]);
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [importResult, setImportResult] = useState<SyncResult | null>(null);
 
   const fetchTables = useCallback(async () => {
+    if (!selectedLocation) return;
     try {
-      const response = await fetch(`/api/vendus/sync/tables?location=${selectedLocation}`);
+      const response = await fetch(
+        `/api/vendus/sync/tables?location=${selectedLocation}`,
+      );
       const data = await response.json();
       setTables(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -40,9 +46,21 @@ export default function VendusMappingPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
-    setIsLoading(true);
-    fetchTables();
-  }, [fetchTables]);
+    fetch("/api/locations")
+      .then((r) => r.json())
+      .then((locs) => {
+        const arr = Array.isArray(locs) ? locs : [];
+        setLocations(arr);
+        setSelectedLocation((prev) => prev || arr[0]?.slug || "");
+      });
+  }, []);
+
+  useEffect(() => {
+    if (selectedLocation) {
+      setIsLoading(true);
+      fetchTables();
+    }
+  }, [fetchTables, selectedLocation]);
 
   const handleImport = async () => {
     setIsImporting(true);
@@ -91,7 +109,9 @@ export default function VendusMappingPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mapeamento de Mesas</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Mapeamento de Mesas
+          </h1>
           <p className="text-gray-500">
             Mapear mesas locais com as mesas do Vendus POS
           </p>
@@ -102,8 +122,11 @@ export default function VendusMappingPage() {
             onChange={(e) => setSelectedLocation(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
           >
-            <option value="circunvalacao">Circunvalacao</option>
-            <option value="boavista">Boavista</option>
+            {locations.map((loc) => (
+              <option key={loc.id} value={loc.slug}>
+                {loc.name}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -128,8 +151,8 @@ export default function VendusMappingPage() {
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <h2 className="text-lg font-semibold mb-4">Importar Mesas do Vendus</h2>
         <p className="text-gray-600 mb-4">
-          Importar automaticamente as mesas configuradas no Vendus POS. As mesas serao
-          mapeadas por numero ou criadas se nao existirem localmente.
+          Importar automaticamente as mesas configuradas no Vendus POS. As mesas
+          serao mapeadas por numero ou criadas se nao existirem localmente.
         </p>
         <button
           onClick={handleImport}
@@ -147,7 +170,11 @@ export default function VendusMappingPage() {
                 : "bg-red-50 border border-red-200"
             }`}
           >
-            <p className={importResult.success ? "text-green-700" : "text-red-700"}>
+            <p
+              className={
+                importResult.success ? "text-green-700" : "text-red-700"
+              }
+            >
               {importResult.success
                 ? `Importacao concluida: ${importResult.recordsCreated} criadas, ${importResult.recordsUpdated} atualizadas`
                 : `Erro: ${importResult.errors?.[0]?.error || "Erro desconhecido"}`}
@@ -232,25 +259,29 @@ export default function VendusMappingPage() {
 
       {/* Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-blue-800 mb-2">Como funciona o mapeamento</h3>
+        <h3 className="text-lg font-semibold text-blue-800 mb-2">
+          Como funciona o mapeamento
+        </h3>
         <ul className="text-blue-700 text-sm space-y-2">
           <li className="flex items-start gap-2">
             <span>1.</span>
             <span>
-              Ao importar, o sistema tenta corresponder mesas pelo numero (ex: Mesa 5 local = Mesa 5 Vendus)
+              Ao importar, o sistema tenta corresponder mesas pelo numero (ex:
+              Mesa 5 local = Mesa 5 Vendus)
             </span>
           </li>
           <li className="flex items-start gap-2">
             <span>2.</span>
             <span>
-              Se uma mesa do Vendus nao existir localmente, sera criada automaticamente
+              Se uma mesa do Vendus nao existir localmente, sera criada
+              automaticamente
             </span>
           </li>
           <li className="flex items-start gap-2">
             <span>3.</span>
             <span>
-              O mapeamento permite enviar pedidos para a impressora da cozinha e emitir faturas
-              com a mesa correta
+              O mapeamento permite enviar pedidos para a impressora da cozinha e
+              emitir faturas com a mesa correta
             </span>
           </li>
         </ul>

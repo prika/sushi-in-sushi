@@ -8,7 +8,9 @@ export default function VendusPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Vendus POS</h1>
-        <p className="text-gray-500">Gestao da integracao com o sistema POS Vendus</p>
+        <p className="text-gray-500">
+          Gestao da integracao com o sistema POS Vendus
+        </p>
       </div>
 
       {/* Cards Grid */}
@@ -35,8 +37,12 @@ export default function VendusPage() {
               </svg>
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Sincronizacao</h2>
-              <p className="text-sm text-gray-500">Sincronizar produtos e categorias</p>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Sincronizacao
+              </h2>
+              <p className="text-sm text-gray-500">
+                Sincronizar produtos e categorias
+              </p>
             </div>
           </div>
         </Link>
@@ -69,6 +75,42 @@ export default function VendusPage() {
           </div>
         </Link>
 
+        {/* Locations Config Card */}
+        <Link
+          href="/admin/vendus/locations"
+          className="block p-6 bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-[#D4AF37] transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-amber-100 rounded-lg">
+              <svg
+                className="w-6 h-6 text-amber-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Locais</h2>
+              <p className="text-sm text-gray-500">
+                Configurar Vendus por restaurante
+              </p>
+            </div>
+          </div>
+        </Link>
+
         {/* Mapping Card */}
         <Link
           href="/admin/vendus/mapping"
@@ -91,7 +133,9 @@ export default function VendusPage() {
               </svg>
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Mapeamento</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Mapeamento
+              </h2>
               <p className="text-sm text-gray-500">Mapear mesas com Vendus</p>
             </div>
           </div>
@@ -100,35 +144,84 @@ export default function VendusPage() {
 
       {/* Info Section */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-blue-800 mb-2">Sobre a Integracao Vendus</h3>
+        <h3 className="text-lg font-semibold text-blue-800 mb-2">
+          Sobre a Integracao Vendus
+        </h3>
         <p className="text-blue-700 text-sm mb-4">
-          A integracao com o Vendus POS permite sincronizar produtos, emitir faturas certificadas
-          e enviar pedidos para a impressora da cozinha automaticamente.
+          A integracao com o Vendus POS permite sincronizar produtos, emitir
+          faturas certificadas e enviar pedidos para a impressora da cozinha
+          automaticamente.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div className="flex items-start gap-2">
-            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-5 h-5 text-blue-600 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
-            <span className="text-blue-700">Sincronizacao automatica a cada 15 minutos</span>
+            <span className="text-blue-700">
+              Sincronizacao automatica a cada 15 minutos
+            </span>
           </div>
           <div className="flex items-start gap-2">
-            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-5 h-5 text-blue-600 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
             <span className="text-blue-700">Faturas certificadas pela AT</span>
           </div>
           <div className="flex items-start gap-2">
-            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-5 h-5 text-blue-600 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
-            <span className="text-blue-700">Impressao automatica na cozinha</span>
+            <span className="text-blue-700">
+              Impressao automatica na cozinha
+            </span>
           </div>
           <div className="flex items-start gap-2">
-            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-5 h-5 text-blue-600 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
-            <span className="text-blue-700">Fila de retry para operacoes falhadas</span>
+            <span className="text-blue-700">
+              Fila de retry para operacoes falhadas
+            </span>
           </div>
         </div>
       </div>

@@ -19,11 +19,11 @@ import type {
  * Send order to kitchen printer via Vendus
  */
 export async function sendOrderToKitchen(
-  options: SendToKitchenOptions
+  options: SendToKitchenOptions,
 ): Promise<SendToKitchenResult> {
   const { sessionId, orderIds, locationSlug, printerId } = options;
 
-  const config = getVendusConfig(locationSlug);
+  const config = await getVendusConfig(locationSlug);
 
   // If Vendus not configured, return success (kitchen printing is optional)
   if (!config) {
@@ -46,7 +46,7 @@ export async function sendOrderToKitchen(
           name,
           vendus_table_id
         )
-      `
+      `,
       )
       .eq("id", sessionId)
       .single();
@@ -64,7 +64,7 @@ export async function sendOrderToKitchen(
         quantity,
         notes,
         products:product_id (name)
-      `
+      `,
       )
       .in("id", orderIds);
 
@@ -78,17 +78,26 @@ export async function sendOrderToKitchen(
       table_name: table?.name || `Mesa ${table?.number || "?"}`,
       table_number: table?.number,
       items: orders.map((order) => ({
-        product_name: (order.products as { name: string } | null)?.name || "Produto",
+        product_name:
+          (order.products as { name: string } | null)?.name || "Produto",
         quantity: order.quantity,
         notes: order.notes || undefined,
       })),
       printer_id: printerId,
     };
 
-    console.log("[Vendus] Sending to kitchen:", kitchenOrder.table_name, kitchenOrder.items.length, "items");
+    console.log(
+      "[Vendus] Sending to kitchen:",
+      kitchenOrder.table_name,
+      kitchenOrder.items.length,
+      "items",
+    );
 
     // Send to Vendus kitchen API
-    await client.post("/kitchen/print", kitchenOrder as unknown as Record<string, unknown>);
+    await client.post(
+      "/kitchen/print",
+      kitchenOrder as unknown as Record<string, unknown>,
+    );
 
     // Log success
     await supabase.from("vendus_sync_log").insert({
@@ -134,7 +143,7 @@ export async function sendOrderToKitchen(
 export async function sendOrdersToKitchen(
   sessionId: string,
   orderIds: string[],
-  locationSlug: string
+  locationSlug: string,
 ): Promise<SendToKitchenResult> {
   // For simplicity, we send all orders in one kitchen ticket
   return sendOrderToKitchen({
@@ -154,7 +163,7 @@ export async function getKitchenPrinters(locationSlug: string): Promise<
     type: string;
   }>
 > {
-  const config = getVendusConfig(locationSlug);
+  const config = await getVendusConfig(locationSlug);
 
   if (!config) {
     return [];

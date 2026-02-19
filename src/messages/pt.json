@@ -100,7 +100,8 @@
     "description": "Faça a sua reserva ou encomende online para delivery e takeaway.",
     "bookRodizio": "Reservar Rodízio",
     "orderOnline": "Encomendar Online",
-    "whatsappLabel": "WhatsApp:"
+    "whatsappLabel": "WhatsApp:",
+    "reserveTable": "Reservar Mesa"
   },
   "footer": {
     "tagline": "Fusion Food • Porto",

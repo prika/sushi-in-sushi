@@ -1,8 +1,48 @@
 /**
  * Vendus POS Configuration
+ *
+ * Configuração vem da tabela locations (admin) + API key em env.
+ * Store ID e Register ID são configurados por localização no admin.
  */
 
+import { createClient } from "@/lib/supabase/server";
 import type { VendusConfig } from "./types";
+
+// Tabela locations não está nos tipos gerados; usar cast para query dinâmica
+function fromLocations(supabase: Awaited<ReturnType<typeof createClient>>) {
+  type LocationsQuery = {
+    select: (c: string) => {
+      eq: (
+        col: string,
+        val: unknown,
+      ) => {
+        single: () => Promise<{
+          data: {
+            vendus_store_id: string | null;
+            vendus_register_id: string | null;
+            vendus_enabled: boolean | null;
+          } | null;
+        }>;
+        not: (
+          col: string,
+          op: string,
+          val: unknown,
+        ) => {
+          not: (
+            col: string,
+            op: string,
+            val: unknown,
+          ) => {
+            order: (col: string) => Promise<{ data: { slug: string }[] }>;
+          };
+        };
+      };
+    };
+  };
+  return (supabase as unknown as { from: (_: string) => LocationsQuery }).from(
+    "locations",
+  );
+}
 
 // =============================================
 // API CONFIGURATION
@@ -64,27 +104,36 @@ export const SYNC_OPERATIONS = {
 // =============================================
 
 /**
- * Get Vendus configuration for a specific location
- * Supports per-location API keys or falls back to global
+ * Obtém configuração Vendus para uma localização.
+ * Store ID e Register ID vêm da tabela locations (configurado no admin).
+ * API key vem de VENDUS_API_KEY (env).
  */
-export function getVendusConfig(locationSlug: string): VendusConfig | null {
-  // Try location-specific config first
-  const locationUpper = locationSlug.toUpperCase();
-  const apiKey =
-    process.env[`VENDUS_API_KEY_${locationUpper}`] || process.env.VENDUS_API_KEY;
-  const storeId =
-    process.env[`VENDUS_STORE_ID_${locationUpper}`] || process.env.VENDUS_STORE_ID;
-  const registerId =
-    process.env[`VENDUS_REGISTER_ID_${locationUpper}`] || process.env.VENDUS_REGISTER_ID;
+export async function getVendusConfig(
+  locationSlug: string,
+): Promise<VendusConfig | null> {
+  const apiKey = process.env.VENDUS_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
 
-  if (!apiKey || !storeId || !registerId) {
+  const supabase = await createClient();
+  const { data: location } = await fromLocations(supabase)
+    .select("vendus_store_id, vendus_register_id, vendus_enabled")
+    .eq("slug", locationSlug)
+    .single();
+
+  if (
+    !location?.vendus_enabled ||
+    !location?.vendus_store_id ||
+    !location?.vendus_register_id
+  ) {
     return null;
   }
 
   return {
     apiKey,
-    storeId,
-    registerId,
+    storeId: location.vendus_store_id,
+    registerId: location.vendus_register_id,
     baseUrl: VENDUS_API_BASE_URL,
     timeout: VENDUS_DEFAULTS.timeout,
     retryAttempts: VENDUS_DEFAULTS.retryAttempts,
@@ -92,37 +141,33 @@ export function getVendusConfig(locationSlug: string): VendusConfig | null {
 }
 
 /**
- * Check if Vendus is enabled for a location or globally
+ * Verifica se Vendus está configurado (API key em env).
  */
-export function isVendusEnabled(locationSlug?: string): boolean {
-  if (locationSlug) {
-    return !!getVendusConfig(locationSlug);
-  }
+export function isVendusEnabled(): boolean {
   return !!process.env.VENDUS_API_KEY;
 }
 
 /**
- * Get all configured location slugs
+ * Obtém slugs das localizações com Vendus configurado (da tabela locations).
  */
-export function getConfiguredLocations(): string[] {
-  const locations: string[] = [];
-
-  // Check for global config
-  if (process.env.VENDUS_API_KEY) {
-    // Check each known location
-    if (getVendusConfig("circunvalacao")) {
-      locations.push("circunvalacao");
-    }
-    if (getVendusConfig("boavista")) {
-      locations.push("boavista");
-    }
+export async function getConfiguredLocations(): Promise<string[]> {
+  if (!process.env.VENDUS_API_KEY) {
+    return [];
   }
 
-  return locations;
+  const supabase = await createClient();
+  const { data: locations } = await fromLocations(supabase)
+    .select("slug")
+    .eq("vendus_enabled", true)
+    .not("vendus_store_id", "is", null)
+    .not("vendus_register_id", "is", null)
+    .order("name");
+
+  return (locations || []).map((l: { slug: string }) => l.slug);
 }
 
 /**
- * Validate environment configuration
+ * Valida configuração (API key obrigatória; store/register configurados no admin)
  */
 export function validateVendusConfig(): {
   valid: boolean;
@@ -132,27 +177,10 @@ export function validateVendusConfig(): {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Check for at least one API key
   if (!process.env.VENDUS_API_KEY) {
-    if (
-      !process.env.VENDUS_API_KEY_CIRCUNVALACAO &&
-      !process.env.VENDUS_API_KEY_BOAVISTA
-    ) {
-      warnings.push("Nenhuma API key do Vendus configurada");
-    }
+    warnings.push("VENDUS_API_KEY em falta - configure no .env");
   }
 
-  // Check for store and register IDs
-  if (process.env.VENDUS_API_KEY) {
-    if (!process.env.VENDUS_STORE_ID) {
-      errors.push("VENDUS_STORE_ID em falta");
-    }
-    if (!process.env.VENDUS_REGISTER_ID) {
-      errors.push("VENDUS_REGISTER_ID em falta");
-    }
-  }
-
-  // Check cron secret
   if (!process.env.CRON_SECRET) {
     warnings.push("CRON_SECRET em falta - cron jobs nao funcionarao");
   }

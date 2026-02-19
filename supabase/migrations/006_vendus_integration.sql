@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 
     -- Local references
     session_id UUID REFERENCES sessions(id) ON DELETE SET NULL,
-    location_id UUID,
+    location_id UUID REFERENCES locations(id) ON DELETE SET NULL,
 
     -- Vendus references
     vendus_id VARCHAR(50) UNIQUE,
@@ -132,6 +132,19 @@ CREATE TABLE IF NOT EXISTS invoices (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add FK for location_id if table already existed without it (e.g. from prior migration run)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'invoices_location_id_fkey' AND table_name = 'invoices'
+    ) THEN
+        ALTER TABLE invoices
+        ADD CONSTRAINT invoices_location_id_fkey
+        FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- Indexes for invoices
 CREATE INDEX IF NOT EXISTS idx_invoices_session ON invoices(session_id);

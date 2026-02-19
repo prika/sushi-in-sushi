@@ -41,6 +41,15 @@ export default function VendusInvoicesPage() {
       params.set("limit", "100");
 
       const response = await fetch(`/api/vendus/invoices?${params.toString()}`);
+      if (!response.ok) {
+        console.error(
+          "Error fetching invoices:",
+          response.status,
+          response.statusText,
+        );
+        setInvoices([]);
+        return;
+      }
       const data = await response.json();
       setInvoices(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -86,9 +95,18 @@ export default function VendusInvoicesPage() {
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { color: string; label: string }> = {
-      pending: { color: "bg-yellow-100 text-yellow-700 border-yellow-200", label: "Pendente" },
-      issued: { color: "bg-green-100 text-green-700 border-green-200", label: "Emitida" },
-      voided: { color: "bg-red-100 text-red-700 border-red-200", label: "Anulada" },
+      pending: {
+        color: "bg-yellow-100 text-yellow-700 border-yellow-200",
+        label: "Pendente",
+      },
+      issued: {
+        color: "bg-green-100 text-green-700 border-green-200",
+        label: "Emitida",
+      },
+      voided: {
+        color: "bg-red-100 text-red-700 border-red-200",
+        label: "Anulada",
+      },
       error: { color: "bg-red-100 text-red-700 border-red-200", label: "Erro" },
     };
 
@@ -122,7 +140,9 @@ export default function VendusInvoicesPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Faturas Vendus</h1>
-        <p className="text-gray-500">Visualizar faturas emitidas atraves do Vendus POS</p>
+        <p className="text-gray-500">
+          Visualizar faturas emitidas atraves do Vendus POS
+        </p>
       </div>
 
       {/* Stats */}
@@ -141,7 +161,9 @@ export default function VendusInvoicesPage() {
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500">Total Faturado</p>
-          <p className="text-2xl font-bold text-[#D4AF37]">{stats.totalAmount.toFixed(2)} EUR</p>
+          <p className="text-2xl font-bold text-[#D4AF37]">
+            {stats.totalAmount.toFixed(2)} EUR
+          </p>
         </div>
       </div>
 
@@ -201,17 +223,26 @@ export default function VendusInvoicesPage() {
                     <p className="font-medium text-gray-900">
                       {invoice.vendus_document_number || "-"}
                     </p>
-                    <p className="text-sm text-gray-500">{invoice.vendus_document_type}</p>
+                    <p className="text-sm text-gray-500">
+                      {invoice.vendus_document_type}
+                    </p>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                  {invoice.table_name || `Mesa ${invoice.table_number}` || "-"}
+                  {invoice.table_name ||
+                    (invoice.table_number != null
+                      ? `Mesa ${invoice.table_number}`
+                      : "-")}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {invoice.customer_nif ? (
                     <div>
-                      <p className="text-gray-900">{invoice.customer_name || "-"}</p>
-                      <p className="text-sm text-gray-500">{invoice.customer_nif}</p>
+                      <p className="text-gray-900">
+                        {invoice.customer_name || "-"}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {invoice.customer_nif}
+                      </p>
                     </div>
                   ) : (
                     <span className="text-gray-400">Consumidor final</span>
@@ -242,7 +273,12 @@ export default function VendusInvoicesPage() {
                         className="text-blue-600 hover:text-blue-800"
                         title="Ver PDF"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -258,7 +294,12 @@ export default function VendusInvoicesPage() {
                         className="text-red-600 hover:text-red-800"
                         title="Anular fatura"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -289,7 +330,8 @@ export default function VendusInvoicesPage() {
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">Anular Fatura</h3>
             <p className="text-gray-600 mb-4">
-              Indique o motivo da anulacao. Sera emitida uma nota de credito no Vendus.
+              Indique o motivo da anulacao. Sera emitida uma nota de credito no
+              Vendus.
             </p>
             <textarea
               value={voidReason}

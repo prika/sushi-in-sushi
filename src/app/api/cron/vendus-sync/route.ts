@@ -23,10 +23,7 @@ export async function GET(request: NextRequest) {
 
   if (!cronSecret) {
     console.warn("[Cron] CRON_SECRET not configured");
-    return NextResponse.json(
-      { error: "Cron not configured" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Cron not configured" }, { status: 500 });
   }
 
   if (authHeader !== `Bearer ${cronSecret}`) {
@@ -53,8 +50,8 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Get configured locations
-  const locations = getConfiguredLocations();
+  // Get configured locations (from DB - locations with vendus enabled)
+  const locations = await getConfiguredLocations();
 
   if (locations.length === 0) {
     console.log("[Cron] No locations configured for Vendus");
@@ -82,7 +79,7 @@ export async function GET(request: NextRequest) {
       });
 
       console.log(
-        `[Cron] ${locationSlug}: ${result.recordsUpdated} updated, ${result.recordsFailed} failed`
+        `[Cron] ${locationSlug}: ${result.recordsUpdated} updated, ${result.recordsFailed} failed`,
       );
     } catch (error) {
       console.error(`[Cron] Error syncing ${locationSlug}:`, error);
@@ -101,7 +98,7 @@ export async function GET(request: NextRequest) {
   try {
     retryStats = await processRetryQueue();
     console.log(
-      `[Cron] Retry queue: ${retryStats.succeeded} succeeded, ${retryStats.failed} failed`
+      `[Cron] Retry queue: ${retryStats.succeeded} succeeded, ${retryStats.failed} failed`,
     );
   } catch (error) {
     console.error("[Cron] Error processing retry queue:", error);

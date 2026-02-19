@@ -18,6 +18,8 @@ export type Database = {
           icon: string | null;
           created_at: string;
           updated_at: string;
+          vendus_id: string | null;
+          vendus_synced_at: string | null;
         };
         Insert: {
           id?: string;
@@ -27,6 +29,8 @@ export type Database = {
           icon?: string | null;
           created_at?: string;
           updated_at?: string;
+          vendus_id?: string | null;
+          vendus_synced_at?: string | null;
         };
         Update: {
           id?: string;
@@ -36,6 +40,8 @@ export type Database = {
           icon?: string | null;
           created_at?: string;
           updated_at?: string;
+          vendus_id?: string | null;
+          vendus_synced_at?: string | null;
         };
         Relationships: [];
       };
@@ -46,6 +52,9 @@ export type Database = {
           name: string;
           location: string;
           is_active: boolean;
+          vendus_table_id: string | null;
+          vendus_room_id: string | null;
+          vendus_synced_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -55,6 +64,9 @@ export type Database = {
           name: string;
           location?: string;
           is_active?: boolean;
+          vendus_table_id?: string | null;
+          vendus_room_id?: string | null;
+          vendus_synced_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -64,6 +76,9 @@ export type Database = {
           name?: string;
           location?: string;
           is_active?: boolean;
+          vendus_table_id?: string | null;
+          vendus_room_id?: string | null;
+          vendus_synced_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -80,8 +95,14 @@ export type Database = {
           is_available: boolean;
           is_rodizio: boolean;
           sort_order: number;
+          vendus_id: string | null;
+          vendus_reference: string | null;
+          vendus_tax_id: string | null;
+          vendus_synced_at: string | null;
+          vendus_sync_status: string;
           created_at: string;
           updated_at: string;
+          location_id: string | null;
         };
         Insert: {
           id?: string;
@@ -93,8 +114,14 @@ export type Database = {
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;
+          vendus_id?: string | null;
+          vendus_reference?: string | null;
+          vendus_tax_id?: string | null;
+          vendus_synced_at?: string | null;
+          vendus_sync_status?: string;
           created_at?: string;
           updated_at?: string;
+          location_id?: string | null;
         };
         Update: {
           id?: string;
@@ -106,8 +133,14 @@ export type Database = {
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;
+          vendus_id?: string | null;
+          vendus_reference?: string | null;
+          vendus_tax_id?: string | null;
+          vendus_synced_at?: string | null;
+          vendus_sync_status?: string;
           created_at?: string;
           updated_at?: string;
+          location_id?: string | null;
         };
         Relationships: [
           {
@@ -116,7 +149,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "categories";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       sessions: {
@@ -166,7 +199,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "tables";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       orders: {
@@ -217,7 +250,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "products";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       roles: {
@@ -285,7 +318,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "roles";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       waiter_tables: {
@@ -321,7 +354,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "tables";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       customers: {
@@ -413,12 +446,403 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "staff";
             referencedColumns: ["id"];
-          }
+          },
         ];
+      };
+      vendus_sync_log: {
+        Row: {
+          id: number;
+          operation: string;
+          direction: string;
+          entity_type: string;
+          entity_id: string | null;
+          vendus_id: string | null;
+          location_id: string | null;
+          status: string;
+          records_processed: number;
+          records_created: number;
+          records_updated: number;
+          records_failed: number;
+          error_message: string | null;
+          error_details: Json | null;
+          request_data: Json | null;
+          response_data: Json | null;
+          initiated_by: string | null;
+          started_at: string;
+          completed_at: string | null;
+          duration_ms: number | null;
+        };
+        Insert: {
+          id?: number;
+          operation: string;
+          direction: string;
+          entity_type: string;
+          entity_id?: string | null;
+          vendus_id?: string | null;
+          location_id?: string | null;
+          status: string;
+          records_processed?: number;
+          records_created?: number;
+          records_updated?: number;
+          records_failed?: number;
+          error_message?: string | null;
+          error_details?: Json | null;
+          request_data?: Json | null;
+          response_data?: Json | null;
+          initiated_by?: string | null;
+          started_at?: string;
+          completed_at?: string | null;
+          duration_ms?: number | null;
+        };
+        Update: {
+          id?: number;
+          operation?: string;
+          direction?: string;
+          entity_type?: string;
+          entity_id?: string | null;
+          vendus_id?: string | null;
+          location_id?: string | null;
+          status?: string;
+          records_processed?: number;
+          records_created?: number;
+          records_updated?: number;
+          records_failed?: number;
+          error_message?: string | null;
+          error_details?: Json | null;
+          request_data?: Json | null;
+          response_data?: Json | null;
+          initiated_by?: string | null;
+          started_at?: string;
+          completed_at?: string | null;
+          duration_ms?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vendus_sync_log_initiated_by_fkey";
+            columns: ["initiated_by"];
+            isOneToOne: false;
+            referencedRelation: "staff";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      locations: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          address: string | null;
+          phone: string | null;
+          is_active: boolean;
+          vendus_store_id: string | null;
+          vendus_register_id: string | null;
+          vendus_enabled: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          address?: string | null;
+          phone?: string | null;
+          is_active?: boolean;
+          vendus_store_id?: string | null;
+          vendus_register_id?: string | null;
+          vendus_enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          address?: string | null;
+          phone?: string | null;
+          is_active?: boolean;
+          vendus_store_id?: string | null;
+          vendus_register_id?: string | null;
+          vendus_enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      payment_methods: {
+        Row: {
+          id: number;
+          name: string;
+          slug: string;
+          vendus_id: string | null;
+          is_active: boolean;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          name: string;
+          slug: string;
+          vendus_id?: string | null;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          name?: string;
+          slug?: string;
+          vendus_id?: string | null;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      invoices: {
+        Row: {
+          id: string;
+          session_id: string | null;
+          location_id: string | null;
+          vendus_id: string | null;
+          vendus_document_number: string | null;
+          vendus_document_type: string;
+          vendus_series: string | null;
+          vendus_hash: string | null;
+          subtotal: number;
+          tax_amount: number;
+          total: number;
+          currency: string;
+          payment_method_id: number | null;
+          paid_amount: number | null;
+          change_amount: number;
+          customer_nif: string | null;
+          customer_name: string | null;
+          status: string;
+          voided_at: string | null;
+          voided_by: string | null;
+          void_reason: string | null;
+          pdf_url: string | null;
+          pdf_generated_at: string | null;
+          issued_by: string | null;
+          error_message: string | null;
+          raw_response: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id?: string | null;
+          location_id?: string | null;
+          vendus_id?: string | null;
+          vendus_document_number?: string | null;
+          vendus_document_type?: string;
+          vendus_series?: string | null;
+          vendus_hash?: string | null;
+          subtotal: number;
+          tax_amount: number;
+          total: number;
+          currency?: string;
+          payment_method_id?: number | null;
+          paid_amount?: number | null;
+          change_amount?: number;
+          customer_nif?: string | null;
+          customer_name?: string | null;
+          status?: string;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
+          pdf_url?: string | null;
+          pdf_generated_at?: string | null;
+          issued_by?: string | null;
+          error_message?: string | null;
+          raw_response?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string | null;
+          location_id?: string | null;
+          vendus_id?: string | null;
+          vendus_document_number?: string | null;
+          vendus_document_type?: string;
+          vendus_series?: string | null;
+          vendus_hash?: string | null;
+          subtotal?: number;
+          tax_amount?: number;
+          total?: number;
+          currency?: string;
+          payment_method_id?: number | null;
+          paid_amount?: number | null;
+          change_amount?: number;
+          customer_nif?: string | null;
+          customer_name?: string | null;
+          status?: string;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
+          pdf_url?: string | null;
+          pdf_generated_at?: string | null;
+          issued_by?: string | null;
+          error_message?: string | null;
+          raw_response?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "invoices_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invoices_location_id_fkey";
+            columns: ["location_id"];
+            isOneToOne: false;
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invoices_payment_method_id_fkey";
+            columns: ["payment_method_id"];
+            isOneToOne: false;
+            referencedRelation: "payment_methods";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invoices_voided_by_fkey";
+            columns: ["voided_by"];
+            isOneToOne: false;
+            referencedRelation: "staff";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invoices_issued_by_fkey";
+            columns: ["issued_by"];
+            isOneToOne: false;
+            referencedRelation: "staff";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      vendus_retry_queue: {
+        Row: {
+          id: number;
+          operation: string;
+          entity_type: string;
+          entity_id: string;
+          location_id: string | null;
+          payload: Json;
+          attempts: number;
+          max_attempts: number;
+          next_retry_at: string;
+          last_error: string | null;
+          status: string;
+          created_at: string;
+          processed_at: string | null;
+        };
+        Insert: {
+          id?: number;
+          operation: string;
+          entity_type: string;
+          entity_id: string;
+          location_id?: string | null;
+          payload: Json;
+          attempts?: number;
+          max_attempts?: number;
+          next_retry_at?: string;
+          last_error?: string | null;
+          status?: string;
+          created_at?: string;
+          processed_at?: string | null;
+        };
+        Update: {
+          id?: number;
+          operation?: string;
+          entity_type?: string;
+          entity_id?: string;
+          location_id?: string | null;
+          payload?: Json;
+          attempts?: number;
+          max_attempts?: number;
+          next_retry_at?: string;
+          last_error?: string | null;
+          status?: string;
+          created_at?: string;
+          processed_at?: string | null;
+        };
+        Relationships: [];
       };
     };
     Views: {
-      [_ in never]: never;
+      products_with_vendus_status: {
+        Row: {
+          id: string;
+          name: string;
+          description: string | null;
+          price: number;
+          category_id: string;
+          image_url: string | null;
+          is_available: boolean;
+          is_rodizio: boolean;
+          sort_order: number;
+          vendus_id: string | null;
+          vendus_reference: string | null;
+          vendus_tax_id: string | null;
+          vendus_synced_at: string | null;
+          vendus_sync_status: string;
+          created_at: string;
+          updated_at: string;
+          location_id: string | null;
+          location_slug: string | null;
+          category_name: string | null;
+          sync_status_label: string;
+          last_synced: string | null;
+        };
+        Relationships: [];
+      };
+      invoices_with_details: {
+        Row: {
+          id: string;
+          session_id: string | null;
+          location_id: string | null;
+          vendus_id: string | null;
+          vendus_document_number: string | null;
+          vendus_document_type: string;
+          vendus_series: string | null;
+          vendus_hash: string | null;
+          subtotal: number;
+          tax_amount: number;
+          total: number;
+          currency: string;
+          payment_method_id: number | null;
+          paid_amount: number | null;
+          change_amount: number;
+          customer_nif: string | null;
+          customer_name: string | null;
+          status: string;
+          voided_at: string | null;
+          voided_by: string | null;
+          void_reason: string | null;
+          pdf_url: string | null;
+          pdf_generated_at: string | null;
+          issued_by: string | null;
+          error_message: string | null;
+          raw_response: Json | null;
+          created_at: string;
+          updated_at: string;
+          payment_method_name: string | null;
+          issued_by_name: string | null;
+          voided_by_name: string | null;
+          table_id: string | null;
+          table_number: number | null;
+          table_name: string | null;
+          status_label: string;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       [_ in never]: never;
@@ -435,16 +859,24 @@ export type Database = {
 
 // Enum types
 export type SessionStatus = "active" | "pending_payment" | "paid" | "closed";
-export type OrderStatus = "pending" | "preparing" | "ready" | "delivered" | "cancelled";
+export type OrderStatus =
+  | "pending"
+  | "preparing"
+  | "ready"
+  | "delivered"
+  | "cancelled";
 export type TableStatus = "available" | "reserved" | "occupied" | "inactive";
 
 // Generic helper type for table rows
-export type Tables<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"];
+export type Tables<T extends keyof Database["public"]["Tables"]> =
+  Database["public"]["Tables"][T]["Row"];
 
 // Helper types for easier usage
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
-export type CategoryInsert = Database["public"]["Tables"]["categories"]["Insert"];
-export type CategoryUpdate = Database["public"]["Tables"]["categories"]["Update"];
+export type CategoryInsert =
+  Database["public"]["Tables"]["categories"]["Insert"];
+export type CategoryUpdate =
+  Database["public"]["Tables"]["categories"]["Update"];
 
 export type TableBase = Database["public"]["Tables"]["tables"]["Row"];
 export type TableInsert = Database["public"]["Tables"]["tables"]["Insert"];
@@ -589,7 +1021,10 @@ export type Customer = {
   updated_at: string;
 };
 
-export type CustomerInsert = Omit<Customer, "id" | "created_at" | "updated_at" | "points" | "total_spent" | "visit_count"> & {
+export type CustomerInsert = Omit<
+  Customer,
+  "id" | "created_at" | "updated_at" | "points" | "total_spent" | "visit_count"
+> & {
   id?: string;
   created_at?: string;
   updated_at?: string;
@@ -649,7 +1084,10 @@ export type TableStatusHistory = {
   created_at: string;
 };
 
-export type TableStatusHistoryInsert = Omit<TableStatusHistory, "id" | "created_at"> & {
+export type TableStatusHistoryInsert = Omit<
+  TableStatusHistory,
+  "id" | "created_at"
+> & {
   id?: number;
   created_at?: string;
 };
@@ -697,10 +1135,26 @@ export type SessionMetricsSummary = {
 // RESERVATIONS TYPES
 // =============================================
 
-export type ReservationStatus = "pending" | "confirmed" | "cancelled" | "completed" | "no_show";
-export type ReservationOccasion = "birthday" | "anniversary" | "business" | "other";
+export type ReservationStatus =
+  | "pending"
+  | "confirmed"
+  | "cancelled"
+  | "completed"
+  | "no_show";
+export type ReservationOccasion =
+  | "birthday"
+  | "anniversary"
+  | "business"
+  | "other";
 
-export type EmailStatus = "sent" | "delivered" | "opened" | "clicked" | "bounced" | "complained" | "failed";
+export type EmailStatus =
+  | "sent"
+  | "delivered"
+  | "opened"
+  | "clicked"
+  | "bounced"
+  | "complained"
+  | "failed";
 
 export type Reservation = {
   id: string;
@@ -787,18 +1241,29 @@ export type RestaurantClosureInsert = {
   recurring_day_of_week?: number | null;
 };
 
-export type RestaurantClosureUpdate = Partial<Omit<RestaurantClosure, "id" | "created_at" | "created_by">>;
+export type RestaurantClosureUpdate = Partial<
+  Omit<RestaurantClosure, "id" | "created_at" | "created_by">
+>;
 
 // =============================================
 // VENDUS INTEGRATION TYPES
 // =============================================
 
-export type VendusSyncStatus = "pending" | "synced" | "error" | "not_applicable";
+export type VendusSyncStatus =
+  | "pending"
+  | "synced"
+  | "error"
+  | "not_applicable";
 export type VendusSyncDirection = "push" | "pull" | "both";
 export type VendusSyncLogStatus = "started" | "success" | "error" | "partial";
 export type InvoiceStatus = "pending" | "issued" | "voided" | "error";
 export type VendusDocumentType = "FR" | "FT" | "FS"; // Fatura-Recibo, Fatura, Fatura Simplificada
-export type RetryQueueStatus = "pending" | "processing" | "completed" | "failed" | "cancelled";
+export type RetryQueueStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 // Extended Product type with Vendus fields
 export type ProductWithVendus = Product & {
@@ -864,7 +1329,10 @@ export type Invoice = {
   updated_at: string;
 };
 
-export type InvoiceInsert = Omit<Invoice, "id" | "created_at" | "updated_at"> & {
+export type InvoiceInsert = Omit<
+  Invoice,
+  "id" | "created_at" | "updated_at"
+> & {
   id?: string;
   created_at?: string;
   updated_at?: string;
@@ -928,7 +1396,10 @@ export type VendusRetryQueue = {
   processed_at: string | null;
 };
 
-export type VendusRetryQueueInsert = Omit<VendusRetryQueue, "id" | "created_at" | "attempts"> & {
+export type VendusRetryQueueInsert = Omit<
+  VendusRetryQueue,
+  "id" | "created_at" | "attempts"
+> & {
   id?: number;
   created_at?: string;
   attempts?: number;

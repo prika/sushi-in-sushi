@@ -23,12 +23,12 @@ import type {
  * Import tables and rooms from Vendus
  */
 export async function importTablesFromVendus(
-  options: TableImportOptions
+  options: TableImportOptions,
 ): Promise<SyncResult> {
   const { locationSlug, initiatedBy } = options;
   const startTime = Date.now();
 
-  const config = getVendusConfig(locationSlug);
+  const config = await getVendusConfig(locationSlug);
   if (!config) {
     throw new Error(`Vendus nao configurado para ${locationSlug}`);
   }
@@ -65,7 +65,7 @@ export async function importTablesFromVendus(
     // Fetch rooms from Vendus
     console.log(`[Vendus] Fetching rooms for store ${config.storeId}...`);
     const roomsResponse = await client.get<VendusRoomsResponse>(
-      `/stores/${config.storeId}/rooms`
+      `/stores/${config.storeId}/rooms`,
     );
 
     const rooms = roomsResponse.rooms || [];
@@ -76,27 +76,39 @@ export async function importTablesFromVendus(
       try {
         console.log(`[Vendus] Fetching tables for room: ${room.name}`);
         const tablesResponse = await client.get<VendusTablesResponse>(
-          `/rooms/${room.id}/tables`
+          `/rooms/${room.id}/tables`,
         );
 
         const tables = tablesResponse.tables || [];
-        console.log(`[Vendus] Found ${tables.length} tables in room ${room.name}`);
+        console.log(
+          `[Vendus] Found ${tables.length} tables in room ${room.name}`,
+        );
 
         for (const vTable of tables) {
           result.recordsProcessed++;
 
           try {
-            await processVendusTable(supabase, vTable, room, locationSlug, result);
+            await processVendusTable(
+              supabase,
+              vTable,
+              room,
+              locationSlug,
+              result,
+            );
           } catch (error) {
             result.recordsFailed++;
             result.errors.push({
               id: vTable.id,
-              error: error instanceof Error ? error.message : "Erro desconhecido",
+              error:
+                error instanceof Error ? error.message : "Erro desconhecido",
             });
           }
         }
       } catch (error) {
-        console.error(`[Vendus] Error fetching tables for room ${room.name}:`, error);
+        console.error(
+          `[Vendus] Error fetching tables for room ${room.name}:`,
+          error,
+        );
         result.errors.push({
           id: room.id,
           error: `Erro ao obter mesas da sala ${room.name}`,
@@ -123,13 +135,20 @@ export async function importTablesFromVendus(
     await supabase
       .from("vendus_sync_log")
       .update({
-        status: result.success ? "success" : result.errors.length > 0 ? "partial" : "error",
+        status: result.success
+          ? "success"
+          : result.errors.length > 0
+            ? "partial"
+            : "error",
         records_processed: result.recordsProcessed,
         records_created: result.recordsCreated,
         records_updated: result.recordsUpdated,
         records_failed: result.recordsFailed,
         error_message: result.errors[0]?.error,
-        error_details: result.errors.length > 0 ? { errors: result.errors } : null,
+        error_details:
+          result.errors.length > 0
+            ? JSON.parse(JSON.stringify({ errors: result.errors }))
+            : null,
         completed_at: new Date().toISOString(),
         duration_ms: result.duration,
       })
@@ -147,7 +166,7 @@ async function processVendusTable(
   vTable: VendusTable,
   room: VendusRoom,
   locationSlug: string,
-  result: SyncResult
+  result: SyncResult,
 ): Promise<void> {
   // Check if table exists by vendus_table_id
   const { data: existingByVendusId } = await supabase
@@ -164,7 +183,10 @@ async function processVendusTable(
 
   if (existingByVendusId) {
     // Update existing table
-    await supabase.from("tables").update(tableData).eq("id", existingByVendusId.id);
+    await supabase
+      .from("tables")
+      .update(tableData)
+      .eq("id", existingByVendusId.id);
     result.recordsUpdated++;
     console.log(`[Vendus] Updated table by vendus_id: ${vTable.name}`);
     return;
@@ -181,7 +203,10 @@ async function processVendusTable(
 
   if (existingByNumber) {
     // Link existing local table to Vendus
-    await supabase.from("tables").update(tableData).eq("id", existingByNumber.id);
+    await supabase
+      .from("tables")
+      .update(tableData)
+      .eq("id", existingByNumber.id);
     result.recordsUpdated++;
     console.log(`[Vendus] Linked local table ${vTable.number} to Vendus`);
     return;
@@ -211,12 +236,16 @@ async function processVendusTable(
 /**
  * Get current table mapping for a location
  */
-export async function getTableMapping(locationSlug: string): Promise<TableMapping[]> {
+export async function getTableMapping(
+  locationSlug: string,
+): Promise<TableMapping[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("tables")
-    .select("id, number, name, vendus_table_id, vendus_room_id, vendus_synced_at")
+    .select(
+      "id, number, name, vendus_table_id, vendus_room_id, vendus_synced_at",
+    )
     .eq("location", locationSlug)
     .order("number");
 
@@ -234,7 +263,7 @@ export async function getTableMapping(locationSlug: string): Promise<TableMappin
 export async function mapTableToVendus(
   tableId: string,
   vendusTableId: string,
-  vendusRoomId?: string
+  vendusRoomId?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
 
@@ -258,7 +287,7 @@ export async function mapTableToVendus(
  * Remove Vendus mapping from a table
  */
 export async function unmapTableFromVendus(
-  tableId: string
+  tableId: string,
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
 
@@ -280,30 +309,31 @@ export async function unmapTableFromVendus(
 
 /**
  * Get Vendus tables for manual mapping selection
+ * Returns JSON-serializable data (Record instead of Map).
  */
 export async function getVendusTables(
-  locationSlug: string
-): Promise<{ rooms: VendusRoom[]; tables: Map<string, VendusTable[]> }> {
-  const config = getVendusConfig(locationSlug);
+  locationSlug: string,
+): Promise<{ rooms: VendusRoom[]; tables: Record<string, VendusTable[]> }> {
+  const config = await getVendusConfig(locationSlug);
   if (!config) {
     throw new Error(`Vendus nao configurado para ${locationSlug}`);
   }
 
   const client = getVendusClient(config, locationSlug);
-  const tablesMap = new Map<string, VendusTable[]>();
+  const tablesObj: Record<string, VendusTable[]> = {};
 
   const roomsResponse = await client.get<VendusRoomsResponse>(
-    `/stores/${config.storeId}/rooms`
+    `/stores/${config.storeId}/rooms`,
   );
 
   const rooms = roomsResponse.rooms || [];
 
   for (const room of rooms) {
     const tablesResponse = await client.get<VendusTablesResponse>(
-      `/rooms/${room.id}/tables`
+      `/rooms/${room.id}/tables`,
     );
-    tablesMap.set(room.id, tablesResponse.tables || []);
+    tablesObj[room.id] = tablesResponse.tables || [];
   }
 
-  return { rooms, tables: tablesMap };
+  return { rooms, tables: tablesObj };
 }

@@ -100,7 +100,8 @@
     "description": "Haz tu reserva o pide online para delivery y para llevar.",
     "bookRodizio": "Reservar Rodizio",
     "orderOnline": "Pedir Online",
-    "whatsappLabel": "WhatsApp:"
+    "whatsappLabel": "WhatsApp:",
+    "reserveTable": "Reservar Mesa"
   },
   "footer": {
     "tagline": "Fusion Food • Oporto",

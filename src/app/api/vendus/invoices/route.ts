@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     console.error("Erro ao obter faturas:", error);
     return NextResponse.json(
       { error: "Erro ao obter faturas" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -52,7 +52,10 @@ export async function POST(request: NextRequest) {
 
     // Allow admin and waiter to create invoices
     if (user.role !== "admin" && user.role !== "waiter") {
-      return NextResponse.json({ error: "Acesso nao autorizado" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Acesso nao autorizado" },
+        { status: 403 },
+      );
     }
 
     const body = await request.json();
@@ -69,28 +72,28 @@ export async function POST(request: NextRequest) {
     if (!sessionId) {
       return NextResponse.json(
         { error: "ID da sessao obrigatorio" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!locationSlug) {
       return NextResponse.json(
         { error: "Localizacao obrigatoria" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!paymentMethodId) {
       return NextResponse.json(
         { error: "Metodo de pagamento obrigatorio" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (paidAmount === undefined || paidAmount === null) {
       return NextResponse.json(
         { error: "Valor pago obrigatorio" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -105,11 +108,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (result.success) {
-      await logActivity(user.id, "invoice_created", "invoice", result.invoiceId, {
-        vendusId: result.vendusId,
-        documentNumber: result.documentNumber,
-        sessionId,
-      });
+      await logActivity(
+        user.id,
+        "invoice_created",
+        "invoice",
+        result.invoiceId,
+        {
+          vendusId: result.vendusId,
+          documentNumber: result.documentNumber,
+          sessionId,
+        },
+      );
     }
 
     return NextResponse.json(result, {
@@ -118,8 +127,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Erro ao criar fatura:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro ao criar fatura" },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : "Erro ao criar fatura",
+      },
+      { status: 500 },
     );
   }
 }
@@ -133,7 +144,10 @@ export async function DELETE(request: NextRequest) {
     const user = await getAuthUser();
 
     if (!user || user.role !== "admin") {
-      return NextResponse.json({ error: "Acesso nao autorizado" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Acesso nao autorizado" },
+        { status: 403 },
+      );
     }
 
     const body = await request.json();
@@ -142,14 +156,14 @@ export async function DELETE(request: NextRequest) {
     if (!invoiceId) {
       return NextResponse.json(
         { error: "ID da fatura obrigatorio" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!reason) {
       return NextResponse.json(
         { error: "Motivo da anulacao obrigatorio" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -165,8 +179,10 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error("Erro ao anular fatura:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro ao anular fatura" },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : "Erro ao anular fatura",
+      },
+      { status: 500 },
     );
   }
 }

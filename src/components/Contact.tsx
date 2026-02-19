@@ -57,7 +57,7 @@ export function Contact() {
             >
               <div className="sticky top-0 bg-background flex items-center justify-between p-6 border-b border-white/10">
                 <h2 className="text-xl font-semibold text-white">
-                  Reservar Mesa
+                  {t("reserveTable")}
                 </h2>
                 <button
                   onClick={() => setShowReservationModal(false)}

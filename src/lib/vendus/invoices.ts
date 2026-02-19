@@ -3,8 +3,9 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { VendusClient, getVendusClient, VendusApiError } from "./client";
+import { getVendusClient, VendusApiError } from "./client";
 import { getVendusConfig, VENDUS_TAX_RATES, TAX_PERCENTAGES } from "./config";
+import type { VendusRetryQueue } from "@/types/database";
 import type {
   VendusInvoiceRequest,
   VendusInvoiceResponse,
@@ -23,7 +24,7 @@ import type {
  * Create an invoice in Vendus for a session
  */
 export async function createInvoice(
-  options: CreateInvoiceOptions
+  options: CreateInvoiceOptions,
 ): Promise<CreateInvoiceResult> {
   const {
     sessionId,
@@ -35,9 +36,12 @@ export async function createInvoice(
     issuedBy,
   } = options;
 
-  const config = getVendusConfig(locationSlug);
+  const config = await getVendusConfig(locationSlug);
   if (!config) {
-    return { success: false, error: "Vendus nao configurado para esta localizacao" };
+    return {
+      success: false,
+      error: "Vendus nao configurado para esta localizacao",
+    };
   }
 
   const client = getVendusClient(config, locationSlug);
@@ -54,7 +58,7 @@ export async function createInvoice(
           *,
           products:product_id (id, name, price, vendus_id, vendus_tax_id)
         )
-      `
+      `,
       )
       .eq("id", sessionId)
       .single();
@@ -81,8 +85,9 @@ export async function createInvoice(
     const items: VendusInvoiceItem[] = [];
     let subtotal = 0;
 
+    type OrderProduct = { id: string; name: string; price: number; vendus_id: string | null; vendus_tax_id: string | null };
     for (const order of session.orders || []) {
-      const product = order.products;
+      const product = order.products as OrderProduct | null;
       const taxId = product?.vendus_tax_id || VENDUS_TAX_RATES.NORMAL;
       const lineTotal = order.quantity * order.unit_price;
       subtotal += lineTotal;
@@ -97,9 +102,13 @@ export async function createInvoice(
       });
     }
 
-    // Calculate tax (simplified - assumes all items have same tax rate)
-    const taxRate = TAX_PERCENTAGES[VENDUS_TAX_RATES.NORMAL] || 0.23;
-    const taxAmount = subtotal * taxRate;
+    // Calculate tax per item (handles mixed tax rates)
+    let taxAmount = 0;
+    for (const item of items) {
+      const itemTaxRate = TAX_PERCENTAGES[item.tax_id] ?? 0;
+      const itemSubtotal = item.unit_price * item.quantity;
+      taxAmount += itemSubtotal * itemTaxRate;
+    }
     const total = subtotal + taxAmount;
 
     // Determine document type
@@ -132,7 +141,7 @@ export async function createInvoice(
     // Create invoice in Vendus
     const vendusResponse = await client.post<VendusInvoiceResponse>(
       "/documents",
-      invoiceRequest as unknown as Record<string, unknown>
+      invoiceRequest as unknown as Record<string, unknown>,
     );
 
     console.log("[Vendus] Invoice created:", vendusResponse.document_number);
@@ -143,7 +152,7 @@ export async function createInvoice(
       .insert({
         session_id: sessionId,
         location_id: location?.id,
-        vendus_id: vendusResponse.id,
+        vendus_id: String(vendusResponse.id),
         vendus_document_number: vendusResponse.document_number,
         vendus_document_type: documentType,
         vendus_series: vendusResponse.series,
@@ -159,7 +168,7 @@ export async function createInvoice(
         status: "issued",
         pdf_url: vendusResponse.pdf_url,
         issued_by: issuedBy,
-        raw_response: vendusResponse as unknown as Record<string, unknown>,
+        raw_response: JSON.parse(JSON.stringify(vendusResponse)),
       })
       .select("id")
       .single();
@@ -173,8 +182,8 @@ export async function createInvoice(
       operation: "invoice_create",
       direction: "push",
       entity_type: "invoice",
-      entity_id: invoice?.id,
-      vendus_id: vendusResponse.id,
+      entity_id: invoice?.id ?? null,
+      vendus_id: String(vendusResponse.id),
       location_id: location?.id,
       status: "success",
       initiated_by: issuedBy,
@@ -183,7 +192,7 @@ export async function createInvoice(
     return {
       success: true,
       invoiceId: invoice?.id,
-      vendusId: vendusResponse.id,
+      vendusId: String(vendusResponse.id),
       documentNumber: vendusResponse.document_number,
       pdfUrl: vendusResponse.pdf_url,
     };
@@ -238,7 +247,7 @@ export async function createInvoice(
 export async function voidInvoice(
   invoiceId: string,
   reason: string,
-  voidedBy: string
+  voidedBy: string,
 ): Promise<VoidInvoiceResult> {
   const supabase = await createClient();
 
@@ -250,11 +259,15 @@ export async function voidInvoice(
     .single();
 
   if (!invoice || !invoice.vendus_id) {
-    return { success: false, error: "Fatura nao encontrada ou nao sincronizada" };
+    return {
+      success: false,
+      error: "Fatura nao encontrada ou nao sincronizada",
+    };
   }
 
-  const locationSlug = (invoice.locations as { slug: string } | null)?.slug || "circunvalacao";
-  const config = getVendusConfig(locationSlug);
+  const locationSlug =
+    (invoice.locations as { slug: string } | null)?.slug || "circunvalacao";
+  const config = await getVendusConfig(locationSlug);
 
   if (!config) {
     return { success: false, error: "Vendus nao configurado" };
@@ -328,8 +341,9 @@ export async function getInvoicePdf(invoiceId: string): Promise<GetPdfResult> {
   }
 
   // Fetch PDF from Vendus if not cached
-  const locationSlug = (invoice.locations as { slug: string } | null)?.slug || "circunvalacao";
-  const config = getVendusConfig(locationSlug);
+  const locationSlug =
+    (invoice.locations as { slug: string } | null)?.slug || "circunvalacao";
+  const config = await getVendusConfig(locationSlug);
 
   if (!config || !invoice.vendus_id) {
     return { success: false, error: "Nao foi possivel obter o PDF" };
@@ -339,7 +353,7 @@ export async function getInvoicePdf(invoiceId: string): Promise<GetPdfResult> {
 
   try {
     const response = await client.get<{ pdf_url: string }>(
-      `/documents/${invoice.vendus_id}/pdf`
+      `/documents/${invoice.vendus_id}/pdf`,
     );
 
     // Cache the PDF URL
@@ -392,7 +406,10 @@ export async function getInvoices(options?: {
   }
 
   if (options?.offset) {
-    query = query.range(options.offset, options.offset + (options?.limit || 10) - 1);
+    query = query.range(
+      options.offset,
+      options.offset + (options?.limit || 10) - 1,
+    );
   }
 
   const { data, error } = await query;
@@ -440,12 +457,16 @@ async function addToRetryQueue(params: {
     operation: params.operation,
     entity_type: params.entityType,
     entity_id: params.entityId,
-    location_id: params.locationId,
-    payload: params.payload,
+    location_id: params.locationId ?? null,
+    payload: JSON.parse(JSON.stringify(params.payload)),
     next_retry_at: new Date(Date.now() + 60000).toISOString(), // Retry in 1 minute
   });
 
-  console.log("[Vendus] Added to retry queue:", params.operation, params.entityId);
+  console.log(
+    "[Vendus] Added to retry queue:",
+    params.operation,
+    params.entityId,
+  );
 }
 
 /**
@@ -460,7 +481,7 @@ export async function processRetryQueue(): Promise<{
   const stats = { processed: 0, succeeded: 0, failed: 0 };
 
   // Get pending items ready for retry
-  const { data: items } = await supabase
+  const { data } = await supabase
     .from("vendus_retry_queue")
     .select("*")
     .eq("status", "pending")
@@ -468,11 +489,13 @@ export async function processRetryQueue(): Promise<{
     .lt("attempts", 5)
     .limit(10);
 
-  if (!items || items.length === 0) {
+  const items: VendusRetryQueue[] = (data ?? []) as VendusRetryQueue[];
+  if (items.length === 0) {
     return stats;
   }
 
-  for (const item of items) {
+  for (const raw of items) {
+    const item = raw as VendusRetryQueue;
     stats.processed++;
 
     // Mark as processing
@@ -484,7 +507,9 @@ export async function processRetryQueue(): Promise<{
     try {
       // Re-execute the operation based on type
       if (item.operation === "invoice_create") {
-        const result = await createInvoice(item.payload as unknown as CreateInvoiceOptions);
+        const result = await createInvoice(
+          item.payload as unknown as CreateInvoiceOptions,
+        );
         if (!result.success) {
           throw new Error(result.error);
         }
@@ -501,14 +526,15 @@ export async function processRetryQueue(): Promise<{
     } catch (error) {
       // Calculate next retry time with exponential backoff
       const nextRetry = new Date(
-        Date.now() + Math.pow(2, item.attempts) * 60000
+        Date.now() + Math.pow(2, item.attempts) * 60000,
       );
 
       await supabase
         .from("vendus_retry_queue")
         .update({
           status: item.attempts >= 4 ? "failed" : "pending",
-          last_error: error instanceof Error ? error.message : "Erro desconhecido",
+          last_error:
+            error instanceof Error ? error.message : "Erro desconhecido",
           next_retry_at: nextRetry.toISOString(),
         })
         .eq("id", item.id);

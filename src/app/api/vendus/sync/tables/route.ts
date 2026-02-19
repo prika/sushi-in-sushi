@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const user = await getAuthUser();
 
     if (!user || user.role !== "admin") {
-      return NextResponse.json({ error: "Acesso nao autorizado" }, { status: 401 });
+      return NextResponse.json({ error: "Acesso nao autorizado" }, { status: 403 });
     }
 
     const body = await request.json();

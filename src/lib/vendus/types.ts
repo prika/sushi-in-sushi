@@ -1,6 +1,10 @@
 /**
  * Vendus POS API Types
- * Documentation: https://www.vendus.pt/ws/
+ *
+ * Tipos para a integração com a API do Vendus (produtos, categorias, facturas, etc.)
+ * Documentação: https://www.vendus.pt/ws/
+ *
+ * @module vendus/types
  */
 
 // =============================================
@@ -202,6 +206,7 @@ export type VendusSyncOperation =
   | "product_sync"
   | "product_push"
   | "product_pull"
+  | "category_sync"
   | "table_import"
   | "invoice_create"
   | "invoice_void"
@@ -218,6 +223,45 @@ export interface SyncResult {
   recordsFailed: number;
   errors: SyncError[];
   duration: number;
+  /** Warnings about conflicts (non-fatal) */
+  warnings?: SyncWarning[];
+  /** Preview of planned changes when previewOnly=true */
+  preview?: SyncPreview;
+}
+
+/** Aviso não fatal (ex: conflito resolvido automaticamente) */
+export interface SyncWarning {
+  id: string;
+  type: "conflict_resolved" | "duplicate_name_skipped";
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+/** Pré-visualização das alterações planeadas (previewOnly=true) */
+export interface SyncPreview {
+  toCreate: SyncPreviewItem[];
+  toUpdate: SyncPreviewItem[];
+  conflicts: SyncPreviewConflict[];
+  warnings: SyncWarning[];
+}
+
+/** Item na pré-visualização (criar ou atualizar) */
+export interface SyncPreviewItem {
+  vendusId: string;
+  name: string;
+  price: number;
+  action: "create" | "update";
+  localId?: string;
+}
+
+/** Conflito detetado (ambos alterados); inclui resolução aplicada */
+export interface SyncPreviewConflict {
+  vendusId: string;
+  name: string;
+  message: string;
+  resolution: "vendus_wins" | "local_wins" | "manual";
+  localUpdatedAt?: string;
+  vendusUpdatedAt?: string;
 }
 
 export interface SyncError {
@@ -298,9 +342,20 @@ export interface TableMapping {
 // PRODUCT SYNC TYPES
 // =============================================
 
+/**
+ * Opções para sincronização de produtos.
+ */
 export interface ProductSyncOptions {
   locationSlug: string;
   direction: "push" | "pull" | "both";
   productIds?: string[];
+  /** Enviar todos os produtos, ignorando vendus_sync_status (para testes) */
+  pushAll?: boolean;
+  /** Exportar categorias antes dos produtos (default: true no push) */
+  syncCategoriesFirst?: boolean;
+  /** Apenas pré-visualizar; não aplicar alterações no pull */
+  previewOnly?: boolean;
+  /** Categoria para novos produtos criados no pull; usa primeira categoria se omitido */
+  defaultCategoryId?: string;
   initiatedBy?: string;
 }
