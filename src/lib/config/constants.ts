@@ -19,17 +19,6 @@ export const STORAGE_KEYS = {
   DEVICE_NAME: "sushi_device_name",
 } as const;
 
-// Locations
-export const LOCATIONS = {
-  CIRCUNVALACAO: "circunvalacao",
-  BOAVISTA: "boavista",
-} as const;
-
-export const LOCATION_LABELS: Record<string, string> = {
-  circunvalacao: "Circunvalação",
-  boavista: "Boavista",
-};
-
 // Roles
 export const ROLES = {
   ADMIN: "admin",

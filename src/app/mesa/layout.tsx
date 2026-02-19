@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { MesaProviders } from "@/components/mesa/MesaProviders";
 
 export const metadata: Metadata = {
   title: "Sushi in Sushi - Pedido na Mesa",
@@ -31,8 +32,10 @@ export default function MesaLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-white">
-      {children}
-    </div>
+    <MesaProviders>
+      <div className="min-h-screen bg-[#0D0D0D] text-white">
+        {children}
+      </div>
+    </MesaProviders>
   );
 }

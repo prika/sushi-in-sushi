@@ -1,15 +1,98 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
-import type { ReservationUpdate, Reservation } from "@/types/database";
+import { SupabaseReservationRepository } from "@/infrastructure/repositories/SupabaseReservationRepository";
+import {
+  GetReservationByIdUseCase,
+  UpdateReservationUseCase,
+  ConfirmReservationUseCase,
+  CancelReservationUseCase,
+  MarkReservationSeatedUseCase,
+  MarkReservationNoShowUseCase,
+  DeleteReservationUseCase,
+} from "@/application/use-cases/reservations";
+import type { UpdateReservationData, Reservation } from "@/domain/entities/Reservation";
+import type { Reservation as LegacyReservation } from "@/types/database";
 import { sendReservationConfirmedEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
-// Helper to get typed supabase query for tables not in generated types
-function getExtendedSupabase(supabase: Awaited<ReturnType<typeof createClient>>) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
+// Helper to map domain entity to legacy format
+function mapToLegacyReservation(reservation: Reservation): LegacyReservation {
+  return {
+    id: reservation.id,
+    first_name: reservation.firstName,
+    last_name: reservation.lastName,
+    email: reservation.email,
+    phone: reservation.phone,
+    reservation_date: reservation.reservationDate,
+    reservation_time: reservation.reservationTime,
+    party_size: reservation.partySize,
+    location: reservation.location,
+    table_id: reservation.tableId,
+    is_rodizio: reservation.isRodizio,
+    special_requests: reservation.specialRequests,
+    occasion: reservation.occasion,
+    status: reservation.status,
+    confirmed_by: reservation.confirmedBy,
+    confirmed_at: reservation.confirmedAt?.toISOString() || null,
+    cancelled_at: reservation.cancelledAt?.toISOString() || null,
+    cancellation_reason: reservation.cancellationReason,
+    session_id: reservation.sessionId,
+    seated_at: reservation.seatedAt?.toISOString() || null,
+    marketing_consent: reservation.marketingConsent,
+    // Email tracking fields (not stored in domain entity)
+    customer_email_id: null,
+    customer_email_sent_at: null,
+    customer_email_delivered_at: null,
+    customer_email_opened_at: null,
+    customer_email_status: null,
+    confirmation_email_id: null,
+    confirmation_email_sent_at: null,
+    confirmation_email_delivered_at: null,
+    confirmation_email_opened_at: null,
+    confirmation_email_status: null,
+    day_before_reminder_id: null,
+    day_before_reminder_sent_at: null,
+    day_before_reminder_delivered_at: null,
+    day_before_reminder_opened_at: null,
+    day_before_reminder_status: null,
+    same_day_reminder_id: null,
+    same_day_reminder_sent_at: null,
+    same_day_reminder_delivered_at: null,
+    same_day_reminder_opened_at: null,
+    same_day_reminder_status: null,
+    created_at: reservation.createdAt.toISOString(),
+    updated_at: reservation.updatedAt.toISOString(),
+  };
+}
+
+// Helper to map domain entity to response format
+function mapToResponse(reservation: Reservation) {
+  return {
+    id: reservation.id,
+    first_name: reservation.firstName,
+    last_name: reservation.lastName,
+    email: reservation.email,
+    phone: reservation.phone,
+    reservation_date: reservation.reservationDate,
+    reservation_time: reservation.reservationTime,
+    party_size: reservation.partySize,
+    location: reservation.location,
+    table_id: reservation.tableId,
+    is_rodizio: reservation.isRodizio,
+    special_requests: reservation.specialRequests,
+    occasion: reservation.occasion,
+    status: reservation.status,
+    confirmed_by: reservation.confirmedBy,
+    confirmed_at: reservation.confirmedAt?.toISOString() || null,
+    cancelled_at: reservation.cancelledAt?.toISOString() || null,
+    cancellation_reason: reservation.cancellationReason,
+    session_id: reservation.sessionId,
+    seated_at: reservation.seatedAt?.toISOString() || null,
+    marketing_consent: reservation.marketingConsent,
+    created_at: reservation.createdAt.toISOString(),
+    updated_at: reservation.updatedAt.toISOString(),
   };
 }
 
@@ -21,25 +104,26 @@ export async function GET(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+    const repository = new SupabaseReservationRepository(supabase);
+    const getReservationById = new GetReservationByIdUseCase(repository);
 
-    const { data, error } = await extendedSupabase
-      .from("reservations")
-      .select("*")
-      .eq("id", id)
-      .single();
+    const result = await getReservationById.execute(id);
 
-    if (error) {
-      if (error.code === "PGRST116") {
-        return NextResponse.json(
-          { error: "Reserva não encontrada" },
-          { status: 404 }
-        );
-      }
-      throw error;
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json(data);
+    if (!result.data) {
+      return NextResponse.json(
+        { error: "Reserva não encontrada" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(mapToResponse(result.data));
   } catch (error) {
     console.error("Error fetching reservation:", error);
     return NextResponse.json(
@@ -61,73 +145,78 @@ export async function PATCH(
     }
 
     const { id } = await params;
+    const body = await request.json();
+
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
-    const body: ReservationUpdate = await request.json();
+    const repository = new SupabaseReservationRepository(supabase);
 
-    // Build update object
-    const updateData: Record<string, unknown> = {};
+    // Handle status changes with specialized use-cases
+    const status = body.status;
 
-    if (body.status !== undefined) {
-      updateData.status = body.status;
+    let result;
 
-      // Set confirmed_at and confirmed_by when confirming
+    if (status === "confirmed") {
+      const confirmReservation = new ConfirmReservationUseCase(repository);
+      result = await confirmReservation.execute(id, user.id);
+    } else if (status === "cancelled") {
+      const cancelReservation = new CancelReservationUseCase(repository);
+      const reason = body.cancellation_reason || body.cancellationReason;
+      result = await cancelReservation.execute(id, reason);
+    } else if (status === "completed" && (body.session_id || body.sessionId)) {
+      const markSeated = new MarkReservationSeatedUseCase(repository);
+      result = await markSeated.execute(id, body.session_id || body.sessionId);
+    } else if (status === "no_show") {
+      const markNoShow = new MarkReservationNoShowUseCase(repository);
+      result = await markNoShow.execute(id);
+    } else {
+      // General update
+      const updateReservation = new UpdateReservationUseCase(repository);
+
+      const updateData: UpdateReservationData = {};
+
+      if (body.status !== undefined) updateData.status = body.status;
+      if (body.table_id !== undefined || body.tableId !== undefined) {
+        updateData.tableId = body.tableId ?? body.table_id;
+      }
+      if (body.cancellation_reason !== undefined || body.cancellationReason !== undefined) {
+        updateData.cancellationReason = body.cancellationReason ?? body.cancellation_reason;
+      }
+      if (body.session_id !== undefined || body.sessionId !== undefined) {
+        updateData.sessionId = body.sessionId ?? body.session_id;
+      }
+
+      // Set timestamps based on status change
       if (body.status === "confirmed") {
-        updateData.confirmed_at = new Date().toISOString();
-        updateData.confirmed_by = user.id;
+        updateData.confirmedBy = user.id;
       }
 
-      // Set cancelled_at when cancelling
-      if (body.status === "cancelled") {
-        updateData.cancelled_at = new Date().toISOString();
-        if (body.cancellation_reason) {
-          updateData.cancellation_reason = body.cancellation_reason;
-        }
-      }
-
-      // Set seated_at when completing (seated)
-      if (body.status === "completed") {
-        updateData.seated_at = new Date().toISOString();
-      }
+      result = await updateReservation.execute(id, updateData);
     }
 
-    if (body.table_id !== undefined) {
-      updateData.table_id = body.table_id;
-    }
-
-    if (body.special_requests !== undefined) {
-      updateData.special_requests = body.special_requests;
-    }
-
-    if (body.session_id !== undefined) {
-      updateData.session_id = body.session_id;
-    }
-
-    const { data, error } = await extendedSupabase
-      .from("reservations")
-      .update(updateData)
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      if (error.code === "PGRST116") {
+    if (!result.success) {
+      if (result.error.includes("não encontrada") || result.error.includes("not found")) {
         return NextResponse.json(
           { error: "Reserva não encontrada" },
           { status: 404 }
         );
       }
-      throw error;
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
     }
 
+    const reservation = result.data;
+
     // Send confirmation email if status changed to confirmed
-    if (body.status === "confirmed" && data) {
-      sendReservationConfirmedEmail(data as Reservation).catch((emailError) => {
+    if (status === "confirmed" && reservation) {
+      const legacyReservation = mapToLegacyReservation(reservation);
+      sendReservationConfirmedEmail(legacyReservation).catch((emailError) => {
         console.error("Error sending confirmation email:", emailError);
       });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(mapToResponse(reservation));
   } catch (error) {
     console.error("Error updating reservation:", error);
     return NextResponse.json(
@@ -150,12 +239,16 @@ export async function DELETE(
 
     const { id } = await params;
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
+    const repository = new SupabaseReservationRepository(supabase);
+    const deleteReservation = new DeleteReservationUseCase(repository);
 
-    const { error } = await extendedSupabase.from("reservations").delete().eq("id", id);
+    const result = await deleteReservation.execute(id);
 
-    if (error) {
-      throw error;
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({ success: true });

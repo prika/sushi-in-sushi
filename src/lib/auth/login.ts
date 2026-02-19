@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { RoleName, AuthUser, Location } from "@/types/database";
 import { verifyPassword } from "./password";
 import { createToken } from "./token";
@@ -36,6 +36,16 @@ const FALLBACK_USERS: Record<
     role: "kitchen",
     name: "Cozinha",
   },
+  "empregado@sushinsushi.pt": {
+    password: process.env.EMPREGADO_PASSWORD || "empregado123",
+    role: "waiter",
+    name: "Empregado",
+  },
+  empregado: {
+    password: process.env.EMPREGADO_PASSWORD || "empregado123",
+    role: "waiter",
+    name: "Empregado",
+  },
 };
 
 /**
@@ -46,7 +56,8 @@ export async function login(
   password: string,
 ): Promise<LoginResult> {
   try {
-    const supabase = await createClient();
+    // Use admin client to bypass RLS for authentication queries
+    const supabase = createAdminClient();
 
     // Try database authentication first
     const { data: staff, error } = await supabase
@@ -65,7 +76,29 @@ export async function login(
     if (!error && staff) {
       // Verify password
       if (!verifyPassword(password, staff.password_hash)) {
+        // In non-production, allow fallback credentials even if DB user exists
+        if (process.env.NODE_ENV !== "production") {
+          const fallbackUser = FALLBACK_USERS[email.toLowerCase()];
+          if (fallbackUser && fallbackUser.password === password) {
+            const authUser: AuthUser = {
+              id: staff.id, // Use real staff ID for consistency
+              email: staff.email,
+              name: staff.name,
+              role: fallbackUser.role,
+              location: staff.location as Location | null,
+            };
+
+            const token = await createToken(authUser);
+            return { success: true, user: authUser, token };
+          }
+        }
         return { success: false, error: "Credenciais inválidas" };
+      }
+
+      // Verify role exists
+      if (!staff.role || !staff.role.name) {
+        console.error("Staff role not found for user:", staff.email);
+        return { success: false, error: "Erro de configuração do utilizador" };
       }
 
       // Update last login

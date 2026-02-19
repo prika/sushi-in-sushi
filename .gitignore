@@ -6,6 +6,9 @@
 
 # testing
 /coverage
+/test-results
+/playwright-report
+/playwright/.cache
 
 # next.js
 /.next/
@@ -40,3 +43,6 @@ next-env.d.ts
 
 # Claude
 .claude/
+
+# Supabase
+supabase/.temp/

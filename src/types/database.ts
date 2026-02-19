@@ -1,3 +1,22 @@
+// =============================================================================
+// IMPORT SHARED TYPES FROM DOMAIN (Single source of truth)
+// =============================================================================
+import type { SessionStatus as DomainSessionStatus } from "@/domain/value-objects/SessionStatus";
+import type { OrderStatus as DomainOrderStatus } from "@/domain/value-objects/OrderStatus";
+import type { TableStatus as DomainTableStatus } from "@/domain/value-objects/TableStatus";
+
+// Re-export domain types for backwards compatibility
+export type SessionStatus = DomainSessionStatus;
+export type OrderStatus = DomainOrderStatus;
+export type TableStatus = DomainTableStatus;
+
+// Location is now a dynamic string (restaurant slug)
+// Use useLocations() hook to get available locations
+export type Location = string;
+
+// =============================================================================
+// SUPABASE JSON TYPE
+// =============================================================================
 export type Json =
   | string
   | number
@@ -92,6 +111,7 @@ export type Database = {
           price: number;
           category_id: string;
           image_url: string | null;
+          image_urls: string[] | null;
           is_available: boolean;
           is_rodizio: boolean;
           sort_order: number;
@@ -111,6 +131,7 @@ export type Database = {
           price: number;
           category_id: string;
           image_url?: string | null;
+          image_urls?: string[] | null;
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;
@@ -130,6 +151,7 @@ export type Database = {
           price?: number;
           category_id?: string;
           image_url?: string | null;
+          image_urls?: string[] | null;
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;
@@ -163,6 +185,7 @@ export type Database = {
           status: SessionStatus;
           notes: string | null;
           total_amount: number;
+          ordering_mode: string;
           created_at: string;
           updated_at: string;
         };
@@ -176,6 +199,7 @@ export type Database = {
           status?: SessionStatus;
           notes?: string | null;
           total_amount?: number;
+          ordering_mode?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -189,6 +213,7 @@ export type Database = {
           status?: SessionStatus;
           notes?: string | null;
           total_amount?: number;
+          ordering_mode?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -202,6 +227,90 @@ export type Database = {
           },
         ];
       };
+      session_customers: {
+        Row: {
+          id: string;
+          session_id: string;
+          display_name: string;
+          full_name: string | null;
+          email: string | null;
+          phone: string | null;
+          birth_date: string | null;
+          preferred_contact: string | null;
+          marketing_consent: boolean | null;
+          customer_id: string | null;
+          is_session_host: boolean | null;
+          device_id: string | null;
+          tier: number;
+          email_verified: boolean;
+          phone_verified: boolean;
+          verification_token: string | null;
+          verification_expires_at: string | null;
+          verification_type: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          display_name: string;
+          full_name?: string | null;
+          email?: string | null;
+          phone?: string | null;
+          birth_date?: string | null;
+          preferred_contact?: string | null;
+          marketing_consent?: boolean | null;
+          customer_id?: string | null;
+          is_session_host?: boolean | null;
+          device_id?: string | null;
+          tier?: number;
+          email_verified?: boolean;
+          phone_verified?: boolean;
+          verification_token?: string | null;
+          verification_expires_at?: string | null;
+          verification_type?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          display_name?: string;
+          full_name?: string | null;
+          email?: string | null;
+          phone?: string | null;
+          birth_date?: string | null;
+          preferred_contact?: string | null;
+          marketing_consent?: boolean | null;
+          customer_id?: string | null;
+          is_session_host?: boolean | null;
+          device_id?: string | null;
+          tier?: number;
+          email_verified?: boolean;
+          phone_verified?: boolean;
+          verification_token?: string | null;
+          verification_expires_at?: string | null;
+          verification_type?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "session_customers_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "session_customers_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       orders: {
         Row: {
           id: string;
@@ -211,6 +320,11 @@ export type Database = {
           unit_price: number;
           notes: string | null;
           status: OrderStatus;
+          session_customer_id: string | null;
+          prepared_by: string | null;
+          preparing_started_at: string | null;
+          ready_at: string | null;
+          delivered_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -222,6 +336,11 @@ export type Database = {
           unit_price: number;
           notes?: string | null;
           status?: OrderStatus;
+          session_customer_id?: string | null;
+          prepared_by?: string | null;
+          preparing_started_at?: string | null;
+          ready_at?: string | null;
+          delivered_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -233,6 +352,11 @@ export type Database = {
           unit_price?: number;
           notes?: string | null;
           status?: OrderStatus;
+          session_customer_id?: string | null;
+          prepared_by?: string | null;
+          preparing_started_at?: string | null;
+          ready_at?: string | null;
+          delivered_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -370,6 +494,8 @@ export type Database = {
           total_spent: number;
           visit_count: number;
           is_active: boolean;
+          email_verified: boolean;
+          phone_verified: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -385,6 +511,8 @@ export type Database = {
           total_spent?: number;
           visit_count?: number;
           is_active?: boolean;
+          email_verified?: boolean;
+          phone_verified?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -400,6 +528,8 @@ export type Database = {
           total_spent?: number;
           visit_count?: number;
           is_active?: boolean;
+          email_verified?: boolean;
+          phone_verified?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -445,6 +575,320 @@ export type Database = {
             columns: ["staff_id"];
             isOneToOne: false;
             referencedRelation: "staff";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      game_questions: {
+        Row: {
+          id: string;
+          game_type: string;
+          question_text: string;
+          options: Json | null;
+          correct_answer_index: number | null;
+          option_a: Json | null;
+          option_b: Json | null;
+          category: string | null;
+          difficulty: number;
+          points: number;
+          is_active: boolean;
+          restaurant_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          game_type: string;
+          question_text: string;
+          options?: Json | null;
+          correct_answer_index?: number | null;
+          option_a?: Json | null;
+          option_b?: Json | null;
+          category?: string | null;
+          difficulty?: number;
+          points?: number;
+          is_active?: boolean;
+          restaurant_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          game_type?: string;
+          question_text?: string;
+          options?: Json | null;
+          correct_answer_index?: number | null;
+          option_a?: Json | null;
+          option_b?: Json | null;
+          category?: string | null;
+          difficulty?: number;
+          points?: number;
+          is_active?: boolean;
+          restaurant_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      game_sessions: {
+        Row: {
+          id: string;
+          session_id: string;
+          game_type: string | null;
+          status: string;
+          round_number: number;
+          total_questions: number;
+          started_at: string;
+          completed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          game_type?: string | null;
+          status?: string;
+          round_number?: number;
+          total_questions?: number;
+          started_at?: string;
+          completed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          game_type?: string | null;
+          status?: string;
+          round_number?: number;
+          total_questions?: number;
+          started_at?: string;
+          completed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "game_sessions_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      game_answers: {
+        Row: {
+          id: string;
+          game_session_id: string;
+          session_customer_id: string | null;
+          question_id: string | null;
+          product_id: number | null;
+          game_type: string;
+          answer: Json;
+          score_earned: number;
+          answered_at: string;
+        };
+        Insert: {
+          id?: string;
+          game_session_id: string;
+          session_customer_id?: string | null;
+          question_id?: string | null;
+          product_id?: number | null;
+          game_type: string;
+          answer: Json;
+          score_earned?: number;
+          answered_at?: string;
+        };
+        Update: {
+          id?: string;
+          game_session_id?: string;
+          session_customer_id?: string | null;
+          question_id?: string | null;
+          product_id?: number | null;
+          game_type?: string;
+          answer?: Json;
+          score_earned?: number;
+          answered_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "game_answers_game_session_id_fkey";
+            columns: ["game_session_id"];
+            isOneToOne: false;
+            referencedRelation: "game_sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "game_answers_question_id_fkey";
+            columns: ["question_id"];
+            isOneToOne: false;
+            referencedRelation: "game_questions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      game_prizes: {
+        Row: {
+          id: string;
+          session_id: string;
+          game_session_id: string | null;
+          session_customer_id: string | null;
+          display_name: string;
+          prize_type: string;
+          prize_value: string;
+          prize_description: string | null;
+          total_score: number;
+          redeemed: boolean;
+          redeemed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          game_session_id?: string | null;
+          session_customer_id?: string | null;
+          display_name: string;
+          prize_type: string;
+          prize_value: string;
+          prize_description?: string | null;
+          total_score?: number;
+          redeemed?: boolean;
+          redeemed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          game_session_id?: string | null;
+          session_customer_id?: string | null;
+          display_name?: string;
+          prize_type?: string;
+          prize_value?: string;
+          prize_description?: string | null;
+          total_score?: number;
+          redeemed?: boolean;
+          redeemed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "game_prizes_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "game_prizes_game_session_id_fkey";
+            columns: ["game_session_id"];
+            isOneToOne: false;
+            referencedRelation: "game_sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_ratings: {
+        Row: {
+          id: string;
+          session_id: string;
+          session_customer_id: string | null;
+          product_id: number;
+          order_id: string | null;
+          rating: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          session_customer_id?: string | null;
+          product_id: number;
+          order_id?: string | null;
+          rating: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          session_customer_id?: string | null;
+          product_id?: number;
+          order_id?: string | null;
+          rating?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_ratings_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_ratings_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      verification_logs: {
+        Row: {
+          id: string;
+          session_customer_id: string | null;
+          customer_id: string | null;
+          verification_type: string;
+          contact_value: string;
+          token: string;
+          expires_at: string;
+          status: string;
+          verified_at: string | null;
+          ip_address: unknown;
+          user_agent: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          session_customer_id?: string | null;
+          customer_id?: string | null;
+          verification_type: string;
+          contact_value: string;
+          token: string;
+          expires_at: string;
+          status?: string;
+          verified_at?: string | null;
+          ip_address?: unknown;
+          user_agent?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          session_customer_id?: string | null;
+          customer_id?: string | null;
+          verification_type?: string;
+          contact_value?: string;
+          token?: string;
+          expires_at?: string;
+          status?: string;
+          verified_at?: string | null;
+          ip_address?: unknown;
+          user_agent?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "verification_logs_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "verification_logs_session_customer_id_fkey";
+            columns: ["session_customer_id"];
+            isOneToOne: false;
+            referencedRelation: "session_customers";
             referencedColumns: ["id"];
           },
         ];
@@ -845,7 +1289,10 @@ export type Database = {
       };
     };
     Functions: {
-      [_ in never]: never;
+      generate_verification_token: {
+        Args: never;
+        Returns: string;
+      };
     };
     Enums: {
       session_status: SessionStatus;
@@ -857,15 +1304,8 @@ export type Database = {
   };
 };
 
-// Enum types
-export type SessionStatus = "active" | "pending_payment" | "paid" | "closed";
-export type OrderStatus =
-  | "pending"
-  | "preparing"
-  | "ready"
-  | "delivered"
-  | "cancelled";
-export type TableStatus = "available" | "reserved" | "occupied" | "inactive";
+// Note: SessionStatus, OrderStatus, TableStatus, Location are now imported from domain/value-objects
+// and re-exported at the top of this file for backwards compatibility
 
 // Generic helper type for table rows
 export type Tables<T extends keyof Database["public"]["Tables"]> =
@@ -904,6 +1344,9 @@ export type TableFullStatus = Table & {
   reservation_phone?: string | null;
   status_label: string;
   minutes_occupied: number | null;
+  // Waiter info
+  waiter_id?: string | null;
+  waiter_name?: string | null;
 };
 
 export type Product = Database["public"]["Tables"]["products"]["Row"];
@@ -955,8 +1398,7 @@ export type Role = {
   description: string;
 };
 
-// Location type
-export type Location = "circunvalacao" | "boavista";
+// Note: Location is imported from domain/value-objects and re-exported at the top of this file
 
 // Staff types
 export type Staff = {
@@ -1190,6 +1632,18 @@ export type Reservation = {
   confirmation_email_delivered_at: string | null;
   confirmation_email_opened_at: string | null;
   confirmation_email_status: EmailStatus | null;
+  // Email tracking - day before reminder
+  day_before_reminder_id: string | null;
+  day_before_reminder_sent_at: string | null;
+  day_before_reminder_delivered_at: string | null;
+  day_before_reminder_opened_at: string | null;
+  day_before_reminder_status: EmailStatus | null;
+  // Email tracking - same day reminder (2h before)
+  same_day_reminder_id: string | null;
+  same_day_reminder_sent_at: string | null;
+  same_day_reminder_delivered_at: string | null;
+  same_day_reminder_opened_at: string | null;
+  same_day_reminder_status: EmailStatus | null;
   created_at: string;
   updated_at: string;
 };
@@ -1244,6 +1698,32 @@ export type RestaurantClosureInsert = {
 export type RestaurantClosureUpdate = Partial<
   Omit<RestaurantClosure, "id" | "created_at" | "created_by">
 >;
+
+// =============================================
+// WAITER CALLS TYPES
+// =============================================
+
+export type WaiterCallType = "assistance" | "bill" | "order" | "other";
+export type WaiterCallStatus =
+  | "pending"
+  | "acknowledged"
+  | "completed"
+  | "cancelled";
+
+export type WaiterCall = {
+  id: string;
+  table_id: string;
+  session_id: string | null;
+  call_type: WaiterCallType;
+  message: string | null;
+  status: WaiterCallStatus;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
+  completed_at: string | null;
+  location: Location;
+  created_at: string;
+  updated_at: string;
+};
 
 // =============================================
 // VENDUS INTEGRATION TYPES
@@ -1412,4 +1892,248 @@ export type ProductWithVendusStatus = Product & {
   vendus_sync_status: VendusSyncStatus;
   sync_status_label: string;
   last_synced: string | null;
+};
+
+export type WaiterCallInsert = {
+  table_id: string;
+  session_id?: string | null;
+  call_type?: WaiterCallType;
+  message?: string | null;
+  location: Location;
+};
+
+export type WaiterCallUpdate = Partial<
+  Omit<WaiterCall, "id" | "created_at" | "table_id" | "location">
+>;
+
+export type WaiterCallWithDetails = WaiterCall & {
+  table_number: number;
+  table_name: string;
+  acknowledged_by_name: string | null;
+  assigned_waiter_name: string | null;
+  assigned_waiter_id: string | null;
+};
+
+// Table with assigned waiter (from view)
+export type TableWithWaiter = Table & {
+  waiter_id: string | null;
+  waiter_name: string | null;
+  waiter_email: string | null;
+  waiter_assigned_at: string | null;
+};
+
+// =============================================
+// SESSION CUSTOMERS TYPES
+// =============================================
+
+export type PreferredContact = "email" | "phone" | "none";
+
+export type SessionCustomer = {
+  id: string;
+  session_id: string;
+  display_name: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  email_verified: boolean;
+  phone_verified: boolean;
+  birth_date: string | null;
+  marketing_consent: boolean;
+  preferred_contact: PreferredContact;
+  customer_id: string | null;
+  is_session_host: boolean;
+  device_id: string | null;
+  tier: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SessionCustomerInsert = {
+  session_id: string;
+  display_name: string;
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  birth_date?: string | null;
+  marketing_consent?: boolean;
+  preferred_contact?: PreferredContact;
+  customer_id?: string | null;
+  is_session_host?: boolean;
+  device_id?: string | null;
+  tier?: number;
+};
+
+export type SessionCustomerUpdate = Partial<
+  Omit<SessionCustomer, "id" | "session_id" | "created_at">
+>;
+
+// Session customer summary (for display in waiter panel)
+export type SessionCustomerSummary = {
+  id: string;
+  display_name: string;
+  is_host: boolean;
+  created_at: string;
+};
+
+// Session with customers (from view)
+export type SessionWithCustomers = Session & {
+  table_number: number;
+  table_name: string;
+  table_location: string;
+  customers: SessionCustomerSummary[];
+  customer_count: number;
+};
+
+// Order with customer info (from view)
+export type OrderWithCustomer = Order & {
+  product_name: string;
+  product_price: number;
+  customer_name: string | null;
+  customer_id: string | null;
+};
+
+// Extended OrderWithProduct to include customer info
+export type OrderWithProductAndCustomer = OrderWithProduct & {
+  session_customer_id: string | null;
+  customer_name?: string | null;
+};
+
+// =============================================
+// DEVICE PROFILE TYPES
+// =============================================
+
+export type DeviceProfileRow = {
+  device_id: string;
+  last_display_name: string | null;
+  last_full_name: string | null;
+  last_email: string | null;
+  last_phone: string | null;
+  last_birth_date: string | null;
+  last_preferred_contact: string;
+  highest_tier: number;
+  linked_customer_id: string | null;
+  visit_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// =============================================
+// GAME TYPES
+// =============================================
+
+export type GameQuestionRow = {
+  id: string;
+  game_type: string;
+  question_text: string;
+  options: unknown | null;
+  correct_answer_index: number | null;
+  option_a: unknown | null;
+  option_b: unknown | null;
+  category: string | null;
+  difficulty: number;
+  points: number;
+  is_active: boolean;
+  restaurant_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameSessionRow = {
+  id: string;
+  session_id: string;
+  status: string;
+  round_number: number;
+  total_questions: number;
+  started_at: string;
+  completed_at: string | null;
+  created_at: string;
+};
+
+export type GameAnswerRow = {
+  id: string;
+  game_session_id: string;
+  session_customer_id: string | null;
+  question_id: string | null;
+  product_id: number | null;
+  game_type: string;
+  answer: unknown;
+  score_earned: number;
+  answered_at: string;
+};
+
+export type GamePrizeRow = {
+  id: string;
+  session_id: string;
+  game_session_id: string | null;
+  session_customer_id: string | null;
+  display_name: string;
+  prize_type: string;
+  prize_value: string;
+  prize_description: string | null;
+  total_score: number;
+  redeemed: boolean;
+  redeemed_at: string | null;
+  created_at: string;
+};
+
+// =============================================
+// RESERVATION SETTINGS TYPES
+// =============================================
+
+export type ReservationSettings = {
+  id: number;
+  day_before_reminder_enabled: boolean;
+  day_before_reminder_hours: number;
+  same_day_reminder_enabled: boolean;
+  same_day_reminder_hours: number;
+  rodizio_waste_policy_enabled: boolean;
+  rodizio_waste_fee_per_piece: number;
+  updated_at: string;
+  updated_by: string | null;
+};
+
+export type ReservationSettingsUpdate = Partial<
+  Omit<ReservationSettings, "id" | "updated_at">
+>;
+
+// =============================================
+// STAFF TIME OFF TYPES
+// =============================================
+
+export type StaffTimeOffType = "vacation" | "sick" | "personal" | "other";
+export type StaffTimeOffStatus = "pending" | "approved" | "rejected";
+
+export type StaffTimeOff = {
+  id: number;
+  staff_id: string;
+  start_date: string;
+  end_date: string;
+  type: StaffTimeOffType;
+  reason: string | null;
+  status: StaffTimeOffStatus;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StaffTimeOffInsert = {
+  staff_id: string;
+  start_date: string;
+  end_date: string;
+  type?: StaffTimeOffType;
+  reason?: string | null;
+  status?: StaffTimeOffStatus;
+};
+
+export type StaffTimeOffUpdate = Partial<
+  Omit<StaffTimeOff, "id" | "staff_id" | "created_at">
+>;
+
+export type StaffTimeOffWithStaff = StaffTimeOff & {
+  staff_name: string;
+  staff_email: string;
+  approved_by_name: string | null;
 };

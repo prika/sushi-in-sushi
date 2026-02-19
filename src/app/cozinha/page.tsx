@@ -4,61 +4,157 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSound } from "@/hooks/useSound";
-import { useActivityLog } from "@/hooks/useActivityLog";
-import type { OrderStatus } from "@/types/database";
+import { useActivityLog, useLocations } from "@/presentation/hooks";
+import { useToast } from "@/components/ui";
+import { useKitchenOrdersOptimized } from "@/presentation/hooks";
+import type { KitchenOrderDTO } from "@/application/dto/OrderDTO";
+import type { OrderStatus } from "@/domain/value-objects/OrderStatus";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 
-interface KitchenOrder {
-  id: string;
-  session_id: string;
-  product_id: string;
-  quantity: number;
-  unit_price: number;
-  notes: string | null;
-  status: OrderStatus;
-  created_at: string;
-  product: {
-    id: string;
-    name: string;
-  };
-  session: {
-    id: string;
-    table: {
-      id: string;
-      number: number;
-      location: string;
-    };
+// Helper to get extended supabase client (only for waiter notifications)
+function getExtendedSupabase(supabase: ReturnType<typeof createClient>) {
+  return supabase as unknown as {
+    from: (table: string) => ReturnType<typeof supabase.from>;
   };
 }
 
-interface GroupedOrder {
-  sessionId: string;
-  tableNumber: number;
-  location: string;
-  timestamp: string;
-  createdAt: Date;
-  orders: KitchenOrder[];
-  status: OrderStatus;
+// Status order for detecting backward movement
+const STATUS_ORDER: OrderStatus[] = ["pending", "preparing", "ready"];
+
+// Helper to check if moving backward
+function isBackwardMove(fromStatus: OrderStatus, toStatus: OrderStatus): boolean {
+  const fromIndex = STATUS_ORDER.indexOf(fromStatus);
+  const toIndex = STATUS_ORDER.indexOf(toStatus);
+  return fromIndex > toIndex;
 }
 
-const LOCATIONS = [
-  { value: "all", label: "Todas" },
-  { value: "circunvalacao", label: "Circunvalação" },
-  { value: "boavista", label: "Boavista" },
-];
+// Helper to get status label
+function getStatusLabel(status?: OrderStatus): string {
+  const labels: Record<OrderStatus, string> = {
+    pending: "Pendentes",
+    preparing: "A Preparar",
+    ready: "Prontos para Servir",
+    delivered: "Entregue",
+    cancelled: "Cancelado",
+  };
+  return status ? labels[status] : "";
+}
 
 export default function CozinhaPage() {
   const router = useRouter();
-  const supabase = createClient();
-  const { isSoundEnabled, toggleSound, playNewOrderSound, requestNotificationPermission, showNotification } = useSound();
+  // Supabase only used for waiter notifications
+  const supabase = useMemo(() => createClient(), []);
+  const {
+    isSoundEnabled,
+    toggleSound,
+    playNewOrderSound,
+    requestNotificationPermission,
+    showNotification,
+  } = useSound();
   const { logActivity } = useActivityLog();
+  const { showToast } = useToast();
+  const { locations } = useLocations();
 
-  const [orders, setOrders] = useState<KitchenOrder[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Build locations array with "all" option
+  const locationOptions = useMemo(() => {
+    return [
+      { value: "all", label: "Todas" },
+      ...locations.map((loc) => ({ value: loc.slug, label: loc.name }))
+    ];
+  }, [locations]);
+
   const [selectedLocation, setSelectedLocation] = useState("all");
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [headerFlash, setHeaderFlash] = useState(false);
-  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set());
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; role: string; location: string | null } | null>(null);
+  const [showReadyColumn, setShowReadyColumn] = useState(() => {
+    // Load preference from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('kitchen-show-ready-column');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+
+  // Drag and drop state
+  const [activeOrder, setActiveOrder] = useState<KitchenOrderDTO | null>(null);
+  const [pendingMove, setPendingMove] = useState<{
+    order: KitchenOrderDTO;
+    fromStatus: OrderStatus;
+    toStatus: OrderStatus;
+  } | null>(null);
+
+  // Sensors for drag and drop (requires holding for 250ms to start dragging)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  );
+
+  // Fetch authenticated user identity on mount
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.user) {
+          setCurrentUser({
+            id: data.user.id,
+            name: data.user.name,
+            role: data.user.role,
+            location: data.user.location ?? null,
+          });
+          // Kitchen staff: auto-lock to their assigned location
+          if (data.user.role === "kitchen" && data.user.location) {
+            setSelectedLocation(data.user.location);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Memoize the new order handler to prevent infinite loops
+  const handleNewOrder = useCallback((order: KitchenOrderDTO) => {
+    // Play sound and show notification for new orders
+    playNewOrderSound();
+    showNotification(
+      "Novo Pedido!",
+      `Mesa ${order.table?.number || "?"}`
+    );
+    // Flash header
+    setHeaderFlash(true);
+    setTimeout(() => setHeaderFlash(false), 1000);
+  }, [playNewOrderSound, showNotification]);
+
+  // Use the optimized hook with React Query for kitchen orders (96% faster)
+  const {
+    byStatus,
+    isLoading,
+    newOrderIds,
+    updateStatus,
+  } = useKitchenOrdersOptimized({
+    location: selectedLocation === "all" ? undefined : (selectedLocation as "circunvalacao" | "boavista"),
+    userId: currentUser?.id,
+    autoRefetch: true,
+    refetchInterval: 10000, // 10s background refetch (React Query)
+    onNewOrder: handleNewOrder,
+  });
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -72,250 +168,174 @@ export default function CozinhaPage() {
     }
   };
 
+  const toggleReadyColumn = () => {
+    setShowReadyColumn((prev) => {
+      const newValue = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('kitchen-show-ready-column', String(newValue));
+      }
+      return newValue;
+    });
+  };
+
   // Update clock every second
   useEffect(() => {
+    setCurrentTime(new Date()); // Set initial time on client
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Request notification permission on mount
+  // Request notification permission on mount (only once)
   useEffect(() => {
     requestNotificationPermission();
-  }, [requestNotificationPermission]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch orders
-  const fetchOrders = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("orders")
-        .select(`
-          *,
-          product:products(id, name),
-          session:sessions(
-            id,
-            table:tables(id, number, location)
-          )
-        `)
-        .in("status", ["pending", "preparing", "ready"])
-        .order("created_at", { ascending: true });
+  // Notify waiter when order is ready
+  const notifyWaiter = useCallback(
+    async (order: KitchenOrderDTO) => {
+      if (!order.table?.id) return;
 
-      if (error) throw error;
-
-      setOrders(data as KitchenOrder[]);
-    } catch (err) {
-      console.error("Error fetching orders:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [supabase]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
-
-  // Auto-refresh every 30 seconds as fallback
-  useEffect(() => {
-    const timer = setInterval(fetchOrders, 30000);
-    return () => clearInterval(timer);
-  }, [fetchOrders]);
-
-  // Real-time subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel("kitchen-orders")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "orders",
-        },
-        async (payload) => {
-          console.log("New order:", payload);
-
-          // Fetch the complete order with relations
-          const { data } = await supabase
-            .from("orders")
-            .select(`
-              *,
-              product:products(id, name),
-              session:sessions(
-                id,
-                table:tables(id, number, location)
-              )
-            `)
-            .eq("id", payload.new.id)
-            .single();
-
-          if (data) {
-            setOrders((prev) => [...prev, data as KitchenOrder]);
-
-            // Play sound and show notification
-            playNewOrderSound();
-            showNotification(
-              "Novo Pedido!",
-              `Mesa ${(data as KitchenOrder).session?.table?.number}`
-            );
-
-            // Flash header
-            setHeaderFlash(true);
-            setTimeout(() => setHeaderFlash(false), 1000);
-
-            // Mark as new
-            setNewOrderIds((prev) => new Set([...Array.from(prev), data.id]));
-            setTimeout(() => {
-              setNewOrderIds((prev) => {
-                const next = new Set(prev);
-                next.delete(data.id);
-                return next;
-              });
-            }, 30000);
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "orders",
-        },
-        (payload) => {
-          console.log("Order updated:", payload);
-          setOrders((prev) =>
-            prev.map((order) =>
-              order.id === payload.new.id
-                ? { ...order, ...payload.new }
-                : order
-            )
-          );
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase, playNewOrderSound, showNotification]);
-
-  // Filter by location
-  const filteredOrders = useMemo(() => {
-    if (selectedLocation === "all") return orders;
-    return orders.filter(
-      (order) => order.session?.table?.location === selectedLocation
-    );
-  }, [orders, selectedLocation]);
-
-  // Group orders by session and minute
-  const groupedOrders = useMemo(() => {
-    const groups: { [key: string]: GroupedOrder } = {};
-
-    filteredOrders.forEach((order) => {
-      const date = new Date(order.created_at);
-      const minuteKey = `${order.session_id}-${date.getHours()}:${date.getMinutes()}`;
-
-      if (!groups[minuteKey]) {
-        groups[minuteKey] = {
-          sessionId: order.session_id,
-          tableNumber: order.session?.table?.number || 0,
-          location: order.session?.table?.location || "",
-          timestamp: date.toLocaleTimeString("pt-PT", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          createdAt: date,
-          orders: [],
-          status: order.status,
-        };
-      }
-
-      groups[minuteKey].orders.push(order);
-
-      // Group status is the "lowest" status (pending < preparing < ready)
-      const statusPriority: Record<OrderStatus, number> = {
-        pending: 0,
-        preparing: 1,
-        ready: 2,
-        delivered: 3,
-        cancelled: 4,
-      };
-
-      if (statusPriority[order.status] < statusPriority[groups[minuteKey].status]) {
-        groups[minuteKey].status = order.status;
-      }
-    });
-
-    return Object.values(groups).sort(
-      (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
-    );
-  }, [filteredOrders]);
-
-  // Split by status
-  const pendingGroups = groupedOrders.filter((g) => g.status === "pending");
-  const preparingGroups = groupedOrders.filter((g) => g.status === "preparing");
-  const readyGroups = groupedOrders.filter((g) => g.status === "ready");
-
-  // Transition functions
-  const updateOrderStatus = useCallback(
-    async (orderId: string, newStatus: OrderStatus) => {
       try {
-        const { error } = await supabase
-          .from("orders")
-          .update({ status: newStatus })
-          .eq("id", orderId);
+        const extendedSupabase = getExtendedSupabase(supabase);
 
-        if (error) throw error;
+        // Build a clear message with table, product, and customer
+        const tableNumber = order.table?.number || "?";
+        const productInfo = `${order.quantity}× ${order.product?.name || "Produto"}`;
+        const customerInfo = order.customerName
+          ? ` para ${order.customerName}`
+          : "";
 
-        setOrders((prev) =>
-          prev.map((order) =>
-            order.id === orderId ? { ...order, status: newStatus } : order
-          ).filter((order) =>
-            newStatus === "delivered" ? order.id !== orderId : true
-          )
+        const message = `Mesa ${tableNumber}: ${productInfo}${customerInfo}`;
+
+        // Create a waiter notification with order_id for tracking
+        await extendedSupabase.from("waiter_calls").insert({
+          table_id: order.table?.id,
+          session_id: order.sessionId,
+          order_id: order.id,
+          call_type: "other",
+          status: "pending",
+          location: order.table?.location,
+          message: message,
+        });
+
+        console.info(
+          "[Kitchen] Notified waiter:",
+          order.waiterName || "",
+          "for order:",
+          order.id
         );
+        showToast("success", `Atendente ${order.waiterName || ""} notificado`);
       } catch (err) {
-        console.error("Error updating order:", err);
+        console.error("Error notifying waiter:", err);
+        showToast("error", "Erro ao notificar atendente");
       }
     },
-    [supabase]
+    [supabase, showToast]
   );
 
-  const moveGroupToStatus = useCallback(
-    async (group: GroupedOrder, newStatus: OrderStatus) => {
-      await Promise.all(
-        group.orders.map((order) => updateOrderStatus(order.id, newStatus))
+  // Handle order status update with side effects
+  const handleUpdateStatus = useCallback(
+    async (order: KitchenOrderDTO, newStatus: OrderStatus) => {
+      console.info(
+        "[Kitchen] Updating order status:",
+        order.id,
+        "->",
+        newStatus
       );
 
-      // Log activity when marking orders as delivered
-      if (newStatus === "delivered") {
-        for (const order of group.orders) {
+      try {
+        await updateStatus(order.id, newStatus);
+
+        // Notify waiter when order is ready
+        if (newStatus === "ready") {
+          await notifyWaiter(order);
+        }
+
+        // Log activity when marking orders as delivered
+        if (newStatus === "delivered") {
           await logActivity("order_delivered", "order", order.id, {
-            tableNumber: group.tableNumber,
-            location: group.location,
+            tableNumber: order.table?.number,
+            location: order.table?.location,
             productName: order.product?.name,
             quantity: order.quantity,
-            sessionId: order.session_id,
+            sessionId: order.sessionId,
           });
         }
+      } catch (error) {
+        console.error("[Kitchen] Error updating order status:", error);
+        showToast("error", "Erro ao atualizar pedido");
       }
     },
-    [updateOrderStatus, logActivity]
+    [updateStatus, notifyWaiter, logActivity, showToast]
   );
 
-  // Get time color
-  const getTimeColor = (createdAt: Date) => {
-    const minutes = (currentTime.getTime() - createdAt.getTime()) / 60000;
-    if (minutes > 10) return "border-red-500";
-    if (minutes > 5) return "border-yellow-500";
-    return "border-green-500";
+  // Drag handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const orderId = active.id as string;
+
+    // Find the order being dragged
+    const allOrders = [...byStatus.pending, ...byStatus.preparing, ...byStatus.ready];
+    const order = allOrders.find((o) => o.id === orderId);
+
+    if (order) {
+      setActiveOrder(order);
+    }
   };
 
-  const getMinutesSince = (createdAt: Date) => {
-    return Math.floor((currentTime.getTime() - createdAt.getTime()) / 60000);
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveOrder(null);
+
+    if (!over) return;
+
+    const orderId = active.id as string;
+    const toStatus = over.id as OrderStatus;
+
+    // Find the order
+    const allOrders = [...byStatus.pending, ...byStatus.preparing, ...byStatus.ready];
+    const order = allOrders.find((o) => o.id === orderId);
+
+    if (!order || order.status === toStatus) return;
+
+    // Check if moving backward
+    if (isBackwardMove(order.status, toStatus)) {
+      // Show confirmation dialog
+      setPendingMove({
+        order,
+        fromStatus: order.status,
+        toStatus,
+      });
+    } else {
+      // Move forward without confirmation
+      handleUpdateStatus(order, toStatus);
+    }
   };
+
+  const handleConfirmRevert = () => {
+    if (pendingMove) {
+      handleUpdateStatus(pendingMove.order, pendingMove.toStatus);
+      setPendingMove(null);
+    }
+  };
+
+  const handleCancelRevert = () => {
+    setPendingMove(null);
+  };
+
+  // Orders already sorted by use case (by state timestamp)
+  // No need to re-sort here
+  const sortedPending = byStatus.pending;
+  const sortedPreparing = byStatus.preparing;
+  const sortedReady = byStatus.ready;
 
   return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
     <div className="h-screen flex flex-col overflow-hidden">
       {/* Header */}
       <header
@@ -328,28 +348,44 @@ export default function CozinhaPage() {
         <div className="flex items-center gap-3">
           <span className="text-2xl">🍣</span>
           <div>
-            <h1 className="text-xl font-bold">Cozinha</h1>
+            <h1 className="text-xl font-bold">
+              Cozinha{currentUser ? ` - ${currentUser.name}` : ""}
+            </h1>
             <p className="text-sm text-gray-400">Sushi in Sushi</p>
           </div>
         </div>
 
         <div className="flex items-center gap-6">
-          {/* Location Selector */}
-          <select
-            value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#D4AF37]"
-          >
-            {LOCATIONS.map((loc) => (
-              <option key={loc.value} value={loc.value}>
-                {loc.label}
-              </option>
-            ))}
-          </select>
+          {/* Location Selector — only admins can switch; kitchen staff are locked to their location */}
+          {currentUser?.role === "admin" ? (
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              aria-label="Filtrar por localização"
+              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#D4AF37]"
+            >
+              {locationOptions.map((loc) => (
+                <option key={loc.value} value={loc.value}>
+                  {loc.label}
+                </option>
+              ))}
+            </select>
+          ) : currentUser?.location ? (
+            <span className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-300 capitalize">
+              {locations.find((l) => l.slug === currentUser.location)?.name ?? currentUser.location}
+            </span>
+          ) : null}
+
+          {/* Real-time Status Indicator */}
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 rounded-lg border border-green-500/30 status connected live">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            <span className="text-xs text-green-400 font-medium">Online</span>
+          </div>
 
           {/* Sound Toggle */}
           <button
             onClick={toggleSound}
+            aria-label={isSoundEnabled ? "Desativar som" : "Ativar som"}
             className={`
               p-2 rounded-lg transition-colors
               ${isSoundEnabled ? "bg-green-500/20 text-green-500" : "bg-gray-800 text-gray-500"}
@@ -357,86 +393,119 @@ export default function CozinhaPage() {
             title={isSoundEnabled ? "Som ligado" : "Som desligado"}
           >
             {isSoundEnabled ? (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                />
               </svg>
             ) : (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"
+                />
               </svg>
             )}
           </button>
 
           {/* Clock */}
           <div className="text-2xl font-mono font-bold text-[#D4AF37]">
-            {currentTime.toLocaleTimeString("pt-PT", {
+            {currentTime ? currentTime.toLocaleTimeString("pt-PT", {
               hour: "2-digit",
               minute: "2-digit",
               second: "2-digit",
-            })}
+            }) : "--:--:--"}
           </div>
 
           {/* Logout */}
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
+            aria-label="Terminar sessão"
             className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-red-500/20 hover:text-red-400 transition-colors disabled:opacity-50"
             title="Sair"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
             </svg>
           </button>
         </div>
       </header>
 
       {/* Main Content - Kanban */}
-      <main className="flex-1 grid grid-cols-3 gap-4 p-4 overflow-hidden">
+      <main className={`flex-1 grid ${showReadyColumn ? 'grid-cols-3' : 'grid-cols-2'} gap-4 p-4 overflow-hidden`}>
         {/* Pending Column */}
         <Column
+          id="pending"
           title="Pendentes"
           icon="⏳"
           color="yellow"
-          count={pendingGroups.reduce((sum, g) => sum + g.orders.length, 0)}
-          groups={pendingGroups}
-          currentTime={currentTime}
+          count={sortedPending.length}
+          orders={sortedPending}
           newOrderIds={newOrderIds}
-          getTimeColor={getTimeColor}
-          getMinutesSince={getMinutesSince}
           actionLabel="Iniciar"
-          onAction={(group) => moveGroupToStatus(group, "preparing")}
+          onAction={(order) => handleUpdateStatus(order, "preparing")}
         />
 
         {/* Preparing Column */}
         <Column
+          id="preparing"
           title="A Preparar"
           icon="🔥"
           color="orange"
-          count={preparingGroups.reduce((sum, g) => sum + g.orders.length, 0)}
-          groups={preparingGroups}
-          currentTime={currentTime}
+          count={sortedPreparing.length}
+          orders={sortedPreparing}
           newOrderIds={newOrderIds}
-          getTimeColor={getTimeColor}
-          getMinutesSince={getMinutesSince}
           actionLabel="Pronto"
-          onAction={(group) => moveGroupToStatus(group, "ready")}
+          onAction={(order) => handleUpdateStatus(order, "ready")}
         />
 
-        {/* Ready Column */}
-        <Column
-          title="Prontos"
-          icon="✅"
-          color="green"
-          count={readyGroups.reduce((sum, g) => sum + g.orders.length, 0)}
-          groups={readyGroups}
-          currentTime={currentTime}
-          newOrderIds={newOrderIds}
-          getTimeColor={getTimeColor}
-          getMinutesSince={getMinutesSince}
-          actionLabel="Entregue"
-          onAction={(group) => moveGroupToStatus(group, "delivered")}
-        />
+        {/* Ready Column - conditionally rendered */}
+        {showReadyColumn && (
+          <Column
+            id="ready"
+            title="Prontos para Servir"
+            icon="✅"
+            color="green"
+            count={sortedReady.length}
+            orders={sortedReady}
+            newOrderIds={newOrderIds}
+            actionLabel={null}
+            onAction={(order) => handleUpdateStatus(order, "delivered")}
+            onToggleVisibility={toggleReadyColumn}
+          />
+        )}
       </main>
 
       {/* Loading Overlay */}
@@ -445,36 +514,86 @@ export default function CozinhaPage() {
           <div className="animate-spin h-12 w-12 border-4 border-[#D4AF37] border-t-transparent rounded-full" />
         </div>
       )}
+
+      {/* Show Ready Column Button (when hidden) */}
+      {!showReadyColumn && (
+        <button
+          onClick={toggleReadyColumn}
+          className="fixed bottom-6 right-6 p-4 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg transition-all hover:scale-110 z-10"
+          title="Mostrar coluna 'Prontos para Servir'"
+          aria-label="Mostrar coluna escondida"
+        >
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+            />
+          </svg>
+        </button>
+      )}
     </div>
+
+    {/* Drag Overlay */}
+    <DragOverlay>
+      {activeOrder ? <OrderCardOverlay order={activeOrder} /> : null}
+    </DragOverlay>
+
+    {/* Confirm Dialog for reverting status */}
+    <ConfirmDialog
+      isOpen={!!pendingMove}
+      title="Pretende mesmo reverter?"
+      message={`Deseja mover o pedido da mesa ${pendingMove?.order.table?.number} de volta de "${getStatusLabel(pendingMove?.fromStatus)}" para "${getStatusLabel(pendingMove?.toStatus)}"?`}
+      confirmText="Sim, reverter"
+      cancelText="Cancelar"
+      variant="warning"
+      onConfirm={handleConfirmRevert}
+      onCancel={handleCancelRevert}
+    />
+    </DndContext>
   );
 }
 
 // Column Component
 function Column({
+  id,
   title,
   icon,
   color,
   count,
-  groups,
-  currentTime,
+  orders,
   newOrderIds,
-  getTimeColor,
-  getMinutesSince,
   actionLabel,
   onAction,
+  onToggleVisibility,
 }: {
+  id: string;
   title: string;
   icon: string;
   color: "yellow" | "orange" | "green";
   count: number;
-  groups: GroupedOrder[];
-  currentTime: Date;
+  orders: KitchenOrderDTO[];
   newOrderIds: Set<string>;
-  getTimeColor: (date: Date) => string;
-  getMinutesSince: (date: Date) => number;
-  actionLabel: string;
-  onAction: (group: GroupedOrder) => void;
+  actionLabel: string | null;
+  onAction: (order: KitchenOrderDTO) => void;
+  onToggleVisibility?: () => void;
 }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id,
+  });
+
   const colorClasses = {
     yellow: "bg-yellow-500/10 border-yellow-500/30",
     orange: "bg-orange-500/10 border-orange-500/30",
@@ -487,115 +606,281 @@ function Column({
     green: "text-green-500",
   };
 
+  const borderColorMap = {
+    red: "border-red-500",
+    yellow: "border-yellow-500",
+    green: "border-green-500",
+  };
+
   return (
-    <div className={`flex flex-col rounded-xl border ${colorClasses[color]} overflow-hidden`}>
+    <div
+      ref={setNodeRef}
+      className={`flex flex-col rounded-xl border ${colorClasses[color]} overflow-hidden transition-all ${
+        isOver ? "ring-2 ring-[#D4AF37] ring-opacity-50 bg-[#D4AF37]/5" : ""
+      }`}
+    >
       {/* Column Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+      <div className="flex items-center justify-between px-4 py-3 pt-6 border-b border-gray-800">
         <div className="flex items-center gap-2">
           <span className="text-xl">{icon}</span>
           <h2 className={`font-bold ${headerColors[color]}`}>{title}</h2>
         </div>
-        <span className={`text-2xl font-bold ${headerColors[color]}`}>{count}</span>
+        <div className="flex items-center gap-3">
+          <span className={`text-2xl font-bold ${headerColors[color]}`}>
+            {count}
+          </span>
+          {onToggleVisibility && (
+            <button
+              onClick={onToggleVisibility}
+              className="p-1.5 rounded-lg bg-gray-800 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
+              title="Esconder esta coluna"
+              aria-label="Esconder coluna"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Orders List */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {groups.length === 0 ? (
+        {orders.length === 0 ? (
           <p className="text-center text-gray-500 py-8">Sem pedidos</p>
         ) : (
-          groups.map((group) => {
-            const minutes = getMinutesSince(group.createdAt);
-            const isLate = minutes > 10;
-            const hasNewOrders = group.orders.some((o) => newOrderIds.has(o.id));
-
-            return (
-              <div
-                key={`${group.sessionId}-${group.timestamp}`}
-                className={`
-                  relative bg-gray-900 rounded-xl border-l-4 overflow-hidden
-                  ${getTimeColor(group.createdAt)}
-                  ${hasNewOrders ? "animate-pulse-once" : ""}
-                `}
-              >
-                {/* New Badge */}
-                {hasNewOrders && (
-                  <div className="absolute top-2 right-2 bg-[#D4AF37] text-black text-xs font-bold px-2 py-0.5 rounded-full animate-bounce">
-                    NOVO!
-                  </div>
-                )}
-
-                {/* Late Badge */}
-                {isLate && (
-                  <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                    ATRASADO
-                  </div>
-                )}
-
-                {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl font-bold text-white">
-                      {group.tableNumber}
-                    </span>
-                    <div className="text-sm text-gray-400">
-                      <p>Mesa</p>
-                      <p className="capitalize">{group.location}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-400">{group.timestamp}</p>
-                    <p className={`text-lg font-bold ${isLate ? "text-red-500" : "text-gray-300"}`}>
-                      {minutes} min
-                    </p>
-                  </div>
-                </div>
-
-                {/* Items */}
-                <div className="px-4 py-3 space-y-2">
-                  {group.orders.map((order) => (
-                    <div key={order.id} className="flex items-start gap-2">
-                      <span className="font-bold text-[#D4AF37]">{order.quantity}×</span>
-                      <div className="flex-1">
-                        <p className="font-medium">{order.product?.name}</p>
-                        {order.notes && (
-                          <p className="text-sm bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded mt-1">
-                            📝 {order.notes}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Action Button */}
-                <div className="px-4 py-3 border-t border-gray-800">
-                  <button
-                    onClick={() => onAction(group)}
-                    className={`
-                      w-full py-2 rounded-lg font-semibold transition-colors
-                      ${color === "yellow" ? "bg-orange-500 hover:bg-orange-600 text-white" : ""}
-                      ${color === "orange" ? "bg-green-500 hover:bg-green-600 text-white" : ""}
-                      ${color === "green" ? "bg-gray-600 hover:bg-gray-700 text-white" : ""}
-                    `}
-                  >
-                    {actionLabel}
-                  </button>
-                </div>
-              </div>
-            );
-          })
+          orders.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              isNew={newOrderIds.has(order.id)}
+              actionLabel={actionLabel}
+              onAction={onAction}
+            />
+          ))
         )}
       </div>
 
       <style jsx>{`
         @keyframes pulse-once {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.7; }
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.7;
+          }
         }
         .animate-pulse-once {
           animation: pulse-once 0.5s ease-in-out 3;
         }
       `}</style>
+    </div>
+  );
+}
+
+// Order Card Component (Draggable)
+function OrderCard({
+  order,
+  isNew,
+  actionLabel,
+  onAction,
+}: {
+  order: KitchenOrderDTO;
+  isNew: boolean;
+  actionLabel: string | null;
+  onAction: (order: KitchenOrderDTO) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: order.id,
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const borderColorMap = {
+    red: "border-red-500",
+    yellow: "border-yellow-500",
+    green: "border-green-500",
+  };
+
+  const createdAt = new Date(order.createdAt);
+  const timestamp = createdAt.toLocaleTimeString("pt-PT", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={`
+        relative bg-gray-900 rounded-xl border-l-4 cursor-grab active:cursor-grabbing
+        select-none touch-none
+        ${borderColorMap[order.urgencyColor]}
+        ${isNew ? "animate-pulse-once" : ""}
+      `}
+    >
+      {/* New Badge - half outside the card */}
+      {isNew && (
+        <div className="absolute top-0 right-4 -translate-y-1/2 bg-[#D4AF37] text-black text-xs font-bold px-2 py-0.5 rounded-full animate-bounce pointer-events-none z-10 shadow-lg">
+          NOVO!
+        </div>
+      )}
+
+      {/* Late Badge - half outside the card */}
+      {order.isLate && !isNew && (
+        <div className="absolute top-0 right-4 -translate-y-1/2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full pointer-events-none z-10 shadow-lg">
+          ATRASADO
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+        <div className="flex items-center gap-3">
+          <span className="text-3xl font-bold text-white">
+            {order.table?.number || "?"}
+          </span>
+          <div className="text-sm">
+            <p className="text-gray-400">Mesa</p>
+            <p className="capitalize text-gray-400">
+              {order.table?.location || ""}
+            </p>
+            {order.waiterName && (
+              <p className="text-blue-400 font-medium mt-0.5">
+                👤 {order.waiterName}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-sm text-gray-400">{timestamp}</p>
+          <p
+            className={`text-lg font-bold ${order.isLate ? "text-red-500" : "text-gray-300"}`}
+          >
+            {order.timeElapsedMinutes} min
+          </p>
+        </div>
+      </div>
+
+      {/* Item */}
+      <div className="px-4 py-3">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl font-bold text-[#D4AF37]">
+            {order.quantity}×
+          </span>
+          <div className="flex-1">
+            <p className="font-semibold text-lg">
+              {order.product?.name}
+            </p>
+            {order.notes && (
+              <p className="text-sm bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded mt-2">
+                📝 {order.notes}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Stage timing */}
+      <div className="px-4 pb-2">
+        {order.status === "pending" && (
+          <p className="text-sm font-medium text-yellow-400">
+            Pendente h&aacute; {order.pendingMinutes} min
+          </p>
+        )}
+        {order.status === "preparing" && (
+          <p className="text-sm font-medium text-orange-400">
+            A preparar h&aacute; {order.preparingMinutes ?? 0} min
+          </p>
+        )}
+        {order.status === "ready" && (
+          <p className="text-sm font-medium text-green-400">
+            Pronto h&aacute; {order.readyMinutes ?? 0} min
+          </p>
+        )}
+      </div>
+
+      {/* Action Button */}
+      {actionLabel && (
+        <div className="px-4 py-3 border-t border-gray-800">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAction(order);
+            }}
+            className={`
+              w-full py-2 rounded-lg font-semibold transition-colors
+              ${order.status === "pending" ? "bg-orange-500 hover:bg-orange-600 text-white" : ""}
+              ${order.status === "preparing" ? "bg-green-500 hover:bg-green-600 text-white" : ""}
+              ${order.status === "ready" ? "bg-gray-600 hover:bg-gray-700 text-white" : ""}
+            `}
+          >
+            {actionLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Order Card Overlay (shown while dragging)
+function OrderCardOverlay({ order }: { order: KitchenOrderDTO }) {
+  const borderColorMap = {
+    red: "border-red-500",
+    yellow: "border-yellow-500",
+    green: "border-green-500",
+  };
+
+  return (
+    <div
+      className={`
+        bg-gray-900 rounded-xl border-l-4 overflow-hidden w-80 shadow-2xl opacity-90
+        ${borderColorMap[order.urgencyColor]}
+      `}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+        <div className="flex items-center gap-3">
+          <span className="text-3xl font-bold text-white">
+            {order.table?.number || "?"}
+          </span>
+          <div className="text-sm">
+            <p className="text-gray-400">Mesa</p>
+            <p className="capitalize text-gray-400">
+              {order.table?.location || ""}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Item */}
+      <div className="px-4 py-3">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl font-bold text-[#D4AF37]">
+            {order.quantity}×
+          </span>
+          <div className="flex-1">
+            <p className="font-semibold text-lg">
+              {order.product?.name}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

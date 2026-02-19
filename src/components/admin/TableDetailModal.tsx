@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { TableFullStatus, TableStatus } from "@/types/database";
+import type { TableDTO } from "@/application/use-cases/tables/GetAllTablesUseCase";
+import type { TableStatus } from "@/domain/value-objects/TableStatus";
 
 interface TableDetailModalProps {
-  table: TableFullStatus | null;
+  table: TableDTO | null;
   isOpen: boolean;
   onClose: () => void;
   onStatusChange: () => void;
@@ -56,7 +57,7 @@ export function TableDetailModal({
 
   if (!isOpen || !table) return null;
 
-  const status = (table.status as TableStatus) || "available";
+  const status = table.status;
 
   const handleStartWalkIn = async () => {
     setIsLoading(true);
@@ -119,12 +120,12 @@ export function TableDetailModal({
   };
 
   const handleRequestBill = async () => {
-    if (!table.session_id) return;
+    if (!table.activeSession?.id) return;
 
     setIsLoading(true);
     setError(null);
 
-    const result = await onRequestBill(table.session_id);
+    const result = await onRequestBill(table.activeSession.id);
 
     setIsLoading(false);
 
@@ -136,14 +137,14 @@ export function TableDetailModal({
   };
 
   const handleCloseSession = async () => {
-    if (!table.session_id) return;
+    if (!table.activeSession?.id) return;
 
     if (!confirm("Tem certeza que deseja fechar esta sessão?")) return;
 
     setIsLoading(true);
     setError(null);
 
-    const result = await onCloseSession(table.session_id);
+    const result = await onCloseSession(table.activeSession.id);
 
     setIsLoading(false);
 
@@ -155,8 +156,8 @@ export function TableDetailModal({
     }
   };
 
-  const formatDuration = (minutes: number | null) => {
-    if (minutes === null) return "-";
+  const formatDuration = (minutes: number | null | undefined) => {
+    if (minutes === null || minutes === undefined) return "-";
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -183,7 +184,7 @@ export function TableDetailModal({
                       : "bg-gray-100 text-gray-700"
               }`}
             >
-              {table.status_label}
+              {table.statusLabel}
             </span>
           </div>
           <button
@@ -214,8 +215,23 @@ export function TableDetailModal({
             </div>
           )}
 
+          {/* Assigned Waiter */}
+          {table.waiter && (
+            <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs text-blue-600 font-medium">Empregado Atribuído</p>
+                <p className="text-sm font-semibold text-blue-900">{table.waiter.name}</p>
+              </div>
+            </div>
+          )}
+
           {/* Occupied - Session Info */}
-          {status === "occupied" && table.session_id && (
+          {status === "occupied" && table.activeSession && (
             <div className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                 <h3 className="font-semibold text-red-800 mb-3">
@@ -225,25 +241,33 @@ export function TableDetailModal({
                   <div className="flex justify-between">
                     <span className="text-gray-600">Tipo:</span>
                     <span className="font-medium">
-                      {table.is_rodizio ? "Rodízio" : "À Carta"}
+                      {table.activeSession.isRodizio ? "Rodízio" : "À Carta"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Pessoas:</span>
-                    <span className="font-medium">{table.session_people}</span>
+                    <span className="font-medium">{table.activeSession.numPeople}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Duração:</span>
                     <span className="font-medium">
-                      {formatDuration(table.minutes_occupied)}
+                      {formatDuration(table.activeSession.durationMinutes)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total atual:</span>
                     <span className="font-medium text-green-600">
-                      €{(table.session_total || 0).toFixed(2)}
+                      €{table.activeSession.totalAmount.toFixed(2)}
                     </span>
                   </div>
+                  {table.activeSession.pendingOrdersCount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Pedidos pendentes:</span>
+                      <span className="font-medium text-yellow-600">
+                        {table.activeSession.pendingOrdersCount}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -277,40 +301,9 @@ export function TableDetailModal({
             <div className="space-y-4">
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
                 <h3 className="font-semibold text-yellow-800 mb-3">Reserva</h3>
-                <div className="space-y-2 text-sm">
-                  {table.reservation_time && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Hora:</span>
-                      <span className="font-medium">
-                        {table.reservation_time}
-                      </span>
-                    </div>
-                  )}
-                  {table.reservation_name && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Nome:</span>
-                      <span className="font-medium">
-                        {table.reservation_name}
-                      </span>
-                    </div>
-                  )}
-                  {table.reservation_people && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Pessoas:</span>
-                      <span className="font-medium">
-                        {table.reservation_people}
-                      </span>
-                    </div>
-                  )}
-                  {table.reservation_phone && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Telefone:</span>
-                      <span className="font-medium">
-                        {table.reservation_phone}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                <p className="text-sm text-yellow-700">
+                  Esta mesa está reservada. Inicie a sessão quando o cliente chegar.
+                </p>
               </div>
 
               <div className="flex flex-col gap-2">
@@ -320,14 +313,6 @@ export function TableDetailModal({
                 >
                   Iniciar Sessão
                 </button>
-                {table.reservation_phone && (
-                  <a
-                    href={`tel:${table.reservation_phone}`}
-                    className="w-full px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors text-center"
-                  >
-                    Contactar Cliente
-                  </a>
-                )}
               </div>
             </div>
           )}
@@ -514,11 +499,9 @@ export function TableDetailModal({
                 <h3 className="font-semibold text-gray-800 mb-2">
                   Mesa Inativa
                 </h3>
-                {table.status_note && (
-                  <p className="text-sm text-gray-600">
-                    Motivo: {table.status_note}
-                  </p>
-                )}
+                <p className="text-sm text-gray-600">
+                  Esta mesa está temporariamente inativa.
+                </p>
               </div>
 
               <button

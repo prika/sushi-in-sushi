@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
@@ -58,19 +58,19 @@ export function Team() {
 
   const maxIndex = Math.max(0, teamMembers.length - itemsPerView);
 
-  const next = () => {
+  const next = useCallback(() => {
     setCurrentIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
-  };
+  }, [maxIndex]);
 
-  const prev = () => {
+  const prev = useCallback(() => {
     setCurrentIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
-  };
+  }, [maxIndex]);
 
   // Auto-advance slideshow
   useEffect(() => {
     const interval = setInterval(next, 4000);
     return () => clearInterval(interval);
-  }, [maxIndex]);
+  }, [next]);
 
   return (
     <section id="equipa" className="py-24 px-6 bg-card/30">

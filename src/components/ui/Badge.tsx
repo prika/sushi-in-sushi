@@ -23,7 +23,7 @@ const STATUS_CONFIG = {
     bg: "bg-green-500/20",
     text: "text-green-500",
     border: "border-green-500/30",
-    label: "Pronto",
+    label: "Pronto para servir",
   },
   delivered: {
     bg: "bg-gray-500/20",

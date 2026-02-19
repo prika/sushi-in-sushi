@@ -1,20 +1,33 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useRequireWaiter } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
-import { useActivityLog } from "@/hooks/useActivityLog";
-import type { Table, Session, OrderWithProduct, Product, Category } from "@/types/database";
+import { useActivityLog } from "@/presentation/hooks";
+import { useTableManagement } from "@/presentation/hooks/useTableManagement";
+import { useSessionOrderingMode } from "@/presentation/hooks/useSessionOrderingMode";
+import { ORDERING_MODE_LABELS, ORDERING_MODE_ICONS, type OrderingMode } from "@/domain/value-objects/OrderingMode";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import type { Table, Session, OrderWithProduct, Product, Category, WaiterCall } from "@/types/database";
+
+// Helper to bypass Supabase type checking for tables not in the generated types
+function getExtendedSupabase(supabase: ReturnType<typeof createClient>) {
+  return supabase as unknown as {
+    from: (table: string) => ReturnType<typeof supabase.from>;
+  };
+}
 
 interface TableWithDetails extends Table {
   activeSession?: Session | null;
   orders?: OrderWithProduct[];
 }
 
-export default function WaiterMesaPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function WaiterMesaPage() {
+  const params = useParams();
+  const id = params.id as string;
   const { user, isLoading: authLoading } = useRequireWaiter();
   const router = useRouter();
   const { logActivity } = useActivityLog();
@@ -27,135 +40,163 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [orderNote, setOrderNote] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [waiterCalls, setWaiterCalls] = useState<WaiterCall[]>([]);
 
-  useEffect(() => {
+  // State for start session modal
+  const [showStartSessionModal, setShowStartSessionModal] = useState(false);
+  const [showOrderingModeModal, setShowOrderingModeModal] = useState(false);
+  const [sessionForm, setSessionForm] = useState({
+    isRodizio: false,
+    numPeople: 2,
+  });
+
+  // Use memoized supabase client to prevent real-time subscription issues
+  const supabase = useMemo(() => createClient(), []);
+  const extendedSupabase = useMemo(() => getExtendedSupabase(supabase), [supabase]);
+
+  // Hooks for table management and ordering mode
+  const { startWalkInSession } = useTableManagement();
+  const { orderingMode, updateMode, isUpdating } = useSessionOrderingMode(
+    table?.activeSession?.id || null,
+    table?.activeSession?.ordering_mode as OrderingMode
+  );
+
+  // Ref for fetchData to avoid useEffect dependency issues
+  const fetchDataRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
+  const fetchData = useCallback(async () => {
     if (!user) return;
 
-    const fetchData = async () => {
-      const supabase = createClient();
+    // Fetch table details first
+    const { data: tableData } = await supabase
+      .from("tables")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-      // Verify access to this table
-      if (user.role === "waiter") {
-        const { data: assignment } = await supabase
-          .from("waiter_tables")
-          .select("id")
-          .eq("staff_id", user.id)
-          .eq("table_id", id)
-          .single();
+    if (!tableData) {
+      router.push("/waiter");
+      return;
+    }
 
-        if (!assignment) {
-          router.push("/waiter");
-          return;
-        }
-      }
-
-      // Fetch table details
-      const { data: tableData } = await supabase
-        .from("tables")
-        .select("*")
-        .eq("id", id)
+    // Verify access to this table
+    if (user.role === "waiter") {
+      // Check if waiter has this table assigned
+      const { data: assignment } = await supabase
+        .from("waiter_tables")
+        .select("id")
+        .eq("staff_id", user.id)
+        .eq("table_id", id)
         .single();
 
-      if (!tableData) {
+      if (!assignment) {
         router.push("/waiter");
         return;
       }
 
-      // Fetch active session
-      const { data: sessionData } = await supabase
-        .from("sessions")
-        .select("*")
-        .eq("table_id", id)
-        .eq("status", "active")
-        .single();
-
-      setTable({
-        ...tableData,
-        activeSession: sessionData || null,
-      });
-
-      // Fetch orders if there's an active session
-      if (sessionData) {
-        const { data: ordersData } = await supabase
-          .from("orders")
-          .select(`
-            *,
-            product:products(*)
-          `)
-          .eq("session_id", sessionData.id)
-          .order("created_at", { ascending: false });
-
-        setOrders((ordersData || []) as OrderWithProduct[]);
+      // Check if table is from waiter's location
+      if (user.location && tableData.location !== user.location) {
+        console.warn(`Waiter location mismatch: ${user.location} !== ${tableData.location}`);
+        router.push("/waiter");
+        return;
       }
+    }
 
-      // Fetch products and categories for adding orders
-      const { data: categoriesData } = await supabase
-        .from("categories")
-        .select("*")
-        .order("sort_order");
+    // Fetch active session (active or pending_payment)
+    const { data: sessionData } = await supabase
+      .from("sessions")
+      .select("*")
+      .eq("table_id", id)
+      .in("status", ["active", "pending_payment"])
+      .maybeSingle();
 
-      const { data: productsData } = await supabase
-        .from("products")
-        .select("*")
-        .eq("is_available", true)
-        .order("sort_order");
+    setTable({
+      ...tableData,
+      activeSession: sessionData || null,
+    });
 
-      setCategories(categoriesData || []);
-      setProducts(productsData || []);
-      setIsLoading(false);
-    };
+    // Fetch orders if there's an active session
+    if (sessionData) {
+      const { data: ordersData } = await supabase
+        .from("orders")
+        .select(`
+          *,
+          product:products(*)
+        `)
+        .eq("session_id", sessionData.id)
+        .order("created_at", { ascending: false });
 
+      setOrders((ordersData || []) as OrderWithProduct[]);
+    } else {
+      setOrders([]);
+    }
+
+    // Fetch products and categories for adding orders
+    const { data: categoriesData } = await supabase
+      .from("categories")
+      .select("*")
+      .order("sort_order");
+
+    const { data: productsData } = await supabase
+      .from("products")
+      .select("*")
+      .eq("is_available", true)
+      .order("sort_order");
+
+    setCategories(categoriesData || []);
+    setProducts(productsData || []);
+
+    // Fetch pending waiter calls for this table
+    const { data: callsData } = await extendedSupabase
+      .from("waiter_calls")
+      .select("*")
+      .eq("table_id", id)
+      .in("status", ["pending", "acknowledged"])
+      .order("created_at", { ascending: false });
+
+    setWaiterCalls((callsData || []) as WaiterCall[]);
+    setIsLoading(false);
+  }, [user, id, router, supabase, extendedSupabase]);
+
+  // Keep fetchDataRef updated
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
+
+  // Initial fetch
+  useEffect(() => {
     fetchData();
+  }, [fetchData]);
 
-    // Set up real-time subscription for orders
-    const supabase = createClient();
+  // Set up real-time subscription (separate from fetchData to avoid re-subscriptions)
+  useEffect(() => {
     const subscription = supabase
       .channel(`waiter-orders-${id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        () => {
-          fetchData();
-        }
+        () => fetchDataRef.current()
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sessions" },
-        () => {
-          fetchData();
-        }
+        () => fetchDataRef.current()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "waiter_calls" },
+        () => fetchDataRef.current()
       )
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [user, id, router]);
+  }, [supabase, id]);
 
-  const handleStartSession = async (isRodizio: boolean, numPeople: number) => {
-    if (!table) return;
-
-    const supabase = createClient();
-    const { data: session, error } = await supabase
-      .from("sessions")
-      .insert({
-        table_id: table.id,
-        is_rodizio: isRodizio,
-        num_people: numPeople,
-        status: "active",
-      })
-      .select()
-      .single();
-
-    if (!error && session) {
-      setTable({ ...table, activeSession: session });
-    }
-  };
-
-  const handleAddOrder = async (product: Product) => {
+  const handleAddOrder = useCallback(async (product: Product) => {
     if (!table?.activeSession) return;
 
-    const supabase = createClient();
     await supabase.from("orders").insert({
       session_id: table.activeSession.id,
       product_id: product.id,
@@ -168,10 +209,9 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
     setOrderNote("");
     setQuantity(1);
     setShowAddOrder(false);
-  };
+  }, [table, supabase, quantity, orderNote]);
 
-  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    const supabase = createClient();
+  const handleUpdateOrderStatus = useCallback(async (orderId: string, status: string) => {
     await supabase.from("orders").update({ status: status as "pending" | "preparing" | "ready" | "delivered" | "cancelled" }).eq("id", orderId);
 
     // Log activity when marking order as delivered
@@ -187,17 +227,78 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
         });
       }
     }
-  };
+  }, [supabase, orders, table, logActivity]);
 
-  const handleCloseSession = async () => {
+  const handleCloseSession = useCallback(async () => {
     if (!table?.activeSession) return;
 
-    const supabase = createClient();
     await supabase
       .from("sessions")
       .update({ status: "pending_payment" })
       .eq("id", table.activeSession.id);
-  };
+  }, [table, supabase]);
+
+  const handleAcknowledgeCall = useCallback(async (callId: string) => {
+    if (!user) return;
+    await extendedSupabase
+      .from("waiter_calls")
+      .update({
+        status: "acknowledged",
+        acknowledged_by: user.id,
+        acknowledged_at: new Date().toISOString(),
+      })
+      .eq("id", callId);
+  }, [user, extendedSupabase]);
+
+  const handleCompleteCall = useCallback(async (callId: string) => {
+    await extendedSupabase
+      .from("waiter_calls")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", callId);
+  }, [extendedSupabase]);
+
+  const handleStartSession = useCallback(async () => {
+    if (!table || !user) return;
+
+    const result = await startWalkInSession(
+      table.id,
+      sessionForm.isRodizio,
+      sessionForm.numPeople
+    );
+
+    if (result.success) {
+      await logActivity("session_started", "session", result.sessionId || "", {
+        tableNumber: table.number,
+        location: table.location,
+        isRodizio: sessionForm.isRodizio,
+        numPeople: sessionForm.numPeople,
+        orderingMode: 'client',
+      });
+      setShowStartSessionModal(false);
+      fetchData(); // Refresh data
+    }
+  }, [table, user, sessionForm, startWalkInSession, logActivity, fetchData]);
+
+  const handleToggleOrderingMode = useCallback(async () => {
+    if (!table?.activeSession || !orderingMode) return;
+
+    const newMode = orderingMode === 'client' ? 'waiter_only' : 'client';
+    const result = await updateMode(newMode);
+
+    if (result.success) {
+      await logActivity("ordering_mode_changed", "session", table.activeSession.id, {
+        tableNumber: table.number,
+        location: table.location,
+        oldMode: orderingMode,
+        newMode,
+      });
+    }
+
+    setShowOrderingModeModal(false);
+  }, [table, orderingMode, updateMode, logActivity]);
 
   if (authLoading || isLoading) {
     return (
@@ -241,7 +342,7 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
             </Link>
             <div>
               <h1 className="text-lg font-bold text-white">
-                Mesa #{table.number}
+                Painel da Mesa #{table.number}
               </h1>
               <p className="text-sm text-gray-400">{table.name}</p>
             </div>
@@ -257,6 +358,18 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
                   Rodízio
                 </span>
               )}
+              {orderingMode && (
+                <button
+                  onClick={() => setShowOrderingModeModal(true)}
+                  className={`px-3 py-1 text-sm rounded-full font-medium transition-colors ${
+                    orderingMode === 'waiter_only'
+                      ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                      : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                  }`}
+                >
+                  {ORDERING_MODE_ICONS[orderingMode]} {ORDERING_MODE_LABELS[orderingMode]}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -270,24 +383,80 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
             <h2 className="text-xl font-semibold text-white mb-4">
               Mesa Disponível
             </h2>
-            <p className="text-gray-400 mb-8">
-              Inicie uma nova sessão para começar a receber pedidos.
+            <p className="text-gray-400 mb-4">
+              A aguardar que o cliente inicie a sessão via QR code.
             </p>
+            <button
+              onClick={() => setShowStartSessionModal(true)}
+              className="mt-6 px-6 py-3 bg-[#D4AF37] text-black font-semibold rounded-xl hover:bg-[#C4A030] transition-colors"
+            >
+              Iniciar Sessão para Cliente
+            </button>
+            <p className="text-gray-500 text-sm mt-4">
+              Ou aguarde que o cliente escaneie o QR code na mesa
+            </p>
+          </div>
+        )}
 
-            <div className="max-w-md mx-auto space-y-4">
-              <button
-                onClick={() => handleStartSession(false, 2)}
-                className="w-full py-4 bg-[#D4AF37] text-black font-semibold rounded-xl hover:bg-[#C4A030] transition-colors"
+        {/* Waiter Calls Alert */}
+        {waiterCalls.length > 0 && (
+          <div className="mb-6 space-y-3">
+            {waiterCalls.map((call) => (
+              <div
+                key={call.id}
+                className={`rounded-xl p-4 border ${
+                  call.status === "pending"
+                    ? "bg-red-500/20 border-red-500/50 animate-pulse"
+                    : "bg-yellow-500/20 border-yellow-500/50"
+                }`}
               >
-                Iniciar Sessão Normal
-              </button>
-              <button
-                onClick={() => handleStartSession(true, 2)}
-                className="w-full py-4 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors"
-              >
-                Iniciar Rodízio
-              </button>
-            </div>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">
+                      {call.call_type === "bill" && "💳"}
+                      {call.call_type === "assistance" && "🔔"}
+                      {call.call_type === "order" && "📝"}
+                      {call.call_type === "other" && (call.message?.includes("PRONTO") ? "✅" : "❓")}
+                    </span>
+                    <div>
+                      <h3 className={`font-semibold ${
+                        call.message?.includes("PRONTO") ? "text-green-400" : call.status === "pending" ? "text-red-400" : "text-yellow-400"
+                      }`}>
+                        {call.call_type === "bill" && "Cliente pede a conta"}
+                        {call.call_type === "assistance" && "Cliente precisa de ajuda"}
+                        {call.call_type === "order" && "Cliente quer fazer pedido"}
+                        {call.call_type === "other" && (call.message?.includes("PRONTO") ? "Pedido Pronto!" : "Chamada do cliente")}
+                      </h3>
+                      {call.message && (
+                        <p className={`text-sm mt-1 ${call.message.includes("PRONTO") ? "text-green-300 font-medium" : "text-gray-300"}`}>{call.message}</p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(call.created_at).toLocaleTimeString("pt-PT", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {call.status === "pending" && (
+                      <button
+                        onClick={() => handleAcknowledgeCall(call.id)}
+                        className="px-3 py-1 text-sm bg-yellow-500/30 text-yellow-400 rounded-lg hover:bg-yellow-500/40 transition-colors"
+                      >
+                        Aceitar
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleCompleteCall(call.id)}
+                      className="px-3 py-1 text-sm bg-green-500/30 text-green-400 rounded-lg hover:bg-green-500/40 transition-colors"
+                    >
+                      Concluir
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -348,7 +517,7 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
                 <section>
                   <h3 className="text-sm font-semibold text-green-400 mb-3 flex items-center gap-2">
                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                    Pronto para Entregar ({readyOrders.length})
+                    Prontos para Servir ({readyOrders.length})
                   </h3>
                   <div className="space-y-2">
                     {readyOrders.map((order) => (
@@ -494,6 +663,95 @@ export default function WaiterMesaPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       )}
+
+      {/* Start Session Modal */}
+      {showStartSessionModal && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl max-w-md w-full p-6 border border-gray-800">
+            <h2 className="text-xl font-semibold text-white mb-6">Iniciar Sessão</h2>
+
+            <div className="space-y-4 mb-6">
+              {/* Rodízio Toggle */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Tipo de Sessão</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setSessionForm({ ...sessionForm, isRodizio: false })}
+                    className={`py-3 px-4 rounded-xl font-medium transition-colors ${
+                      !sessionForm.isRodizio
+                        ? 'bg-[#D4AF37] text-black'
+                        : 'bg-gray-800 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    À La Carte
+                  </button>
+                  <button
+                    onClick={() => setSessionForm({ ...sessionForm, isRodizio: true })}
+                    className={`py-3 px-4 rounded-xl font-medium transition-colors ${
+                      sessionForm.isRodizio
+                        ? 'bg-[#D4AF37] text-black'
+                        : 'bg-gray-800 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Rodízio
+                  </button>
+                </div>
+              </div>
+
+              {/* Number of People */}
+              <div>
+                <label className="text-sm text-gray-400 mb-2 block">Número de Pessoas</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                    <button
+                      key={num}
+                      onClick={() => setSessionForm({ ...sessionForm, numPeople: num })}
+                      className={`py-3 rounded-xl font-medium transition-colors ${
+                        sessionForm.numPeople === num
+                          ? 'bg-[#D4AF37] text-black'
+                          : 'bg-gray-800 text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowStartSessionModal(false)}
+                className="flex-1 py-3 bg-gray-800 text-gray-400 font-semibold rounded-xl hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleStartSession}
+                className="flex-1 py-3 bg-[#D4AF37] text-black font-semibold rounded-xl hover:bg-[#C4A030] transition-colors"
+              >
+                Iniciar Sessão
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ordering Mode Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showOrderingModeModal}
+        title={orderingMode === 'client' ? 'Ativar Modo Bloqueio?' : 'Desativar Modo Bloqueio?'}
+        message={
+          orderingMode === 'client'
+            ? 'Os clientes não poderão fazer pedidos. Apenas você poderá adicionar itens ao pedido.'
+            : 'Os clientes voltarão a poder fazer pedidos normalmente através do menu.'
+        }
+        variant="warning"
+        confirmText="Confirmar"
+        cancelText="Cancelar"
+        onConfirm={handleToggleOrderingMode}
+        onCancel={() => setShowOrderingModeModal(false)}
+      />
     </div>
   );
 }
@@ -517,7 +775,7 @@ function OrderCard({
   const statusLabels: Record<string, string> = {
     pending: "Pendente",
     preparing: "A Preparar",
-    ready: "Pronto",
+    ready: "Pronto para servir",
     delivered: "Entregue",
     cancelled: "Cancelado",
   };

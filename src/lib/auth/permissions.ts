@@ -13,7 +13,7 @@ export async function getAccessibleTables(
 
     // First, get the user's role
     const staff = await getStaffById(userId);
-    if (!staff) return [];
+    if (!staff || !staff.role) return [];
 
     // Admin and kitchen can see all tables (at their location)
     if (staff.role.name === "admin" || staff.role.name === "kitchen") {
@@ -66,7 +66,7 @@ export async function canAccessTable(
 ): Promise<boolean> {
   try {
     const staff = await getStaffById(userId);
-    if (!staff) return false;
+    if (!staff || !staff.role) return false;
 
     // Admin has access to all tables
     if (staff.role.name === "admin") return true;
@@ -104,7 +104,7 @@ export async function canEditOrder(
 ): Promise<boolean> {
   try {
     const staff = await getStaffById(userId);
-    if (!staff) return false;
+    if (!staff || !staff.role) return false;
 
     // Admin can edit all orders
     if (staff.role.name === "admin") return true;

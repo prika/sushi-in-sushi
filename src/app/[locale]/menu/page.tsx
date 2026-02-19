@@ -86,7 +86,7 @@ export default function MenuPage() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-2 text-muted hover:text-white transition-colors"
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLeft size={20} />
             <span className="text-sm font-medium hidden sm:inline">
@@ -111,7 +111,7 @@ export default function MenuPage() {
                   "px-3 py-1.5 text-xs font-medium tracking-wider uppercase transition-all duration-300 rounded",
                   activeRestaurant === restaurant.id
                     ? "text-background bg-gold"
-                    : "text-muted hover:text-white",
+                    : "text-gray-400 hover:text-white",
                 )}
               >
                 {restaurant.name}
@@ -125,14 +125,14 @@ export default function MenuPage() {
       <div className="max-w-3xl mx-auto px-4 py-3 flex justify-end gap-2">
         <button
           onClick={expandAll}
-          className="text-xs text-muted hover:text-gold transition-colors"
+          className="text-xs text-gray-400 hover:text-gold transition-colors"
         >
           {t("expandAll")}
         </button>
-        <span className="text-muted/30">|</span>
+        <span className="text-gray-600">|</span>
         <button
           onClick={collapseAll}
-          className="text-xs text-muted hover:text-gold transition-colors"
+          className="text-xs text-gray-400 hover:text-gold transition-colors"
         >
           {t("collapseAll")}
         </button>
@@ -157,13 +157,13 @@ export default function MenuPage() {
                   {category.name}
                 </h2>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-muted">
+                  <span className="text-xs text-gray-400">
                     {category.items.length} {t("items")}
                   </span>
                   <ChevronDown
                     size={20}
                     className={cn(
-                      "text-muted transition-transform duration-300",
+                      "text-gray-400 transition-transform duration-300",
                       isOpen && "rotate-180 text-gold",
                     )}
                   />
@@ -175,8 +175,8 @@ export default function MenuPage() {
                 className={cn(
                   "overflow-hidden transition-all duration-300",
                   isOpen
-                    ? "max-h-[5000px] opacity-100 pb-4"
-                    : "max-h-0 opacity-0",
+                    ? "max-h-[5000px] pb-4"
+                    : "max-h-0 invisible",
                 )}
               >
                 <div className="grid grid-cols-1 gap-2">
@@ -213,16 +213,16 @@ export default function MenuPage() {
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           {item.pieces && (
-                            <span className="text-xs text-muted">
+                            <span className="text-xs text-gray-400">
                               {item.pieces} {t("pieces")}
                             </span>
                           )}
                           {(item.description || tDesc.has(item.name)) && (
                             <>
                               {item.pieces && (
-                                <span className="text-muted/30">•</span>
+                                <span className="text-gray-500">•</span>
                               )}
-                              <span className="text-xs text-muted line-clamp-1">
+                              <span className="text-xs text-gray-400 line-clamp-1">
                                 {tDesc.has(item.name)
                                   ? tDesc(item.name)
                                   : item.description}
@@ -283,7 +283,8 @@ export default function MenuPage() {
               </h2>
               <button
                 onClick={() => setShowReservationModal(false)}
-                className="p-2 text-muted hover:text-white transition-colors"
+                className="p-2 text-gray-400 hover:text-white transition-colors"
+                aria-label="Fechar"
               >
                 <X size={24} />
               </button>

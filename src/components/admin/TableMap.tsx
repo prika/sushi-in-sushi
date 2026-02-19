@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { TableFullStatus, TableStatus } from "@/types/database";
+import type { TableDTO } from "@/application/use-cases/tables/GetAllTablesUseCase";
+import type { TableStatus } from "@/domain/value-objects/TableStatus";
 
 interface TableMapProps {
-  tables: TableFullStatus[];
-  onTableClick: (table: TableFullStatus) => void;
+  tables: TableDTO[];
+  onTableClick: (table: TableDTO) => void;
   isLoading?: boolean;
 }
 
@@ -67,7 +68,7 @@ export function TableMap({ tables, onTableClick, isLoading }: TableMapProps) {
       {/* Mapa de Mesas */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {tables.map((table) => {
-          const status = (table.status as TableStatus) || "available";
+          const status = table.status;
           const colors = statusColors[status];
           const isHovered = hoveredTable === table.id;
 
@@ -96,17 +97,22 @@ export function TableMap({ tables, onTableClick, isLoading }: TableMapProps) {
                   {table.name}
                 </span>
 
-                {/* Info adicional para mesas ocupadas */}
-                {status === "occupied" && table.minutes_occupied !== null && (
-                  <span className="text-xs font-medium text-red-600 mt-1">
-                    {table.minutes_occupied} min
-                  </span>
+                {/* Nome do Waiter */}
+                {table.waiter && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <svg className="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span className="text-xs font-medium text-blue-600 truncate max-w-full">
+                      {table.waiter.name}
+                    </span>
+                  </div>
                 )}
 
-                {/* Info adicional para reservas */}
-                {status === "reserved" && table.reservation_time && (
-                  <span className="text-xs font-medium text-yellow-600 mt-1">
-                    {table.reservation_time}
+                {/* Info adicional para mesas ocupadas */}
+                {status === "occupied" && table.activeSession && (
+                  <span className="text-xs font-medium text-red-600 mt-1">
+                    {table.activeSession.durationMinutes} min
                   </span>
                 )}
               </button>
@@ -118,38 +124,31 @@ export function TableMap({ tables, onTableClick, isLoading }: TableMapProps) {
                     Mesa {table.number} - {table.name}
                   </div>
                   <div className="text-gray-300">
-                    Estado: {table.status_label}
+                    Estado: {table.statusLabel}
                   </div>
 
-                  {status === "occupied" && (
+                  {status === "occupied" && table.activeSession && (
                     <>
-                      {table.session_people && (
-                        <div className="text-gray-300">
-                          Pessoas: {table.session_people}
-                        </div>
-                      )}
-                      {table.is_rodizio !== null && (
-                        <div className="text-gray-300">
-                          Tipo: {table.is_rodizio ? "Rodízio" : "À Carta"}
-                        </div>
-                      )}
-                      {table.session_total !== null && (
-                        <div className="text-gray-300">
-                          Total: €{table.session_total.toFixed(2)}
+                      <div className="text-gray-300">
+                        Pessoas: {table.activeSession.numPeople}
+                      </div>
+                      <div className="text-gray-300">
+                        Tipo: {table.activeSession.isRodizio ? "Rodízio" : "À Carta"}
+                      </div>
+                      <div className="text-gray-300">
+                        Total: €{table.activeSession.totalAmount.toFixed(2)}
+                      </div>
+                      {table.activeSession.pendingOrdersCount > 0 && (
+                        <div className="text-yellow-300">
+                          Pedidos pendentes: {table.activeSession.pendingOrdersCount}
                         </div>
                       )}
                     </>
                   )}
 
-                  {status === "reserved" && table.reservation_name && (
-                    <div className="text-gray-300">
-                      Reserva: {table.reservation_name}
-                    </div>
-                  )}
-
-                  {status === "inactive" && table.status_note && (
-                    <div className="text-gray-300">
-                      Motivo: {table.status_note}
+                  {table.waiter && (
+                    <div className="text-blue-300 mt-1 pt-1 border-t border-gray-700">
+                      Empregado: {table.waiter.name}
                     </div>
                   )}
 

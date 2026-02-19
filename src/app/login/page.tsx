@@ -3,15 +3,38 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import { useAuth } from "@/contexts/AuthContext";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { login, user, isAuthenticated } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect helper
+  const getRedirectForRole = (role: string) => {
+    switch (role) {
+      case "admin":
+        return "/admin";
+      case "kitchen":
+        return "/cozinha";
+      case "waiter":
+        return "/waiter";
+      default:
+        return "/";
+    }
+  };
+
+  // If already authenticated, redirect
+  if (isAuthenticated && user) {
+    const redirectTo = searchParams.get("redirect") || getRedirectForRole(user.role);
+    router.push(redirectTo);
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,39 +42,24 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const result = await login(email, password);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Credenciais inválidas");
+      if (!result.success) {
+        setError(result.error || "Credenciais inválidas");
         return;
       }
 
-      // Check for redirect parameter
+      // Login successful - the AuthContext will update the user
+      // and the useEffect above will handle the redirect
+      // But we can also trigger a refresh to speed things up
       const redirectTo = searchParams.get("redirect");
-
-      // Redirect based on role or redirect parameter
       if (redirectTo) {
         router.push(redirectTo);
       } else {
-        switch (data.user.role) {
-          case "admin":
-            router.push("/admin");
-            break;
-          case "kitchen":
-            router.push("/cozinha");
-            break;
-          case "waiter":
-            router.push("/waiter");
-            break;
-          default:
-            router.push("/");
-        }
+        // Wait a moment for the user state to update, then redirect
+        setTimeout(() => {
+          router.refresh();
+        }, 100);
       }
     } catch {
       setError("Erro ao fazer login. Tente novamente.");
@@ -102,6 +110,7 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
+            aria-label={showPassword ? "Ocultar palavra-passe" : "Mostrar palavra-passe"}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
           >
             {showPassword ? (
@@ -194,7 +203,7 @@ export default function LoginPage() {
           <h1 className="text-xl font-light tracking-[0.2em] text-[#D4AF37]">
             SUSHI IN SUSHI
           </h1>
-          <p className="text-gray-500 text-sm mt-2">Área Restrita</p>
+          <p className="text-gray-400 text-sm mt-2">Área Restrita</p>
         </div>
 
         {/* Login Form */}
@@ -212,7 +221,7 @@ export default function LoginPage() {
         <div className="text-center mt-6">
           <a
             href="/"
-            className="text-gray-500 text-sm hover:text-[#D4AF37] transition-colors"
+            className="text-gray-400 text-sm hover:text-[#D4AF37] transition-colors"
           >
             Voltar ao site
           </a>

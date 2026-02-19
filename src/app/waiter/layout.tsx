@@ -1,11 +1,16 @@
 "use client";
 
-import { AuthProvider } from "@/contexts/AuthContext";
+import { SessionTimeoutWarning } from "@/components/auth/SessionTimeoutWarning";
 
 export default function WaiterLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AuthProvider>{children}</AuthProvider>;
+  return (
+    <>
+      {children}
+      <SessionTimeoutWarning />
+    </>
+  );
 }

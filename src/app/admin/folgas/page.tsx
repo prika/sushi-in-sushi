@@ -1,13 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, Button, Modal } from "@/components/ui";
-import type { RestaurantClosure, Location } from "@/types/database";
-
-const LOCATION_LABELS: Record<string, string> = {
-  circunvalacao: "Circunvalação",
-  boavista: "Boavista",
-};
+import { useClosures, useLocations } from "@/presentation/hooks";
+import type { RestaurantClosure, CreateClosureData } from "@/domain/entities/RestaurantClosure";
+import type { Location } from "@/types/database";
 
 const DAY_LABELS: Record<number, string> = {
   0: "Domingo",
@@ -23,75 +20,63 @@ type ClosureType = "specific" | "recurring";
 
 interface FormData {
   type: ClosureType;
-  closure_date: string;
+  closureDate: string;
   location: Location | "";
   reason: string;
-  recurring_day_of_week: number;
+  recurringDayOfWeek: number;
 }
 
 export default function FolgasPage() {
-  const [closures, setClosures] = useState<RestaurantClosure[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<"all" | "specific" | "recurring">("all");
+
+  // Use the closures hook
+  const { closures, isLoading, error, create, remove, refresh } = useClosures({
+    autoLoad: true,
+  });
+
+  // Use locations hook for dynamic dropdowns
+  const { locations } = useLocations();
+
+  // Helper to get location label
+  const getLocationLabel = (slug: string) => {
+    return locations.find(loc => loc.slug === slug)?.name || slug;
+  };
 
   const [formData, setFormData] = useState<FormData>({
     type: "specific",
-    closure_date: new Date().toISOString().split("T")[0],
+    closureDate: new Date().toISOString().split("T")[0],
     location: "",
     reason: "",
-    recurring_day_of_week: 1,
+    recurringDayOfWeek: 1,
   });
-
-  useEffect(() => {
-    fetchClosures();
-  }, []);
-
-  const fetchClosures = async () => {
-    try {
-      const response = await fetch("/api/closures");
-      if (!response.ok) throw new Error("Erro ao carregar");
-      const data = await response.json();
-      setClosures(data);
-    } catch (err) {
-      console.error("Error fetching closures:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setError(null);
+    setFormError(null);
 
     try {
-      const payload = {
-        closure_date: formData.type === "recurring" ? "1970-01-01" : formData.closure_date,
+      const payload: CreateClosureData = {
+        closureDate: formData.type === "recurring" ? "1970-01-01" : formData.closureDate,
         location: formData.location || null,
         reason: formData.reason || null,
-        is_recurring: formData.type === "recurring",
-        recurring_day_of_week: formData.type === "recurring" ? formData.recurring_day_of_week : null,
+        isRecurring: formData.type === "recurring",
+        recurringDayOfWeek: formData.type === "recurring" ? formData.recurringDayOfWeek : null,
       };
 
-      const response = await fetch("/api/closures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const result = await create(payload);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Erro ao criar");
+      if (result) {
+        setShowModal(false);
+        resetForm();
+      } else {
+        setFormError("Erro ao criar fecho");
       }
-
-      await fetchClosures();
-      setShowModal(false);
-      resetForm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro desconhecido");
+      setFormError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
       setIsSubmitting(false);
     }
@@ -101,12 +86,7 @@ export default function FolgasPage() {
     if (!confirm("Tem a certeza que deseja remover este dia de folga?")) return;
 
     try {
-      const response = await fetch(`/api/closures?id=${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) throw new Error("Erro ao remover");
-      await fetchClosures();
+      await remove(id);
     } catch (err) {
       console.error("Error deleting closure:", err);
     }
@@ -115,25 +95,25 @@ export default function FolgasPage() {
   const resetForm = () => {
     setFormData({
       type: "specific",
-      closure_date: new Date().toISOString().split("T")[0],
+      closureDate: new Date().toISOString().split("T")[0],
       location: "",
       reason: "",
-      recurring_day_of_week: 1,
+      recurringDayOfWeek: 1,
     });
-    setError(null);
+    setFormError(null);
   };
 
   const filteredClosures = closures.filter((closure) => {
     if (filterType === "all") return true;
-    if (filterType === "recurring") return closure.is_recurring;
-    return !closure.is_recurring;
+    if (filterType === "recurring") return closure.isRecurring;
+    return !closure.isRecurring;
   });
 
   // Separate recurring and specific closures
-  const recurringClosures = filteredClosures.filter((c) => c.is_recurring);
+  const recurringClosures = filteredClosures.filter((c) => c.isRecurring);
   const specificClosures = filteredClosures
-    .filter((c) => !c.is_recurring)
-    .sort((a, b) => new Date(a.closure_date).getTime() - new Date(b.closure_date).getTime());
+    .filter((c) => !c.isRecurring)
+    .sort((a, b) => new Date(a.closureDate).getTime() - new Date(b.closureDate).getTime());
 
   if (isLoading) {
     return (
@@ -150,6 +130,7 @@ export default function FolgasPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dias de Folga</h1>
           <p className="text-gray-500">Gerir dias em que o restaurante está fechado</p>
+          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
         </div>
         <Button variant="primary" onClick={() => setShowModal(true)}>
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -202,16 +183,16 @@ export default function FolgasPage() {
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                     <span className="text-orange-600 font-bold">
-                      {DAY_LABELS[closure.recurring_day_of_week!]?.slice(0, 3)}
+                      {DAY_LABELS[closure.recurringDayOfWeek!]?.slice(0, 3)}
                     </span>
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">
-                      {DAY_LABELS[closure.recurring_day_of_week!]}
+                      {DAY_LABELS[closure.recurringDayOfWeek!]}
                     </p>
                     <p className="text-sm text-gray-500">
                       {closure.location
-                        ? LOCATION_LABELS[closure.location]
+                        ? getLocationLabel(closure.location)
                         : "Ambas localizações"}
                       {closure.reason && ` • ${closure.reason}`}
                     </p>
@@ -254,7 +235,7 @@ export default function FolgasPage() {
           ) : (
             <div className="grid gap-3">
               {specificClosures.map((closure) => {
-                const date = new Date(closure.closure_date);
+                const date = new Date(closure.closureDate);
                 const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
 
                 return (
@@ -286,7 +267,7 @@ export default function FolgasPage() {
                         </p>
                         <p className="text-sm text-gray-500">
                           {closure.location
-                            ? LOCATION_LABELS[closure.location]
+                            ? getLocationLabel(closure.location)
                             : "Ambas localizações"}
                           {closure.reason && ` • ${closure.reason}`}
                         </p>
@@ -363,8 +344,8 @@ export default function FolgasPage() {
               </label>
               <input
                 type="date"
-                value={formData.closure_date}
-                onChange={(e) => setFormData({ ...formData, closure_date: e.target.value })}
+                value={formData.closureDate}
+                onChange={(e) => setFormData({ ...formData, closureDate: e.target.value })}
                 min={new Date().toISOString().split("T")[0]}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                 required
@@ -376,8 +357,8 @@ export default function FolgasPage() {
                 Dia da Semana
               </label>
               <select
-                value={formData.recurring_day_of_week}
-                onChange={(e) => setFormData({ ...formData, recurring_day_of_week: parseInt(e.target.value) })}
+                value={formData.recurringDayOfWeek}
+                onChange={(e) => setFormData({ ...formData, recurringDayOfWeek: parseInt(e.target.value) })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
               >
                 {Object.entries(DAY_LABELS).map(([value, label]) => (
@@ -400,8 +381,11 @@ export default function FolgasPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             >
               <option value="">Ambas localizações</option>
-              <option value="circunvalacao">Circunvalação</option>
-              <option value="boavista">Boavista</option>
+              {locations.map((location) => (
+                <option key={location.slug} value={location.slug}>
+                  {location.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -419,9 +403,9 @@ export default function FolgasPage() {
             />
           </div>
 
-          {error && (
+          {formError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-              {error}
+              {formError}
             </div>
           )}
 

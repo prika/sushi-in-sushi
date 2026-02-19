@@ -2,22 +2,18 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Table, TableFullStatus, TableStatus } from "@/types/database";
+import type { Table, TableStatus } from "@/types/database";
+import type { TableDTO } from "@/application/use-cases/tables/GetAllTablesUseCase";
 import { generateQRCodeToCanvas, buildTableOrderURLByNumber } from "@/lib/qrcode";
 import { TableMap } from "@/components/admin/TableMap";
 import { TableDetailModal } from "@/components/admin/TableDetailModal";
-import { useTableManagement } from "@/hooks/useTableManagement";
-
-const LOCATION_LABELS: Record<string, string> = {
-  circunvalacao: "Circunvalação",
-  boavista: "Boavista",
-};
+import { useTableManagement, useLocations } from "@/presentation/hooks";
 
 type TabType = "config" | "map";
 
 export default function MesasPage() {
   const [activeTab, setActiveTab] = useState<TabType>("map");
-  const [tables, setTables] = useState<Table[]>([]);
+  const [tables, setTables] = useState<(Table & { waiter_name?: string | null })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -33,7 +29,7 @@ export default function MesasPage() {
 
   // Map tab state
   const [selectedLocation, setSelectedLocation] = useState<string>("circunvalacao");
-  const [selectedTableForDetail, setSelectedTableForDetail] = useState<TableFullStatus | null>(null);
+  const [selectedTableForDetail, setSelectedTableForDetail] = useState<TableDTO | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   // Table management hook
@@ -46,7 +42,15 @@ export default function MesasPage() {
     reactivateTable,
     requestBill,
     closeSession,
-  } = useTableManagement({ location: selectedLocation, refreshInterval: 15000 });
+  } = useTableManagement({ location: selectedLocation as "circunvalacao" | "boavista", refreshInterval: 15000 });
+
+  // Locations hook for dynamic dropdowns
+  const { locations } = useLocations();
+
+  // Helper to get location label
+  const getLocationLabel = (slug: string) => {
+    return locations.find(loc => loc.slug === slug)?.name || slug;
+  };
 
   useEffect(() => {
     fetchTables();
@@ -70,7 +74,51 @@ export default function MesasPage() {
       .select("*")
       .order("number");
 
-    setTables(data || []);
+    // Fetch waiter assignments
+    const { data: waiterData } = await supabase
+      .from("waiter_tables")
+      .select("table_id, staff:staff_id(name)");
+
+    const waiterMap = new Map<string, string>(
+      (waiterData || []).map((w: any) => [
+        w.table_id,
+        w.staff?.name || null,
+      ])
+    );
+
+    // Fetch active sessions to determine real status
+    const { data: sessionsData } = await supabase
+      .from("sessions")
+      .select("id, table_id, status")
+      .in("status", ["active", "pending_payment"]);
+
+    const activeSessionsMap = new Map<string, string>(
+      (sessionsData || []).map((s: any) => [s.table_id, s.status])
+    );
+
+    // Combine tables with waiter info and real status
+    const tablesWithWaiter = (data || []).map((table) => {
+      const hasActiveSession = activeSessionsMap.has(table.id);
+      const sessionStatus = activeSessionsMap.get(table.id);
+
+      // Determine real status based on session and table state
+      let realStatus: "available" | "occupied" | "reserved" | "inactive";
+      if (!table.is_active) {
+        realStatus = "inactive";
+      } else if (hasActiveSession) {
+        realStatus = "occupied";
+      } else {
+        realStatus = "available";
+      }
+
+      return {
+        ...table,
+        status: realStatus, // Override with real status
+        waiter_name: waiterMap.get(table.id) || null,
+      };
+    });
+
+    setTables(tablesWithWaiter);
     setIsLoading(false);
   };
 
@@ -209,7 +257,7 @@ export default function MesasPage() {
           </div>
           <div class="table-label">Mesa</div>
           <div class="table-number">${table.number}</div>
-          <div class="location">${LOCATION_LABELS[table.location]}</div>
+          <div class="location">${getLocationLabel(table.location)}</div>
           <div class="scan-text">Escaneie para fazer o pedido</div>
         </body>
       </html>
@@ -222,7 +270,7 @@ export default function MesasPage() {
     };
   };
 
-  const handleTableClick = (table: TableFullStatus) => {
+  const handleTableClick = (table: TableDTO) => {
     setSelectedTableForDetail(table);
     setShowDetailModal(true);
   };
@@ -272,7 +320,7 @@ export default function MesasPage() {
         </div>
         <div class="table-label">Mesa</div>
         <div class="table-number">${table.number}</div>
-        <div class="location">${LOCATION_LABELS[table.location]}</div>
+        <div class="location">${getLocationLabel(table.location)}</div>
         <div class="scan-text">Escaneie para fazer o pedido</div>
       </div>
     `).join("");
@@ -367,17 +415,45 @@ export default function MesasPage() {
   const circunvalacaoTables = tables.filter(t => t.location === "circunvalacao");
   const boavistaTables = tables.filter(t => t.location === "boavista");
 
-  const TableCard = ({ table }: { table: Table }) => (
-    <div
-      className={`relative p-4 rounded-xl border-2 text-center ${
-        table.is_active
-          ? "border-green-200 bg-green-50"
-          : "border-gray-200 bg-gray-50 opacity-50"
-      }`}
-    >
-      <div className="text-2xl font-bold text-gray-900">#{table.number}</div>
-      <div className="text-xs text-gray-500 truncate">{table.name}</div>
-      <div className="flex justify-center gap-1 mt-2">
+  const TableCard = ({ table }: { table: Table & { waiter_name?: string | null } }) => {
+    // Status badge configuration
+    const statusConfig = {
+      available: { icon: '🟢', label: 'Livre', bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
+      occupied: { icon: '🔴', label: 'Ocupada', bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200' },
+      reserved: { icon: '🟡', label: 'Reservada', bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' },
+      inactive: { icon: '⚫', label: 'Inativa', bg: 'bg-gray-100', text: 'text-gray-500', border: 'border-gray-200' },
+    };
+
+    const status = (table.status as keyof typeof statusConfig) || 'available';
+    const config = statusConfig[status];
+
+    return (
+      <div
+        className={`relative p-4 rounded-xl border-2 text-center ${config.border} ${config.bg}`}
+      >
+        {/* Status Badge */}
+        <div className="absolute top-2 right-2">
+          <span className="text-lg">{config.icon}</span>
+        </div>
+
+        <div className="text-2xl font-bold text-gray-900">#{table.number}</div>
+        <div className="text-xs text-gray-500 truncate">{table.name}</div>
+
+        {/* Status Label */}
+        <div className={`text-xs font-medium ${config.text} mt-1`}>
+          {config.label}
+        </div>
+
+        {table.waiter_name && (
+          <div className="flex items-center justify-center gap-1 mt-1 text-xs text-blue-600">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span className="truncate max-w-[80px]">{table.waiter_name}</span>
+          </div>
+        )}
+
+        <div className="flex justify-center gap-1 mt-2">
         <button
           onClick={() => handleOpenQRModal(table)}
           className="p-1 text-gray-400 hover:text-[#D4AF37]"
@@ -414,9 +490,10 @@ export default function MesasPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
         </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -491,26 +568,19 @@ export default function MesasPage() {
           {/* Location Toggle */}
           <div className="flex items-center justify-between">
             <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setSelectedLocation("circunvalacao")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedLocation === "circunvalacao"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Circunvalação
-              </button>
-              <button
-                onClick={() => setSelectedLocation("boavista")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedLocation === "boavista"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Boavista
-              </button>
+              {locations.map((location) => (
+                <button
+                  key={location.slug}
+                  onClick={() => setSelectedLocation(location.slug)}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedLocation === location.slug
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {location.name}
+                </button>
+              ))}
             </div>
 
             {/* Status Summary */}
@@ -696,8 +766,11 @@ export default function MesasPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                   required
                 >
-                  <option value="circunvalacao">Circunvalação</option>
-                  <option value="boavista">Boavista</option>
+                  {locations.map((location) => (
+                    <option key={location.slug} value={location.slug}>
+                      {location.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -757,7 +830,7 @@ export default function MesasPage() {
 
               <div className="text-sm text-gray-500 uppercase tracking-wider">Mesa</div>
               <div className="text-5xl font-bold text-[#D4AF37] mb-1">{selectedTableForQR.number}</div>
-              <div className="text-sm text-gray-500 mb-4">{LOCATION_LABELS[selectedTableForQR.location]}</div>
+              <div className="text-sm text-gray-500 mb-4">{getLocationLabel(selectedTableForQR.location)}</div>
 
               <div className="text-xs text-gray-400 mb-6 break-all px-4">
                 {buildTableOrderURLByNumber(

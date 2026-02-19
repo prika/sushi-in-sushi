@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui";
+import { useLocations } from "@/presentation/hooks";
 import type { StaffWithRole, Table, RoleName } from "@/types/database";
 
 interface StaffMetrics {
@@ -40,6 +41,7 @@ interface StaffDetailData {
 
 export default function StaffDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { locations } = useLocations();
   const [data, setData] = useState<StaffDetailData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +98,7 @@ export default function StaffDetailPage() {
     const labels: Record<RoleName, string> = {
       admin: "Administrador",
       kitchen: "Cozinha",
-      waiter: "Empregado",
+      waiter: "Atendente",
       customer: "Cliente",
     };
     return labels[roleName] || roleName;
@@ -114,11 +116,7 @@ export default function StaffDetailPage() {
 
   const getLocationLabel = (location: string | null) => {
     if (!location) return "Todas";
-    const labels: Record<string, string> = {
-      circunvalacao: "Circunvalação",
-      boavista: "Boavista",
-    };
-    return labels[location] || location;
+    return locations.find(loc => loc.slug === location)?.name || location;
   };
 
   if (isLoading) {
@@ -205,9 +203,9 @@ export default function StaffDetailPage() {
               <p className="text-gray-500">{staff.email}</p>
               <div className="flex items-center gap-2 mt-2">
                 <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(staff.role.name)}`}
+                  className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(staff.role?.name || "")}`}
                 >
-                  {getRoleLabel(staff.role.name)}
+                  {getRoleLabel(staff.role?.name || "")}
                 </span>
                 <span
                   className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -245,7 +243,7 @@ export default function StaffDetailPage() {
       </Card>
 
       {/* Assigned Tables (for waiters) */}
-      {staff.role.name === "waiter" && (
+      {staff.role?.name === "waiter" && (
         <Card
           variant="light"
           header={
