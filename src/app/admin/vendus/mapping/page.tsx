@@ -132,7 +132,7 @@ export default function VendusMappingPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500">Total Mesas</p>
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>

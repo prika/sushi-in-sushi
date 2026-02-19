@@ -280,7 +280,7 @@ export default function VendusSyncPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500">Total Produtos</p>
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>

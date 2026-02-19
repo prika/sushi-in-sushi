@@ -60,24 +60,30 @@ export class VendusApiError extends Error {
 export class VendusClient {
   private config: VendusConfig;
   private lastRequestTime = 0;
+  private rateLimitQueue: Promise<void> = Promise.resolve();
 
   constructor(config: VendusConfig) {
     this.config = config;
   }
 
   /**
-   * Apply rate limiting - ensure minimum interval between requests
+   * Apply rate limiting with queue to prevent concurrent bypass.
    */
-  private async rateLimit(): Promise<void> {
-    const now = Date.now();
-    const minInterval = 60000 / VENDUS_DEFAULTS.rateLimitPerMinute;
-    const elapsed = now - this.lastRequestTime;
+  private rateLimit(): Promise<void> {
+    this.rateLimitQueue = this.rateLimitQueue.then(async () => {
+      const now = Date.now();
+      const minInterval = 60000 / VENDUS_DEFAULTS.rateLimitPerMinute;
+      const elapsed = now - this.lastRequestTime;
 
-    if (elapsed < minInterval) {
-      await new Promise((resolve) => setTimeout(resolve, minInterval - elapsed));
-    }
+      if (elapsed < minInterval) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, minInterval - elapsed),
+        );
+      }
 
-    this.lastRequestTime = Date.now();
+      this.lastRequestTime = Date.now();
+    });
+    return this.rateLimitQueue;
   }
 
   /**
@@ -148,7 +154,12 @@ export class VendusClient {
       // Parse successful response
       const responseText = await response.text();
       if (!responseText) {
-        return {} as T;
+        throw new VendusApiError(
+          "EMPTY_RESPONSE",
+          "Resposta vazia do Vendus",
+          undefined,
+          response.status,
+        );
       }
       return JSON.parse(responseText);
     } catch (error) {
@@ -225,7 +236,7 @@ export class VendusClient {
 // CLIENT FACTORY
 // =============================================
 
-// Cache clients per location to reuse connections
+// Cache clients per location slug (one client per location)
 const clients = new Map<string, VendusClient>();
 
 /**
@@ -233,15 +244,13 @@ const clients = new Map<string, VendusClient>();
  */
 export function getVendusClient(
   config: VendusConfig,
-  locationSlug: string
+  locationSlug: string,
 ): VendusClient {
-  const cacheKey = `${locationSlug}-${config.apiKey}`;
-
-  if (!clients.has(cacheKey)) {
-    clients.set(cacheKey, new VendusClient(config));
+  if (!clients.has(locationSlug)) {
+    clients.set(locationSlug, new VendusClient(config));
   }
 
-  return clients.get(cacheKey)!;
+  return clients.get(locationSlug)!;
 }
 
 /**

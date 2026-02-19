@@ -3,7 +3,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { VendusClient, getVendusClient, VendusApiError } from "./client";
+import { getVendusClient, VendusApiError } from "./client";
 import { getVendusConfig } from "./config";
 import type {
   VendusKitchenOrder,

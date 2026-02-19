@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 interface Invoice {
   id: string;
@@ -31,6 +31,7 @@ export default function VendusInvoicesPage() {
   const [isVoiding, setIsVoiding] = useState<string | null>(null);
   const [voidReason, setVoidReason] = useState("");
   const [showVoidModal, setShowVoidModal] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchInvoices = useCallback(async () => {
     try {
@@ -65,11 +66,12 @@ export default function VendusInvoicesPage() {
 
   const handleVoid = async (invoiceId: string) => {
     if (!voidReason.trim()) {
-      alert("Por favor, indique o motivo da anulacao");
+      setErrorMessage("Por favor, indique o motivo da anulacao");
       return;
     }
 
     setIsVoiding(invoiceId);
+    setErrorMessage(null);
     try {
       const response = await fetch("/api/vendus/invoices", {
         method: "DELETE",
@@ -83,11 +85,11 @@ export default function VendusInvoicesPage() {
         setShowVoidModal(null);
         setVoidReason("");
       } else {
-        alert(result.error || "Erro ao anular fatura");
+        setErrorMessage(result.error || "Erro ao anular fatura");
       }
     } catch (error) {
       console.error("Error voiding invoice:", error);
-      alert("Erro ao anular fatura");
+      setErrorMessage("Erro ao anular fatura");
     } finally {
       setIsVoiding(null);
     }
@@ -118,14 +120,14 @@ export default function VendusInvoicesPage() {
     );
   };
 
-  const stats = {
+  const stats = useMemo(() => ({
     total: invoices.length,
     issued: invoices.filter((i) => i.status === "issued").length,
     voided: invoices.filter((i) => i.status === "voided").length,
     totalAmount: invoices
       .filter((i) => i.status === "issued")
       .reduce((sum, i) => sum + i.total, 0),
-  };
+  }), [invoices]);
 
   if (isLoading) {
     return (
@@ -145,8 +147,24 @@ export default function VendusInvoicesPage() {
         </p>
       </div>
 
+      {/* Error Message */}
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
+          <p className="text-red-700 text-sm">{errorMessage}</p>
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="text-red-500 hover:text-red-700"
+            aria-label="Fechar mensagem de erro"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
           <p className="text-sm text-gray-500">Total Faturas</p>
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
@@ -326,7 +344,18 @@ export default function VendusInvoicesPage() {
 
       {/* Void Modal */}
       {showVoidModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Anular fatura"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setShowVoidModal(null);
+              setVoidReason("");
+            }
+          }}
+        >
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">Anular Fatura</h3>
             <p className="text-gray-600 mb-4">

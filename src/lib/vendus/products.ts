@@ -163,6 +163,75 @@ interface PullOptions {
  * - Updates existing: vendus_* fields + name, price, description, is_available from Vendus
  * - Conflict resolution: when both changed since last sync, newer timestamp wins (with warning)
  */
+type LocalProduct = {
+  id: string;
+  updated_at: string | null;
+  vendus_synced_at: string | null;
+  name: string;
+  price: number;
+  description: string | null;
+  is_available: boolean;
+  vendus_id: string | null;
+};
+
+/**
+ * Resolve conflict between local and Vendus product when both changed since last sync.
+ * Returns the data to apply and appends warnings/conflicts to result/preview.
+ */
+function resolveConflict(
+  localProduct: LocalProduct,
+  vProduct: { id: string; name: string; updated_at?: string },
+  vendusUpdatedAt: number,
+  vendusLinkData: Record<string, unknown>,
+  fullUpdateData: Record<string, unknown>,
+  result: SyncResult,
+  preview: SyncPreview,
+  matchType: "vendus_id" | "name",
+): Record<string, unknown> {
+  const localUpdatedAt = localProduct.updated_at
+    ? new Date(localProduct.updated_at).getTime()
+    : 0;
+  const lastSyncAt = localProduct.vendus_synced_at
+    ? new Date(localProduct.vendus_synced_at).getTime()
+    : 0;
+
+  const bothChanged =
+    localUpdatedAt > lastSyncAt &&
+    vendusUpdatedAt > lastSyncAt &&
+    lastSyncAt > 0;
+
+  if (bothChanged) {
+    const vendusWins = vendusUpdatedAt >= localUpdatedAt;
+    const suffix = matchType === "name" ? " (match por nome)" : "";
+    const warning: SyncWarning = {
+      id: vProduct.id,
+      type: "conflict_resolved",
+      message: `Conflito em "${vProduct.name}"${suffix}: ambos alterados. Usado: ${
+        vendusWins ? "Vendus" : "local"
+      } (mais recente)`,
+      details: {
+        localUpdatedAt: localProduct.updated_at,
+        vendusUpdatedAt: vProduct.updated_at,
+        resolution: vendusWins ? "vendus_wins" : "local_wins",
+      },
+    };
+    result.warnings = result.warnings ?? [];
+    result.warnings.push(warning);
+    preview.conflicts.push({
+      vendusId: vProduct.id,
+      name: vProduct.name,
+      message: warning.message,
+      resolution: vendusWins ? "vendus_wins" : "local_wins",
+      localUpdatedAt: localProduct.updated_at ?? undefined,
+      vendusUpdatedAt: vProduct.updated_at,
+    });
+
+    return vendusWins ? fullUpdateData : vendusLinkData;
+  }
+
+  return fullUpdateData;
+}
+
 async function pullProductsFromVendus(
   client: VendusClient,
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -200,6 +269,24 @@ async function pullProductsFromVendus(
       resolvedDefaultCategoryId = firstCategory?.id ?? undefined;
     }
 
+    // Pre-fetch all local products to avoid N+1 queries
+    const { data: allLocalProducts } = await supabase
+      .from("products")
+      .select(
+        "id, updated_at, vendus_synced_at, name, price, description, is_available, vendus_id",
+      );
+
+    const byVendusId = new Map<string, LocalProduct>();
+    const byNameLower = new Map<string, LocalProduct>();
+
+    for (const p of (allLocalProducts || []) as LocalProduct[]) {
+      if (p.vendus_id) {
+        byVendusId.set(p.vendus_id, p);
+      } else {
+        byNameLower.set(p.name.toLowerCase(), p);
+      }
+    }
+
     for (const vProduct of vendusProducts) {
       result.recordsProcessed++;
 
@@ -225,58 +312,13 @@ async function pullProductsFromVendus(
         };
 
         // Check if product exists locally by vendus_id
-        const { data: existing } = await supabase
-          .from("products")
-          .select(
-            "id, updated_at, vendus_synced_at, name, price, description, is_available",
-          )
-          .eq("vendus_id", vProduct.id)
-          .single();
+        const existing = byVendusId.get(vProduct.id);
 
         if (existing) {
-          const localUpdatedAt = existing.updated_at
-            ? new Date(existing.updated_at).getTime()
-            : 0;
-          const lastSyncAt = existing.vendus_synced_at
-            ? new Date(existing.vendus_synced_at).getTime()
-            : 0;
-
-          const bothChanged =
-            localUpdatedAt > lastSyncAt &&
-            vendusUpdatedAt > lastSyncAt &&
-            lastSyncAt > 0;
-
-          if (bothChanged) {
-            const vendusWins = vendusUpdatedAt >= localUpdatedAt;
-            const warning: SyncWarning = {
-              id: vProduct.id,
-              type: "conflict_resolved",
-              message: `Conflito em "${vProduct.name}": ambos alterados. Usado: ${
-                vendusWins ? "Vendus" : "local"
-              } (mais recente)`,
-              details: {
-                localUpdatedAt: existing.updated_at,
-                vendusUpdatedAt: vProduct.updated_at,
-                resolution: vendusWins ? "vendus_wins" : "local_wins",
-              },
-            };
-            result.warnings = result.warnings ?? [];
-            result.warnings.push(warning);
-            preview.conflicts.push({
-              vendusId: vProduct.id,
-              name: vProduct.name,
-              message: warning.message,
-              resolution: vendusWins ? "vendus_wins" : "local_wins",
-              localUpdatedAt: existing.updated_at,
-              vendusUpdatedAt: vProduct.updated_at,
-            });
-          }
-
-          const dataToApply = bothChanged
-            ? vendusUpdatedAt >= localUpdatedAt
-              ? fullUpdateData
-              : vendusLinkData
-            : fullUpdateData;
+          const dataToApply = resolveConflict(
+            existing, vProduct, vendusUpdatedAt,
+            vendusLinkData, fullUpdateData, result, preview, "vendus_id",
+          );
 
           if (previewOnly) {
             preview.toUpdate.push({
@@ -295,59 +337,13 @@ async function pullProductsFromVendus(
           }
         } else {
           // Try to match by name if no vendus_id match
-          const { data: nameMatch } = await supabase
-            .from("products")
-            .select(
-              "id, updated_at, vendus_synced_at, name, price, description, is_available",
-            )
-            .ilike("name", vProduct.name)
-            .is("vendus_id", null)
-            .maybeSingle();
+          const nameMatch = byNameLower.get(vProduct.name.toLowerCase());
 
           if (nameMatch) {
-            const localUpdatedAt = nameMatch.updated_at
-              ? new Date(nameMatch.updated_at).getTime()
-              : 0;
-            const lastSyncAt = nameMatch.vendus_synced_at
-              ? new Date(nameMatch.vendus_synced_at).getTime()
-              : 0;
-
-            const bothChanged =
-              localUpdatedAt > lastSyncAt &&
-              vendusUpdatedAt > lastSyncAt &&
-              lastSyncAt > 0;
-
-            if (bothChanged) {
-              const vendusWins = vendusUpdatedAt >= localUpdatedAt;
-              const warning: SyncWarning = {
-                id: vProduct.id,
-                type: "conflict_resolved",
-                message: `Conflito em "${vProduct.name}" (match por nome): ambos alterados. Usado: ${
-                  vendusWins ? "Vendus" : "local"
-                }`,
-                details: {
-                  localUpdatedAt: nameMatch.updated_at,
-                  vendusUpdatedAt: vProduct.updated_at,
-                  resolution: vendusWins ? "vendus_wins" : "local_wins",
-                },
-              };
-              result.warnings = result.warnings ?? [];
-              result.warnings.push(warning);
-              preview.conflicts.push({
-                vendusId: vProduct.id,
-                name: vProduct.name,
-                message: warning.message,
-                resolution: vendusWins ? "vendus_wins" : "local_wins",
-                localUpdatedAt: nameMatch.updated_at,
-                vendusUpdatedAt: vProduct.updated_at,
-              });
-            }
-
-            const dataToApply = bothChanged
-              ? vendusUpdatedAt >= localUpdatedAt
-                ? fullUpdateData
-                : vendusLinkData
-              : fullUpdateData;
+            const dataToApply = resolveConflict(
+              nameMatch, vProduct, vendusUpdatedAt,
+              vendusLinkData, fullUpdateData, result, preview, "name",
+            );
 
             if (previewOnly) {
               preview.toUpdate.push({
@@ -365,6 +361,9 @@ async function pullProductsFromVendus(
               result.recordsUpdated++;
               console.log(`[Vendus] Matched product by name: ${vProduct.name}`);
             }
+
+            // Remove from name map so it can't be matched again
+            byNameLower.delete(vProduct.name.toLowerCase());
           } else {
             // No match - create new product from Vendus
             if (!resolvedDefaultCategoryId) {
@@ -422,7 +421,6 @@ async function pullProductsFromVendus(
     }
 
     if (previewOnly) {
-      // Warn when we had products to create but no default category (they were skipped with errors)
       if (
         !resolvedDefaultCategoryId &&
         (preview.toCreate.length > 0 ||

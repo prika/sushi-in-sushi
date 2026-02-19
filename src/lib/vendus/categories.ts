@@ -9,7 +9,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { VendusClient, getVendusClient, VendusApiError } from "./client";
+import { getVendusClient, VendusApiError } from "./client";
 import { getVendusConfig } from "./config";
 import type { SyncResult } from "./types";
 
@@ -79,7 +79,7 @@ export async function syncCategoriesToVendus(
     }
 
     // Fetch existing Vendus categories (for matching by name)
-    let vendusCategoriesMap = new Map<string, string>(); // name -> vendus_id
+    const vendusCategoriesMap = new Map<string, string>(); // name -> vendus_id
     try {
       const response = await client.get<VendusCategoriesResponse>(
         "/products/categories?per_page=500",

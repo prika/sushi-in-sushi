@@ -178,7 +178,7 @@ export function validateVendusConfig(): {
   const warnings: string[] = [];
 
   if (!process.env.VENDUS_API_KEY) {
-    warnings.push("VENDUS_API_KEY em falta - configure no .env");
+    errors.push("VENDUS_API_KEY em falta - configure no .env");
   }
 
   if (!process.env.CRON_SECRET) {

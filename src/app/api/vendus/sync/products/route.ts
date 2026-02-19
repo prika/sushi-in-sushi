@@ -17,6 +17,13 @@ export async function GET() {
       return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
     }
 
+    if (user.role !== "admin") {
+      return NextResponse.json(
+        { error: "Acesso nao autorizado" },
+        { status: 403 },
+      );
+    }
+
     const stats = await getProductSyncStats();
     return NextResponse.json(stats);
   } catch (error) {
@@ -49,16 +56,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const {
-      locationSlug,
-      direction = "both",
-      productIds,
-      pushAll = false,
-      syncCategoriesFirst = true,
-      previewOnly = false,
-      defaultCategoryId,
-    } = body;
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Corpo do pedido invalido" },
+        { status: 400 },
+      );
+    }
+    const locationSlug = body.locationSlug as string | undefined;
+    const direction = (body.direction as string) || "both";
+    const productIds = body.productIds as string[] | undefined;
+    const pushAll = (body.pushAll as boolean) ?? false;
+    const syncCategoriesFirst = (body.syncCategoriesFirst as boolean) ?? true;
+    const previewOnly = (body.previewOnly as boolean) ?? false;
+    const defaultCategoryId = body.defaultCategoryId as string | undefined;
 
     if (!locationSlug) {
       return NextResponse.json(
@@ -76,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     const result = await syncProducts({
       locationSlug,
-      direction,
+      direction: direction as "push" | "pull" | "both",
       productIds,
       pushAll,
       syncCategoriesFirst:
@@ -89,15 +102,19 @@ export async function POST(request: NextRequest) {
     });
 
     if (!previewOnly) {
-      await logActivity(user.id, "vendus_product_sync", "product", undefined, {
-        direction,
-        locationSlug,
-        recordsProcessed: result.recordsProcessed,
-        recordsCreated: result.recordsCreated,
-        recordsUpdated: result.recordsUpdated,
-        recordsFailed: result.recordsFailed,
-        success: result.success,
-      });
+      try {
+        await logActivity(user.id, "vendus_product_sync", "product", undefined, {
+          direction,
+          locationSlug,
+          recordsProcessed: result.recordsProcessed,
+          recordsCreated: result.recordsCreated,
+          recordsUpdated: result.recordsUpdated,
+          recordsFailed: result.recordsFailed,
+          success: result.success,
+        });
+      } catch (logError) {
+        console.error("Erro ao registar atividade:", logError);
+      }
     }
 
     return NextResponse.json(result);

@@ -51,7 +51,16 @@ export async function GET(request: NextRequest) {
   }
 
   // Get configured locations (from DB - locations with vendus enabled)
-  const locations = await getConfiguredLocations();
+  let locations: string[];
+  try {
+    locations = await getConfiguredLocations();
+  } catch (error) {
+    console.error("[Cron] Error fetching configured locations:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch configured locations" },
+      { status: 500 },
+    );
+  }
 
   if (locations.length === 0) {
     console.log("[Cron] No locations configured for Vendus");

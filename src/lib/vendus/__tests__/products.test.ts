@@ -6,6 +6,8 @@
  * - Pull: update existing (by vendus_id, by name)
  * - Pull: conflict resolution (timestamp)
  * - Pull: preview mode (no DB writes)
+ * - Push: create/update products in Vendus
+ * - Push: category mapping, error handling
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -58,56 +60,70 @@ import { createClient } from "@/lib/supabase/server";
 import { getVendusClient } from "../client";
 
 /**
- * Creates a chainable Supabase mock for sync tests
+ * Creates a chainable Supabase mock for sync tests.
+ *
+ * allProducts: all local products returned by the pre-fetch query.
+ * firstCategory: default category for new product creation.
+ * onUpdate/onInsert: callbacks to track DB writes.
  */
 function createSupabaseMock(config: {
   syncLogInsert?: { id: string };
   firstCategory?: { id: string } | null;
-  productByVendusId?: Record<string, Record<string, unknown> | null>;
-  productByName?: Record<string, Record<string, unknown> | null>;
+  allProducts?: Array<Record<string, unknown>>;
   onUpdate?: () => void;
   onInsert?: () => void;
 }) {
   const from = (table: string) => {
     return {
-      select: (cols?: string) => ({
-        eq: (col: string, val: unknown) => {
-          if (table === "products" && col === "vendus_id") {
-            const data = config.productByVendusId?.[String(val)] ?? null;
-            return { single: () => Promise.resolve({ data, error: null }) };
-          }
-          return { single: () => Promise.resolve({ data: null, error: null }) };
-        },
-        ilike: (col: string, val: string) => ({
-          is: () => {
-            if (table === "products" && col === "name") {
-              const data =
-                config.productByName?.[val] ??
-                config.productByName?.["*"] ??
-                null;
+      select: (cols?: string) => {
+        // Pre-fetch all products query:
+        // supabase.from("products").select("id, ..., vendus_id")
+        // Returns a thenable directly (no further chaining)
+        if (
+          table === "products" &&
+          cols &&
+          cols.includes("vendus_id") &&
+          cols.includes("updated_at")
+        ) {
+          return Promise.resolve({
+            data: config.allProducts ?? [],
+            error: null,
+          });
+        }
+
+        return {
+          eq: (col: string, val: unknown) => {
+            if (table === "products" && col === "is_available") {
               return {
-                maybeSingle: () => Promise.resolve({ data, error: null }),
+                in: () => Promise.resolve({ data: [], error: null }),
+                or: () => Promise.resolve({ data: [], error: null }),
               };
             }
             return {
-              maybeSingle: () => Promise.resolve({ data: null, error: null }),
+              single: () =>
+                Promise.resolve({ data: null, error: null }),
             };
           },
-        }),
-        order: () => ({
-          limit: (n: number) => ({
-            single: () =>
-              Promise.resolve({
-                data:
-                  config.firstCategory !== undefined
-                    ? config.firstCategory
-                    : { id: "cat-default" },
-                error: null,
-              }),
-          }),
-        }),
-        in: () => Promise.resolve({ data: [], error: null }),
-      }),
+          order: (orderCol: string) => {
+            if (table === "categories") {
+              return {
+                limit: () => ({
+                  single: () =>
+                    Promise.resolve({
+                      data:
+                        config.firstCategory !== undefined
+                          ? config.firstCategory
+                          : { id: "cat-default" },
+                      error: null,
+                    }),
+                }),
+              };
+            }
+            return Promise.resolve({ data: [], error: null });
+          },
+          in: () => Promise.resolve({ data: [], error: null }),
+        };
+      },
       insert: (data: unknown) => {
         if (table === "products") {
           config.onInsert?.();
@@ -175,8 +191,7 @@ describe("syncProducts - pull", () => {
     let insertCalled = false;
     const supabase = createSupabaseMock({
       firstCategory: { id: "cat-1" },
-      productByVendusId: { "vendus-1": null },
-      productByName: { "Novo Produto": null },
+      allProducts: [], // No local products
       onInsert: () => (insertCalled = true),
     });
 
@@ -217,8 +232,7 @@ describe("syncProducts - pull", () => {
     let insertCalled = false;
     const supabase = createSupabaseMock({
       firstCategory: { id: "cat-1" },
-      productByVendusId: { "vendus-new": null },
-      productByName: { "Produto Novo": null },
+      allProducts: [], // No local products
       onInsert: () => (insertCalled = true),
     });
 
@@ -259,8 +273,7 @@ describe("syncProducts - pull", () => {
 
     const supabase = createSupabaseMock({
       firstCategory: null,
-      productByVendusId: { v1: null },
-      productByName: { Novo: null },
+      allProducts: [], // No local products
     });
 
     vi.mocked(createClient).mockResolvedValue(supabase as never);
@@ -306,13 +319,18 @@ describe("syncProducts - pull", () => {
     let updated = false;
     const supabase = createSupabaseMock({
       firstCategory: { id: "cat-1" },
-      productByVendusId: {
-        "vendus-existing": {
+      allProducts: [
+        {
           id: "local-1",
+          name: "Produto Antigo",
+          price: 10,
+          description: null,
+          is_available: true,
+          vendus_id: "vendus-existing",
           updated_at: "2024-01-10T00:00:00Z",
           vendus_synced_at: "2024-01-05T00:00:00Z",
         },
-      },
+      ],
       onUpdate: () => (updated = true),
     });
 
@@ -350,13 +368,18 @@ describe("syncProducts - pull", () => {
 
     const supabase = createSupabaseMock({
       firstCategory: { id: "cat-1" },
-      productByVendusId: {
-        "v-conflict": {
+      allProducts: [
+        {
           id: "local-1",
+          name: "Produto Conflito",
+          price: 18,
+          description: null,
+          is_available: true,
+          vendus_id: "v-conflict",
           updated_at: "2024-01-20T10:00:00Z", // Local changed
           vendus_synced_at: "2024-01-15T00:00:00Z", // Last sync
         },
-      },
+      ],
     });
 
     vi.mocked(createClient).mockResolvedValue(supabase as never);
@@ -378,5 +401,368 @@ describe("syncProducts - pull", () => {
     expect(result.warnings?.some((w) => w.message.includes("Vendus"))).toBe(
       true,
     );
+  });
+});
+
+// =============================================
+// PUSH SYNC TESTS
+// =============================================
+
+import { getVendusConfig } from "../config";
+import { syncCategoriesToVendus } from "../categories";
+
+/**
+ * Creates a Supabase mock tailored for push sync tests.
+ * Push queries differ from pull (no updated_at in select, uses category_id).
+ */
+function createPushSupabaseMock(config: {
+  pushProducts?: Array<Record<string, unknown>>;
+  categories?: Array<{ id: string; vendus_id: string | null }>;
+  onProductUpdate?: (data: unknown) => void;
+  syncLogInsert?: { id: string };
+}) {
+  return {
+    from: (table: string) => {
+      if (table === "products") {
+        return {
+          select: (cols?: string) => {
+            // Pull pre-fetch: cols include "updated_at"
+            if (cols && cols.includes("updated_at")) {
+              return Promise.resolve({ data: [], error: null });
+            }
+            // Push product fetch: cols include "category_id"
+            return {
+              eq: (col: string, val: unknown) => ({
+                in: () =>
+                  Promise.resolve({
+                    data: config.pushProducts ?? [],
+                    error: null,
+                  }),
+                or: () =>
+                  Promise.resolve({
+                    data: config.pushProducts ?? [],
+                    error: null,
+                  }),
+              }),
+            };
+          },
+          insert: () => Promise.resolve({ data: null, error: null }),
+          update: (data: unknown) => ({
+            eq: (col: string, val: unknown) => {
+              config.onProductUpdate?.(data);
+              return Promise.resolve({ data: null, error: null });
+            },
+          }),
+        };
+      }
+
+      if (table === "categories") {
+        return {
+          select: (cols?: string) => {
+            // Push: fetch category vendus_id map
+            if (cols && cols.includes("vendus_id")) {
+              return {
+                in: () =>
+                  Promise.resolve({
+                    data: config.categories ?? [],
+                    error: null,
+                  }),
+              };
+            }
+            // Pull: first category query
+            return {
+              order: () => ({
+                limit: () => ({
+                  single: () =>
+                    Promise.resolve({
+                      data: { id: "cat-default" },
+                      error: null,
+                    }),
+                }),
+              }),
+              in: () => Promise.resolve({ data: [], error: null }),
+            };
+          },
+        };
+      }
+
+      if (table === "vendus_sync_log") {
+        return {
+          insert: () => ({
+            select: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: config.syncLogInsert ?? { id: "log-1" },
+                  error: null,
+                }),
+            }),
+          }),
+          update: () => ({
+            eq: () => Promise.resolve({ data: null, error: null }),
+          }),
+        };
+      }
+
+      return {
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({ data: null, error: null }),
+          }),
+        }),
+      };
+    },
+  };
+}
+
+function createPushVendusClientMock(overrides?: Record<string, unknown>) {
+  return {
+    get: vi.fn().mockResolvedValue({ products: [] }),
+    post: vi.fn().mockResolvedValue({ id: "vendus-new-1" }),
+    put: vi.fn().mockResolvedValue({}),
+    ...overrides,
+  };
+}
+
+describe("syncProducts - push", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("throws when Vendus is not configured", async () => {
+    vi.mocked(getVendusConfig).mockResolvedValueOnce(null);
+
+    await expect(
+      syncProducts({ locationSlug: "test", direction: "push" }),
+    ).rejects.toThrow("Vendus nao configurado");
+  });
+
+  it("syncs categories first by default", async () => {
+    const vendusClient = createPushVendusClientMock();
+    const supabase = createPushSupabaseMock({ pushProducts: [] });
+
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    await syncProducts({
+      locationSlug: "circunvalacao",
+      direction: "push",
+    });
+
+    expect(syncCategoriesToVendus).toHaveBeenCalled();
+  });
+
+  it("skips category sync when syncCategoriesFirst=false", async () => {
+    const vendusClient = createPushVendusClientMock();
+    const supabase = createPushSupabaseMock({ pushProducts: [] });
+
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    await syncProducts({
+      locationSlug: "circunvalacao",
+      direction: "push",
+      syncCategoriesFirst: false,
+    });
+
+    expect(syncCategoriesToVendus).not.toHaveBeenCalled();
+  });
+
+  it("creates new product in Vendus when no vendus_id", async () => {
+    const vendusClient = createPushVendusClientMock();
+    const supabase = createPushSupabaseMock({
+      pushProducts: [
+        {
+          id: "local-1",
+          name: "Sashimi Mix",
+          description: "Variedade de sashimi",
+          price: 18.5,
+          is_available: true,
+          vendus_id: null,
+          category_id: "cat-1",
+        },
+      ],
+      categories: [{ id: "cat-1", vendus_id: "vcat-1" }],
+    });
+
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncProducts({
+      locationSlug: "circunvalacao",
+      direction: "push",
+      syncCategoriesFirst: false,
+    });
+
+    expect(result.recordsCreated).toBe(1);
+    expect(vendusClient.post).toHaveBeenCalledWith(
+      "/products",
+      expect.objectContaining({
+        name: "Sashimi Mix",
+        price: 18.5,
+        category_id: "vcat-1",
+      }),
+    );
+  });
+
+  it("updates existing product in Vendus when vendus_id present", async () => {
+    const vendusClient = createPushVendusClientMock();
+    const supabase = createPushSupabaseMock({
+      pushProducts: [
+        {
+          id: "local-2",
+          name: "Miso Soup",
+          description: null,
+          price: 4.5,
+          is_available: true,
+          vendus_id: "vendus-existing-2",
+          category_id: "cat-1",
+        },
+      ],
+      categories: [{ id: "cat-1", vendus_id: null }],
+    });
+
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncProducts({
+      locationSlug: "circunvalacao",
+      direction: "push",
+      syncCategoriesFirst: false,
+    });
+
+    expect(result.recordsUpdated).toBe(1);
+    expect(vendusClient.put).toHaveBeenCalledWith(
+      "/products/vendus-existing-2",
+      expect.objectContaining({ name: "Miso Soup", price: 4.5 }),
+    );
+    // Category has no vendus_id, so category_id should NOT be in request
+    const putArgs = vendusClient.put.mock.calls[0][1] as Record<string, unknown>;
+    expect(putArgs.category_id).toBeUndefined();
+  });
+
+  it("saves vendus_id and sync metadata locally after push", async () => {
+    const updates: unknown[] = [];
+    const vendusClient = createPushVendusClientMock();
+    const supabase = createPushSupabaseMock({
+      pushProducts: [
+        {
+          id: "local-3",
+          name: "Gyoza",
+          description: null,
+          price: 7,
+          is_available: true,
+          vendus_id: null,
+          category_id: "cat-1",
+        },
+      ],
+      categories: [],
+      onProductUpdate: (data) => updates.push(data),
+    });
+
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    await syncProducts({
+      locationSlug: "circunvalacao",
+      direction: "push",
+      syncCategoriesFirst: false,
+    });
+
+    // Should save vendus_id and sync status
+    const syncUpdate = updates.find(
+      (u) => (u as Record<string, unknown>).vendus_sync_status === "synced",
+    );
+    expect(syncUpdate).toBeDefined();
+    expect((syncUpdate as Record<string, unknown>).vendus_id).toBe(
+      "vendus-new-1",
+    );
+  });
+
+  it("marks product as error on push failure", async () => {
+    const updates: unknown[] = [];
+    const vendusClient = createPushVendusClientMock({
+      post: vi.fn().mockRejectedValue(new Error("API error")),
+    });
+    const supabase = createPushSupabaseMock({
+      pushProducts: [
+        {
+          id: "local-fail",
+          name: "Tempura",
+          description: null,
+          price: 12,
+          is_available: true,
+          vendus_id: null,
+          category_id: "cat-1",
+        },
+      ],
+      categories: [],
+      onProductUpdate: (data) => updates.push(data),
+    });
+
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncProducts({
+      locationSlug: "circunvalacao",
+      direction: "push",
+      syncCategoriesFirst: false,
+    });
+
+    expect(result.recordsFailed).toBe(1);
+    expect(result.errors.length).toBeGreaterThan(0);
+    // Should mark product with error status
+    const errorUpdate = updates.find(
+      (u) => (u as Record<string, unknown>).vendus_sync_status === "error",
+    );
+    expect(errorUpdate).toBeDefined();
+  });
+
+  it("handles empty product list (nothing to push)", async () => {
+    const vendusClient = createPushVendusClientMock();
+    const supabase = createPushSupabaseMock({ pushProducts: [] });
+
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncProducts({
+      locationSlug: "circunvalacao",
+      direction: "push",
+      syncCategoriesFirst: false,
+    });
+
+    expect(result.recordsProcessed).toBe(0);
+    expect(vendusClient.post).not.toHaveBeenCalled();
+    expect(vendusClient.put).not.toHaveBeenCalled();
+  });
+
+  it("uses reference from product.id substring(0,20)", async () => {
+    const vendusClient = createPushVendusClientMock();
+    const supabase = createPushSupabaseMock({
+      pushProducts: [
+        {
+          id: "abcdefghij1234567890-extra-long-id",
+          name: "Test",
+          description: null,
+          price: 5,
+          is_available: true,
+          vendus_id: null,
+          category_id: "cat-1",
+        },
+      ],
+      categories: [],
+    });
+
+    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    await syncProducts({
+      locationSlug: "circunvalacao",
+      direction: "push",
+      syncCategoriesFirst: false,
+    });
+
+    const postArgs = vendusClient.post.mock.calls[0][1] as Record<string, unknown>;
+    expect(postArgs.reference).toBe("abcdefghij1234567890");
+    expect((postArgs.reference as string).length).toBeLessThanOrEqual(20);
   });
 });

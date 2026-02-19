@@ -111,8 +111,9 @@ export async function createInvoice(
     }
     const total = subtotal + taxAmount;
 
-    // Determine document type
-    // FR (Fatura-Recibo) for general use, FT (Fatura) if customer NIF provided
+    // Determine document type:
+    // FR (Fatura-Recibo) when customer NIF is provided
+    // FS (Fatura Simplificada) for anonymous sales
     const documentType = customerNif ? "FR" : "FS";
 
     // Build invoice request
@@ -266,7 +267,12 @@ export async function voidInvoice(
   }
 
   const locationSlug =
-    (invoice.locations as { slug: string } | null)?.slug || "circunvalacao";
+    (invoice.locations as { slug: string } | null)?.slug;
+
+  if (!locationSlug) {
+    return { success: false, error: "Localizacao da fatura em falta" };
+  }
+
   const config = await getVendusConfig(locationSlug);
 
   if (!config) {
@@ -342,10 +348,15 @@ export async function getInvoicePdf(invoiceId: string): Promise<GetPdfResult> {
 
   // Fetch PDF from Vendus if not cached
   const locationSlug =
-    (invoice.locations as { slug: string } | null)?.slug || "circunvalacao";
+    (invoice.locations as { slug: string } | null)?.slug;
+
+  if (!locationSlug || !invoice.vendus_id) {
+    return { success: false, error: "Nao foi possivel obter o PDF" };
+  }
+
   const config = await getVendusConfig(locationSlug);
 
-  if (!config || !invoice.vendus_id) {
+  if (!config) {
     return { success: false, error: "Nao foi possivel obter o PDF" };
   }
 
@@ -397,20 +408,17 @@ export async function getInvoices(options?: {
     .select("*")
     .order("created_at", { ascending: false });
 
+  if (options?.locationSlug) {
+    query = query.eq("location_slug", options.locationSlug);
+  }
+
   if (options?.status) {
     query = query.eq("status", options.status);
   }
 
-  if (options?.limit) {
-    query = query.limit(options.limit);
-  }
-
-  if (options?.offset) {
-    query = query.range(
-      options.offset,
-      options.offset + (options?.limit || 10) - 1,
-    );
-  }
+  const limit = Math.min(Math.max(options?.limit || 50, 1), 100);
+  const offset = Math.max(options?.offset || 0, 0);
+  query = query.range(offset, offset + limit - 1);
 
   const { data, error } = await query;
 
@@ -453,13 +461,31 @@ async function addToRetryQueue(params: {
 }): Promise<void> {
   const supabase = await createClient();
 
+  // Check for existing pending retry to prevent duplicates
+  const { data: existing } = await supabase
+    .from("vendus_retry_queue")
+    .select("id")
+    .eq("operation", params.operation)
+    .eq("entity_id", params.entityId)
+    .in("status", ["pending", "processing"])
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    console.log(
+      "[Vendus] Retry already queued for:",
+      params.operation,
+      params.entityId,
+    );
+    return;
+  }
+
   await supabase.from("vendus_retry_queue").insert({
     operation: params.operation,
     entity_type: params.entityType,
     entity_id: params.entityId,
     location_id: params.locationId ?? null,
     payload: JSON.parse(JSON.stringify(params.payload)),
-    next_retry_at: new Date(Date.now() + 60000).toISOString(), // Retry in 1 minute
+    next_retry_at: new Date(Date.now() + 60000).toISOString(),
   });
 
   console.log(
@@ -489,13 +515,12 @@ export async function processRetryQueue(): Promise<{
     .lt("attempts", 5)
     .limit(10);
 
-  const items: VendusRetryQueue[] = (data ?? []) as VendusRetryQueue[];
+  const items = (data ?? []) as VendusRetryQueue[];
   if (items.length === 0) {
     return stats;
   }
 
-  for (const raw of items) {
-    const item = raw as VendusRetryQueue;
+  for (const item of items) {
     stats.processed++;
 
     // Mark as processing

@@ -3,7 +3,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { VendusClient, getVendusClient, VendusApiError } from "./client";
+import { getVendusClient, VendusApiError } from "./client";
 import { getVendusConfig } from "./config";
 import type {
   VendusRoom,
@@ -328,12 +328,14 @@ export async function getVendusTables(
 
   const rooms = roomsResponse.rooms || [];
 
-  for (const room of rooms) {
-    const tablesResponse = await client.get<VendusTablesResponse>(
-      `/rooms/${room.id}/tables`,
-    );
-    tablesObj[room.id] = tablesResponse.tables || [];
-  }
+  await Promise.all(
+    rooms.map(async (room) => {
+      const tablesResponse = await client.get<VendusTablesResponse>(
+        `/rooms/${room.id}/tables`,
+      );
+      tablesObj[room.id] = tablesResponse.tables || [];
+    }),
+  );
 
   return { rooms, tables: tablesObj };
 }
