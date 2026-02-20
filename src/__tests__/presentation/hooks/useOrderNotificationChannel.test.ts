@@ -1,37 +1,37 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { MutableRefObject } from 'react';
+import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 import {
   useOrderNotificationChannel,
-  type OrderNotificationSupabaseLike,
-  type RealtimeChannelLike,
 } from '@/presentation/hooks/useOrderNotificationChannel';
 
 describe('useOrderNotificationChannel', () => {
-  let mockSetOrderNotification: ReturnType<typeof vi.fn>;
-  let mockFetchSessionOrders: ReturnType<typeof vi.fn>;
+  let mockSetOrderNotification: ReturnType<typeof vi.fn<(value: string | null) => void>>;
+  let mockFetchSessionOrders: ReturnType<typeof vi.fn<() => void>>;
   let mockRemoveChannel: ReturnType<typeof vi.fn>;
   let broadcastCallback: (payload: { payload: { customerName: string; itemCount: number; deviceId?: string } }) => void;
 
-  const createMockChannel = (): RealtimeChannelLike => ({
+  const createMockChannel = () => ({
     on: vi.fn().mockImplementation((_type: string, _opts: Record<string, string>, cb: (payload: { payload: { customerName: string; itemCount: number; deviceId?: string } }) => void) => {
       broadcastCallback = cb;
       return { subscribe: vi.fn() };
     }),
   });
 
-  const createMockSupabase = (): OrderNotificationSupabaseLike => {
+  const createMockSupabase = () => {
     const ch = createMockChannel();
     return {
       channel: vi.fn().mockReturnValue(ch),
       removeChannel: mockRemoveChannel,
-    };
+    } as unknown as SupabaseClient<Database>;
   };
 
   beforeEach(() => {
     vi.useFakeTimers();
-    mockSetOrderNotification = vi.fn();
-    mockFetchSessionOrders = vi.fn();
+    mockSetOrderNotification = vi.fn<(value: string | null) => void>();
+    mockFetchSessionOrders = vi.fn<() => void>();
     mockRemoveChannel = vi.fn();
   });
 
@@ -39,7 +39,7 @@ describe('useOrderNotificationChannel', () => {
     vi.useRealTimers();
   });
 
-  const createChannelRef = (): MutableRefObject<RealtimeChannelLike | null> =>
+  const createChannelRef = (): MutableRefObject<RealtimeChannel | null> =>
     ({ current: null });
 
   it('não subscreve quando session é null', () => {

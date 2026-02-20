@@ -45,8 +45,9 @@ A integracao Vendus suporta:
 1. **Conta Vendus** ativa em [vendus.pt](https://www.vendus.pt)
 2. **API Key** do Vendus (ver secao abaixo)
 3. **Store ID** e **Register ID** por localizacao (ver secao abaixo)
-4. **Migracoes 006-009** aplicadas na base de dados Supabase
+4. **Migracoes 046-049** aplicadas na base de dados Supabase
 5. **CRON_SECRET** configurado (para sincronizacao automatica)
+6. **Supabase Auth user** ligado ao staff (apenas em modo producao)
 
 ---
 
@@ -73,6 +74,8 @@ CRON_SECRET=string_aleatoria_segura
 ### Passo 3: Aplicar as Migracoes
 
 Ver secao [Migracoes de Base de Dados](#migracoes-de-base-de-dados).
+
+Para producao, usar o script consolidado: `supabase/scripts/apply-vendus-to-prod.sql`
 
 ### Passo 4: Configurar Store ID e Register ID por Local
 
@@ -142,11 +145,12 @@ Precisas de aplicar 4 migracoes pela seguinte ordem:
 
 ### Como Aplicar
 
-**Opcao A: Via Supabase Dashboard (recomendado para producao)**
+**Opcao A: Script consolidado (recomendado para producao)**
 
-1. Abre o [SQL Editor do Supabase](https://supabase.com/dashboard/project/xrmzhvpkvkgoryvfozfy/sql/new)
-2. Cola o conteudo de cada migracao, por ordem (046 → 047 → 048 → 049)
-3. Executa cada uma
+1. Abre o [SQL Editor do Supabase](https://supabase.com/dashboard/project/_/sql/new)
+2. Cola o conteudo de `supabase/scripts/apply-vendus-to-prod.sql`
+3. Executa — e idempotente e seguro para correr varias vezes
+
 
 **Opcao B: Via Supabase CLI (requer Docker)**
 
@@ -339,6 +343,41 @@ Chamado internamente quando pedidos sao enviados para a cozinha.
 
 ---
 
+## Ambientes e Autenticacao
+
+### Gestao de Ambientes
+
+O ambiente e controlado por `NEXT_PUBLIC_APP_ENV` (definido via npm scripts):
+
+| Comando | Ambiente | Auth | Supabase |
+|---------|----------|------|----------|
+| `npm run dev` | development | Legacy (staff table) | _DEV credentials |
+| `npm run dev:prod` | production | Supabase Auth | Standard credentials |
+| `npm run build` | production | Supabase Auth | Standard credentials |
+| `npm run start` | production | Supabase Auth | Standard credentials |
+
+### Setup de Autenticacao para Producao
+
+Em modo producao, o login usa **Supabase Auth**. Cada utilizador precisa de:
+
+1. **User no Supabase Auth** — Criar em Authentication > Users no dashboard
+2. **Ligacao ao staff** — `staff.auth_user_id` = UUID do auth user
+
+```sql
+-- 1. Verificar auth user criado
+SELECT id, email FROM auth.users WHERE email = 'user@restaurante.pt';
+
+-- 2. Ligar ao staff
+UPDATE staff SET auth_user_id = 'UUID-DO-AUTH-USER'
+WHERE email = 'user@restaurante.pt';
+```
+
+### Indicador DEV
+
+Em modo development, aparece um badge "DEV" no canto inferior esquerdo do admin.
+
+---
+
 ## Resolucao de Problemas
 
 ### "VENDUS_API_KEY not configured"
@@ -362,6 +401,32 @@ Chamado internamente quando pedidos sao enviados para a cozinha.
 - Muitas chamadas por minuto (limite: 60/min)
 - O sistema tem rate limiting integrado — aguarda automaticamente
 - Se persistir, reduz a frequencia de operacoes
+
+### "Utilizador nao tem permissoes de staff"
+
+- Login via Supabase Auth funcionou, mas `staff.auth_user_id` nao corresponde ao UUID do auth user
+- Verifica: `SELECT auth_user_id FROM staff WHERE email = '...'`
+- Verifica: `SELECT id FROM auth.users WHERE email = '...'`
+- Os UUIDs tem de ser iguais
+
+### "Demasiadas tentativas" (Rate Limited)
+
+- Limpar rate limits: `DELETE FROM auth_rate_limits WHERE identifier LIKE '%email%'`
+
+### "Nao autenticado" nas API routes (401)
+
+- Em modo producao, o login precisa de criar o cookie JWT
+- Faz logout e login novamente (corrigido em secure-login/route.ts)
+
+### "HTTP 403" ao exportar para Vendus
+
+- A API key nao tem permissao de escrita
+- Verifica permissoes em vendus.pt/dashboard/settings/api
+- Importacao (pull) so precisa de leitura; exportacao (push) precisa de escrita
+
+### "product.id.substring is not a function"
+
+- O `product.id` e INTEGER (nao UUID) — corrigido com `String(product.id)`
 
 ### Produtos nao aparecem no Vendus apos export
 
@@ -448,7 +513,7 @@ PATCH /api/locations/:slug          # Atualizar localizacao
 | IVA Isento | 0% | Taxa `4` no Vendus |
 | Rate Limit | 60/min | Limite de chamadas API |
 | Retry Max | 5 | Tentativas maximas na retry queue |
-| Timeout | 10s | Timeout por chamada API |
+| Timeout | 30s | Timeout por chamada API |
 
 ---
 

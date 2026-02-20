@@ -21,7 +21,7 @@ import {
 
 // Mock dependencies
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
+  createAdminClient: vi.fn(),
 }));
 
 vi.mock("../client", () => ({
@@ -60,7 +60,7 @@ vi.mock("../config", () => ({
   TAX_PERCENTAGES: { "1": 0.23, "2": 0.13, "3": 0.06, "4": 0 },
 }));
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getVendusClient, VendusApiError } from "../client";
 import { getVendusConfig } from "../config";
 
@@ -320,7 +320,7 @@ describe("createInvoice", () => {
       session: null,
       sessionError: true,
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(
       createVendusClientMock() as never,
     );
@@ -354,7 +354,7 @@ describe("createInvoice", () => {
       paymentMethod: { vendus_id: "pm-cash", slug: "cash" },
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await createInvoice({
@@ -394,7 +394,7 @@ describe("createInvoice", () => {
       paymentMethod: { vendus_id: "pm-card", slug: "card" },
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await createInvoice({
@@ -440,7 +440,7 @@ describe("createInvoice", () => {
       paymentMethod: { vendus_id: "pm-1", slug: "cash" },
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     await createInvoice({
@@ -492,7 +492,7 @@ describe("createInvoice", () => {
       insertedInvoice: { id: "inv-local-1" },
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await createInvoice({
@@ -527,7 +527,7 @@ describe("createInvoice", () => {
       paymentMethod: { vendus_id: null, slug: "cash" },
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     await createInvoice({
@@ -562,7 +562,7 @@ describe("createInvoice", () => {
       onSyncLogInsert: () => (syncLogged = true),
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     await createInvoice({
@@ -601,7 +601,7 @@ describe("createInvoice", () => {
       onRetryQueueInsert: () => (retryInserted = true),
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await createInvoice({
@@ -614,6 +614,47 @@ describe("createInvoice", () => {
 
     expect(result.success).toBe(false);
     expect(retryInserted).toBe(true);
+  });
+
+  it("does not duplicate retry queue entry when one already exists", async () => {
+    const { VendusApiError: MockError } = await import("../client");
+    const vendusClient = createVendusClientMock({
+      post: vi.fn().mockRejectedValue(
+        new MockError("SERVER_ERROR", "Internal error", undefined, 500),
+      ),
+    });
+
+    let retryInserted = false;
+    const supabase = createInvoiceSupabaseMock({
+      session: {
+        id: "sess-1",
+        orders: [
+          {
+            quantity: 1,
+            unit_price: 10,
+            notes: null,
+            products: { id: "p1", name: "Sake", price: 10, vendus_id: "vp1", vendus_tax_id: "1" },
+          },
+        ],
+      },
+      paymentMethod: { vendus_id: "pm-1", slug: "cash" },
+      existingRetry: true, // Already exists in queue
+      onRetryQueueInsert: () => (retryInserted = true),
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    await createInvoice({
+      sessionId: "sess-1",
+      locationSlug: "circunvalacao",
+      paymentMethodId: 1,
+      paidAmount: 12.3,
+      issuedBy: "user-1",
+    });
+
+    // Should NOT insert new retry because one already exists
+    expect(retryInserted).toBe(false);
   });
 
   it("does not add to retry queue on non-retryable error", async () => {
@@ -641,7 +682,7 @@ describe("createInvoice", () => {
       onRetryQueueInsert: () => (retryInserted = true),
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await createInvoice({
@@ -654,6 +695,187 @@ describe("createInvoice", () => {
 
     expect(result.success).toBe(false);
     expect(retryInserted).toBe(false);
+  });
+
+  it("handles insert error when saving invoice locally", async () => {
+    const vendusClient = createVendusClientMock();
+    const supabase = createInvoiceSupabaseMock({
+      session: {
+        id: "sess-1",
+        orders: [
+          {
+            quantity: 1,
+            unit_price: 10,
+            notes: null,
+            products: { id: "p1", name: "Tempura", price: 10, vendus_id: "vp1", vendus_tax_id: "1" },
+          },
+        ],
+      },
+      paymentMethod: { vendus_id: "pm-1", slug: "cash" },
+      insertInvoiceError: true,
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    // Should still succeed (invoice was created in Vendus, just failed to save locally)
+    const result = await createInvoice({
+      sessionId: "sess-1",
+      locationSlug: "circunvalacao",
+      paymentMethodId: 1,
+      paidAmount: 12.3,
+      issuedBy: "user-1",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.vendusId).toBe("vendus-inv-1");
+  });
+
+  it("handles session with empty orders", async () => {
+    const vendusClient = createVendusClientMock();
+    const supabase = createInvoiceSupabaseMock({
+      session: {
+        id: "sess-1",
+        orders: [],
+      },
+      paymentMethod: { vendus_id: "pm-1", slug: "cash" },
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await createInvoice({
+      sessionId: "sess-1",
+      locationSlug: "circunvalacao",
+      paymentMethodId: 1,
+      paidAmount: 0,
+      issuedBy: "user-1",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("creates invoice with plain Error (not VendusApiError) in catch", async () => {
+    const vendusClient = createVendusClientMock({
+      post: vi.fn().mockRejectedValue(new Error("plain error in documents")),
+    });
+
+    const supabase = createInvoiceSupabaseMock({
+      session: {
+        id: "sess-1",
+        orders: [
+          {
+            quantity: 1,
+            unit_price: 10,
+            notes: null,
+            products: { id: "p1", name: "Test", price: 10, vendus_id: "vp1", vendus_tax_id: "1" },
+          },
+        ],
+      },
+      paymentMethod: { vendus_id: "pm-1", slug: "cash" },
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await createInvoice({
+      sessionId: "sess-1",
+      locationSlug: "circunvalacao",
+      paymentMethodId: 1,
+      paidAmount: 12.3,
+      issuedBy: "user-1",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("plain error in documents");
+  });
+
+  it("uses 'Produto' fallback when product name is null", async () => {
+    const vendusClient = createVendusClientMock();
+    const supabase = createInvoiceSupabaseMock({
+      session: {
+        id: "sess-1",
+        orders: [
+          {
+            quantity: 1,
+            unit_price: 10,
+            notes: null,
+            products: null,
+          },
+        ],
+      },
+      paymentMethod: { vendus_id: "pm-1", slug: "cash" },
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    await createInvoice({
+      sessionId: "sess-1",
+      locationSlug: "circunvalacao",
+      paymentMethodId: 1,
+      paidAmount: 12.3,
+      issuedBy: "user-1",
+    });
+
+    const callArg = vendusClient.post.mock.calls[0][1] as Record<string, unknown>;
+    const items = callArg.items as Array<Record<string, unknown>>;
+    expect(items[0].description).toBe("Produto");
+  });
+
+  it("uses 0 tax rate fallback when tax_id is unknown", async () => {
+    const vendusClient = createVendusClientMock();
+    const supabase = createInvoiceSupabaseMock({
+      session: {
+        id: "sess-1",
+        orders: [
+          {
+            quantity: 1,
+            unit_price: 10,
+            notes: null,
+            products: { id: "p1", name: "X", price: 10, vendus_id: "vp1", vendus_tax_id: "999" },
+          },
+        ],
+      },
+      paymentMethod: { vendus_id: "pm-1", slug: "cash" },
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await createInvoice({
+      sessionId: "sess-1",
+      locationSlug: "circunvalacao",
+      paymentMethodId: 1,
+      paidAmount: 10,
+      issuedBy: "user-1",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("handles session with null orders (fallback to [])", async () => {
+    const vendusClient = createVendusClientMock();
+    const supabase = createInvoiceSupabaseMock({
+      session: {
+        id: "sess-1",
+        orders: null,
+      },
+      paymentMethod: { vendus_id: "pm-1", slug: "cash" },
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await createInvoice({
+      sessionId: "sess-1",
+      locationSlug: "circunvalacao",
+      paymentMethodId: 1,
+      paidAmount: 0,
+      issuedBy: "user-1",
+    });
+
+    expect(result.success).toBe(true);
   });
 
   it("returns user message from VendusApiError", async () => {
@@ -679,7 +901,7 @@ describe("createInvoice", () => {
       paymentMethod: { vendus_id: "pm-1", slug: "cash" },
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await createInvoice({
@@ -706,7 +928,7 @@ describe("voidInvoice", () => {
 
   it("returns error when invoice not found", async () => {
     const supabase = createInvoiceSupabaseMock({ invoice: null });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await voidInvoice("inv-missing", "motivo", "user-1");
 
@@ -718,7 +940,7 @@ describe("voidInvoice", () => {
     const supabase = createInvoiceSupabaseMock({
       invoice: { id: "inv-1", vendus_id: null, locations: { slug: "circ" } },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await voidInvoice("inv-1", "teste", "user-1");
 
@@ -730,7 +952,7 @@ describe("voidInvoice", () => {
     const supabase = createInvoiceSupabaseMock({
       invoice: { id: "inv-1", vendus_id: "v-1", locations: null },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await voidInvoice("inv-1", "teste", "user-1");
 
@@ -746,7 +968,7 @@ describe("voidInvoice", () => {
         locations: { slug: "circunvalacao" },
       },
     });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusConfig).mockResolvedValueOnce(null);
 
     const result = await voidInvoice("inv-1", "teste", "user-1");
@@ -768,7 +990,7 @@ describe("voidInvoice", () => {
       onInvoiceUpdate: (data) => (updatedData = data),
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await voidInvoice("inv-1", "cliente desistiu", "user-1");
@@ -802,13 +1024,35 @@ describe("voidInvoice", () => {
       },
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await voidInvoice("inv-1", "teste", "user-1");
 
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
+  });
+
+  it("returns plain Error message in voidInvoice catch", async () => {
+    const vendusClient = createVendusClientMock({
+      post: vi.fn().mockRejectedValue(new Error("plain void error")),
+    });
+
+    const supabase = createInvoiceSupabaseMock({
+      invoice: {
+        id: "inv-1",
+        vendus_id: "v-123",
+        locations: { slug: "circunvalacao" },
+      },
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await voidInvoice("inv-1", "teste", "user-1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("plain void error");
   });
 });
 
@@ -823,7 +1067,7 @@ describe("getInvoicePdf", () => {
 
   it("returns error when invoice not found", async () => {
     const supabase = createInvoiceSupabaseMock({ invoice: null });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await getInvoicePdf("inv-missing");
 
@@ -841,7 +1085,7 @@ describe("getInvoicePdf", () => {
       },
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await getInvoicePdf("inv-1");
@@ -865,7 +1109,7 @@ describe("getInvoicePdf", () => {
       },
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await getInvoicePdf("inv-1");
@@ -880,12 +1124,78 @@ describe("getInvoicePdf", () => {
       invoice: { pdf_url: null, vendus_id: null, locations: null },
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await getInvoicePdf("inv-1");
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("PDF");
+  });
+
+  it("returns error when Vendus config not found", async () => {
+    vi.mocked(getVendusConfig).mockResolvedValueOnce(null);
+
+    const supabase = createInvoiceSupabaseMock({
+      invoice: {
+        pdf_url: null,
+        vendus_id: "v-42",
+        locations: { slug: "circunvalacao" },
+      },
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+
+    const result = await getInvoicePdf("inv-1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("PDF");
+  });
+
+  it("returns error when Vendus API fails for PDF", async () => {
+    const { VendusApiError: MockError } = await import("../client");
+    const vendusClient = createVendusClientMock({
+      get: vi.fn().mockRejectedValue(
+        new MockError("SERVER_ERROR", "server down", undefined, 500),
+      ),
+    });
+
+    const supabase = createInvoiceSupabaseMock({
+      invoice: {
+        pdf_url: null,
+        vendus_id: "v-42",
+        locations: { slug: "circunvalacao" },
+      },
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await getInvoicePdf("inv-1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Erro Vendus");
+  });
+
+  it("returns generic error when non-VendusApiError thrown for PDF", async () => {
+    const vendusClient = createVendusClientMock({
+      get: vi.fn().mockRejectedValue(new Error("unexpected")),
+    });
+
+    const supabase = createInvoiceSupabaseMock({
+      invoice: {
+        pdf_url: null,
+        vendus_id: "v-42",
+        locations: { slug: "circunvalacao" },
+      },
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await getInvoicePdf("inv-1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Erro ao obter PDF");
   });
 });
 
@@ -907,7 +1217,7 @@ describe("getInvoices", () => {
       invoicesList: mockInvoices,
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await getInvoices();
 
@@ -919,11 +1229,81 @@ describe("getInvoices", () => {
       invoicesError: true,
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await getInvoices();
 
     expect(result).toEqual([]);
+  });
+
+  it("returns empty array when data is null without error", async () => {
+    const supabase = {
+      from: (table: string) => {
+        if (table === "invoices_with_details") {
+          const query = {
+            eq: () => query,
+            order: () => query,
+            range: () => Promise.resolve({ data: null, error: null }),
+          };
+          return { select: () => query };
+        }
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+        };
+      },
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+
+    const result = await getInvoices();
+
+    expect(result).toEqual([]);
+  });
+
+  it("applies locationSlug and status filters", async () => {
+    const mockInvoices = [{ id: "inv-1" }];
+    let appliedFilters: Array<{ col: string; val: unknown }> = [];
+
+    const supabase = {
+      from: (table: string) => {
+        if (table === "invoices_with_details") {
+          const query = {
+            eq: (col: string, val: unknown) => {
+              appliedFilters.push({ col, val });
+              return query;
+            },
+            order: () => query,
+            range: () =>
+              Promise.resolve({ data: mockInvoices, error: null }),
+          };
+          return { select: () => query };
+        }
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+        };
+      },
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+
+    const result = await getInvoices({
+      locationSlug: "circunvalacao",
+      status: "issued",
+      limit: 10,
+      offset: 5,
+    });
+
+    expect(result).toEqual(mockInvoices);
+    expect(appliedFilters).toContainEqual({ col: "location_slug", val: "circunvalacao" });
+    expect(appliedFilters).toContainEqual({ col: "status", val: "issued" });
   });
 });
 
@@ -946,7 +1326,7 @@ describe("getInvoiceBySession", () => {
       }),
     };
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await getInvoiceBySession("sess-1");
 
@@ -965,7 +1345,7 @@ describe("processRetryQueue", () => {
 
   it("returns zeros when no pending items", async () => {
     const supabase = createInvoiceSupabaseMock({ retryItems: [] });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await processRetryQueue();
 
@@ -1111,7 +1491,7 @@ describe("processRetryQueue", () => {
     };
 
     const vendusClient = createVendusClientMock();
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await processRetryQueue();
@@ -1122,6 +1502,135 @@ describe("processRetryQueue", () => {
     // Should have been marked as "processing" then "completed"
     expect(updates.some((u) => (u as Record<string, unknown>).status === "processing")).toBe(true);
     expect(updates.some((u) => (u as Record<string, unknown>).status === "completed")).toBe(true);
+  });
+
+  it("retries with pending status when attempts < 4", async () => {
+    const updates: unknown[] = [];
+    const supabase = {
+      from: (table: string) => {
+        if (table === "vendus_retry_queue") {
+          return {
+            select: () => ({
+              eq: () => ({
+                lt: () => ({
+                  lt: () => ({
+                    limit: () =>
+                      Promise.resolve({
+                        data: [
+                          {
+                            id: "retry-1",
+                            operation: "invoice_create",
+                            entity_id: "sess-retry",
+                            payload: {
+                              sessionId: "sess-retry",
+                              locationSlug: "circunvalacao",
+                              paymentMethodId: 1,
+                              paidAmount: 10,
+                              issuedBy: "user-1",
+                            },
+                            attempts: 1, // < 4, so should become pending
+                            status: "pending",
+                          },
+                        ],
+                        error: null,
+                      }),
+                  }),
+                }),
+                eq: () => ({
+                  in: () => ({
+                    limit: () =>
+                      Promise.resolve({ data: [], error: null }),
+                  }),
+                }),
+              }),
+            }),
+            update: (data: unknown) => ({
+              eq: () => {
+                updates.push(data);
+                return Promise.resolve({ data: null, error: null });
+              },
+            }),
+            insert: () => Promise.resolve({ data: null, error: null }),
+          };
+        }
+        if (table === "sessions") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({ data: null, error: { message: "not found" } }),
+              }),
+            }),
+          };
+        }
+        if (table === "locations") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({ data: { id: "loc-1" }, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === "vendus_sync_log") {
+          return {
+            insert: () => ({
+              select: () => ({
+                single: () =>
+                  Promise.resolve({ data: { id: "log-1" }, error: null }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+        };
+      },
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(createVendusClientMock() as never);
+
+    const result = await processRetryQueue();
+
+    expect(result.processed).toBe(1);
+    expect(result.failed).toBe(1);
+    // Should be marked as "pending" (not "failed") because attempts=1 < 4
+    expect(updates.some((u) => (u as Record<string, unknown>).status === "pending")).toBe(true);
+    expect(updates.every((u) => (u as Record<string, unknown>).status !== "failed")).toBe(true);
+  });
+
+  it("handles retry queue null data with ?? [] fallback", async () => {
+    const supabase = {
+      from: (table: string) => {
+        if (table === "vendus_retry_queue") {
+          return {
+            select: () => ({
+              eq: () => ({
+                lt: () => ({
+                  lt: () => ({
+                    limit: () =>
+                      Promise.resolve({ data: null, error: null }),
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      },
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+
+    const result = await processRetryQueue();
+
+    expect(result).toEqual({ processed: 0, succeeded: 0, failed: 0 });
   });
 
   it("marks as failed after max attempts", async () => {
@@ -1214,7 +1723,7 @@ describe("processRetryQueue", () => {
       },
     };
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(createVendusClientMock() as never);
 
     const result = await processRetryQueue();
@@ -1224,5 +1733,261 @@ describe("processRetryQueue", () => {
     expect(result.succeeded).toBe(0);
     // Should be marked as "failed" (not "pending") because attempts >= 4
     expect(updates.some((u) => (u as Record<string, unknown>).status === "failed")).toBe(true);
+  });
+
+  it("uses 'Erro desconhecido' when non-Error thrown in retry processing", async () => {
+    // Use a non-invoice_create operation that falls through the if block,
+    // then make the "completed" update throw a non-Error value.
+    const updates: unknown[] = [];
+    const supabase = {
+      from: (table: string) => {
+        if (table === "vendus_retry_queue") {
+          return {
+            select: () => ({
+              eq: () => ({
+                lt: () => ({
+                  lt: () => ({
+                    limit: () =>
+                      Promise.resolve({
+                        data: [
+                          {
+                            id: "retry-ne",
+                            operation: "other_operation",
+                            entity_id: "entity-ne",
+                            payload: {},
+                            attempts: 0,
+                            status: "pending",
+                          },
+                        ],
+                        error: null,
+                      }),
+                  }),
+                }),
+                eq: () => ({
+                  in: () => ({
+                    limit: () =>
+                      Promise.resolve({ data: [], error: null }),
+                  }),
+                }),
+              }),
+            }),
+            update: (data: unknown) => {
+              const d = data as Record<string, unknown>;
+              // First update = "processing" (before try), let it succeed
+              if (d.status === "processing") {
+                return {
+                  eq: () => Promise.resolve({ data: null, error: null }),
+                };
+              }
+              // Second update = "completed" (inside try), throw non-Error
+              if (d.status === "completed") {
+                return {
+                  eq: () => {
+                    throw "non-error string"; // eslint-disable-line no-throw-literal
+                  },
+                };
+              }
+              // Catch update with last_error (in catch block)
+              updates.push(data);
+              return {
+                eq: () => Promise.resolve({ data: null, error: null }),
+              };
+            },
+          };
+        }
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+        };
+      },
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+
+    const result = await processRetryQueue();
+
+    expect(result.failed).toBe(1);
+    expect(
+      updates.some((u) => (u as Record<string, unknown>).last_error === "Erro desconhecido"),
+    ).toBe(true);
+  });
+
+  it("uses null fallback for locationId in addToRetryQueue when location is not found", async () => {
+    // When location is not found (null), location?.id = undefined.
+    // In addToRetryQueue, locationId ?? null converts undefined to null.
+    // To reach addToRetryQueue, Vendus must throw a retryable error.
+    const { VendusApiError: MockError } = await import("../client");
+    const retryInserts: unknown[] = [];
+    const supabase = {
+      from: (table: string) => {
+        if (table === "sessions") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({
+                    data: {
+                      id: "sess-noloc",
+                      location: "circunvalacao",
+                      orders: [
+                        {
+                          id: "o1",
+                          quantity: 1,
+                          unit_price: 10,
+                          notes: null,
+                          products: { id: "p1", name: "Test", price: 10, vendus_id: "v1", vendus_tax_id: "1" },
+                        },
+                      ],
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+          };
+        }
+        if (table === "payment_methods") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({ data: { vendus_id: "1", slug: "cash" }, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === "locations") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({ data: null, error: null }), // Location NOT found
+              }),
+            }),
+          };
+        }
+        if (table === "vendus_retry_queue") {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  in: () => ({
+                    limit: () =>
+                      Promise.resolve({ data: [], error: null }),
+                  }),
+                }),
+              }),
+            }),
+            insert: (data: unknown) => {
+              retryInserts.push(data);
+              return Promise.resolve({ data: null, error: null });
+            },
+          };
+        }
+        if (table === "vendus_sync_log") {
+          return {
+            insert: () => ({
+              select: () => ({
+                single: () =>
+                  Promise.resolve({ data: { id: "log-1" }, error: null }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+        };
+      },
+    };
+
+    const vendusClient = createVendusClientMock({
+      post: vi.fn().mockRejectedValue(
+        new MockError("SERVER_ERROR", "Internal error", undefined, 500),
+      ),
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await createInvoice({
+      sessionId: "sess-noloc",
+      locationSlug: "circunvalacao",
+      paymentMethodId: 1,
+      paidAmount: 10,
+      issuedBy: "user-1",
+    });
+
+    expect(result.success).toBe(false);
+    // The retry queue insert should have location_id: null (from undefined ?? null)
+    expect(retryInserts.length).toBeGreaterThan(0);
+    const inserted = retryInserts[0] as Record<string, unknown>;
+    expect(inserted.location_id).toBeNull();
+  });
+
+  it("skips unknown operation types in retry processing", async () => {
+    const updates: unknown[] = [];
+    const supabase = {
+      from: (table: string) => {
+        if (table === "vendus_retry_queue") {
+          return {
+            select: () => ({
+              eq: () => ({
+                lt: () => ({
+                  lt: () => ({
+                    limit: () =>
+                      Promise.resolve({
+                        data: [
+                          {
+                            id: "retry-unknown",
+                            operation: "unknown_operation",
+                            entity_id: "entity-1",
+                            payload: {},
+                            attempts: 0,
+                            status: "pending",
+                          },
+                        ],
+                        error: null,
+                      }),
+                  }),
+                }),
+                eq: () => ({
+                  in: () => ({
+                    limit: () =>
+                      Promise.resolve({ data: [], error: null }),
+                  }),
+                }),
+              }),
+            }),
+            update: (data: unknown) => ({
+              eq: () => {
+                updates.push(data);
+                return Promise.resolve({ data: null, error: null });
+              },
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            eq: () => ({
+              single: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+        };
+      },
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+
+    const result = await processRetryQueue();
+
+    expect(result.processed).toBe(1);
+    // Unknown operation succeeds (no-op), so it gets marked as completed
+    expect(result.succeeded).toBe(1);
   });
 });

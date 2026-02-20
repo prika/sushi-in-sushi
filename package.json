@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "vitest run && next build",
-    "start": "next start",
+    "dev": "NEXT_PUBLIC_APP_ENV=development next dev",
+    "dev:prod": "NEXT_PUBLIC_APP_ENV=production next dev",
+    "build": "vitest run && NEXT_PUBLIC_APP_ENV=production next build",
+    "start": "NEXT_PUBLIC_APP_ENV=production next start",
     "lint": "next lint",
     "test": "vitest",
     "test:run": "vitest run",

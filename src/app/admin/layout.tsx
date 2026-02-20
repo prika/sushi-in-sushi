@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SessionTimeoutWarning } from "@/components/auth/SessionTimeoutWarning";
+import { isDev } from "@/lib/supabase/env";
 
 const navigation = [
   {
@@ -135,7 +136,7 @@ export default function AdminLayout({
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 text-gray-900">
       {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 z-40 h-screen transition-transform ${
@@ -284,6 +285,13 @@ export default function AdminLayout({
 
       {/* Session timeout warning */}
       <SessionTimeoutWarning />
+
+      {/* Dev environment indicator */}
+      {isDev && (
+        <div className="fixed bottom-3 left-3 z-50 px-2.5 py-1 bg-amber-500 text-black text-xs font-bold rounded shadow-lg select-none opacity-80">
+          DEV
+        </div>
+      )}
     </div>
   );
 }

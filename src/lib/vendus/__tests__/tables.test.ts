@@ -20,7 +20,7 @@ import type { VendusRoomsResponse, VendusTablesResponse } from "../types";
 
 // Mock dependencies
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
+  createAdminClient: vi.fn(),
 }));
 
 vi.mock("../client", () => ({
@@ -52,7 +52,7 @@ vi.mock("../config", () => ({
   }),
 }));
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getVendusClient } from "../client";
 import { getVendusConfig } from "../config";
 
@@ -240,7 +240,7 @@ describe("importTablesFromVendus", () => {
     });
 
     const supabase = createTablesSupabaseMock({});
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await importTablesFromVendus({
@@ -275,7 +275,7 @@ describe("importTablesFromVendus", () => {
       onUpdate: () => updateCount++,
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await importTablesFromVendus({
@@ -310,7 +310,7 @@ describe("importTablesFromVendus", () => {
       onUpdate: () => updateCount++,
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await importTablesFromVendus({
@@ -345,7 +345,7 @@ describe("importTablesFromVendus", () => {
       onInsert: () => (inserted = true),
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await importTablesFromVendus({
@@ -360,7 +360,7 @@ describe("importTablesFromVendus", () => {
     const vendusClient = createVendusClientMock({ rooms: { rooms: [] } });
     const supabase = createTablesSupabaseMock({});
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await importTablesFromVendus({
@@ -393,7 +393,7 @@ describe("importTablesFromVendus", () => {
       insertError: true,
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await importTablesFromVendus({
@@ -409,7 +409,7 @@ describe("importTablesFromVendus", () => {
     const vendusClient = createVendusClientMock({ rooms: { rooms: [] } });
     const supabase = createTablesSupabaseMock({});
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await importTablesFromVendus({
@@ -417,6 +417,282 @@ describe("importTablesFromVendus", () => {
     });
 
     expect(result.duration).toBeGreaterThanOrEqual(0);
+  });
+
+  it("records error when fetching tables for a room fails", async () => {
+    const vendusClient = {
+      get: vi.fn().mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/rooms") && !endpoint.includes("/tables")) {
+          return Promise.resolve({
+            rooms: [
+              { id: "room-1", name: "Sala Falha", store_id: "s1", is_active: true },
+            ],
+          });
+        }
+        // Tables fetch for room-1 fails
+        if (endpoint.includes("/rooms/room-1/tables")) {
+          return Promise.reject(new Error("Connection timeout"));
+        }
+        return Promise.resolve({});
+      }),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+
+    const supabase = createTablesSupabaseMock({});
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await importTablesFromVendus({
+      locationSlug: "circunvalacao",
+    });
+
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0].error).toContain("Sala Falha");
+  });
+
+  it("handles VendusApiError in global rooms fetch", async () => {
+    const { VendusApiError: MockError } = await import("../client");
+    const vendusClient = {
+      get: vi.fn().mockRejectedValue(
+        new MockError("SERVER_ERROR", "Vendus offline", undefined, 500),
+      ),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+
+    const supabase = createTablesSupabaseMock({});
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await importTablesFromVendus({
+      locationSlug: "circunvalacao",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0].id).toBe("global");
+  });
+
+  it("handles plain Error (not VendusApiError) in global catch", async () => {
+    const vendusClient = {
+      get: vi.fn().mockRejectedValue(new Error("plain connection error")),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+
+    const supabase = createTablesSupabaseMock({});
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await importTablesFromVendus({
+      locationSlug: "circunvalacao",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.errors[0].error).toBe("plain connection error");
+  });
+
+  it("handles non-Error thrown value in per-table catch", async () => {
+    const vendusClient = {
+      get: vi.fn().mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/rooms") && !endpoint.includes("/tables")) {
+          return Promise.resolve({
+            rooms: [
+              { id: "room-1", name: "Sala", store_id: "s1", is_active: true },
+            ],
+          });
+        }
+        return Promise.resolve({
+          tables: [
+            { id: "vt-1", name: "Mesa 1", number: 1, room_id: "room-1", is_active: true },
+          ],
+        });
+      }),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+
+    // Custom mock where processVendusTable triggers a non-Error throw
+    const supabase = {
+      from: (table: string) => {
+        if (table === "tables") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: () => {
+                  throw "non-error value"; // eslint-disable-line no-throw-literal
+                },
+              }),
+            }),
+          };
+        }
+        if (table === "vendus_sync_log") {
+          return {
+            insert: () => ({
+              select: () => ({
+                single: () =>
+                  Promise.resolve({ data: { id: "log-1" }, error: null }),
+              }),
+            }),
+            update: () => ({
+              eq: () => Promise.resolve({ data: null, error: null }),
+            }),
+          };
+        }
+        return {};
+      },
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await importTablesFromVendus({
+      locationSlug: "circunvalacao",
+    });
+
+    expect(result.recordsFailed).toBe(1);
+    expect(result.errors[0].error).toBe("Erro desconhecido");
+  });
+
+  it("skips sync log update when logEntry is null", async () => {
+    const vendusClient = createVendusClientMock({ rooms: { rooms: [] } });
+
+    // Custom mock where sync log insert returns null data
+    const supabase = {
+      from: (table: string) => {
+        if (table === "vendus_sync_log") {
+          return {
+            insert: () => ({
+              select: () => ({
+                single: () =>
+                  Promise.resolve({ data: null, error: null }),
+              }),
+            }),
+            update: vi.fn(() => ({
+              eq: () => Promise.resolve({ data: null, error: null }),
+            })),
+          };
+        }
+        return {};
+      },
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await importTablesFromVendus({
+      locationSlug: "circunvalacao",
+    });
+
+    // Should succeed without trying to update the sync log
+    expect(result.success).toBe(true);
+  });
+
+  it("returns empty from getTableMapping when data is null without error", async () => {
+    const supabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            order: () =>
+              Promise.resolve({ data: null, error: null }),
+          }),
+        }),
+      }),
+    };
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+
+    const result = await getTableMapping("circunvalacao");
+    expect(result).toEqual([]);
+  });
+
+  it("handles rooms || [] fallback when rooms property is undefined", async () => {
+    const vendusClient = {
+      get: vi.fn().mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/rooms") && !endpoint.includes("/tables")) {
+          return Promise.resolve({ rooms: undefined });
+        }
+        return Promise.resolve({});
+      }),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+
+    const supabase = createTablesSupabaseMock({});
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await importTablesFromVendus({
+      locationSlug: "circunvalacao",
+    });
+
+    expect(result.recordsProcessed).toBe(0);
+    expect(result.success).toBe(true);
+  });
+
+  it("handles tables || [] fallback when tables property is undefined", async () => {
+    const vendusClient = {
+      get: vi.fn().mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/rooms") && !endpoint.includes("/tables")) {
+          return Promise.resolve({
+            rooms: [{ id: "room-1", name: "Sala", store_id: "s1", is_active: true }],
+          });
+        }
+        // Return object with undefined tables
+        return Promise.resolve({ tables: undefined });
+      }),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+
+    const supabase = createTablesSupabaseMock({});
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await importTablesFromVendus({
+      locationSlug: "circunvalacao",
+    });
+
+    expect(result.recordsProcessed).toBe(0);
+  });
+
+  it("handles rooms returned as array directly", async () => {
+    const vendusClient = {
+      get: vi.fn().mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/rooms") && !endpoint.includes("/tables")) {
+          // Return array directly instead of { rooms: [...] }
+          return Promise.resolve([
+            { id: "room-1", name: "Sala Array", store_id: "s1", is_active: true },
+          ]);
+        }
+        if (endpoint.includes("/rooms/room-1/tables")) {
+          // Return array directly
+          return Promise.resolve([
+            { id: "vt-1", name: "Mesa 1", number: 1, room_id: "room-1", is_active: true },
+          ]);
+        }
+        return Promise.resolve({});
+      }),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+
+    const supabase = createTablesSupabaseMock({});
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await importTablesFromVendus({
+      locationSlug: "circunvalacao",
+    });
+
+    expect(result.recordsProcessed).toBe(1);
   });
 });
 
@@ -450,7 +726,7 @@ describe("getTableMapping", () => {
     ];
 
     const supabase = createTablesSupabaseMock({ tables: mockTables });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await getTableMapping("circunvalacao");
 
@@ -459,7 +735,7 @@ describe("getTableMapping", () => {
 
   it("returns empty array on error", async () => {
     const supabase = createTablesSupabaseMock({ tablesError: true });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await getTableMapping("circunvalacao");
 
@@ -482,7 +758,7 @@ describe("mapTableToVendus", () => {
       onUpdate: (data) => (updatedData = data),
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await mapTableToVendus("t1", "vt-1", "vr-1");
 
@@ -501,7 +777,7 @@ describe("mapTableToVendus", () => {
       onUpdate: (data) => (updatedData = data),
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await mapTableToVendus("t1", "vt-1");
 
@@ -516,7 +792,7 @@ describe("mapTableToVendus", () => {
 
   it("returns error on DB failure", async () => {
     const supabase = createTablesSupabaseMock({ updateError: true });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await mapTableToVendus("t1", "vt-1");
 
@@ -536,7 +812,7 @@ describe("unmapTableFromVendus", () => {
       onUpdate: (data) => (updatedData = data),
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await unmapTableFromVendus("t1");
 
@@ -550,7 +826,7 @@ describe("unmapTableFromVendus", () => {
 
   it("returns error on DB failure", async () => {
     const supabase = createTablesSupabaseMock({ updateError: true });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
     const result = await unmapTableFromVendus("t1");
 
@@ -574,6 +850,73 @@ describe("getVendusTables", () => {
     await expect(getVendusTables("test")).rejects.toThrow(
       "Vendus nao configurado",
     );
+  });
+
+  it("handles rooms returned as array in getVendusTables", async () => {
+    const vendusClient = {
+      get: vi.fn().mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/rooms") && !endpoint.includes("/tables")) {
+          return Promise.resolve([
+            { id: "room-1", name: "Sala 1", store_id: "s1", is_active: true },
+          ]);
+        }
+        return Promise.resolve([
+          { id: "vt-1", name: "Mesa 1", number: 1, room_id: "room-1", is_active: true },
+        ]);
+      }),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await getVendusTables("circunvalacao");
+
+    expect(result.rooms).toHaveLength(1);
+    expect(result.tables["room-1"]).toHaveLength(1);
+  });
+
+  it("handles rooms || [] fallback in getVendusTables", async () => {
+    const vendusClient = {
+      get: vi.fn().mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/rooms") && !endpoint.includes("/tables")) {
+          return Promise.resolve({ rooms: undefined });
+        }
+        return Promise.resolve({ tables: undefined });
+      }),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await getVendusTables("circunvalacao");
+
+    expect(result.rooms).toEqual([]);
+  });
+
+  it("handles tables || [] fallback in getVendusTables", async () => {
+    const vendusClient = {
+      get: vi.fn().mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/rooms") && !endpoint.includes("/tables")) {
+          return Promise.resolve({
+            rooms: [{ id: "room-1", name: "Sala", store_id: "s1", is_active: true }],
+          });
+        }
+        return Promise.resolve({});
+      }),
+      post: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await getVendusTables("circunvalacao");
+
+    expect(result.tables["room-1"]).toEqual([]);
   });
 
   it("returns rooms and tables grouped by room id", async () => {
@@ -607,4 +950,46 @@ describe("getVendusTables", () => {
     expect(result.tables["room-1"]).toHaveLength(2);
     expect(result.tables["room-2"]).toHaveLength(1);
   });
+});
+
+// =============================================
+// ADDITIONAL BRANCH COVERAGE
+// =============================================
+
+describe("importTablesFromVendus - remaining branch coverage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses fallback name 'Mesa N' when vTable.name is falsy", async () => {
+    const vendusClient = createVendusClientMock({
+      rooms: {
+        rooms: [
+          { id: "room-1", name: "Sala", store_id: "s1", is_active: true },
+        ],
+      },
+      tablesByRoom: {
+        "room-1": {
+          tables: [
+            { id: "vt-1", name: "", number: 5, room_id: "room-1", is_active: true },
+          ],
+        },
+      },
+    });
+
+    const inserts: unknown[] = [];
+    const supabase = createTablesSupabaseMock({
+      onInsert: (data) => inserts.push(data),
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    await importTablesFromVendus({ locationSlug: "circunvalacao" });
+
+    expect(inserts.length).toBeGreaterThan(0);
+    const inserted = inserts[0] as Record<string, unknown>;
+    expect(inserted.name).toBe("Mesa 5");
+  });
+
 });

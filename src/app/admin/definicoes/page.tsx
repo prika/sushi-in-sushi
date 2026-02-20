@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Card, Button, Modal } from "@/components/ui";
+import { Card, Button, Modal, AlertModal, ConfirmDialog } from "@/components/ui";
 import type {
   ReservationSettings,
   RestaurantClosure,
@@ -30,9 +30,6 @@ import type {
   CreateRestaurantData,
   UpdateRestaurantData,
 } from "@/domain/entities/Restaurant";
-import { SupabaseRestaurantRepository } from "@/infrastructure/repositories/SupabaseRestaurantRepository";
-import { SupabaseTableRepository } from "@/infrastructure/repositories/SupabaseTableRepository";
-import { CreateTablesForRestaurantUseCase } from "@/application/use-cases/restaurants";
 
 // =============================================
 // CONSTANTS
@@ -2075,6 +2072,64 @@ function RestaurantManagementTab() {
   const [recreatingTablesFor, setRecreatingTablesFor] = useState<string | null>(
     null,
   );
+
+  // Modal states for replacing system alerts/confirms
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: "success" | "error" | "warning" | "info";
+  }>({ isOpen: false, title: "", message: "", variant: "info" });
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: "danger" | "warning" | "info";
+    confirmText: string;
+    cancelText: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "warning",
+    confirmText: "Confirmar",
+    cancelText: "Cancelar",
+    onConfirm: () => {},
+  });
+
+  const showAlert = (
+    title: string,
+    message: string,
+    variant: "success" | "error" | "warning" | "info" = "info",
+  ) => {
+    setAlertModal({ isOpen: true, title, message, variant });
+  };
+
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    options?: {
+      variant?: "danger" | "warning" | "info";
+      confirmText?: string;
+      cancelText?: string;
+      onCancel?: () => void;
+    },
+  ) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      variant: options?.variant ?? "warning",
+      confirmText: options?.confirmText ?? "Confirmar",
+      cancelText: options?.cancelText ?? "Cancelar",
+      onConfirm,
+      onCancel: options?.onCancel,
+    });
+  };
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -2155,6 +2210,22 @@ function RestaurantManagementTab() {
     setShowModal(true);
   };
 
+  const recreateTablesViaApi = async (
+    slug: string,
+    forceRecreate: boolean,
+  ): Promise<{ success: boolean; count?: number; error?: string }> => {
+    const res = await fetch("/api/tables/recreate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ restaurantSlug: slug, forceRecreate }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || "Erro desconhecido" };
+    }
+    return { success: true, count: data.count };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -2163,8 +2234,10 @@ function RestaurantManagementTab() {
       formData.gamesPrizeType === "free_product" &&
       !formData.gamesPrizeProductId?.trim()
     ) {
-      alert(
+      showAlert(
+        "Produto obrigatório",
         "Selecione o produto do prémio quando o tipo de prémio é «Produto grátis».",
+        "warning",
       );
       return;
     }
@@ -2174,105 +2247,86 @@ function RestaurantManagementTab() {
       editingRestaurant &&
       formData.maxCapacity !== editingRestaurant.maxCapacity
     ) {
-      // Calcular nova distribuição baseada em pessoas por mesa
       const ppt = formData.defaultPeoplePerTable;
       const totalTables = Math.ceil(formData.maxCapacity / ppt);
       const totalCapacity = totalTables * ppt;
 
-      const shouldRecreate = confirm(
-        `⚠️ A lotação mudou de ${editingRestaurant.maxCapacity} para ${formData.maxCapacity} pessoas!\n\n` +
-          `Para refletir a nova lotação, as mesas precisam ser recriadas.\n\n` +
-          `📊 Nova distribuição:\n` +
-          `${totalTables} mesas de ${ppt} pessoas = ${totalCapacity} lugares\n\n` +
-          `Deseja recriar as mesas agora?`,
-      );
+      showConfirm(
+        "Lotação alterada",
+        `A lotação mudou de ${editingRestaurant.maxCapacity} para ${formData.maxCapacity} pessoas.\n\nPara refletir a nova lotação, as mesas precisam ser recriadas.\n\nNova distribuição:\n${totalTables} mesas de ${ppt} pessoas = ${totalCapacity} lugares\n\nDeseja recriar as mesas agora?`,
+        async () => {
+          setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+          setCreatingTables(true);
+          try {
+            await update(editingRestaurant.id, toRestaurantPayload(formData));
 
-      if (shouldRecreate) {
-        setCreatingTables(true);
-        try {
-          // 1. Atualizar restaurante
-          await update(editingRestaurant.id, toRestaurantPayload(formData));
+            const result = await recreateTablesViaApi(formData.slug, true);
 
-          // 2. Recriar mesas
-          const supabase = createClient();
-          const restaurantRepo = new SupabaseRestaurantRepository(supabase);
-          const tableRepo = new SupabaseTableRepository(supabase);
-          const createTablesUseCase = new CreateTablesForRestaurantUseCase(
-            restaurantRepo,
-            tableRepo,
-          );
-
-          const result = await createTablesUseCase.execute({
-            restaurantSlug: formData.slug,
-            forceRecreate: true,
-          });
-
-          if (result.success) {
-            alert(
-              `✅ Restaurante atualizado!\n\n` +
-                `🪑 Mesas recriadas: ${totalTables} mesas de ${ppt} pessoas = ${totalCapacity} lugares`,
+            if (result.success) {
+              showAlert(
+                "Restaurante atualizado",
+                `Mesas recriadas: ${totalTables} mesas de ${ppt} pessoas = ${totalCapacity} lugares`,
+                "success",
+              );
+            } else {
+              showAlert(
+                "Aviso",
+                `Restaurante atualizado, mas erro ao recriar mesas:\n${result.error}`,
+                "warning",
+              );
+            }
+          } catch (err) {
+            showAlert(
+              "Erro",
+              err instanceof Error ? err.message : "Erro desconhecido",
+              "error",
             );
-          } else {
-            alert(
-              `⚠️ Restaurante atualizado, mas erro ao recriar mesas:\n${result.error}`,
-            );
+          } finally {
+            setCreatingTables(false);
           }
-        } catch (err) {
-          alert(
-            `❌ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`,
-          );
-        } finally {
-          setCreatingTables(false);
-        }
-        setShowModal(false);
-        return;
-      } else {
-        // Só atualiza restaurante, sem recriar mesas
-        await update(editingRestaurant.id, toRestaurantPayload(formData));
-        setShowModal(false);
-        return;
-      }
+          setShowModal(false);
+        },
+        {
+          variant: "warning",
+          confirmText: "Recriar mesas",
+          cancelText: "Guardar sem recriar",
+          onCancel: async () => {
+            setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+            await update(editingRestaurant.id, toRestaurantPayload(formData));
+            setShowModal(false);
+          },
+        },
+      );
+      return;
     }
 
     setCreatingTables(true);
 
     try {
       if (editingRestaurant) {
-        // Edição sem mudança de lotação
         await update(editingRestaurant.id, toRestaurantPayload(formData));
       } else {
-        // Ao criar: cria restaurante + mesas automaticamente
         const restaurant = await create(toRestaurantPayload(formData));
 
         if (restaurant) {
-          // Criar mesas automaticamente
-          const supabase = createClient();
-          const restaurantRepo = new SupabaseRestaurantRepository(supabase);
-          const tableRepo = new SupabaseTableRepository(supabase);
-          const createTablesUseCase = new CreateTablesForRestaurantUseCase(
-            restaurantRepo,
-            tableRepo,
-          );
+          const result = await recreateTablesViaApi(formData.slug, false);
 
-          const tablesResult = await createTablesUseCase.execute({
-            restaurantSlug: formData.slug,
-            forceRecreate: false,
-          });
-
-          if (tablesResult.success) {
+          if (result.success) {
             const ppt = formData.defaultPeoplePerTable;
-            const totalTables = tablesResult.data.length;
+            const totalTables = result.count ?? 0;
             const totalCapacity = totalTables * ppt;
 
-            alert(
-              `✅ Restaurante criado!\n\n` +
-                `🪑 ${totalTables} mesas criadas:\n` +
-                `${totalTables}×${ppt} = ${totalCapacity} lugares`,
+            showAlert(
+              "Restaurante criado",
+              `${totalTables} mesas criadas:\n${totalTables} x ${ppt} = ${totalCapacity} lugares`,
+              "success",
             );
           } else {
-            console.error("Erro ao criar mesas:", tablesResult.error);
-            alert(
-              `⚠️ Restaurante criado, mas houve erro ao criar mesas:\n${tablesResult.error}`,
+            console.error("Erro ao criar mesas:", result.error);
+            showAlert(
+              "Aviso",
+              `Restaurante criado, mas houve erro ao criar mesas:\n${result.error}`,
+              "warning",
             );
           }
         }
@@ -2281,67 +2335,68 @@ function RestaurantManagementTab() {
       setShowModal(false);
     } catch (error) {
       console.error("Erro ao submeter:", error);
-      alert(
-        `❌ Erro: ${error instanceof Error ? error.message : "Erro desconhecido"}`,
+      showAlert(
+        "Erro",
+        error instanceof Error ? error.message : "Erro desconhecido",
+        "error",
       );
     } finally {
       setCreatingTables(false);
     }
   };
 
-  const handleRecreateTables = async (restaurant: Restaurant) => {
-    // Calcular distribuição baseada em pessoas por mesa
+  const handleRecreateTables = (restaurant: Restaurant) => {
     const ppt = restaurant.defaultPeoplePerTable;
     const totalTables = Math.ceil(restaurant.maxCapacity / ppt);
     const totalCapacity = totalTables * ppt;
 
-    if (
-      !confirm(
-        `Recriar mesas para ${restaurant.name}?\n\n` +
-          `📊 Nova distribuição:\n` +
-          `${totalTables} mesas de ${ppt} pessoas = ${totalCapacity} lugares\n\n` +
-          `⚠️ As mesas existentes serão eliminadas e recriadas.`,
-      )
-    ) {
-      return;
-    }
+    showConfirm(
+      `Recriar mesas de ${restaurant.name}?`,
+      `Nova distribuição:\n${totalTables} mesas de ${ppt} pessoas = ${totalCapacity} lugares\n\nAs mesas existentes serão eliminadas e recriadas.`,
+      async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        setRecreatingTablesFor(restaurant.id);
 
-    setRecreatingTablesFor(restaurant.id);
+        try {
+          const result = await recreateTablesViaApi(restaurant.slug, true);
 
-    try {
-      const supabase = createClient();
-      const restaurantRepo = new SupabaseRestaurantRepository(supabase);
-      const tableRepo = new SupabaseTableRepository(supabase);
-      const createTablesUseCase = new CreateTablesForRestaurantUseCase(
-        restaurantRepo,
-        tableRepo,
-      );
-
-      const result = await createTablesUseCase.execute({
-        restaurantSlug: restaurant.slug,
-        forceRecreate: true,
-      });
-
-      if (result.success) {
-        alert(
-          `✅ Mesas recriadas com sucesso!\n\n` +
-            `🪑 ${result.data.length} mesas de ${ppt} pessoas = ${totalCapacity} lugares`,
-        );
-      } else {
-        alert(`❌ Erro ao recriar mesas:\n${result.error}`);
-      }
-    } catch (err) {
-      alert(
-        `❌ Erro: ${err instanceof Error ? err.message : "Erro desconhecido"}`,
-      );
-    } finally {
-      setRecreatingTablesFor(null);
-    }
+          if (result.success) {
+            showAlert(
+              "Mesas recriadas",
+              `${result.count} mesas de ${ppt} pessoas = ${totalCapacity} lugares`,
+              "success",
+            );
+          } else {
+            showAlert(
+              "Erro ao recriar mesas",
+              result.error || "Erro desconhecido",
+              "error",
+            );
+          }
+        } catch (err) {
+          showAlert(
+            "Erro",
+            err instanceof Error ? err.message : "Erro desconhecido",
+            "error",
+          );
+        } finally {
+          setRecreatingTablesFor(null);
+        }
+      },
+      { variant: "danger", confirmText: "Recriar mesas" },
+    );
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja eliminar este restaurante?")) return;
-    await remove(id);
+  const handleDelete = (id: string) => {
+    showConfirm(
+      "Eliminar restaurante",
+      "Tem certeza que deseja eliminar este restaurante? Esta ação não pode ser revertida.",
+      async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        await remove(id);
+      },
+      { variant: "danger", confirmText: "Eliminar" },
+    );
   };
 
   if (isLoading) {
@@ -2581,6 +2636,33 @@ function RestaurantManagementTab() {
           </p>
         </div>
       )}
+
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => {
+          if (confirmDialog.onCancel) {
+            confirmDialog.onCancel();
+          } else {
+            setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+          }
+        }}
+      />
 
       {/* Modal */}
       {showModal && (

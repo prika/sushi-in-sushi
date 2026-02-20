@@ -16,7 +16,7 @@ import {
 
 // Mock dependencies
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
+  createAdminClient: vi.fn(),
 }));
 
 vi.mock("../client", () => ({
@@ -48,7 +48,7 @@ vi.mock("../config", () => ({
   }),
 }));
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getVendusClient } from "../client";
 import { getVendusConfig } from "../config";
 
@@ -139,12 +139,12 @@ describe("sendOrderToKitchen", () => {
 
     expect(result.success).toBe(true);
     // Should not call Supabase or Vendus
-    expect(createClient).not.toHaveBeenCalled();
+    expect(createAdminClient).not.toHaveBeenCalled();
   });
 
   it("returns error when session not found", async () => {
     const supabase = createKitchenSupabaseMock({ session: null });
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(
       createVendusClientMock() as never,
     );
@@ -168,7 +168,7 @@ describe("sendOrderToKitchen", () => {
       orders: [],
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(
       createVendusClientMock() as never,
     );
@@ -196,7 +196,7 @@ describe("sendOrderToKitchen", () => {
       ],
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await sendOrderToKitchen({
@@ -235,7 +235,7 @@ describe("sendOrderToKitchen", () => {
       ],
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     await sendOrderToKitchen({
@@ -257,7 +257,7 @@ describe("sendOrderToKitchen", () => {
       ],
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     await sendOrderToKitchen({
@@ -282,7 +282,7 @@ describe("sendOrderToKitchen", () => {
       onSyncLogInsert: () => (syncLogged = true),
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     await sendOrderToKitchen({
@@ -311,7 +311,7 @@ describe("sendOrderToKitchen", () => {
       onSyncLogInsert: () => (syncLogged = true),
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     // Should NOT throw - kitchen printing is non-blocking
@@ -395,5 +395,82 @@ describe("getKitchenPrinters", () => {
     const result = await getKitchenPrinters("circunvalacao");
 
     expect(result).toEqual([]);
+  });
+
+  it("handles printers returned as array directly", async () => {
+    const printers = [
+      { id: "p1", name: "Cozinha", type: "kitchen" },
+    ];
+
+    const vendusClient = createVendusClientMock({
+      get: vi.fn().mockResolvedValue(printers),
+    });
+
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await getKitchenPrinters("circunvalacao");
+
+    expect(result).toEqual(printers);
+  });
+
+  it("returns empty array when raw.printers is falsy", async () => {
+    const vendusClient = createVendusClientMock({
+      get: vi.fn().mockResolvedValue({}),
+    });
+
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await getKitchenPrinters("circunvalacao");
+
+    expect(result).toEqual([]);
+  });
+
+  it("handles plain Error (not VendusApiError) in catch", async () => {
+    const vendusClient = createVendusClientMock({
+      post: vi.fn().mockRejectedValue(new Error("plain error")),
+    });
+
+    const supabase = createKitchenSupabaseMock({
+      session: { id: "sess-1", tables: { number: 1, name: "Mesa 1" } },
+      orders: [
+        { id: "o1", quantity: 1, notes: null, products: { name: "Sake" } },
+      ],
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await sendOrderToKitchen({
+      sessionId: "sess-1",
+      orderIds: ["o1"],
+      locationSlug: "circunvalacao",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("plain error");
+  });
+
+  it("uses fallback product name when order.products is null", async () => {
+    const vendusClient = createVendusClientMock();
+    const supabase = createKitchenSupabaseMock({
+      session: { id: "sess-1", tables: { number: 1, name: "Mesa 1" } },
+      orders: [
+        { id: "o1", quantity: 1, notes: null, products: null },
+      ],
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await sendOrderToKitchen({
+      sessionId: "sess-1",
+      orderIds: ["o1"],
+      locationSlug: "circunvalacao",
+    });
+
+    expect(result.success).toBe(true);
+    const callArg = vendusClient.post.mock.calls[0][1] as Record<string, unknown>;
+    const items = callArg.items as Array<Record<string, unknown>>;
+    expect(items[0].product_name).toBe("Produto");
   });
 });

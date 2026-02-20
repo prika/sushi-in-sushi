@@ -25,31 +25,31 @@ export interface VendusConfig {
 // =============================================
 
 export interface VendusProduct {
-  id: string;
+  id: number;
   reference: string;
-  name: string;
+  title: string;
   description?: string;
-  price: number;
+  gross_price: string;
+  price_without_tax?: string;
+  supply_price?: string;
   tax_id: string;
-  tax_value?: number;
-  category_id?: string;
-  category_name?: string;
-  is_active: boolean;
+  category_id?: number;
+  status: string; // "on" | "off"
   stock?: number;
   unit?: string;
   barcode?: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface VendusProductRequest {
   reference?: string;
-  name: string;
+  title: string;
   description?: string;
-  price: number;
+  gross_price: string;
   tax_id: string;
   category_id?: string;
-  is_active?: boolean;
+  status?: string; // "on" | "off"
   unit?: string;
   barcode?: string;
 }
@@ -248,10 +248,20 @@ export interface SyncPreview {
 /** Item na pré-visualização (criar ou atualizar) */
 export interface SyncPreviewItem {
   vendusId: string;
+  /** All vendus IDs by service mode */
+  vendusIds?: Record<string, string>;
   name: string;
   price: number;
   action: "create" | "update";
   localId?: string;
+  /** Service modes derived from Vendus category */
+  serviceModes?: string[];
+  /** Vendus category name (for admin display) */
+  vendusCategory?: string;
+  /** Whether local category was auto-matched by product name */
+  categoryAutoMatched?: boolean;
+  /** Per-service-mode pricing from Vendus */
+  servicePrices?: Record<string, number>;
 }
 
 /** Conflito detetado (ambos alterados); inclui resolução aplicada */

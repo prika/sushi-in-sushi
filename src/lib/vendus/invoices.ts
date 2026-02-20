@@ -2,7 +2,7 @@
  * Vendus Invoice Management Service
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getVendusClient, VendusApiError } from "./client";
 import { getVendusConfig, VENDUS_TAX_RATES, TAX_PERCENTAGES } from "./config";
 import type { VendusRetryQueue } from "@/types/database";
@@ -45,7 +45,7 @@ export async function createInvoice(
   }
 
   const client = getVendusClient(config, locationSlug);
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   try {
     // Fetch session with orders
@@ -137,7 +137,7 @@ export async function createInvoice(
       };
     }
 
-    console.log("[Vendus] Creating invoice for session:", sessionId);
+    console.info("[Vendus] Creating invoice for session:", sessionId);
 
     // Create invoice in Vendus
     const vendusResponse = await client.post<VendusInvoiceResponse>(
@@ -145,7 +145,7 @@ export async function createInvoice(
       invoiceRequest as unknown as Record<string, unknown>,
     );
 
-    console.log("[Vendus] Invoice created:", vendusResponse.document_number);
+    console.info("[Vendus] Invoice created:", vendusResponse.document_number);
 
     // Save invoice locally
     const { data: invoice, error: insertError } = await supabase
@@ -250,7 +250,7 @@ export async function voidInvoice(
   reason: string,
   voidedBy: string,
 ): Promise<VoidInvoiceResult> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Get invoice details
   const { data: invoice } = await supabase
@@ -282,7 +282,7 @@ export async function voidInvoice(
   const client = getVendusClient(config, locationSlug);
 
   try {
-    console.log("[Vendus] Voiding invoice:", invoice.vendus_document_number);
+    console.info("[Vendus] Voiding invoice:", invoice.vendus_document_number);
 
     await client.post(`/documents/${invoice.vendus_id}/void`, { reason });
 
@@ -307,7 +307,7 @@ export async function voidInvoice(
       initiated_by: voidedBy,
     });
 
-    console.log("[Vendus] Invoice voided successfully");
+    console.info("[Vendus] Invoice voided successfully");
     return { success: true };
   } catch (error) {
     const errorMessage =
@@ -329,7 +329,7 @@ export async function voidInvoice(
  * Get PDF URL for an invoice
  */
 export async function getInvoicePdf(invoiceId: string): Promise<GetPdfResult> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: invoice } = await supabase
     .from("invoices")
@@ -401,7 +401,7 @@ export async function getInvoices(options?: {
   limit?: number;
   offset?: number;
 }) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   let query = supabase
     .from("invoices_with_details")
@@ -434,7 +434,7 @@ export async function getInvoices(options?: {
  * Get invoice by session ID
  */
 export async function getInvoiceBySession(sessionId: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data } = await supabase
     .from("invoices_with_details")
@@ -459,7 +459,7 @@ async function addToRetryQueue(params: {
   locationId?: string;
   payload: Record<string, unknown>;
 }): Promise<void> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Check for existing pending retry to prevent duplicates
   const { data: existing } = await supabase
@@ -471,7 +471,7 @@ async function addToRetryQueue(params: {
     .limit(1);
 
   if (existing && existing.length > 0) {
-    console.log(
+    console.info(
       "[Vendus] Retry already queued for:",
       params.operation,
       params.entityId,
@@ -488,7 +488,7 @@ async function addToRetryQueue(params: {
     next_retry_at: new Date(Date.now() + 60000).toISOString(),
   });
 
-  console.log(
+  console.info(
     "[Vendus] Added to retry queue:",
     params.operation,
     params.entityId,
@@ -503,7 +503,7 @@ export async function processRetryQueue(): Promise<{
   succeeded: number;
   failed: number;
 }> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const stats = { processed: 0, succeeded: 0, failed: 0 };
 
   // Get pending items ready for retry
@@ -547,7 +547,7 @@ export async function processRetryQueue(): Promise<{
         .eq("id", item.id);
 
       stats.succeeded++;
-      console.log("[Vendus] Retry succeeded:", item.operation, item.entity_id);
+      console.info("[Vendus] Retry succeeded:", item.operation, item.entity_id);
     } catch (error) {
       // Calculate next retry time with exponential backoff
       const nextRetry = new Date(

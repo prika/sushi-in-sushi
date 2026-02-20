@@ -5,11 +5,11 @@
  * Store ID e Register ID são configurados por localização no admin.
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { VendusConfig } from "./types";
 
 // Tabela locations não está nos tipos gerados; usar cast para query dinâmica
-function fromLocations(supabase: Awaited<ReturnType<typeof createClient>>) {
+function fromLocations(supabase: ReturnType<typeof createAdminClient>) {
   type LocationsQuery = {
     select: (c: string) => {
       eq: (
@@ -48,7 +48,7 @@ function fromLocations(supabase: Awaited<ReturnType<typeof createClient>>) {
 // API CONFIGURATION
 // =============================================
 
-export const VENDUS_API_BASE_URL = "https://www.vendus.pt/ws/v1.2";
+export const VENDUS_API_BASE_URL = "https://www.vendus.pt/ws/v1.1";
 
 export const VENDUS_DEFAULTS = {
   timeout: 30000, // 30 seconds
@@ -116,7 +116,7 @@ export async function getVendusConfig(
     return null;
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: location } = await fromLocations(supabase)
     .select("vendus_store_id, vendus_register_id, vendus_enabled")
     .eq("slug", locationSlug)
@@ -155,7 +155,7 @@ export async function getConfiguredLocations(): Promise<string[]> {
     return [];
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: locations } = await fromLocations(supabase)
     .select("slug")
     .eq("vendus_enabled", true)

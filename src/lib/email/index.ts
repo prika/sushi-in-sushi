@@ -41,24 +41,21 @@ async function updateReservationEmailTracking(
 ) {
   try {
     const supabase = await createClient();
-    const extendedSupabase = supabase as unknown as {
-      from: (table: string) => ReturnType<typeof supabase.from>;
-    };
 
     const updateData =
       emailType === "customer"
         ? {
             customer_email_id: emailId,
             customer_email_sent_at: new Date().toISOString(),
-            customer_email_status: "sent",
+            customer_email_status: "sent" as const,
           }
         : {
             confirmation_email_id: emailId,
             confirmation_email_sent_at: new Date().toISOString(),
-            confirmation_email_status: "sent",
+            confirmation_email_status: "sent" as const,
           };
 
-    const { error } = await extendedSupabase
+    const { error } = await supabase
       .from("reservations")
       .update(updateData)
       .eq("id", reservationId);

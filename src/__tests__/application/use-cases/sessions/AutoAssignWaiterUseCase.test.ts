@@ -43,11 +43,13 @@ function createMockTableRepository(): ITableRepository {
 function createMockRestaurantRepository(): IRestaurantRepository {
   return {
     findAll: vi.fn(),
+    findActive: vi.fn(),
     findById: vi.fn(),
     findBySlug: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    validateSlugUnique: vi.fn(),
   };
 }
 
@@ -64,6 +66,15 @@ function createTestRestaurant(overrides: Partial<Restaurant> = {}): Restaurant {
     autoTableAssignment: true,
     autoReservations: false,
     orderCooldownMinutes: 0,
+    showUpgradeAfterOrder: false,
+    showUpgradeAtBill: false,
+    gamesEnabled: false,
+    gamesMode: 'selection',
+    gamesPrizeType: 'none',
+    gamesPrizeValue: null,
+    gamesPrizeProductId: null,
+    gamesMinRoundsForPrize: 3,
+    gamesQuestionsPerRound: 5,
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date(),

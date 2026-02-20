@@ -4,6 +4,7 @@
 import type { SessionStatus as DomainSessionStatus } from "@/domain/value-objects/SessionStatus";
 import type { OrderStatus as DomainOrderStatus } from "@/domain/value-objects/OrderStatus";
 import type { TableStatus as DomainTableStatus } from "@/domain/value-objects/TableStatus";
+import type { Ingredient } from "@/domain/entities/Product";
 
 // Re-export domain types for backwards compatibility
 export type SessionStatus = DomainSessionStatus;
@@ -13,6 +14,7 @@ export type TableStatus = DomainTableStatus;
 // Location is now a dynamic string (restaurant slug)
 // Use useLocations() hook to get available locations
 export type Location = string;
+
 
 // =============================================================================
 // SUPABASE JSON TYPE
@@ -115,7 +117,9 @@ export type Database = {
           is_available: boolean;
           is_rodizio: boolean;
           sort_order: number;
+          ingredients: Ingredient[] | null;
           vendus_id: string | null;
+          vendus_ids: Record<string, string>;
           vendus_reference: string | null;
           vendus_tax_id: string | null;
           vendus_synced_at: string | null;
@@ -123,6 +127,8 @@ export type Database = {
           created_at: string;
           updated_at: string;
           location_id: string | null;
+          service_modes: string[];
+          service_prices: Record<string, number>;
         };
         Insert: {
           id?: string;
@@ -135,7 +141,9 @@ export type Database = {
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;
+          ingredients?: Ingredient[] | null;
           vendus_id?: string | null;
+          vendus_ids?: Record<string, string>;
           vendus_reference?: string | null;
           vendus_tax_id?: string | null;
           vendus_synced_at?: string | null;
@@ -143,6 +151,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           location_id?: string | null;
+          service_modes?: string[];
+          service_prices?: Record<string, number>;
         };
         Update: {
           id?: string;
@@ -155,7 +165,9 @@ export type Database = {
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;
+          ingredients?: Ingredient[] | null;
           vendus_id?: string | null;
+          vendus_ids?: Record<string, string>;
           vendus_reference?: string | null;
           vendus_tax_id?: string | null;
           vendus_synced_at?: string | null;
@@ -163,6 +175,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           location_id?: string | null;
+          service_modes?: string[];
+          service_prices?: Record<string, number>;
         };
         Relationships: [
           {
@@ -236,10 +250,10 @@ export type Database = {
           email: string | null;
           phone: string | null;
           birth_date: string | null;
-          preferred_contact: string | null;
-          marketing_consent: boolean | null;
+          preferred_contact: PreferredContact;
+          marketing_consent: boolean;
           customer_id: string | null;
-          is_session_host: boolean | null;
+          is_session_host: boolean;
           device_id: string | null;
           tier: number;
           email_verified: boolean;
@@ -247,8 +261,8 @@ export type Database = {
           verification_token: string | null;
           verification_expires_at: string | null;
           verification_type: string | null;
-          created_at: string | null;
-          updated_at: string | null;
+          created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -258,10 +272,10 @@ export type Database = {
           email?: string | null;
           phone?: string | null;
           birth_date?: string | null;
-          preferred_contact?: string | null;
-          marketing_consent?: boolean | null;
+          preferred_contact?: PreferredContact;
+          marketing_consent?: boolean;
           customer_id?: string | null;
-          is_session_host?: boolean | null;
+          is_session_host?: boolean;
           device_id?: string | null;
           tier?: number;
           email_verified?: boolean;
@@ -269,8 +283,6 @@ export type Database = {
           verification_token?: string | null;
           verification_expires_at?: string | null;
           verification_type?: string | null;
-          created_at?: string | null;
-          updated_at?: string | null;
         };
         Update: {
           id?: string;
@@ -280,10 +292,10 @@ export type Database = {
           email?: string | null;
           phone?: string | null;
           birth_date?: string | null;
-          preferred_contact?: string | null;
-          marketing_consent?: boolean | null;
+          preferred_contact?: PreferredContact;
+          marketing_consent?: boolean;
           customer_id?: string | null;
-          is_session_host?: boolean | null;
+          is_session_host?: boolean;
           device_id?: string | null;
           tier?: number;
           email_verified?: boolean;
@@ -291,8 +303,6 @@ export type Database = {
           verification_token?: string | null;
           verification_expires_at?: string | null;
           verification_type?: string | null;
-          created_at?: string | null;
-          updated_at?: string | null;
         };
         Relationships: [
           {
@@ -1219,6 +1229,303 @@ export type Database = {
         };
         Relationships: [];
       };
+      reservations: {
+        Row: {
+          id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          phone: string;
+          reservation_date: string;
+          reservation_time: string;
+          party_size: number;
+          location: string;
+          table_id: string | null;
+          is_rodizio: boolean;
+          special_requests: string | null;
+          occasion: string | null;
+          status: ReservationStatus;
+          confirmed_by: string | null;
+          confirmed_at: string | null;
+          cancelled_at: string | null;
+          cancellation_reason: string | null;
+          session_id: string | null;
+          seated_at: string | null;
+          marketing_consent: boolean;
+          created_at: string;
+          updated_at: string;
+          customer_email_id: string | null;
+          customer_email_sent_at: string | null;
+          customer_email_delivered_at: string | null;
+          customer_email_opened_at: string | null;
+          customer_email_status: EmailStatus | null;
+          confirmation_email_id: string | null;
+          confirmation_email_sent_at: string | null;
+          confirmation_email_delivered_at: string | null;
+          confirmation_email_opened_at: string | null;
+          confirmation_email_status: EmailStatus | null;
+          day_before_reminder_id: string | null;
+          day_before_reminder_sent_at: string | null;
+          day_before_reminder_delivered_at: string | null;
+          day_before_reminder_opened_at: string | null;
+          day_before_reminder_status: EmailStatus | null;
+          same_day_reminder_id: string | null;
+          same_day_reminder_sent_at: string | null;
+          same_day_reminder_delivered_at: string | null;
+          same_day_reminder_opened_at: string | null;
+          same_day_reminder_status: EmailStatus | null;
+        };
+        Insert: {
+          id?: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          phone: string;
+          reservation_date: string;
+          reservation_time: string;
+          party_size: number;
+          location: string;
+          table_id?: string | null;
+          is_rodizio?: boolean;
+          special_requests?: string | null;
+          occasion?: string | null;
+          status?: string;
+          marketing_consent?: boolean;
+        };
+        Update: {
+          id?: string;
+          first_name?: string;
+          last_name?: string;
+          email?: string;
+          phone?: string;
+          reservation_date?: string;
+          reservation_time?: string;
+          party_size?: number;
+          location?: string;
+          table_id?: string | null;
+          is_rodizio?: boolean;
+          special_requests?: string | null;
+          occasion?: string | null;
+          status?: string;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+          cancelled_at?: string | null;
+          cancellation_reason?: string | null;
+          session_id?: string | null;
+          seated_at?: string | null;
+          marketing_consent?: boolean;
+          customer_email_id?: string | null;
+          customer_email_sent_at?: string | null;
+          customer_email_delivered_at?: string | null;
+          customer_email_opened_at?: string | null;
+          customer_email_status?: EmailStatus | null;
+          confirmation_email_id?: string | null;
+          confirmation_email_sent_at?: string | null;
+          confirmation_email_delivered_at?: string | null;
+          confirmation_email_opened_at?: string | null;
+          confirmation_email_status?: EmailStatus | null;
+          day_before_reminder_id?: string | null;
+          day_before_reminder_sent_at?: string | null;
+          day_before_reminder_delivered_at?: string | null;
+          day_before_reminder_opened_at?: string | null;
+          day_before_reminder_status?: EmailStatus | null;
+          same_day_reminder_id?: string | null;
+          same_day_reminder_sent_at?: string | null;
+          same_day_reminder_delivered_at?: string | null;
+          same_day_reminder_opened_at?: string | null;
+          same_day_reminder_status?: EmailStatus | null;
+        };
+        Relationships: [];
+      };
+      reservation_settings: {
+        Row: {
+          id: number;
+          day_before_reminder_enabled: boolean;
+          day_before_reminder_hours: number;
+          same_day_reminder_enabled: boolean;
+          same_day_reminder_hours: number;
+          rodizio_waste_policy_enabled: boolean;
+          rodizio_waste_fee_per_piece: number;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: number;
+          day_before_reminder_enabled?: boolean;
+          day_before_reminder_hours?: number;
+          same_day_reminder_enabled?: boolean;
+          same_day_reminder_hours?: number;
+          rodizio_waste_policy_enabled?: boolean;
+          rodizio_waste_fee_per_piece?: number;
+          updated_by?: string | null;
+        };
+        Update: {
+          day_before_reminder_enabled?: boolean;
+          day_before_reminder_hours?: number;
+          same_day_reminder_enabled?: boolean;
+          same_day_reminder_hours?: number;
+          rodizio_waste_policy_enabled?: boolean;
+          rodizio_waste_fee_per_piece?: number;
+          updated_by?: string | null;
+        };
+        Relationships: [];
+      };
+      waiter_calls: {
+        Row: {
+          id: string;
+          table_id: string;
+          session_id: string | null;
+          session_customer_id: string | null;
+          order_id: string | null;
+          call_type: WaiterCallType;
+          message: string | null;
+          status: WaiterCallStatus;
+          acknowledged_by: string | null;
+          acknowledged_at: string | null;
+          completed_at: string | null;
+          location: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          table_id: string;
+          call_type: string;
+          location: string;
+          session_id?: string | null;
+          session_customer_id?: string | null;
+          order_id?: string | null;
+          message?: string | null;
+          status?: string;
+        };
+        Update: {
+          id?: string;
+          table_id?: string;
+          session_id?: string | null;
+          session_customer_id?: string | null;
+          order_id?: string | null;
+          call_type?: string;
+          message?: string | null;
+          status?: string;
+          acknowledged_by?: string | null;
+          acknowledged_at?: string | null;
+          completed_at?: string | null;
+          location?: string;
+        };
+        Relationships: [];
+      };
+      email_events: {
+        Row: {
+          id: string;
+          reservation_id: string | null;
+          email_id: string;
+          event_type: string;
+          email_type: string | null;
+          recipient_email: string | null;
+          raw_data: Json | null;
+          event_timestamp: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          reservation_id?: string | null;
+          email_id: string;
+          event_type: string;
+          email_type?: string | null;
+          recipient_email?: string | null;
+          raw_data?: Json | null;
+          event_timestamp?: string | null;
+        };
+        Update: {
+          id?: string;
+          reservation_id?: string | null;
+          email_id?: string;
+          event_type?: string;
+          email_type?: string | null;
+          recipient_email?: string | null;
+          raw_data?: Json | null;
+          event_timestamp?: string | null;
+        };
+        Relationships: [];
+      };
+      restaurants: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          address: string;
+          latitude: number | null;
+          longitude: number | null;
+          max_capacity: number;
+          default_people_per_table: number;
+          auto_table_assignment: boolean;
+          auto_reservations: boolean;
+          order_cooldown_minutes: number;
+          show_upgrade_after_order: boolean;
+          show_upgrade_at_bill: boolean;
+          games_enabled: boolean;
+          games_mode: string;
+          games_prize_type: string;
+          games_prize_value: string | null;
+          games_prize_product_id: number | null;
+          games_min_rounds_for_prize: number;
+          games_questions_per_round: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          address: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          max_capacity?: number;
+          default_people_per_table?: number;
+          auto_table_assignment?: boolean;
+          auto_reservations?: boolean;
+          order_cooldown_minutes?: number;
+          show_upgrade_after_order?: boolean;
+          show_upgrade_at_bill?: boolean;
+          games_enabled?: boolean;
+          games_mode?: string;
+          games_prize_type?: string;
+          games_prize_value?: string | null;
+          games_prize_product_id?: number | null;
+          games_min_rounds_for_prize?: number;
+          games_questions_per_round?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          address?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          max_capacity?: number;
+          default_people_per_table?: number;
+          auto_table_assignment?: boolean;
+          auto_reservations?: boolean;
+          order_cooldown_minutes?: number;
+          show_upgrade_after_order?: boolean;
+          show_upgrade_at_bill?: boolean;
+          games_enabled?: boolean;
+          games_mode?: string;
+          games_prize_type?: string;
+          games_prize_value?: string | null;
+          games_prize_product_id?: number | null;
+          games_min_rounds_for_prize?: number;
+          games_questions_per_round?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       products_with_vendus_status: {
@@ -1287,11 +1594,31 @@ export type Database = {
         };
         Relationships: [];
       };
+      waiter_assignments: {
+        Row: {
+          id: number;
+          assigned_at: string;
+          staff_id: string;
+          staff_name: string;
+          staff_email: string;
+          table_id: string;
+          table_number: number;
+          table_name: string;
+          table_location: string;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       generate_verification_token: {
-        Args: never;
+        Args: Record<string, never>;
         Returns: string;
+      };
+      close_session_and_free_table: {
+        Args: {
+          session_id_param: string;
+        };
+        Returns: void;
       };
     };
     Enums: {
@@ -1748,6 +2075,7 @@ export type RetryQueueStatus =
 // Extended Product type with Vendus fields
 export type ProductWithVendus = Product & {
   vendus_id: string | null;
+  vendus_ids: Record<string, string>;
   vendus_reference: string | null;
   vendus_tax_id: string | null;
   vendus_synced_at: string | null;
@@ -1889,6 +2217,7 @@ export type VendusRetryQueueInsert = Omit<
 export type ProductWithVendusStatus = Product & {
   category_name: string | null;
   vendus_id: string | null;
+  vendus_ids: Record<string, string>;
   vendus_sync_status: VendusSyncStatus;
   sync_status_label: string;
   last_synced: string | null;

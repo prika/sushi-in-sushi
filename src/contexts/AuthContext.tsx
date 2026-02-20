@@ -12,10 +12,10 @@ import {
 import { useRouter } from "next/navigation";
 import type { AuthUser, RoleName, Location } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { shouldUseSupabaseAuth } from "@/lib/supabase/env";
 
-// Feature flag for Supabase Auth
-const USE_SUPABASE_AUTH =
-  process.env.NEXT_PUBLIC_USE_SUPABASE_AUTH === "true";
+// Auth mode: Supabase Auth in production, legacy (staff table) in development
+const USE_SUPABASE_AUTH = shouldUseSupabaseAuth();
 
 // =============================================
 // TYPES

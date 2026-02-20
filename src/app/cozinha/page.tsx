@@ -24,13 +24,6 @@ import {
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 
-// Helper to get extended supabase client (only for waiter notifications)
-function getExtendedSupabase(supabase: ReturnType<typeof createClient>) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
-  };
-}
-
 // Status order for detecting backward movement
 const STATUS_ORDER: OrderStatus[] = ["pending", "preparing", "ready"];
 
@@ -196,8 +189,6 @@ export default function CozinhaPage() {
       if (!order.table?.id) return;
 
       try {
-        const extendedSupabase = getExtendedSupabase(supabase);
-
         // Build a clear message with table, product, and customer
         const tableNumber = order.table?.number || "?";
         const productInfo = `${order.quantity}× ${order.product?.name || "Produto"}`;
@@ -208,7 +199,7 @@ export default function CozinhaPage() {
         const message = `Mesa ${tableNumber}: ${productInfo}${customerInfo}`;
 
         // Create a waiter notification with order_id for tracking
-        await extendedSupabase.from("waiter_calls").insert({
+        await supabase.from("waiter_calls").insert({
           table_id: order.table?.id,
           session_id: order.sessionId,
           order_id: order.id,

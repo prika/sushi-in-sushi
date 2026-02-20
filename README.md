@@ -871,30 +871,31 @@ npm start
 
 ## Variáveis de Ambiente
 
+Ver `.env.local.example` para a lista completa. Resumo:
+
 ```env
 # Site
 NEXT_PUBLIC_SITE_URL=https://seudominio.pt
 
-# Autenticação
+# Autenticacao
 AUTH_SECRET=chave-secreta-mudar-em-producao
-ADMIN_PASSWORD=password-admin
-COZINHA_PASSWORD=password-cozinha
 
-# Supabase
+# Supabase (producao)
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
+
+# Supabase (desenvolvimento - opcional, projecto separado)
+# NEXT_PUBLIC_SUPABASE_URL_DEV=https://yyyyy.supabase.co
+# NEXT_PUBLIC_SUPABASE_ANON_KEY_DEV=eyJhbGciOi...
+# SUPABASE_SERVICE_ROLE_KEY_DEV=eyJhbGciOi...
 
 # Email (Resend)
 RESEND_API_KEY=re_xxxxxxxxxxxx
 FROM_EMAIL=reservas@seudominio.pt
-RESTAURANT_EMAIL_1=notificacoes@seudominio.pt
-RESTAURANT_EMAIL_2=gerente@seudominio.pt
-RESEND_WEBHOOK_SECRET=whsec_xxxxxxxxxxxx
 
 # Vendus POS (opcional)
 VENDUS_API_KEY=sua_api_key
-VENDUS_STORE_ID=id_da_loja
-VENDUS_REGISTER_ID=id_da_caixa
 
 # Cron Jobs
 CRON_SECRET=secret-para-cron-jobs
@@ -904,14 +905,16 @@ CRON_SECRET=secret-para-cron-jobs
 
 ## Scripts Disponíveis
 
-| Comando | Descrição |
-|---------|-----------|
-| `npm run dev` | Servidor de desenvolvimento |
-| `npm run build` | Build de produção |
-| `npm start` | Iniciar em produção |
-| `npm run lint` | Verificar código com ESLint |
-| `npm test` | Executar testes unitários (931 testes) |
-| `npm run supabase:types` | Gerar tipos TypeScript do schema |
+| Comando | Ambiente | Descrição |
+|---------|----------|-----------|
+| `npm run dev` | development | Dev server com legacy auth e DB de dev |
+| `npm run dev:prod` | production | Dev server com Supabase Auth e DB de prod |
+| `npm run build` | production | Corre testes + build de producao |
+| `npm start` | production | Iniciar servidor de producao |
+| `npm run lint` | - | Verificar codigo com ESLint |
+| `npm test` | - | Executar testes (watch mode) |
+| `npm run test:run` | - | Executar todos os testes |
+| `npm run test:coverage` | - | Testes com relatorio de cobertura |
 
 ---
 

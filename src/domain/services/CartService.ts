@@ -9,6 +9,17 @@ import { ValidationResult } from './types';
 
 export class CartService {
   /**
+   * Resolve the effective price for a product given a service mode.
+   * Falls back to product.price when the mode is not in servicePrices.
+   */
+  static resolvePrice(product: Product, serviceMode?: string): number {
+    if (serviceMode && product.servicePrices?.[serviceMode] !== undefined) {
+      return product.servicePrices[serviceMode];
+    }
+    return product.price;
+  }
+
+  /**
    * Adiciona um produto ao carrinho.
    * Se o produto já existir, incrementa a quantidade.
    */

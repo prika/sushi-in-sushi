@@ -6,7 +6,6 @@ import {
   useCallback,
   useRef,
   useMemo,
-  type MutableRefObject,
 } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -18,12 +17,11 @@ import { useOrderCooldown } from "@/presentation/hooks/useOrderCooldown";
 import { useProductPreparationTimes } from "@/hooks/useProductPreparationTimes";
 import {
   useOrderNotificationChannel,
-  type OrderNotificationSupabaseLike,
-  type RealtimeChannelLike,
 } from "@/presentation/hooks/useOrderNotificationChannel";
 import { CartService } from "@/domain/services/CartService";
 import type { Product, Category } from "@/domain/entities";
 import type {
+  Database,
   Order,
   Session,
   OrderStatus,
@@ -44,8 +42,10 @@ interface CategoryWithProducts extends Category {
   products: Product[];
 }
 
+type ProductRow = Database["public"]["Tables"]["products"]["Row"];
+
 interface OrderWithProduct extends Order {
-  product: Product;
+  product: ProductRow;
 }
 
 interface GroupedOrders {
@@ -296,42 +296,33 @@ export default function MesaPage() {
           .select("id")
           .eq("number", parseInt(mesaNumero))
           .eq("location", localizacao)
-          .single();
+          .maybeSingle();
 
         if (!tableData) return;
 
         setTableId(tableData.id);
 
         // Fetch waiter assignment using the view
-        const { data: waiterData } = await (
-          supabase as unknown as {
-            from: (table: string) => ReturnType<typeof supabase.from>;
-          }
-        )
+        const { data: waiterData } = await supabase
           .from("waiter_assignments")
           .select("staff_name")
           .eq("table_id", tableData.id)
-          .single();
+          .maybeSingle();
 
         if (waiterData) {
           setWaiterName(waiterData.staff_name);
         }
 
         // Fetch cooldown setting and games mode from restaurant
-        const { data: restaurantData } = await (
-          supabase as unknown as {
-            from: (table: string) => ReturnType<typeof supabase.from>;
-          }
-        )
+        const { data: restaurantData } = await supabase
           .from("restaurants")
           .select("id, order_cooldown_minutes, games_mode")
           .eq("slug", localizacao)
-          .single();
+          .maybeSingle();
         if (restaurantData) {
-          const rd = restaurantData as Record<string, unknown>;
-          setCooldownMinutes((rd.order_cooldown_minutes as number) ?? 0);
-          setGamesMode(((rd.games_mode as string) ?? "selection") as GamesMode);
-          if (rd.id) setRestaurantId(rd.id as string);
+          setCooldownMinutes(restaurantData.order_cooldown_minutes ?? 0);
+          setGamesMode((restaurantData.games_mode ?? "selection") as GamesMode);
+          if (restaurantData.id) setRestaurantId(restaurantData.id);
         }
 
         // Check for existing active session on this table
@@ -342,7 +333,7 @@ export default function MesaPage() {
           .in("status", ["active", "pending_payment"])
           .order("started_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (activeSession) {
           setSession(activeSession);
@@ -403,7 +394,7 @@ export default function MesaPage() {
 
       if (error) throw error;
 
-      setSessionOrders(data as unknown as OrderWithProduct[]);
+      setSessionOrders(data || []);
     } catch (err) {
       console.error("Error fetching orders:", err);
     } finally {
@@ -487,7 +478,7 @@ export default function MesaPage() {
                 if (exists) {
                   return prev;
                 }
-                return [data as unknown as OrderWithProduct, ...prev];
+                return [data, ...prev];
               });
             }
           } else if (payload.eventType === "DELETE") {
@@ -547,12 +538,11 @@ export default function MesaPage() {
   useOrderNotificationChannel({
     session,
     step,
-    supabase: supabase as unknown as OrderNotificationSupabaseLike,
+    supabase,
     t,
     fetchSessionOrders,
     setOrderNotification,
-    channelRef:
-      broadcastChannelRef as MutableRefObject<RealtimeChannelLike | null>,
+    channelRef: broadcastChannelRef,
     deviceId,
   });
 
@@ -602,21 +592,21 @@ export default function MesaPage() {
         .eq("number", parseInt(mesaNumero))
         .eq("location", localizacao)
         .eq("is_active", true)
-        .single();
+        .maybeSingle();
 
       if (tableData) {
         foundTableId = tableData.id;
       } else {
         // Fallback: search without location filter
-        const { data: tableDataFallback, error: tableErrorFallback } =
+        const { data: tableDataFallback } =
           await supabase
             .from("tables")
             .select("id")
             .eq("number", parseInt(mesaNumero))
             .eq("is_active", true)
-            .single();
+            .maybeSingle();
 
-        if (tableErrorFallback || !tableDataFallback) {
+        if (!tableDataFallback) {
           throw new Error(t("mesa.errors.tableNotFound"));
         }
         foundTableId = tableDataFallback.id;
@@ -674,17 +664,14 @@ export default function MesaPage() {
   // Fetch session customers
   const fetchSessionCustomers = useCallback(
     async (sessionId: string) => {
-      const extendedSupabase = supabase as unknown as {
-        from: (table: string) => ReturnType<typeof supabase.from>;
-      };
-      const { data } = await extendedSupabase
+      const { data } = await supabase
         .from("session_customers")
         .select("*")
         .eq("session_id", sessionId)
         .order("created_at", { ascending: true });
 
       if (data) {
-        setSessionCustomers(data as SessionCustomer[]);
+        setSessionCustomers(data);
       }
     },
     [supabase],
@@ -885,9 +872,6 @@ export default function MesaPage() {
     if (!session || !customerForm.display_name.trim()) return;
 
     setError(null);
-    const extendedSupabase = supabase as unknown as {
-      from: (table: string) => ReturnType<typeof supabase.from>;
-    };
     const emailTrim = customerForm.email.trim();
     const phoneTrim = customerForm.phone.trim();
     const isEditingCurrent =
@@ -904,7 +888,7 @@ export default function MesaPage() {
     try {
       if (isEditingCurrent && currentCustomer) {
         // Atualizar perfil do session_customer atual (ex.: adicionar email)
-        const { data: updated, error: updateError } = await extendedSupabase
+        const { data: updated, error: updateError } = await supabase
           .from("session_customers")
           .update({
             display_name: customerForm.display_name.trim(),
@@ -921,7 +905,7 @@ export default function MesaPage() {
 
         if (updateError) throw updateError;
 
-        const updatedCustomer = updated as SessionCustomer;
+        const updatedCustomer = updated;
         setSessionCustomers((prev) =>
           prev.map((c) => (c.id === currentCustomer.id ? updatedCustomer : c)),
         );
@@ -997,7 +981,7 @@ export default function MesaPage() {
         is_session_host: sessionCustomers.length === 0,
       };
 
-      const { data, error: insertError } = await extendedSupabase
+      const { data, error: insertError } = await supabase
         .from("session_customers")
         .insert(customerData)
         .select()
@@ -1005,7 +989,7 @@ export default function MesaPage() {
 
       if (insertError) throw insertError;
 
-      const newCustomer = data as SessionCustomer;
+      const newCustomer = data;
       setSessionCustomers((prev) => [...prev, newCustomer]);
       setCurrentCustomer(newCustomer);
       localStorage.setItem(`customer_${session.id}`, newCustomer.id);
@@ -1235,7 +1219,7 @@ export default function MesaPage() {
 
     try {
       // Use RPC function to close session and free table atomically
-      const { error: rpcError } = await (supabase as any).rpc(
+      const { error: rpcError } = await supabase.rpc(
         "close_session_and_free_table",
         { session_id_param: session.id }
       );
@@ -1257,7 +1241,7 @@ export default function MesaPage() {
     } finally {
       setIsLeavingTable(false);
     }
-  }, [session, sessionOrders, tableId, supabase]);
+  }, [session, sessionOrders, supabase]);
 
   // Call waiter function
   const callWaiter = useCallback(
@@ -1268,11 +1252,7 @@ export default function MesaPage() {
 
       try {
         // Create waiter call record
-        const { error: insertError } = await (
-          supabase as unknown as {
-            from: (table: string) => ReturnType<typeof supabase.from>;
-          }
-        )
+        const { error: insertError } = await supabase
           .from("waiter_calls")
           .insert({
             table_id: tableId,

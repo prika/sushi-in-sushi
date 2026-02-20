@@ -3,7 +3,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useProducts } from '@/presentation/hooks/useProducts';
 import { useDependencies } from '@/presentation/contexts/DependencyContext';
 import { Product } from '@/domain/entities/Product';
-import { Category } from '@/domain/entities/Category';
+import { CategoryWithCount } from '@/domain/entities/Category';
 
 // Mock do DependencyContext
 vi.mock('@/presentation/contexts/DependencyContext', () => ({
@@ -14,7 +14,7 @@ describe('useProducts', () => {
   let mockProductRepository: any;
   let mockCategoryRepository: any;
   let mockProducts: Product[];
-  let mockCategories: Category[];
+  let mockCategories: CategoryWithCount[];
 
   beforeEach(() => {
     mockProducts = [
@@ -29,6 +29,9 @@ describe('useProducts', () => {
         isAvailable: true,
         isRodizio: true,
         sortOrder: 1,
+        serviceModes: [],
+        servicePrices: {},
+        ingredients: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -43,6 +46,9 @@ describe('useProducts', () => {
         isAvailable: true,
         isRodizio: true,
         sortOrder: 2,
+        serviceModes: [],
+        servicePrices: {},
+        ingredients: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -57,6 +63,9 @@ describe('useProducts', () => {
         isAvailable: false,
         isRodizio: false,
         sortOrder: 3,
+        serviceModes: [],
+        servicePrices: {},
+        ingredients: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -66,19 +75,19 @@ describe('useProducts', () => {
       {
         id: 'cat1',
         name: 'Sushi',
-        displayOrder: 1,
-        isActive: true,
+        slug: 'sushi',
+        icon: null,
+        sortOrder: 1,
         createdAt: new Date(),
-        updatedAt: new Date(),
         productCount: 2,
       },
       {
         id: 'cat2',
         name: 'Temaki',
-        displayOrder: 2,
-        isActive: true,
+        slug: 'temaki',
+        icon: null,
+        sortOrder: 2,
         createdAt: new Date(),
-        updatedAt: new Date(),
         productCount: 1,
       },
     ];

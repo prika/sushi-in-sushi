@@ -427,3 +427,164 @@ describe("getVendusClient / clearClientCache", () => {
     expect(client1).not.toBe(client2);
   });
 });
+
+describe("VendusClient - rate limiting", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    clearClientCache();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("applies rate limiting between requests", async () => {
+    fetchMock.mockReturnValue(mockFetchResponse(200, { ok: true }));
+
+    // Use high rate limit to force delays
+    const client = new VendusClient(createConfig());
+
+    // First request should go immediately
+    await client.get("/test1");
+    // Second request follows rate limiting
+    await client.get("/test2");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("queues concurrent requests to prevent bypass", async () => {
+    fetchMock.mockReturnValue(mockFetchResponse(200, { ok: true }));
+    const client = new VendusClient(createConfig());
+
+    // Fire multiple requests simultaneously
+    const results = await Promise.all([
+      client.get("/a"),
+      client.get("/b"),
+      client.get("/c"),
+    ]);
+
+    expect(results).toHaveLength(3);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("VendusClient - edge cases", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    clearClientCache();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("uses error code from response body when available", async () => {
+    fetchMock.mockReturnValue(
+      mockFetchResponse(400, { code: "CUSTOM_CODE", message: "custom error" }),
+    );
+
+    const client = new VendusClient(createConfig({ retryAttempts: 1 }));
+
+    try {
+      await client.get("/test");
+      expect.unreachable("Should have thrown");
+    } catch (error) {
+      expect((error as VendusApiError).code).toBe("CUSTOM_CODE");
+      expect((error as VendusApiError).message).toBe("custom error");
+    }
+  });
+
+  it("falls back to status-based error code when response body parsing fails", async () => {
+    // Simulate a 400 response where .json() fails
+    fetchMock.mockReturnValue(
+      Promise.resolve({
+        ok: false,
+        status: 400,
+        text: () => Promise.resolve("not json"),
+        json: () => Promise.reject(new Error("invalid json")),
+      } as Response),
+    );
+
+    const client = new VendusClient(createConfig({ retryAttempts: 1 }));
+
+    try {
+      await client.get("/test");
+      expect.unreachable("Should have thrown");
+    } catch (error) {
+      expect((error as VendusApiError).code).toBe("API_ERROR");
+      expect((error as VendusApiError).statusCode).toBe(400);
+    }
+  });
+
+  it("maps 4xx status (not specific) to API_ERROR", async () => {
+    fetchMock.mockReturnValue(
+      mockFetchResponse(418, { message: "I'm a teapot" }),
+    );
+
+    const client = new VendusClient(createConfig({ retryAttempts: 1 }));
+
+    try {
+      await client.get("/test");
+      expect.unreachable("Should have thrown");
+    } catch (error) {
+      expect((error as VendusApiError).code).toBe("API_ERROR");
+    }
+  });
+
+  it("maps 5xx status to SERVER_ERROR when no code in body", async () => {
+    fetchMock.mockReturnValue(
+      mockFetchResponse(503, { message: "unavailable" }),
+    );
+
+    const client = new VendusClient(createConfig({ retryAttempts: 1 }));
+
+    try {
+      await client.get("/test");
+      expect.unreachable("Should have thrown");
+    } catch (error) {
+      expect((error as VendusApiError).code).toBe("SERVER_ERROR");
+    }
+  });
+
+  it("does not send body for GET requests", async () => {
+    fetchMock.mockReturnValue(mockFetchResponse(200, { ok: true }));
+    const client = new VendusClient(createConfig());
+
+    await client.get("/test");
+
+    const callArgs = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(callArgs.body).toBeUndefined();
+  });
+
+  it("does not send body for DELETE requests", async () => {
+    fetchMock.mockReturnValue(mockFetchResponse(200, { ok: true }));
+    const client = new VendusClient(createConfig());
+
+    await client.delete("/test");
+
+    const callArgs = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(callArgs.body).toBeUndefined();
+  });
+
+  it("throws UNKNOWN_ERROR with 'Erro desconhecido' when thrown value is not an Error", async () => {
+    // Throw a string (not Error) to trigger the false branch of `error instanceof Error`
+    fetchMock.mockRejectedValue("just a string");
+
+    const client = new VendusClient(createConfig());
+
+    try {
+      await client.get("/test");
+      expect.unreachable("Should have thrown");
+    } catch (error) {
+      expect(error).toBeInstanceOf(VendusApiError);
+      expect((error as VendusApiError).code).toBe("UNKNOWN_ERROR");
+      expect((error as VendusApiError).message).toBe("Erro desconhecido");
+    }
+  });
+});

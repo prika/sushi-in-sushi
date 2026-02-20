@@ -141,7 +141,7 @@ export class VendusClient {
         // Retry on retryable errors
         if (error.isRetryable() && attempt < this.config.retryAttempts) {
           const delay = VENDUS_DEFAULTS.retryDelayMs * Math.pow(2, attempt - 1);
-          console.log(
+          console.info(
             `[Vendus] Retrying request (attempt ${attempt + 1}/${this.config.retryAttempts}) after ${delay}ms`
           );
           await new Promise((resolve) => setTimeout(resolve, delay));

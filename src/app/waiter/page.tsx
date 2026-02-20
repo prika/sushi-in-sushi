@@ -18,13 +18,6 @@ import type {
   SessionCustomer,
 } from "@/types/database";
 
-// Helper to bypass Supabase type checking for tables not in the generated types
-function getExtendedSupabase(supabase: ReturnType<typeof createClient>) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
-  };
-}
-
 interface SessionWithCustomers extends Session {
   customers?: SessionCustomer[];
 }
@@ -58,10 +51,6 @@ export default function WaiterDashboard() {
 
   // Use memoized supabase client to prevent real-time subscription issues
   const supabase = useMemo(() => createClient(), []);
-  const extendedSupabase = useMemo(
-    () => getExtendedSupabase(supabase),
-    [supabase],
-  );
 
   // Helper to get location label
   const getLocationLabel = (location: string | null) => {
@@ -137,14 +126,14 @@ export default function WaiterDashboard() {
       // Fetch session customers for active sessions
       const sessionCustomersMap: Map<string, SessionCustomer[]> = new Map();
       if (sessionIds.length > 0) {
-        const { data: customersData } = await extendedSupabase
+        const { data: customersData } = await supabase
           .from("session_customers")
           .select("*")
           .in("session_id", sessionIds)
           .order("created_at", { ascending: true });
 
         if (customersData) {
-          (customersData as SessionCustomer[]).forEach((customer) => {
+          customersData.forEach((customer) => {
             const existing = sessionCustomersMap.get(customer.session_id) || [];
             sessionCustomersMap.set(customer.session_id, [
               ...existing,
@@ -241,7 +230,7 @@ export default function WaiterDashboard() {
       }
 
       // Fetch pending waiter calls for these tables
-      const { data: callsData } = await extendedSupabase
+      const { data: callsData } = await supabase
         .from("waiter_calls")
         .select("*")
         .in("table_id", tableIds)
@@ -249,12 +238,7 @@ export default function WaiterDashboard() {
         .order("created_at", { ascending: false });
 
       if (callsData) {
-        const callsWithDetails = (
-          callsData as (WaiterCall & {
-            order_id?: string | null;
-            session_customer_id?: string | null;
-          })[]
-        ).map((call) => {
+        const callsWithDetails = callsData.map((call) => {
           // Look up customer name from session customers
           let customerName: string | null = null;
           if (call.session_customer_id && call.session_id) {
@@ -278,7 +262,7 @@ export default function WaiterDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [user, supabase, extendedSupabase]);
+  }, [user, supabase]);
 
   // Keep fetchDataRef updated
   useEffect(() => {
@@ -319,7 +303,7 @@ export default function WaiterDashboard() {
   const handleAcknowledgeCall = useCallback(
     async (callId: string) => {
       if (!user) return;
-      await extendedSupabase
+      await supabase
         .from("waiter_calls")
         .update({
           status: "acknowledged",
@@ -328,14 +312,14 @@ export default function WaiterDashboard() {
         })
         .eq("id", callId);
     },
-    [user, extendedSupabase],
+    [user, supabase],
   );
 
   const handleCompleteCall = useCallback(
     async (callId: string, orderId?: string | null) => {
       try {
         // Mark the waiter_call as completed
-        const { error: callError } = await extendedSupabase
+        const { error: callError } = await supabase
           .from("waiter_calls")
           .update({
             status: "completed",
@@ -363,7 +347,7 @@ export default function WaiterDashboard() {
         console.error("Error in handleCompleteCall:", error);
       }
     },
-    [supabase, extendedSupabase],
+    [supabase],
   );
 
   const handleMarkDelivered = useCallback(

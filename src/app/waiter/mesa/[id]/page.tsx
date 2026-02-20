@@ -13,13 +13,6 @@ import { ORDERING_MODE_LABELS, ORDERING_MODE_ICONS, type OrderingMode } from "@/
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { Table, Session, OrderWithProduct, Product, Category, WaiterCall } from "@/types/database";
 
-// Helper to bypass Supabase type checking for tables not in the generated types
-function getExtendedSupabase(supabase: ReturnType<typeof createClient>) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
-  };
-}
-
 interface TableWithDetails extends Table {
   activeSession?: Session | null;
   orders?: OrderWithProduct[];
@@ -52,7 +45,6 @@ export default function WaiterMesaPage() {
 
   // Use memoized supabase client to prevent real-time subscription issues
   const supabase = useMemo(() => createClient(), []);
-  const extendedSupabase = useMemo(() => getExtendedSupabase(supabase), [supabase]);
 
   // Hooks for table management and ordering mode
   const { startWalkInSession } = useTableManagement();
@@ -126,7 +118,7 @@ export default function WaiterMesaPage() {
         .eq("session_id", sessionData.id)
         .order("created_at", { ascending: false });
 
-      setOrders((ordersData || []) as OrderWithProduct[]);
+      setOrders((ordersData || []) as unknown as OrderWithProduct[]);
     } else {
       setOrders([]);
     }
@@ -147,16 +139,16 @@ export default function WaiterMesaPage() {
     setProducts(productsData || []);
 
     // Fetch pending waiter calls for this table
-    const { data: callsData } = await extendedSupabase
+    const { data: callsData } = await supabase
       .from("waiter_calls")
       .select("*")
       .eq("table_id", id)
       .in("status", ["pending", "acknowledged"])
       .order("created_at", { ascending: false });
 
-    setWaiterCalls((callsData || []) as WaiterCall[]);
+    setWaiterCalls(callsData || []);
     setIsLoading(false);
-  }, [user, id, router, supabase, extendedSupabase]);
+  }, [user, id, router, supabase]);
 
   // Keep fetchDataRef updated
   useEffect(() => {
@@ -240,7 +232,7 @@ export default function WaiterMesaPage() {
 
   const handleAcknowledgeCall = useCallback(async (callId: string) => {
     if (!user) return;
-    await extendedSupabase
+    await supabase
       .from("waiter_calls")
       .update({
         status: "acknowledged",
@@ -248,17 +240,17 @@ export default function WaiterMesaPage() {
         acknowledged_at: new Date().toISOString(),
       })
       .eq("id", callId);
-  }, [user, extendedSupabase]);
+  }, [user, supabase]);
 
   const handleCompleteCall = useCallback(async (callId: string) => {
-    await extendedSupabase
+    await supabase
       .from("waiter_calls")
       .update({
         status: "completed",
         completed_at: new Date().toISOString(),
       })
       .eq("id", callId);
-  }, [extendedSupabase]);
+  }, [supabase]);
 
   const handleStartSession = useCallback(async () => {
     if (!table || !user) return;

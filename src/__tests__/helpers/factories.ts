@@ -90,6 +90,8 @@ export function createTestProduct(overrides: Record<string, unknown> = {}) {
     is_available: true,
     is_rodizio: true,
     sort_order: 1,
+    service_modes: [],
+    service_prices: {},
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,

@@ -58,6 +58,7 @@ function createMockStaffRepository(): IStaffRepository {
     getAllRoles: vi.fn(),
     assignTables: vi.fn(),
     getAssignedTables: vi.fn(),
+    addTableAssignment: vi.fn(),
   };
 }
 

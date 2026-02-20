@@ -8,7 +8,7 @@
  * @see docs/VENDUS_SYNC.md
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getVendusClient, VendusApiError } from "./client";
 import { getVendusConfig } from "./config";
 import type { SyncResult } from "./types";
@@ -19,7 +19,7 @@ export interface VendusCategory {
   name: string;
 }
 
-interface VendusCategoriesResponse {
+export interface VendusCategoriesResponse {
   categories?: VendusCategory[];
   data?: VendusCategory[];
 }
@@ -47,7 +47,7 @@ export async function syncCategoriesToVendus(
   }
 
   const client = getVendusClient(config, locationSlug);
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const result: SyncResult = {
     success: true,
@@ -73,7 +73,7 @@ export async function syncCategoriesToVendus(
     }
 
     if (!localCategories || localCategories.length === 0) {
-      console.log("[Vendus] Nenhuma categoria local para exportar");
+      console.info("[Vendus] Nenhuma categoria local para exportar");
       result.duration = Date.now() - startTime;
       return result;
     }
@@ -81,10 +81,11 @@ export async function syncCategoriesToVendus(
     // Fetch existing Vendus categories (for matching by name)
     const vendusCategoriesMap = new Map<string, string>(); // name -> vendus_id
     try {
-      const response = await client.get<VendusCategoriesResponse>(
+      // Vendus API may return an array directly or { categories: [...] }
+      const raw = await client.get<VendusCategory[] | VendusCategoriesResponse>(
         "/products/categories?per_page=500",
       );
-      const vendusCategories = response.categories || response.data || [];
+      const vendusCategories = Array.isArray(raw) ? raw : (raw.categories || raw.data || []);
       for (const vc of vendusCategories) {
         vendusCategoriesMap.set(vc.name.toLowerCase().trim(), vc.id);
       }
@@ -147,7 +148,7 @@ export async function syncCategoriesToVendus(
 
           vendusCategoriesMap.set(categoryName.toLowerCase(), vendusId);
           result.recordsCreated++;
-          console.log(
+          console.info(
             `[Vendus] Categoria criada: ${categoryName} (${vendusId})`,
           );
         }

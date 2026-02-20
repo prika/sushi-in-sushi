@@ -2,7 +2,7 @@
  * Vendus Table/Room Import Service
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getVendusClient, VendusApiError } from "./client";
 import { getVendusConfig } from "./config";
 import type {
@@ -34,7 +34,7 @@ export async function importTablesFromVendus(
   }
 
   const client = getVendusClient(config, locationSlug);
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const result: SyncResult = {
     success: true,
@@ -63,24 +63,25 @@ export async function importTablesFromVendus(
 
   try {
     // Fetch rooms from Vendus
-    console.log(`[Vendus] Fetching rooms for store ${config.storeId}...`);
-    const roomsResponse = await client.get<VendusRoomsResponse>(
+    console.info(`[Vendus] Fetching rooms for store ${config.storeId}...`);
+    // Vendus API may return arrays directly or { rooms: [...] }
+    const rawRooms = await client.get<VendusRoom[] | VendusRoomsResponse>(
       `/stores/${config.storeId}/rooms`,
     );
 
-    const rooms = roomsResponse.rooms || [];
-    console.log(`[Vendus] Found ${rooms.length} rooms`);
+    const rooms = Array.isArray(rawRooms) ? rawRooms : (rawRooms.rooms || []);
+    console.info(`[Vendus] Found ${rooms.length} rooms`);
 
     // Fetch tables for each room
     for (const room of rooms) {
       try {
-        console.log(`[Vendus] Fetching tables for room: ${room.name}`);
-        const tablesResponse = await client.get<VendusTablesResponse>(
+        console.info(`[Vendus] Fetching tables for room: ${room.name}`);
+        const rawTables = await client.get<VendusTable[] | VendusTablesResponse>(
           `/rooms/${room.id}/tables`,
         );
 
-        const tables = tablesResponse.tables || [];
-        console.log(
+        const tables = Array.isArray(rawTables) ? rawTables : (rawTables.tables || []);
+        console.info(
           `[Vendus] Found ${tables.length} tables in room ${room.name}`,
         );
 
@@ -162,7 +163,7 @@ export async function importTablesFromVendus(
  * Process a single Vendus table
  */
 async function processVendusTable(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: ReturnType<typeof createAdminClient>,
   vTable: VendusTable,
   room: VendusRoom,
   locationSlug: string,
@@ -188,7 +189,7 @@ async function processVendusTable(
       .update(tableData)
       .eq("id", existingByVendusId.id);
     result.recordsUpdated++;
-    console.log(`[Vendus] Updated table by vendus_id: ${vTable.name}`);
+    console.info(`[Vendus] Updated table by vendus_id: ${vTable.name}`);
     return;
   }
 
@@ -208,7 +209,7 @@ async function processVendusTable(
       .update(tableData)
       .eq("id", existingByNumber.id);
     result.recordsUpdated++;
-    console.log(`[Vendus] Linked local table ${vTable.number} to Vendus`);
+    console.info(`[Vendus] Linked local table ${vTable.number} to Vendus`);
     return;
   }
 
@@ -226,7 +227,7 @@ async function processVendusTable(
   }
 
   result.recordsCreated++;
-  console.log(`[Vendus] Created new table: ${vTable.name}`);
+  console.info(`[Vendus] Created new table: ${vTable.name}`);
 }
 
 // =============================================
@@ -239,7 +240,7 @@ async function processVendusTable(
 export async function getTableMapping(
   locationSlug: string,
 ): Promise<TableMapping[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("tables")
@@ -265,7 +266,7 @@ export async function mapTableToVendus(
   vendusTableId: string,
   vendusRoomId?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { error } = await supabase
     .from("tables")
@@ -289,7 +290,7 @@ export async function mapTableToVendus(
 export async function unmapTableFromVendus(
   tableId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { error } = await supabase
     .from("tables")
@@ -322,18 +323,19 @@ export async function getVendusTables(
   const client = getVendusClient(config, locationSlug);
   const tablesObj: Record<string, VendusTable[]> = {};
 
-  const roomsResponse = await client.get<VendusRoomsResponse>(
+  // Vendus API may return arrays directly or { rooms: [...] }
+  const rawRooms = await client.get<VendusRoom[] | VendusRoomsResponse>(
     `/stores/${config.storeId}/rooms`,
   );
 
-  const rooms = roomsResponse.rooms || [];
+  const rooms = Array.isArray(rawRooms) ? rawRooms : (rawRooms.rooms || []);
 
   await Promise.all(
     rooms.map(async (room) => {
-      const tablesResponse = await client.get<VendusTablesResponse>(
+      const rawTables = await client.get<VendusTable[] | VendusTablesResponse>(
         `/rooms/${room.id}/tables`,
       );
-      tablesObj[room.id] = tablesResponse.tables || [];
+      tablesObj[room.id] = Array.isArray(rawTables) ? rawTables : (rawTables.tables || []);
     }),
   );
 

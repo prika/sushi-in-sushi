@@ -2,6 +2,8 @@ export { Button } from "./Button";
 export { Card } from "./Card";
 export { Badge } from "./Badge";
 export { Modal } from "./Modal";
+export { AlertModal } from "./AlertModal";
+export { ConfirmDialog } from "./ConfirmDialog";
 export { ToastProvider, useToast } from "./Toast";
 export { LoadingSpinner } from "./LoadingSpinner";
 export { ErrorMessage } from "./ErrorMessage";

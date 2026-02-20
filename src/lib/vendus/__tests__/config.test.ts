@@ -13,10 +13,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock Supabase
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
+  createAdminClient: vi.fn(),
 }));
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 // We need to import AFTER mocking dependencies
 import {
@@ -93,12 +93,12 @@ describe("getVendusConfig", () => {
 
     expect(result).toBeNull();
     // Should not even call Supabase
-    expect(createClient).not.toHaveBeenCalled();
+    expect(createAdminClient).not.toHaveBeenCalled();
   });
 
   it("returns null when location not found in DB", async () => {
     process.env.VENDUS_API_KEY = "test-key";
-    vi.mocked(createClient).mockResolvedValue(
+    vi.mocked(createAdminClient).mockReturnValue(
       createLocationsMock(null) as never,
     );
 
@@ -109,7 +109,7 @@ describe("getVendusConfig", () => {
 
   it("returns null when vendus_enabled is false", async () => {
     process.env.VENDUS_API_KEY = "test-key";
-    vi.mocked(createClient).mockResolvedValue(
+    vi.mocked(createAdminClient).mockReturnValue(
       createLocationsMock({
         vendus_store_id: "store-1",
         vendus_register_id: "reg-1",
@@ -124,7 +124,7 @@ describe("getVendusConfig", () => {
 
   it("returns null when vendus_store_id is null", async () => {
     process.env.VENDUS_API_KEY = "test-key";
-    vi.mocked(createClient).mockResolvedValue(
+    vi.mocked(createAdminClient).mockReturnValue(
       createLocationsMock({
         vendus_store_id: null,
         vendus_register_id: "reg-1",
@@ -139,7 +139,7 @@ describe("getVendusConfig", () => {
 
   it("returns null when vendus_register_id is null", async () => {
     process.env.VENDUS_API_KEY = "test-key";
-    vi.mocked(createClient).mockResolvedValue(
+    vi.mocked(createAdminClient).mockReturnValue(
       createLocationsMock({
         vendus_store_id: "store-1",
         vendus_register_id: null,
@@ -154,7 +154,7 @@ describe("getVendusConfig", () => {
 
   it("returns full config when all data present", async () => {
     process.env.VENDUS_API_KEY = "my-api-key";
-    vi.mocked(createClient).mockResolvedValue(
+    vi.mocked(createAdminClient).mockReturnValue(
       createLocationsMock({
         vendus_store_id: "store-42",
         vendus_register_id: "reg-7",
@@ -199,7 +199,7 @@ describe("getConfiguredLocations", () => {
     const result = await getConfiguredLocations();
 
     expect(result).toEqual([]);
-    expect(createClient).not.toHaveBeenCalled();
+    expect(createAdminClient).not.toHaveBeenCalled();
   });
 
   it("returns slugs from locations with vendus enabled", async () => {
@@ -222,7 +222,7 @@ describe("getConfiguredLocations", () => {
       }),
     };
 
-    vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(mockSupabase as never);
 
     const result = await getConfiguredLocations();
 
@@ -246,7 +246,7 @@ describe("getConfiguredLocations", () => {
       }),
     };
 
-    vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(mockSupabase as never);
 
     const result = await getConfiguredLocations();
 
@@ -270,7 +270,7 @@ describe("getConfiguredLocations", () => {
       }),
     };
 
-    vi.mocked(createClient).mockResolvedValue(mockSupabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(mockSupabase as never);
 
     const result = await getConfiguredLocations();
 
@@ -346,6 +346,6 @@ describe("constants", () => {
   });
 
   it("VENDUS_API_BASE_URL is correct", () => {
-    expect(VENDUS_API_BASE_URL).toBe("https://www.vendus.pt/ws/v1.2");
+    expect(VENDUS_API_BASE_URL).toBe("https://www.vendus.pt/ws/v1.1");
   });
 });

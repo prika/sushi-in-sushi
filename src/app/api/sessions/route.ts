@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { SupabaseSessionRepository } from "@/infrastructure/repositories/SupabaseSessionRepository";
 import { SupabaseTableRepository } from "@/infrastructure/repositories/SupabaseTableRepository";
 import { SupabaseStaffRepository } from "@/infrastructure/repositories/SupabaseStaffRepository";
@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    // Use admin client to bypass RLS - this is a public endpoint for customers
+    const supabase = createAdminClient();
     const sessionRepository = new SupabaseSessionRepository(supabase);
     const tableRepository = new SupabaseTableRepository(supabase);
     const staffRepository = new SupabaseStaffRepository(supabase);
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
           .in("status", ["active", "pending_payment"])
           .order("started_at", { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (existingSession) {
           let existingWaiterName: string | null = null;
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
             .from("waiter_assignments")
             .select("staff_name")
             .eq("table_id", tableId)
-            .single();
+            .maybeSingle();
           if (waiterData) {
             existingWaiterName = waiterData.staff_name;
           }
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
         .from("waiter_assignments")
         .select("staff_name")
         .eq("table_id", tableId)
-        .single();
+        .maybeSingle();
 
       if (waiterData) {
         waiterName = waiterData.staff_name;

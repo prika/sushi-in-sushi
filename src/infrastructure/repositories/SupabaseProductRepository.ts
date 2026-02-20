@@ -13,6 +13,7 @@ import {
   CreateProductData,
   UpdateProductData,
   ProductWithCategory,
+  type Ingredient,
 } from '@/domain/entities/Product';
 
 /**
@@ -29,6 +30,9 @@ interface DatabaseProduct {
   is_available: boolean;
   is_rodizio: boolean;
   sort_order: number;
+  service_modes: string[] | null;
+  service_prices: Record<string, number> | null;
+  ingredients: Ingredient[] | null;
   created_at: string;
   updated_at?: string; // optional: products table may not have this column
 }
@@ -161,6 +165,9 @@ export class SupabaseProductRepository implements IProductRepository {
         is_available: data.isAvailable ?? true,
         is_rodizio: data.isRodizio ?? false,
         sort_order: data.sortOrder ?? 0,
+        service_modes: data.serviceModes ?? [],
+        service_prices: data.servicePrices ?? {},
+        ingredients: data.ingredients ?? [],
       })
       .select()
       .single();
@@ -185,6 +192,9 @@ export class SupabaseProductRepository implements IProductRepository {
     if (data.isAvailable !== undefined) updateData.is_available = data.isAvailable;
     if (data.isRodizio !== undefined) updateData.is_rodizio = data.isRodizio;
     if (data.sortOrder !== undefined) updateData.sort_order = data.sortOrder;
+    if (data.serviceModes !== undefined) updateData.service_modes = data.serviceModes;
+    if (data.servicePrices !== undefined) updateData.service_prices = data.servicePrices;
+    if (data.ingredients !== undefined) updateData.ingredients = data.ingredients;
 
     const { data: product, error } = await this.supabase
       .from('products')
@@ -229,6 +239,9 @@ export class SupabaseProductRepository implements IProductRepository {
       isAvailable: data.is_available,
       isRodizio: data.is_rodizio,
       sortOrder: data.sort_order,
+      serviceModes: data.service_modes ?? [],
+      servicePrices: data.service_prices ?? {},
+      ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
       createdAt: new Date(data.created_at),
       updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(data.created_at),
     };

@@ -1,0 +1,636 @@
+Nome,"Tipo Variação",Variante,Categoria,Marca,Referência,"Código de Barras",Descrição,"Descrição na Fatura",PVP,"Preço Fornecedor",Unidade,"Controlar Stock","IVA - Taxa","IVA - Isenção (Código)","IVA - Isenção (Norma)","Tipo de Produto","Classe de Bem","Loja principal","Stock - Loja principal","Margem de Lucro (%)- Normal",Imagem
+"Hot de Salmão (24 pçs) + (C)",,,"Take away Sushi in Sushi",,VHOT2-24040230,,,Não,"12,5000","0,0000",Uni,Sim,13,,,P,,S,"-26,0000",100,https://www.vendus.pt/foto/5fe88e8de54d9c6df6c312b4282856b1.png
+"Molho teriyaki",,,"Take away Sushi in Sushi",,VMOL3-24040246,,,Não,"1,0000","0,0000",Uni,Sim,13,,,P,,S,"-186,0000",100,https://www.vendus.pt/foto/53b9309fa9439bf98867b69f07321caf.jpg
+"Molho de soja",,,"Take away Sushi in Sushi",,VMOL4-24040235,,,Não,"0,5000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/d9d6addef7bdef79420ce4b1144449dd.jpg
+Wasabi,,,"Take away Sushi in Sushi",,VWAS5-24040273,,,Não,"1,0000","0,0000",Uni,Sim,13,,,P,,S,"-9,0000",100,https://www.vendus.pt/foto/c8687cccd4101cbe3dfe99d455eea26a.jpg
+"Compal Laranja",,,"Take away Sushi in Sushi",,VCOM6-24040268,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-40,0000",100,https://www.vendus.pt/foto/166451879a1fc075d033fc1d3211d92b.jpg
+"Sumol Laranja",,,"Take away Sushi in Sushi",,VSUM8-24040228,,,Não,"2,5000","2,5000",Uni,Sim,23,,,P,,S,"-40,0000",-18.70,https://www.vendus.pt/foto/3064b4c735b1996f384de3e29242e1d2.jpg
+"Coca Cola",,,"Take away Sushi in Sushi",,VCOC9-2404028,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-1065,8573",100,https://www.vendus.pt/foto/f4dc152f23a9e2d5da5d3c6236d0cacb.png
+"Coca Cola Zero",,,"Take away Sushi in Sushi",,VCOC10-24040271,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-1675,5716",100,https://www.vendus.pt/foto/f7e76187c0313cd61023058bdac850a5.png
+"Água 50ml",,,"Take away Sushi in Sushi",,VAGU11-24040259,,,Não,"1,5000","0,0000",Uni,Sim,23,,,P,,S,"-1424,8574",100,https://www.vendus.pt/foto/e01d451c3c9f5a08de1f72bac31d169c.png
+"Água das Pedras de Limão",,,"Take away Sushi in Sushi",,VAGU12-24040224,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-333,9999",100,
+"Água das Pedras",,,"Take away Sushi in Sushi",,VAGU13-2404028,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-346,8574",100,https://www.vendus.pt/foto/465d6a91c5e5aa659707aac18cf93333.png
+"Vinho Mateus Rosa 75cl",,,"Take away Sushi in Sushi",,VVIN14-24040296,,,Não,"9,0000","9,0000",Uni,Sim,23,,,P,,S,"-94,0000",-18.70,https://www.vendus.pt/foto/7228861e47473ae3d2ad1ccd1777f1fb.jpg
+"Somersby Apple 33cl",,,"Take away Sushi in Sushi",,VSOM15-2404029,,,Não,"3,0000","0,0000",Uni,Sim,23,,,P,,S,"-251,0000",100,https://www.vendus.pt/foto/1c560fb835a058d7323b8a40d95a9c29.png
+"Vinho Verde Gazela 75cl",,,"Take away Sushi in Sushi",,VVIN16-24040214,,,Não,"9,0000","9,0000",Uni,Sim,23,,,P,,S,"-12,0000",-18.70,https://www.vendus.pt/foto/255b1e91229057042920faacc23a141b.jpg
+"Guaraná Antartica 33cl",,,"Take away Sushi in Sushi",,VGUA17-24040273,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-422,9999",100,https://www.vendus.pt/foto/6c7d3b5e59aecaa38a6f4d2a1607b824.jpg
+"Molho Agri'doce",,,"Take away Sushi in Sushi",,VMOL18-24040235,,,Não,"1,0000","0,0000",Uni,Sim,13,,,P,,S,"-253,0000",100,https://www.vendus.pt/foto/9a776f79420251100972b16a516d8e2f.jpg
+Brasear,,,"Take away Sushi in Sushi",,VBRA19-24040299,,,Não,"1,0000","0,0000",Uni,Sim,13,,,P,,S,"-39,0000",100,https://www.vendus.pt/foto/ed0a914a0e0f7248407fab629f8f221d.jpg
+"Aros de cebola (6UN)",,,"Take away Sushi in Sushi",,VARO20-24040283,,,Não,"2,0000","0,0000",Uni,Sim,13,,,P,,S,"-8,0000",100,https://www.vendus.pt/foto/355f297712bbcfcd7ddbb2a3470644a2.jpg
+"Rolos primavera vegetal (6UN)",,,"Take away Sushi in Sushi",,VROL21-24040258,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-33,0000",100,https://www.vendus.pt/foto/f8da36c3f05a72f679ad1bbb203b906a.jpg
+"Panado Queijo Camembert (5UN)",,,"Take away Sushi in Sushi",,VPAN22-24040268,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/b31e7b38dec270f3aa3dda2b006f34f2.jpeg
+"Balls hot de Salmão Filadélfia (4 UN)",,,"Take away Sushi in Sushi",,VBAL23-24040253,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-120,0000",100,https://www.vendus.pt/foto/1608c849c89f9a53d0e390a8890895b5.jpeg
+"Panado Chili com Queijo (5UN)",,,"Take away Sushi in Sushi",,VPAN24-2404028,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/517617e08f1c7189361923763ecb6c5e.jpeg
+"Mozarela sticks (5UN)",,,"Take away Sushi in Sushi",,VMOZ25-24040257,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-46,0000",100,https://www.vendus.pt/foto/10b6218b1fa1aa31e430dccab63e81ae.jpeg
+"Pinças de caranguejo (5UN)",,,"Take away Sushi in Sushi",,VPIN26-24040295,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-29,0000",100,https://www.vendus.pt/foto/47270e3d631cd30b3292d71f48f7927b.jpg
+" Balls hot camarão Filadélfia (4UN)",,,"Take away Sushi in Sushi",,VBAL27-24040222,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/f11e2c82aecb71ff1c05e5a13cb630be.jpeg
+"Camarão panado (5UN)",,,"Take away Sushi in Sushi",,VCAM28-24040240,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-239,5716",100,https://www.vendus.pt/foto/6849dcbbcc08f46ac773ea3820e1952a.jpeg
+"Hossomaki de salmão (8 pçs) ",,,"Take away Sushi in Sushi",,VHOS29-24040243,,,Não,"4,5000","0,0000",Uni,Sim,13,,,P,,S,"-60,0000",100,https://www.vendus.pt/foto/686caf047b2523a3d0e80c486763eb26.png
+"Uramaki de Tomate seco e rúcula (8 Pçs)",,,"Take away Sushi in Sushi",,VURA30-24040280,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-8,0000",100,https://www.vendus.pt/foto/b6068ae1bb59271520c735dc787069f8.jpg
+"Uramaki Filadélfia de salmão (8 pçs)",,,"Take away Sushi in Sushi",,VURA31-24040212,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-19,0000",100,https://www.vendus.pt/foto/7fcc27e14fbc0f8f81b4ee720e1c0056.png
+"Uramaki de Salmão Grelhado Filadélfia (8 pçs)",,,"Take away Sushi in Sushi",,VURA32-24040219,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-15,0000",100,https://www.vendus.pt/foto/eda3aeb442fad998cdb69b03ed547afd.png
+"Uramaki Califórnia de Salmão (8 pçs)",,,"Take away Sushi in Sushi",,VURA33-24040260,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-13,0000",100,https://www.vendus.pt/foto/5ab1491d4d9af59ae0e3e5d0d7712762.png
+"Uramaki camarão Filadélfia (8 pçs)",,,"Take away Sushi in Sushi",,VURA34-24040255,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-9,0000",100,https://www.vendus.pt/foto/65e6fc3237c3f50b71674e1bd6d194a6.png
+"Uramaki de Salmão Spicy (8pçs)",,,"Take away Sushi in Sushi",,VURA35-2404027,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-4,0000",100,https://www.vendus.pt/foto/b637f014d416dc3eb5da43b713071c5a.jpg
+"Uramaki de Salmão (8 pçs)",,,"Take away Sushi in Sushi",,VURA36-24040284,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/3f338978a78daa229ad1d6acf2836bfb.jpg
+"Uramaki Filadélfia de Salmão e Camarão (8 pçs)",,,"Take away Sushi in Sushi",,VURA37-24040267,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/cfc19da439bd3e68f51ae3f9f5bc8f21.jpeg
+"Uramaki de Salmão Braseado (8 pçs)",,,"Take away Sushi in Sushi",,VURA38-24040225,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-39,0000",100,https://www.vendus.pt/foto/ee4c8483f5770d747a41c1942e2f7fbb.jpeg
+"Uramaki de Salmão Supremo ( 8 pçs) ",,,"Take away Sushi in Sushi",,VURA39-24040254,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/8665df46eee2d6ed3f1841e8003eaa17.jpeg
+"Uramaki Filadélfia de camarão panado supremo (8 pçs) ",,,"Take away Sushi in Sushi",,VURA40-24040252,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/4a5ba7e98cb0613028d3a0cb5e88167c.jpeg
+"Uramaki misto premium (8 pçs)",,,"Take away Sushi in Sushi",,VURA41-24040298,,,Não,"10,0000","0,0000",Uni,Sim,13,,,P,,S,"-21,0000",100,https://www.vendus.pt/foto/69fc1d85af42bbed80e35ce1e7ce82c5.jpg
+"Sashimi trufado",,,"Take away Sushi in Sushi",,VSAS42-24040235,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-8,0000",100,https://www.vendus.pt/foto/c590267a1fc14025fcca0ceb677ed559.jpeg
+"Niguiri trufado (5 pçs) ",,,"Take away Sushi in Sushi",,VNIG43-24040271,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/51bec75670edfad47cf6d1dd94725e32.jpeg
+"Niguiri de Salmão (10 pçs) ",,,"Take away Sushi in Sushi",,VNIG44-24040264,,,Não,"10,0000","0,0000",Uni,Sim,13,,,P,,S,"-5,0000",100,https://www.vendus.pt/foto/cdc5cd3e60a88a2a62a0cc262008b581.jpeg
+"Hot Filadélfia Carrot (8 pçs) ",,,"Take away Sushi in Sushi",,VHOT45-24040244,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-16,0000",100,https://www.vendus.pt/foto/21854124e2672ec3975e9e0503ff0a30.png
+"Hot Veg. (8 pçs) ",,,"Take away Sushi in Sushi",,VHOT46-24040241,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-26,0000",100,https://www.vendus.pt/foto/bea88c320505dcd5fb7a2501e39cf6ce.png
+"Hot Filadélfia Carrot (16 pçs) ",,,"Take away Sushi in Sushi",,VHOT47-24040262,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-19,0000",100,https://www.vendus.pt/foto/a3ce422833a1e67af839cb903b15e084.png
+"Hossomaki Vegano (24 pçs) ",,,"Take away Sushi in Sushi",,VHOS48-24040212,,,Não,"9,5000","0,0000",Uni,Sim,13,,,P,,S,"-62,0000",100,https://www.vendus.pt/foto/a49b9dd50c440d35e6d2503c71f90c7d.jpg
+"Combinado Vegetariano (20 pçs) ",,,"Take away Sushi in Sushi",,VCOM49-24040217,,,Não,"9,5000","0,0000",Uni,Sim,13,,,P,,S,"-16,0000",100,https://www.vendus.pt/foto/25312f71a726da981d6576cf2434ce9b.png
+"Combinado Vegano (20 pçs) ",,,"Take away Sushi in Sushi",,VCOM50-24040256,,,Não,"9,5000","0,0000",Uni,Sim,13,,,P,,S,"-20,0000",100,https://www.vendus.pt/foto/282450f3148d8de2dd4f0c6881352032.png
+"Combinado Vegetariano do chef (28 pçs) ",,,"Take away Sushi in Sushi",,VCOM51-24040234,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-28,0000",100,https://www.vendus.pt/foto/43f8b162840c202eb805c917c9ef3996.jpeg
+"Hot Filadélfia de Salmão (8 pçs) ",,,"Take away Sushi in Sushi",,VHOT52-24040294,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-116,0000",100,https://www.vendus.pt/foto/28fe3ff0b502a1c267cc0e70b75db31b.png
+"Hot Filadélfia de Camarão (8 pçs) ",,,"Take away Sushi in Sushi",,VHOT53-24040240,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-42,0000",100,https://www.vendus.pt/foto/223ed3075c30c27ccbc7ec7016817d5e.png
+"Hot Filadélfia de Salmão (16 Pçs) ",,,"Take away Sushi in Sushi",,VHOT54-24040211,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-213,0000",100,https://www.vendus.pt/foto/c8ebe27ca04299a18562c99d3e9f832f.jpeg
+"Hot de Salmão e Camarão (16 pçs) ",,,"Take away Sushi in Sushi",,VHOT55-24040261,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-62,0000",100,https://www.vendus.pt/foto/5bd3e45b2bcb44b3d46e593fa80531a6.jpeg
+"Sashimi de Salmão ",,,"Take away Sushi in Sushi",,VSAS56-24040232,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-29,0000",100,https://www.vendus.pt/foto/5c7ee0ce3a2e9ba08a0f04bc4b92c78f.jpeg
+"Hot especial (16 pçs) ",,,"Take away Sushi in Sushi",,VHOT57-24040224,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-42,0000",100,https://www.vendus.pt/foto/5dff21940da59cd2b9374aadd5935800.jpeg
+"Combinado Hot (24 pçs) ",,,"Take away Sushi in Sushi",,VCOM58-24040239,,,Não,"12,5000","0,0000",Uni,Sim,13,,,P,,S,"-108,0000",100,https://www.vendus.pt/foto/f5ddc4bf601571229dd115aed0f79125.jpeg
+"Temaki Salmão e Delícias do mar (1 un) ",,,"Take away Sushi in Sushi",,VTEM59-24040240,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/ebd5a925592d093a75659206eb898cca.jpeg
+"Temaki de Salmão Tropical (1un.) ",,,"Take away Sushi in Sushi",,VTEM60-24040232,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-86,0000",100,https://www.vendus.pt/foto/f5d3fbcbec09aa0d3de26468a272e33f.jpeg
+"Temaki Vegano (1 un) ",,,"Take away Sushi in Sushi",,VTEM61-24040255,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-35,0000",100,https://www.vendus.pt/foto/a71d5253ee82f0e193bd2b61b21c4dd4.jpeg
+"Temaki de Salmão Clássico (1 un.) ",,,"Take away Sushi in Sushi",,VTEM62-24040210,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-100,0000",100,https://www.vendus.pt/foto/a943d9808e326c4f6cf23b09e70a104b.jpeg
+"Temaki de Salmão Grelhado Filadélfia (1 un.) ",,,"Take away Sushi in Sushi",,VTEM63-24040280,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-35,0000",100,https://www.vendus.pt/foto/a03a49ffadc234788ae773095f972895.jpeg
+"Temaki de Salmão e Camarão Filadélfia (1 un.) ",,,"Take away Sushi in Sushi",,VTEM64-24040259,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-93,0000",100,https://www.vendus.pt/foto/cbe5bda48756ecfaa7f95f52ed5e8f69.jpeg
+"Temaki de Salmão e Filadélfia (1 un.) ",,,"Take away Sushi in Sushi",,VTEM65-24040232,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-419,0000",100,https://www.vendus.pt/foto/28f37241f8c04892951a629f606bb760.jpeg
+"Temaki de Camarão Panado Filadélfia (1 un.) ",,,"Take away Sushi in Sushi",,VTEM66-24040276,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-54,0000",100,https://www.vendus.pt/foto/20b401596e725b8498e58ecc8443bc6d.jpeg
+"Hot de banana com nutella  ",,,"Take away Sushi in Sushi",,VHOT67-24040260,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-26,0000",100,https://www.vendus.pt/foto/150bae34a1d91854695e0f50a24658e5.jpeg
+"Hot de banana com  doce de leite e coco",,,"Take away Sushi in Sushi",,VHOT68-2404024,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-10,0000",100,https://www.vendus.pt/foto/a45d309af74254c7056bae4ba82723a5.jpeg
+"Hot de banana misto - (8 pçs) ",,,"Take away Sushi in Sushi",,VHOT69-2404028,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-89,0000",100,https://www.vendus.pt/foto/b5c34332bd3de7ba6071f7773d6e8d6a.jpg
+"Hot de Camarão (16 pçs) ",,,"Take away Sushi in Sushi",,VHOT70-2404028,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-28,0000",100,https://www.vendus.pt/foto/0baa4cd5cd2af6d32f23b9365afc7a91.jpeg
+"Temaki de Camarão Filadélfia  (1 un)",,,"Take away Sushi in Sushi",,VTEM71-24040268,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/465359aeed9fea85cf7ff29c5aa97574.jpeg
+"Sumo de laranja Natural",,,"Take away Sushi in Sushi",,VSUM72-24040269,,,Não,"3,5000","0,0000",Uni,Sim,23,,,P,,S,"-173,0000",100,https://www.vendus.pt/foto/94f7a7295268e50b500e2b562e59f126.jpg
+Gengibre,,,"Take away Sushi in Sushi",,VGEN73-24040232,,,Não,"1,0000","0,0000",Uni,Sim,13,,,P,,S,"-14,0000",100,https://www.vendus.pt/foto/f15ee14c059ed507b457be2ef378386f.jpg
+"Camarão Joe (5uni.)",,,"Take away Sushi in Sushi",,VCAM74-24040287,,,Não,"8,5000","0,0000",Uni,Sim,13,,,P,,S,"-131,0000",100,https://www.vendus.pt/foto/f91b67cb4125b8eff633db1566bfee80.jpeg
+"Balls Hot Nutella (2 uni)",,,"Take away Sushi in Sushi",,VBAL75-24040288,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/1aa2f7a8f89764da098b43ecb699b44d.jpeg
+"Hot Premium (9pçs)",,,"Take away Sushi in Sushi",,VHOT76-24040282,,,Não,"10,5000","0,0000",Uni,Sim,13,,,P,,S,"-33,0000",100,https://www.vendus.pt/foto/28e0f5feb4584e6eda264e7c7ffde2dd.jpeg
+"Grelhadohot (16pçs) + bebida grátis",,,"Take away Sushi in Sushi",,VGRE77-24040288,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-4,0000",100,https://www.vendus.pt/foto/892bdc40e0ff099e036f72993c6c09de.jpeg
+"Big Hot de Salmão Philadelphia",,,"Take away Sushi in Sushi",,VBIG78-24040254,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-165,0000",100,https://www.vendus.pt/foto/a35183993f61b042498584f1fa541e7c.jpeg
+"Big Hot de Salmão Braseado ",,,"Take away Sushi in Sushi",,VBIG79-24040226,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-23,0000",100,https://www.vendus.pt/foto/c836c718a4a09b3f951d965396a7ae0f.jpeg
+"Big Hot de Delicias do Mar",,,"Take away Sushi in Sushi",,VBIG80-24040254,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/1f170cd4f5d84464211be7ca04e8de7b.jpeg
+"Big Hot de Camarao Panado ",,,"Take away Sushi in Sushi",,VBIG81-2404028,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-18,0000",100,https://www.vendus.pt/foto/25c941c0b19e6f1b6da02c150f53f466.jpeg
+"Big hot de Salmao e Camarao ",,,"Take away Sushi in Sushi",,VBIG82-24040284,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-20,0000",100,https://www.vendus.pt/foto/f338125059c97623b0e803355f57a0d8.jpeg
+"Niguiri Salmão e Camarão",,,"Take away Sushi in Sushi",,VNIG83-24040246,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-7,0000",100,https://www.vendus.pt/foto/b31d86c7173fa7d1d20903445b290aaa.jpeg
+"Taxa Saco",,,"Take away Sushi in Sushi",,VTAX84-24040221,,,Não,"0,3000","0,0000",Uni,Sim,23,,,P,,S,"-1220,0000",100,
+"Poke de Salmão",,,"Take away Sushi in Sushi",,VPOK85-24040215,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-20,0000",100,https://www.vendus.pt/foto/47f99cd9dfc1f40c191d63e9f0ec29e9.jpeg
+"Poke de Salmão Filadélfia",,,"Take away Sushi in Sushi",,VPOK86-24040218,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-77,0000",100,https://www.vendus.pt/foto/c835b486c3205d3524a8fec5517a00cc.jpeg
+"Poke de Salmão e Delícias do Mar Filadélfia",,,"Take away Sushi in Sushi",,VPOK87-24040258,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/e8532679dfa805d903ab843d50e33d08.jpeg
+"Poke Vegan",,,"Take away Sushi in Sushi",,VPOK88-24040241,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/bf28750f4ec3deffc01d6ab673108c93.jpeg
+"Poke de Salmão e Camarão",,,"Take away Sushi in Sushi",,VPOK89-24040242,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-14,0000",100,https://www.vendus.pt/foto/56c8a454084ebcbc31120db22e91ecd8.jpeg
+"Poke de Camarão",,,"Take away Sushi in Sushi",,VPOK90-24040276,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/56792492d2eaad3b7ad04a53a76b61ba.jpeg
+"Uramaki Califórnia de Camarão (8 pçs)",,,"Take away Sushi in Sushi",,VURA91-24040258,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-8,0000",100,https://www.vendus.pt/foto/1e8f53a0a5ab94f137ea76ffd2d8895c.jpeg
+"Special Salmon (8 pçs)",,,"Take away Sushi in Sushi",,VSPE92-24040232,,,Não,"11,5000","0,0000",Uni,Sim,13,,,P,,S,"-17,0000",100,https://www.vendus.pt/foto/466912313fdd3e594aba5c4510b227b6.jpeg
+"Shimeji ",,,"Take away Sushi in Sushi",,VSHI93-24040247,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-94,0000",100,https://www.vendus.pt/foto/5169e7547c1e0b9a9fe4c2dbeeea9c7b.jpg
+"Ceviche de salmão ",,,"Take away Sushi in Sushi",,VCEV94-24040296,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-55,0000",100,https://www.vendus.pt/foto/9df137305f0695724716da27e7cc412f.png
+"Tartar de salmão ",,,"Take away Sushi in Sushi",,VTAR95-24040266,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-27,0000",100,https://www.vendus.pt/foto/d8b706ef44a9836c3f02ed5ee5e40533.jpeg
+"Carpaccio de salmão (10 pçs)",,,"Take away Sushi in Sushi",,VCAR96-24040221,,,Não,"10,0000","0,0000",Uni,Sim,13,,,P,,S,"-18,0000",100,https://www.vendus.pt/foto/f4ca5dc840415911e32faa43a479abe6.jpeg
+"Niguiri de salmão (5 pçs)",,,"Take away Sushi in Sushi",,VNIG97-24040252,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/9c2145b033ef00607119909320169061.jpeg
+"Gunkan crispy (8 pçs)",,,"Take away Sushi in Sushi",,VGUN98-24040217,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-10,0000",100,https://www.vendus.pt/foto/e53889e33465062e1538d2b93120d6ff.png
+"Gunkan mix (20 pçs)",,,"Take away Sushi in Sushi",,VGUN99-24040243,,,Não,"21,0000","0,0000",Uni,Sim,13,,,P,,S,"-18,0000",100,https://www.vendus.pt/foto/c29ef4a67028b231e55c184c7c828ad7.jpeg
+"Hot Crispy Filadélfia (8 pçs)",,,"Take away Sushi in Sushi",,VHOT100-24040278,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-41,0000",100,https://www.vendus.pt/foto/3effd5162c43db90a6b42a6334c71ab1.png
+"Topping Shimeji (8 pçs)",,,"Take away Sushi in Sushi",,VTOP101-24040212,,,Não,"1,2500","0,0000",Uni,Sim,13,,,P,,S,"-5,0000",100,
+"Topping Crispy de alho francês (8 pçs)",,,"Take away Sushi in Sushi",,VTOP102-24040217,,,Não,"1,2500","0,0000",Uni,Sim,13,,,P,,S,"-24,0000",100,
+"Topping Crispy de couve (8 pçs)",,,"Take away Sushi in Sushi",,VTOP103-24040226,,,Não,"1,2500","0,0000",Uni,Sim,13,,,P,,S,"-5,0000",100,
+"Topping Cebola Roxa Caramelizada (8 pçs)",,,"Take away Sushi in Sushi",,VTOP104-24040278,,,Não,"1,2500","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,
+"Topping de creme queijo (8 pçs)",,,"Take away Sushi in Sushi",,VTOP105-2404023,,,Não,"2,0000","0,0000",Uni,Sim,13,,,P,,S,"-67,0000",100,
+"Molho de ostra",,,"Take away Sushi in Sushi",,VMOL106-24040233,,,Não,"1,2500","0,0000",Uni,Sim,13,,,P,,S,0,100,
+"Molho de frutos do mar",,,"Take away Sushi in Sushi",,VMOL107-24040254,,,Não,"1,0000","0,0000",Uni,Sim,13,,,P,,S,"-10,0000",100,
+"Gunkan de salmão (8 pçs)",,,"Take away Sushi in Sushi",,VGUN108-24040231,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-31,0000",100,https://www.vendus.pt/foto/9a88d73b496947043bd6f3b609b1da48.jpeg
+"Gunkan c/ camarão (8 pçs)",,,"Take away Sushi in Sushi",,VGUN109-2404021,,,Não,"9,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/5138492bd529c6c4d3e59960b9dc9c20.jpg
+"Gunkan de Pepino (8 pçs)",,,"Take away Sushi in Sushi",,VGUN110-24040247,,,Não,"9,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/fd2e2ae8054633e029d9cb6fc5bd23a4.jpeg
+"Gunkan Lovers (8 pçs)",,,"Take away Sushi in Sushi",,VGUN111-24040213,,,Não,"9,5000","0,0000",Uni,Sim,13,,,P,,S,"-16,0000",100,https://www.vendus.pt/foto/a7e93fff69469f55eba1ab5049d40abb.jpeg
+"Gunkan do chef (8 pçs)",,,"Take away Sushi in Sushi",,VGUN112-24040242,,,Não,"10,0000","0,0000",Uni,Sim,13,,,P,,S,"-8,0000",100,https://www.vendus.pt/foto/a88c706e485f1ec44540de1dcf7e8a2e.jpeg
+"Aros de Lula (6 pçs)",,,"Take away Sushi in Sushi",,VARO113-2404021,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-35,0000",100,https://www.vendus.pt/foto/6c9471acf2b493ec2fcb5865eb5ac8de.jpg
+"Ice tea pêssego",,,"Take away Sushi in Sushi",,VICE114-24040260,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-480,0000",100,https://www.vendus.pt/foto/17e1f46fe138de57685e810a2a0244f3.jpeg
+"Mini rolos de frango (6 pçs)",,,"Take away Sushi in Sushi",,VMIN115-24040275,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-72,0000",100,https://www.vendus.pt/foto/545a66d3a12a0d9befedc4862c90611b.jpg
+"Poke de Atum",,,"Take away Sushi in Sushi",,VPOK117-24040246,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-10,0000",100,
+"Mousse de Limão com bolacha",,,"Take away Sushi in Sushi",,VMOU118-24040223,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-37,0000",100,
+Sprite,,,"Take away Sushi in Sushi",,VSPR119-2404023,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-129,8574",100,https://www.vendus.pt/foto/33c806137fe0eb45202c4f61212c6bf6.jpg
+Fanta,,,"Take away Sushi in Sushi",,VFAN120-24040282,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-57,0000",100,https://www.vendus.pt/foto/003a55591225ba244e16a6a1850a9244.jpg
+"Super Bock (fino)",,,"Take away Sushi in Sushi",,VSUP121-24040218,,,Não,"2,2000","0,0000",Uni,Sim,23,,,P,,S,"-499,0000",100,https://www.vendus.pt/foto/02fb2e21b62f349adfe5aea362d54c67.jpg
+"Fino panache/tango",,,"Take away Sushi in Sushi",,VFIN122-24040275,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-62,0000",100,
+"Super Bock (Principe)",,,"Take away Sushi in Sushi",,VSUP123-24040230,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-336,0000",100,
+"Super Bock Stout",,,"Take away Sushi in Sushi",,VSUP124-24040218,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-141,0000",100,https://www.vendus.pt/foto/91bb5d6b224c52f8d03deb783a6f9509.jpg
+"Heineken ",,,"Take away Sushi in Sushi",,VHEI125-24040295,,,Não,"3,0000","0,0000",Uni,Sim,23,,,P,,S,"-131,0000",100,https://www.vendus.pt/foto/2f1318db6a5533a8411c3f95ed45b7ba.jpg
+"Corona cerveja",,,"Take away Sushi in Sushi",,VCOR126-24040278,,,Não,"3,5000","0,0000",Uni,Sim,23,,,P,,S,"-72,0000",100,https://www.vendus.pt/foto/e390ffd4ce030816afcff0bdc921f63a.jpg
+"Somersby blackberry",,,"Take away Sushi in Sushi",,VSOM127-24040235,,,Não,"3,0000","0,0000",Uni,Sim,23,,,P,,S,"-110,0000",100,https://www.vendus.pt/foto/bd19522c39506e99c3007f2d52e0b98e.jpg
+"Vinho Monte velho (tinto)",,,"Take away Sushi in Sushi",,VVIN128-24040273,,,Não,"9,0000","0,0000",Uni,Sim,23,,,P,,S,"-20,0000",100,https://www.vendus.pt/foto/ce4cf7e45fa32efcca1c9dc0316abf8b.jpg
+"Vinho Planalto Branco",,,"Take away Sushi in Sushi",,VVIN129-2404029,,,Não,"9,0000","0,0000",Uni,Sim,23,,,P,,S,"-28,0000",100,https://www.vendus.pt/foto/6c3084f8368b54dcd2c3fede4e2b0a6b.jpg
+"Espumante Aliança ",,,"Take away Sushi in Sushi",,VESP130-24040272,,,Não,"13,0000","0,0000",Uni,Sim,23,,,P,,S,"-7,0000",100,https://www.vendus.pt/foto/33aabbed01d633ff3b1b7d80d9180735.jpg
+"Cozumel ",,,"Take away Sushi in Sushi",,VCOZ131-24040237,,,Não,"5,5000","0,0000",Uni,Sim,23,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/80c1c452ebe92b4a0e628d3d893c322b.jpg
+"Cocktail frutos vermelhos",,,"Take away Sushi in Sushi",,VCOC132-24040280,,,Não,"6,0000","0,0000",Uni,Sim,23,,,P,,S,"-88,0000",100,https://www.vendus.pt/foto/94d6e9f78a37c1fde029999bd04b5925.jpg
+"Gin tonica limão",,,"Take away Sushi in Sushi",,VGIN133-24040285,,,Não,"7,0000","0,0000",Uni,Sim,23,,,P,,S,"-18,0000",100,https://www.vendus.pt/foto/aa12d068f81cd052c97ce608c844ba3a.jpg
+"Apple cider ",,,"Take away Sushi in Sushi",,VAPP134-24040276,,,Não,"6,5000","0,0000",Uni,Sim,23,,,P,,S,"-40,0000",100,https://www.vendus.pt/foto/620c2984bdb698816f53a6d7d0b1ab19.jpg
+Café,,,"Take away Sushi in Sushi",,VCAF135-24040220,,,Não,"1,0000","0,0000",Uni,Sim,23,,,P,,S,"-972,0000",100,https://www.vendus.pt/foto/b9f73fdcb723e1feba2b026ca01f382b.JPG
+"Combinado 1 (16 pçs)",,,"Take away Sushi in Sushi",,VCOM136-24040235,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-15,0000",100,https://www.vendus.pt/foto/faa1f5911db53bf58af7d46ae178dbd0.jpg
+"Combinado 2 (16 pçs)",,,"Take away Sushi in Sushi",,VCOM137-24040229,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-35,0000",100,https://www.vendus.pt/foto/b0aa5035efe5039d45c81521ea04ed96.jpeg
+"Combinado 3 (16 pçs)",,,"Take away Sushi in Sushi",,VCOM138-24040277,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-18,0000",100,https://www.vendus.pt/foto/192ee47c4c2312e7edb6c7fa7f61b164.png
+"Combinado 4 (16 pçs)",,,"Take away Sushi in Sushi",,VCOM139-24040285,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-15,0000",100,https://www.vendus.pt/foto/5bf89ae2f619e8696e3ddfc1c300468c.jpeg
+"Molho de soja",,,Delivery,,VMOL140-24040249,,,Não,"1,2000","0,0000",Uni,Sim,13,,,P,,S,"-3760,0000",100,
+"Molho Agri-doce",,,Delivery,,VMOL141-24040271,,,Não,"1,2000","0,0000",Uni,Sim,13,,,P,,S,"-2064,0000",100,
+"Molho Teriyaki",,,Delivery,,VMOL142-24040266,,,Não,"1,2000","0,0000",Uni,Sim,13,,,P,,S,"-1744,0000",100,
+Wasabi,,,Delivery,,VWAS143-24040238,,,Não,"1,2000","0,0000",Uni,Sim,13,,,P,,S,"-1104,0000",100,
+"Compal Laranja",,,Delivery,,VCOM144-24040210,,,Não,"3,0000","0,0000",Uni,Sim,23,,,P,,S,"-22,0000",100,https://www.vendus.pt/foto/6285455eb64d70a7d0fb2988d4a5cff8.jpg
+"Combinado 6 (14 pçs)",,,"Take away Sushi in Sushi",,VCOM145-2404036,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-13,0000",100,https://www.vendus.pt/foto/577e32902a84496e735f145cba60f3ce.jpeg
+"Combinado 5 (14 pçs)",,,"Take away Sushi in Sushi",,VCOM146-2404031,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-38,0000",100,https://www.vendus.pt/foto/92917861e8b21230897f08d8a05284c6.png
+"Combinado 7 (16 pçs)",,,"Take away Sushi in Sushi",,VCOM147-24040397,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-27,0000",100,https://www.vendus.pt/foto/8929e21b80fd41ccd468b4c60f9d21d3.jpeg
+"Combinado 8 (24 pçs)",,,"Take away Sushi in Sushi",,VCOM148-24040345,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-95,0000",100,https://www.vendus.pt/foto/2a8c20b1f900781af663e9b6d4a86557.jpg
+"Combinado 9 (24 pçs)",,,"Take away Sushi in Sushi",,VCOM149-24040317,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-64,0000",100,https://www.vendus.pt/foto/51caa9107c51fd92fe7b6dfc17caf512.jpeg
+"Combinado 10 (24 pçs)",,,"Take away Sushi in Sushi",,VCOM150-24040314,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-23,0000",100,https://www.vendus.pt/foto/a055bcff69f051806f1973f74bab4af5.jpeg
+"Combinado 11 (24 pçs)",,,"Take away Sushi in Sushi",,VCOM151-24040313,,,Não,"18,0000","0,0000",Uni,Sim,13,,,P,,S,"-81,0000",100,https://www.vendus.pt/foto/4491491b37f65141c848e8c14e6bafdd.jpeg
+"Combinado 12 (24 pçs)",,,"Take away Sushi in Sushi",,VCOM152-24040399,,,Não,"18,0000","0,0000",Uni,Sim,13,,,P,,S,"-75,0000",100,https://www.vendus.pt/foto/163d628888544a491ae4a352e411dbbd.jpeg
+"Combinado 13 (24pçs)",,,"Take away Sushi in Sushi",,VCOM153-24040343,,,Não,"18,0000","0,0000",Uni,Sim,13,,,P,,S,"-16,0000",100,https://www.vendus.pt/foto/029ffffa6b10a1740f5b9e2eecd7ecc4.jpeg
+"Combinado 14 (24 pçs)",,,"Take away Sushi in Sushi",,VCOM154-24040347,,,Não,"18,0000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/5d475bbed9125e26cbce3d8b08124646.jpeg
+"Combinado 15 (24 pçs)",,,"Take away Sushi in Sushi",,VCOM155-24040350,,,Não,"18,0000","0,0000",Uni,Sim,13,,,P,,S,"-8,0000",100,https://www.vendus.pt/foto/9d92d3ff964f0388642ac4d4b6cd5b52.jpeg
+"Combinado 16 (58 pçs)",,,"Take away Sushi in Sushi",,VCOM156-24040322,,,Não,"37,0000","0,0000",Uni,Sim,13,,,P,,S,"-95,0000",100,https://www.vendus.pt/foto/bdd167bf0a22928e34b99175142a03f1.png
+"Combinado 17 (58 pçs)",,,"Take away Sushi in Sushi",,VCOM157-24040330,,,Não,"37,0000","0,0000",Uni,Sim,13,,,P,,S,"-17,0000",100,https://www.vendus.pt/foto/9cb95298539d94fb009a079b1c206e78.jpeg
+"Combinado 18 (58 pçs)",,,"Take away Sushi in Sushi",,VCOM158-2404035,,,Não,"43,0000","0,0000",Uni,Sim,13,,,P,,S,"-21,0000",100,https://www.vendus.pt/foto/c30e60a0b3149e6ffbc1b96034743f13.jpeg
+"Combinado 19 (58 pçs)",,,"Take away Sushi in Sushi",,VCOM159-24040349,,,Não,"44,0000","0,0000",Uni,Sim,13,,,P,,S,"-17,0000",100,https://www.vendus.pt/foto/6c72177bf2367eca37a44fc6b02710a3.jpeg
+"Tartar do chef ",,,"Take away Sushi in Sushi",,VTAR160-24040391,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-29,0000",100,
+"Hot Lovers (8 peças)",,,"Take away Sushi in Sushi",,VHOT161-24040330,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-61,0000",100,https://www.vendus.pt/foto/b9470bbbb28fbe861d8597959c259e9c.jpeg
+"Hot Grill Filadélfia (8 pçs)",,,"Take away Sushi in Sushi",,VHOT162-24040364,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-7,0000",100,https://www.vendus.pt/foto/461f32cd2f3c6e96582554b9b811da56.jpeg
+"Poke de Salmao e Atum",,,"Take away Sushi in Sushi",,VPOK163-24040389,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,0,100,
+"Temaki Supremo Filadelfia",,,"Take away Sushi in Sushi",,VTEM164-24040324,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-36,0000",100,
+"Menu Almoço - Hot de salmão (16 pçs) ",,,"Take away Sushi in Sushi",,VMEN165-24040393,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-52,0000",100,https://www.vendus.pt/foto/1baf6cbe59f50e29efb0bab5f38ca34e.png
+"Menu Almoço - Combinado 2 (16 pçs)",,,"Take away Sushi in Sushi",,VMEN166-24040356,,,Não,"11,5000","0,0000",Uni,Sim,13,,,P,,S,"-105,0000",100,https://www.vendus.pt/foto/588637bfb4d1d1c223b82852a07c52bd.jpeg
+"Menu Almoço - Poke de Salmão Filadélfia ",,,"Take away Sushi in Sushi",,VMEN167-24040360,,,Não,"10,5000","0,0000",Uni,Sim,13,,,P,,S,"-30,0000",100,https://www.vendus.pt/foto/f3b8b00af97a2efd4ecbc1a827d380fd.png
+"Menu Almoço - Big Hot Salmão Filadélfia",,,"Take away Sushi in Sushi",,VMEN168-24040398,,,Não,"10,5000","0,0000",Uni,Sim,13,,,P,,S,"-31,0000",100,https://www.vendus.pt/foto/8746cd0647b3e891053f283965cc22ef.jpeg
+"Caneca Super Bock",,,"Take away Sushi in Sushi",,VCAN169-24040355,,,Não,"3,5000","0,0000",Uni,Sim,23,,,P,,S,"-164,0000",100,https://www.vendus.pt/foto/9519b9085607294604b765059a3d37b5.jpg
+Festival,,,"Take away Sushi in Sushi",,VFES170-24040397,,,Não,"20,0000","0,0000",Uni,Sim,13,,,P,,S,"-1591,0000",100,
+Festival,,,"Take away Sushi in Sushi",,VFES171-24040395,,,Não,"21,0000","0,0000",Uni,Sim,13,,,P,,S,"-1697,0000",100,
+Gengibre,,,Delivery,,VGEN172-24040335,,,Não,"1,2000","0,0000",Uni,Sim,13,,,P,,S,"-786,0000",100,https://www.vendus.pt/foto/6e709f7afe5d7d4a7ec650c7f6263162.jpg
+Brasear,,,Delivery,,VBRA173-24040367,,,Não,"1,2000","0,0000",Uni,Sim,13,,,P,,S,"-145,0000",100,https://www.vendus.pt/foto/8b15083ea7c8a72785be3c6c5b8a317b.jpg
+Coca-Cola,,,Delivery,,VCOC174-24040396,,,Não,"3,0000","0,0000",Uni,Sim,23,,,P,,S,"-612,0000",100,https://www.vendus.pt/foto/24106833a51bce9c44f952fb9e991372.png
+"Coca-Cola Zero",,,Delivery,,VCOC175-24040324,,,Não,"3,0000","0,0000",Uni,Sim,23,,,P,,S,"-807,0000",100,https://www.vendus.pt/foto/3d974ffdcf57b65a6f26069cd909d95c.png
+"Sumol Laranja",,,Delivery,,VSUM176-24040363,,,Não,"3,0000","0,0000",Uni,Sim,23,,,P,,S,"-46,0000",100,https://www.vendus.pt/foto/8e0f45c256d9f0ba381246d620df83c1.jpg
+Água,,,Delivery,,VAGU177-24040383,,,Não,"1,5000","0,0000",Uni,Sim,23,,,P,,S,"-75,0000",100,https://www.vendus.pt/foto/c3dff2c7439f36d8eeec6b9ec7d916ce.png
+"Super Bock",,,Delivery,,VSUP178-24040365,,,Não,"3,0000","0,0000",Uni,Sim,23,,,P,,S,"-107,0000",100,https://www.vendus.pt/foto/43979235da34712f0d3ff216c05a3bcf.png
+"Água das Pedras ",,,Delivery,,VAGU179-24040365,,,Não,"3,0000","0,0000",Uni,Sim,23,,,P,,S,"-28,0000",100,https://www.vendus.pt/foto/e8631fc117f956c7822e50ff262714be.png
+"Água das Pedras Limão",,,Delivery,,VAGU180-24040326,,,Não,"3,0000","0,0000",Uni,Sim,23,,,P,,S,"-80,0000",100,https://www.vendus.pt/foto/3644931f35545de9c6fc902d7344faf3.png
+"Taxa Saco ",,,Delivery,,VTAX181-24040340,,,Não,"0,2500","0,0000",Uni,Sim,23,,,P,,S,"-22922,0000",100,
+"Combinado Hot (24 pçs) ",,,Delivery,,VCOM182-24040334,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-587,0000",100,https://www.vendus.pt/foto/557f0b045e86f5ea4d1d17ff6ab0f235.jpeg
+"Temaki de Salmão Clássico (1 un.)",,,Delivery,,VTEM183-2404030,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-402,0000",100,https://www.vendus.pt/foto/20292a9b33263fdb9c82b7f26f014d3e.jpeg
+"Temaki de Salmão Filadélfia (1 un.)",,,Delivery,,VTEM184-24040323,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-2063,0000",100,https://www.vendus.pt/foto/1794652f42e705e4d2c4446e56844fd3.jpeg
+"Temaki de Salmão e Delicias do Mar Filadélfia (1 un.)",,,Delivery,,VTEM185-2404030,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-124,0000",100,https://www.vendus.pt/foto/c9d8bbf2ac90f3782d6d6f5233ef6056.jpeg
+"Temaki de Salmão Tropical (1 un.)",,,Delivery,,VTEM186-24040344,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-172,0000",100,https://www.vendus.pt/foto/7317e489218e97ffab070641bbf0f27b.jpeg
+"Temaki Vegan (1 un.)",,,Delivery,,VTEM187-24040337,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-20,0000",100,https://www.vendus.pt/foto/c0bbdbd1d9d057917bba25564d24b2ec.jpeg
+"Temaki de Salmão e Camarão Filadélfia (1 un.)",,,Delivery,,VTEM188-24040378,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-435,0000",100,https://www.vendus.pt/foto/ac8ff318437d6cc3f678d2af8fecd3b2.jpeg
+"Temaki de Salmão Grelhado Filadélfia (1 un.)",,,Delivery,,VTEM189-24040380,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-152,0000",100,https://www.vendus.pt/foto/79d2d0d35b33844da69798ccffe875a7.jpeg
+"Temaki de Camarão Filadélfia (1 un.)",,,"Take away Sushi in Sushi",,VTEM190-24040325,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/87c44c6c05798d890dd1c373c40c0cfe.jpeg
+"Temaki de Camarão Panado Filadélfia (1 un.)",,,Delivery,,VTEM191-24040334,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-180,0000",100,
+"Combinado Vegan (20 pçs)",,,Delivery,,VCOM192-24040321,,,Não,"12,7500","0,0000",Uni,Sim,13,,,P,,S,"-140,0000",100,https://www.vendus.pt/foto/4182034585e2355c901f82ff90e4c5f6.png
+"Combinado Vegetariano do Chef (28 pçs)",,,Delivery,,VCOM193-24040348,,,Não,"18,2500","0,0000",Uni,Sim,13,,,P,,S,"-7,0000",100,https://www.vendus.pt/foto/b7db1d6640e04bf7c64f175830758114.jpeg
+"Vinho 75cl ",,,Delivery,,VVIN194-24040364,,,Não,"11,0000","0,0000",Uni,Sim,23,,,P,,S,"-8,0000",100,
+"Pinças de caranguejo panados (5 un)",,,Delivery,,VPIN195-2404037,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-161,0000",100,https://www.vendus.pt/foto/913fa02d9bcf480159e41032361c0582.jpg
+"Mini rolos primavera vegetais (6 uni)",,,Delivery,,VMIN196-24040353,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-88,0000",100,https://www.vendus.pt/foto/d5091a0e38cfeeec144848d9dcf138f5.jpg
+"Panado Chili com queijo (5 uni)",,,Delivery,,VPAN197-24040336,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-22,0000",100,https://www.vendus.pt/foto/47bbe784ce1268c0dc18279f6f78df0f.jpeg
+"Somersby Apple 33cl ",,,Delivery,,VSOM198-24040342,,,Não,"3,5000","0,0000",Uni,Sim,23,,,P,,S,"-81,0000",100,https://www.vendus.pt/foto/311bb9ffa8173581f63057b6acb38fa2.png
+"Vinho Verde Gazela 750ml ",,,Delivery,,VVIN199-24040394,,,Não,"11,0000","0,0000",Uni,Sim,23,,,P,,S,"-20,0000",100,https://www.vendus.pt/foto/e996ad39c85bbaf6e08a541865a8df69.jpg
+"Hot Filadélfia Carrot (16 pçs)",,,Delivery,,VHOT200-24040369,,,Não,"10,0000","0,0000",Uni,Sim,13,,,P,,S,"-137,0000",100,https://www.vendus.pt/foto/5561537e816cfd7c4e83c4df2c6fdead.png
+"Hot Filadélfia de Salmão (8 pçs) ",,,Delivery,,VHOT201-24040331,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-526,0000",100,https://www.vendus.pt/foto/3b901446ac152324b612a91c168708a5.png
+"Hot Filadélfia de Camarão (8 pçs)",,,Delivery,,VHOT202-24040397,,,Não,"10,0000","0,0000",Uni,Sim,13,,,P,,S,"-117,0000",100,https://www.vendus.pt/foto/0399e41e50af17dba3df8a1e41d82e0c.png
+"Combinado Vegetariano (20 pçs)",,,Delivery,,VCOM203-24040319,,,Não,"12,7500","0,0000",Uni,Sim,13,,,P,,S,"-176,0000",100,https://www.vendus.pt/foto/fbcc91c6d15b7d6fdab618d3978df8bf.png
+"Hot Filadélfia de Salmão (16 Pçs)",,,Delivery,,VHOT204-24040388,,,Não,"14,0000","0,0000",Uni,Sim,13,,,P,,S,"-596,0000",100,https://www.vendus.pt/foto/dad776e403193ce07bc6732ca3027a9b.jpeg
+"Hossomaki de salmão (8 pçs)",,,Delivery,,VHOS205-24040328,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-910,0000",100,https://www.vendus.pt/foto/e9e1eff100a43b5c79f26b59169fc69d.png
+"Uramaki Califórnia de Salmão (8 pçs)",,,Delivery,,VURA206-24040372,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-86,0000",100,https://www.vendus.pt/foto/f7520a59e407171ad0851cee37140a38.png
+"Uramaki camarão Filadélfia (8 pçs)",,,Delivery,,VURA207-24040377,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-67,0000",100,https://www.vendus.pt/foto/23371ea81953e6f9df08a16bcbd94706.png
+"Uramaki Filadélfia de camarão panado supremo (8 pçs)",,,Delivery,,VURA208-24040397,,,Não,"9,5000","0,0000",Uni,Sim,13,,,P,,S,"-102,0000",100,https://www.vendus.pt/foto/c8cc2e60c9646a2754d68253f0971909.jpeg
+"Uramaki Filadélfia de salmão (8 pçs)",,,Delivery,,VURA209-24040320,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-207,0000",100,https://www.vendus.pt/foto/2fefc022dc38b499fd5e14df26813184.png
+"Sashimi de Salmão (10pçs)",,,Delivery,,VSAS210-24040390,,,Não,"12,5000","0,0000",Uni,Sim,13,,,P,,S,"-117,0000",100,https://www.vendus.pt/foto/160f1354160b0a114eb90613d6e44caf.jpeg
+"Uramaki de Salmão (8 pçs)",,,Delivery,,VURA211-24040321,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-23,0000",100,https://www.vendus.pt/foto/0219759b6f08ec04768d9c0c67ee5f7b.jpg
+"Hot Veg. (8 pçs)",,,Delivery,,VHOT212-24040388,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-102,0000",100,https://www.vendus.pt/foto/a5ae98c7d30b1fa47117dd1e7e37f9a5.png
+"Uramaki Salmão e Camarão (8 pçs)",,,Delivery,,VURA213-24040314,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-38,0000",100,https://www.vendus.pt/foto/b2d9bb3ec1c15e1f372fb3ef11bf54b9.jpeg
+"Hot de Salmão (24 pçs) + (C)",,,Delivery,,VHOT214-24040359,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-1627,0000",100,https://www.vendus.pt/foto/4beef1050b69c02bc90d83b683088fdb.png
+"Hot Filadélfia Camarão e Salmão (16pçs)",,,Delivery,,VHOT215-24040346,,,Não,"14,0000","0,0000",Uni,Sim,13,,,P,,S,"-160,0000",100,https://www.vendus.pt/foto/08ab731caaf82d550ca2c8b37988f661.jpeg
+"Hot Filadélfia de Camarão  (16pçs)",,,Delivery,,VHOT216-24040327,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-82,0000",100,https://www.vendus.pt/foto/cab45e76ca2bdf018ea5580bfbe95d70.jpeg
+"Hot Filadélfia Carrot (8 pçs)",,,Delivery,,VHOT217-24040392,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-56,0000",100,https://www.vendus.pt/foto/620baa248322940da82b39daa4771272.png
+"Hot especial (16 pçs)",,,Delivery,,VHOT218-24040356,,,Não,"14,0000","0,0000",Uni,Sim,13,,,P,,S,"-795,0000",100,https://www.vendus.pt/foto/76655f4a6c87b66234ff88a1ba2f45bf.jpeg
+"Niguiri de Salmão (10 pçs)",,,Delivery,,VNIG219-24040383,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-111,0000",100,https://www.vendus.pt/foto/67261af8a941bd3a2b8a05dcaf17c36a.jpeg
+"Guaraná Antartica 33cl",,,Delivery,,VGUA220-24040324,,,Não,"3,0000","0,0000",Uni,Sim,13,,,P,,S,"-273,0000",100,https://www.vendus.pt/foto/2730098b1838bfcd376af7ebd4e86626.jpg
+"Palitos de mussarela (5 un.)",,,Delivery,,VPAL221-24040382,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-103,0000",100,https://www.vendus.pt/foto/500c42a0d07bd1562578ae9d451f7a93.jpeg
+"Uramaki de salmão baseado (8pçs)",,,Delivery,,VURA222-24040389,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-101,0000",100,https://www.vendus.pt/foto/8cb38e4be4ffe16554feca7b1c770fc4.jpeg
+"Uramaki de Salmão Supremo (8 pçs)",,,Delivery,,VURA223-24040396,,,Não,"9,5000","0,0000",Uni,Sim,13,,,P,,S,"-88,0000",100,https://www.vendus.pt/foto/cd5739735776e5cb5c5f031df49a2b9f.jpeg
+"Uramaki de Salmão Grelhado Filadélfia (8 pçs)",,,Delivery,,VURA224-24040374,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-146,0000",100,https://www.vendus.pt/foto/48cd3cfed80935be9c1479fa6a8211cc.png
+"Sashimi de Salmão Trufado (10 pçs)",,,Delivery,,VSAS225-24040348,,,Não,"13,5000","0,0000",Uni,Sim,13,,,P,,S,"-11,0000",100,https://www.vendus.pt/foto/fb890ee151084b1d6e29f267b9349d54.jpeg
+"Sashimi de Salmão Trufado (10 pçs)",,,"Take away Sushi in Sushi",,VSAS226-24040359,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/a1dcb18d3eb96e77231f5edc124b1131.jpg
+"Uramaki Premium (8 pçs)",,,Delivery,,VURA227-24040317,,,Não,"10,5000","0,0000",Uni,Sim,13,,,P,,S,"-45,0000",100,https://www.vendus.pt/foto/11065cb7038c4aa8ba54c710c06c761b.jpg
+"Uramaki de Salmão Spicy (8pçs)",,,Delivery,,VURA228-24040321,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-26,0000",100,https://www.vendus.pt/foto/c2ec400c43d294d929dd6ae434565ffa.jpg
+"Hot de banana misto - (8 pçs)",,,Delivery,,VHOT229-24040379,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-386,0000",100,https://www.vendus.pt/foto/d0214ec9463fe5cfd397e03fc07847ee.jpg
+"Sumo de laranja Natural ",,,Delivery,,VSUM230-24040385,,,Não,"4,0000","0,0000",Uni,Sim,23,,,P,,S,0,100,https://www.vendus.pt/foto/fd951a53165156a1d6e7c576d4756ac3.jpg
+"Camarão Joe (5 uni.)",,,Delivery,,VCAM231-24040312,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-497,0000",100,https://www.vendus.pt/foto/dee6121b9a7a92fccdfdd1d416bce286.jpeg
+"Balls Hot Nutella (2 uni)",,,Delivery,,VBAL232-24040343,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/084e3f59db37e78e79808dc5bf258387.jpeg
+"Hot Premium (9pçs)",,,Delivery,,VHOT233-24040363,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-211,0000",100,https://www.vendus.pt/foto/8b36c042796b39a40d27232074685ca0.jpeg
+"Grelhadohot (16pçs) + bebida grátis",,,Delivery,,VGRE234-24040381,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-218,0000",100,https://www.vendus.pt/foto/ebd3d7acf164b456908077a5d78bfb5f.jpeg
+"Big Hot de Salmão Philadelphia",,,Delivery,,VBIG235-24040344,,,Não,"13,5000","0,0000",Uni,Sim,13,,,P,,S,"-2394,0000",100,https://www.vendus.pt/foto/ea0824fceebc7b6c583d51bc2af41859.jpeg
+"Big Hot de Salmão Braseado ",,,Delivery,,VBIG236-24040392,,,Não,"14,5000","0,0000",Uni,Sim,13,,,P,,S,"-139,0000",100,https://www.vendus.pt/foto/90d3fd1a3c466b4ca73cc6d5a4614ea5.jpeg
+"Big Hot de Salmão e Camarão",,,Delivery,,VBIG237-24040353,,,Não,"14,5000","0,0000",Uni,Sim,13,,,P,,S,"-96,0000",100,https://www.vendus.pt/foto/569918bf9177a161d79fc9ec8f91860e.jpeg
+"Big Hot de Camarão Panado e Salmão Cru ",,,Delivery,,VBIG238-24040352,,,Não,"15,5000","0,0000",Uni,Sim,13,,,P,,S,"-121,0000",100,https://www.vendus.pt/foto/f90e28aeb602c1932d6c67ee04aa5150.jpeg
+"Big Hot de Delícias do Mar",,,Delivery,,VBIG239-24040373,,,Não,"13,5000","0,0000",Uni,Sim,13,,,P,,S,"-27,0000",100,https://www.vendus.pt/foto/334bd3ec6d6cfa0003f7078ed5f744b1.jpeg
+"Poke de Salmão",,,Delivery,,VPOK240-24040387,,,Não,"13,2500","0,0000",Uni,Sim,13,,,P,,S,"-119,0000",100,https://www.vendus.pt/foto/743e0eaaa70071ec1f6b2a44119379fd.jpeg
+"Poke de Salmão Filadélfia",,,Delivery,,VPOK241-24040334,,,Não,"13,2500","0,0000",Uni,Sim,13,,,P,,S,"-232,0000",100,https://www.vendus.pt/foto/583db679cf1b7a9b5ba24735771e88c5.jpeg
+"Poke de Salmão e Delícias do Mar Filadélfia",,,Delivery,,VPOK242-24040329,,,Não,"13,2500","0,0000",Uni,Sim,13,,,P,,S,"-7,0000",100,https://www.vendus.pt/foto/2897ec24cc4835197d82efe51752926e.jpeg
+"Poke Vegan",,,Delivery,,VPOK243-24040310,,,Não,"13,2500","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/2c090fb8d6a2a52b800fe5ae186eb777.jpeg
+"Poke de Salmão e Camarão",,,Delivery,,VPOK244-2404036,,,Não,"13,2500","0,0000",Uni,Sim,13,,,P,,S,"-64,0000",100,https://www.vendus.pt/foto/7104eac280ea453de7128ec6b923b12f.jpeg
+"Poke de Camarão",,,Delivery,,VPOK245-24040329,,,Não,"13,2500","0,0000",Uni,Sim,13,,,P,,S,"-25,0000",100,https://www.vendus.pt/foto/ea7e68d23c5deb2139f661e1a109e1e1.jpeg
+"2x1 - hossomaki de salmão",,,Delivery,,V2X1247-2404032,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-33,0000",100,https://www.vendus.pt/foto/a7239a7f0569ddbff105eb82705a1dba.png
+"gunkan de salmão (8pçs)",,,Delivery,,VGUN249-24040338,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-182,0000",100,https://www.vendus.pt/foto/acb032e1a3f8a0b69b9500e2133bc8b5.jpeg
+"hot crispy filadélfia (8 pçs)",,,Delivery,,VHOT250-2404032,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-289,0000",100,https://www.vendus.pt/foto/66839358d4747f24e1a4c9da11260d08.png
+"Gunkan crispy (8 pçs)",,,Delivery,,VGUN251-24040358,,,Não,"12,5000","0,0000",Uni,Sim,13,,,P,,S,"-53,0000",100,https://www.vendus.pt/foto/2404ef0165597229437f31473437e59e.png
+"Gunkan mix",,,Delivery,,VGUN252-24040351,,,Não,"26,0000","0,0000",Uni,Sim,13,,,P,,S,"-29,0000",100,https://www.vendus.pt/foto/c9f052f970be460ff5e8155de77b4f53.jpeg
+"Gunkan de Pepino (8 pçs)",,,Delivery,,VGUN260-24040377,,,Não,"12,7500","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/08fae809a97b8b09aeac4230b4ed1fb1.jpeg
+"Gunkan Lovers (8 pçs)",,,Delivery,,VGUN261-2404037,,,Não,"12,7500","0,0000",Uni,Sim,13,,,P,,S,"-130,0000",100,https://www.vendus.pt/foto/528068c1d5d043036f48a917b5a54dd7.jpeg
+"Gunkan com Camarão (8 PÇS)",,,Delivery,,VGUN262-24040390,,,Não,"12,7500","0,0000",Uni,Sim,13,,,P,,S,"-45,0000",100,https://www.vendus.pt/foto/b0e5c99805f162b5d7fce98a87e5270d.jpg
+"Gunkan do chefe (8 pçs)",,,Delivery,,VGUN263-24040320,,,Não,"13,5000","0,0000",Uni,Sim,13,,,P,,S,"-37,0000",100,https://www.vendus.pt/foto/f0f974cdf60ab8c35f76821d0ec2407c.jpeg
+"Uramaki de Camarão Califórnia - (8 pçs)",,,Delivery,,VURA264-24040371,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-43,0000",100,https://www.vendus.pt/foto/d89201c64ea52027744fc9960b8a65d2.jpeg
+"Ceviche de salmão ",,,Delivery,,VCEV265-24040341,,,Não,"9,5000","0,0000",Uni,Sim,13,,,P,,S,"-119,0000",100,https://www.vendus.pt/foto/0f91520d42e59de8a4152dcdb2e6a4fc.png
+"Shimeji ",,,Delivery,,VSHI266-24040391,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-273,0000",100,https://www.vendus.pt/foto/f8d49dd75d3635141d01862f79f62dc0.jpg
+"Tartar de salmão ",,,Delivery,,VTAR267-24040365,,,Não,"10,5000","0,0000",Uni,Sim,13,,,P,,S,"-20,0000",100,https://www.vendus.pt/foto/aecbe8d671bb23d1ca1823b34b84c727.jpeg
+"Carpaccio de salmão ",,,Delivery,,VCAR268-24040325,,,Não,"10,5000","0,0000",Uni,Sim,13,,,P,,S,"-127,0000",100,https://www.vendus.pt/foto/64fb0a1e317e2c759556a9da2db0ef93.jpeg
+"Niguiri trufado (5 pçs)",,,Delivery,,VNIG270-24040389,,,Não,"8,5000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/d636cc6dcfa5c86a99b46be2ae621711.jpeg
+"Niguiri de salmão e camarão (5 pçs)",,,Delivery,,VNIG271-24040336,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-22,0000",100,https://www.vendus.pt/foto/8e49081f8612f35c417b85f55a807791.jpeg
+"Hot de banana com nutella (8 pçs)",,,Delivery,,VHOT272-24040344,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-188,0000",100,https://www.vendus.pt/foto/7ca39a4968c27b5ebb13a5b299442b41.jpeg
+"Hot de banana com doce de leite (8 pçs)",,,Delivery,,VHOT273-24040374,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-94,0000",100,https://www.vendus.pt/foto/4ade108c5a715b8674d1843749303e0a.jpeg
+"Uramaki de Tomate Seco e Rúcula (8 pçs) ",,,Delivery,,VURA274-24040365,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-22,0000",100,https://www.vendus.pt/foto/c858d437cfc7b4bc3776899ec063b333.jpg
+"Camarão Empanado (5 uni)",,,Delivery,,VCAM275-24040389,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-645,0000",100,https://www.vendus.pt/foto/512f20b3b4deecfa3e622e2bea74e54d.jpg
+"Balls Hot de Salmão Filadélfia (4 uni)",,,Delivery,,VBAL276-24040326,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-260,0000",100,https://www.vendus.pt/foto/24a5f53e77ed4a827ad2088cc189d8a8.jpeg
+"Balls Hot de Camarão Filadélfia (4 uni)",,,Delivery,,VBAL277-24040324,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-8,0000",100,https://www.vendus.pt/foto/7c36d041f059aca7bcc750111928bfc1.jpeg
+"Aros de Lula (6 uni)",,,Delivery,,VARO278-2404034,,,Não,"4,5000","0,0000",Uni,Sim,13,,,P,,S,"-105,0000",100,
+"Ice tea pêssego",,,Delivery,,VICE280-24040335,,,Não,"3,0000","0,0000",Uni,Sim,23,,,P,,S,"-51,0000",100,
+"Uramaki primavera filadélfia (8 pçs)",,,Delivery,,VURA281-24040344,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,0,100,
+"Mini rolos de frango (6 pçs)",,,Delivery,,VMIN284-24040379,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-258,0000",100,
+"Uramaki de atum (8pçs)",,,Delivery,,VURA285-24040431,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/0be5d09a16a0316041fa509d7c955cfd.png
+"Uramaki avocado de atum spicy (8pçs)",,,Delivery,,VURA286-24040425,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-10,0000",100,https://www.vendus.pt/foto/d347e0d2ecd8760e3abd16789d5e52df.jpeg
+"Temaki de atum (1un)",,,Delivery,,VTEM287-24040453,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-26,0000",100,https://www.vendus.pt/foto/6d7a30ce77d91c104900ea3c33b2aac8.jpeg
+"Temaki de atum Spicy (1un)",,,Delivery,,VTEM288-24040490,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-47,0000",100,https://www.vendus.pt/foto/c517e4bce0a101fd815f8893f69ade80.jpeg
+"Niguiri de salmão e atum (5pçs)",,,Delivery,,VNIG289-24040455,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/bde923e2432cf468c4054fbb3f11b391.jpeg
+"Sashimi misto (5pçs)",,,Delivery,,VSAS290-24040492,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-20,0000",100,https://www.vendus.pt/foto/85d94f38ffb784458986b0c8ffd7e3aa.jpeg
+"2x1 - Compre 4 pçs de hossomaki  de atum e ganhe mais 4 pçs (8 pçs)",,,Delivery,,V2X1291-2404043,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-28,0000",100,https://www.vendus.pt/foto/d8c12805ed7b5d25e1d4909561a10b24.png
+"2x1 - hot de atum (16 pçs)",,,Delivery,,V2X1292-24040468,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/29d4eb10bf828ebb58c29ee143137ea0.jpeg
+"Tartar do chef",,,Delivery,,VTAR293-24040490,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,
+"Combinado 1 (16 pçs)",,,Delivery,,VCOM294-24040464,,,Não,"15,0000","0,0000",Uni,Sim,13,,,P,,S,"-73,0000",100,https://www.vendus.pt/foto/d3f45e650f2627f14538bab9c2ab4721.jpg
+"Combinado 2 (16pçs)",,,Delivery,,VCOM295-24040451,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-238,0000",100,https://www.vendus.pt/foto/78adc64c30b48e6b04b582fba04478ed.jpeg
+"Combinado 3 (16pçs)",,,Delivery,,VCOM296-24040428,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-126,0000",100,https://www.vendus.pt/foto/4daf39d502fd422dd3a9b44e94d7bd86.png
+"Combinado 4 (16 pçs)",,,Delivery,,VCOM297-24040445,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-41,0000",100,https://www.vendus.pt/foto/44480b67a46fdfd0d4d62aa71dde52a2.jpeg
+"Combinado 5 (14pçs)",,,Delivery,,VCOM298-24040479,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-336,0000",100,https://www.vendus.pt/foto/b77e6a56c8a4ca47b433e869515d7700.png
+"Combinado 7 (16 pçs)",,,Delivery,,VCOM299-24040439,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-97,0000",100,https://www.vendus.pt/foto/ca6b14b104d7d2cbcd192d6317dc2aa6.jpeg
+"Combinado 8 (24pçs)",,,Delivery,,VCOM300-24040442,,,Não,"21,0000","0,0000",Uni,Sim,13,,,P,,S,"-602,0000",100,https://www.vendus.pt/foto/27f0bc20a5192f1641fadf4860c6effe.jpg
+"Combinado 9 (24 pçs)",,,Delivery,,VCOM301-24040491,,,Não,"21,0000","0,0000",Uni,Sim,13,,,P,,S,"-340,0000",100,https://www.vendus.pt/foto/f58855d24b1fd669eadb40eba72d30fa.jpeg
+"Combinado 10 (24 pçs)",,,Delivery,,VCOM302-24040440,,,Não,"21,0000","0,0000",Uni,Sim,13,,,P,,S,"-74,0000",100,https://www.vendus.pt/foto/946402092e022247edcf34d84129913b.jpeg
+"Combinado 11 (24 pçs)",,,Delivery,,VCOM303-24040464,,,Não,"22,5000","0,0000",Uni,Sim,13,,,P,,S,"-630,0000",100,https://www.vendus.pt/foto/a9950321ffaa8fed0ebce7c717581300.jpeg
+"Combinado 6 (14 pçs)",,,Delivery,,VCOM304-24040458,,,Não,"15,0000","0,0000",Uni,Sim,13,,,P,,S,"-55,0000",100,https://www.vendus.pt/foto/f9710e03668eba818db60f6763305513.jpeg
+"Combinado 12 (24 pçs)",,,Delivery,,VCOM305-24040458,,,Não,"22,5000","0,0000",Uni,Sim,13,,,P,,S,"-374,0000",100,https://www.vendus.pt/foto/a1e3eb0610cd0963f4a2c0ca4a432242.jpeg
+"Combinado 14 (24 pçs)",,,Delivery,,VCOM306-2404049,,,Não,"22,5000","0,0000",Uni,Sim,13,,,P,,S,"-19,0000",100,https://www.vendus.pt/foto/5adc1c9be6384e10cd005a0ad4d7d3b0.jpeg
+"Combinado 15 (24 pçs)",,,Delivery,,VCOM307-24040492,,,Não,"22,5000","0,0000",Uni,Sim,13,,,P,,S,"-20,0000",100,https://www.vendus.pt/foto/01d3aedd5c93ece5de67c9c6ba55f0d3.jpeg
+"Combinado 17 (58 pçs)",,,Delivery,,VCOM308-24040484,,,Não,"47,0000","0,0000",Uni,Sim,13,,,P,,S,"-20,0000",100,https://www.vendus.pt/foto/f1bf65c3d4c12c564705d4458d874c12.jpeg
+"Combinado 18 (58 pçs)",,,Delivery,,VCOM309-24040439,,,Não,"52,0000","0,0000",Uni,Sim,13,,,P,,S,"-73,0000",100,https://www.vendus.pt/foto/05897a4df1dbb32dcdbfb0dae7a46fe7.jpeg
+"Combinado 19 (58 pçs)",,,Delivery,,VCOM310-24040482,,,Não,"54,0000","0,0000",Uni,Sim,6,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/c28436f8c1381bedbba15ceaa4ff4643.jpeg
+"Hot grill Filadelfia (8 pçs)",,,Delivery,,VHOT311-24040492,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-26,0000",100,https://www.vendus.pt/foto/e98fe8643235cc1cd2a32abb6b7b3ce0.jpeg
+"Temaki Supremo Filadelfia",,,Delivery,,VTEM312-24040451,,,Não,"8,5000","0,0000",Uni,Sim,13,,,P,,S,"-75,0000",100,https://www.vendus.pt/foto/1279b025bdcc9731f61a6d63c7839e3e.jpeg
+"Poke Salmão e atum",,,Delivery,,VPOK313-24040442,,,Não,"13,2500","0,0000",Uni,Sim,13,,,P,,S,"-10,0000",100,
+"Combinado 13 (24pçs)",,,Delivery,,VCOM314-24040424,,,Não,"21,0000","0,0000",Uni,Sim,13,,,P,,S,"-52,0000",100,https://www.vendus.pt/foto/83332b6ad764cb4c579ec0ea78415fe8.jpeg
+"Combinado 16 (58 pçs)",,,Delivery,,VCOM315-24040469,,,Não,"47,0000","0,0000",Uni,Sim,13,,,P,,S,"-153,0000",100,https://www.vendus.pt/foto/57103c9885b581b342f60e773d6ca477.png
+"Menu Almoço - Hot de Salmão (16pçs)",,,Delivery,,VMEN316-24040456,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-41,0000",100,https://www.vendus.pt/foto/0613166cd7a8885a4890169ec5b8cdf1.jpeg
+"Menu Almoço - Poke de Salmão Filadélfia",,,Delivery,,VMEN317-24040490,,,Não,"13,2500","0,0000",Uni,Sim,13,,,P,,S,"-57,0000",100,https://www.vendus.pt/foto/f078457df7cf49dc7a0dd20fc922b731.png
+"Menu Almoço - Big Hot de Salmão Filadélfia",,,Delivery,,VMEN318-24040411,,,Não,"14,0000","0,0000",Uni,Sim,13,,,P,,S,"-48,0000",100,https://www.vendus.pt/foto/bd80e7b29f1adf71f9b277d2cb863e26.jpeg
+"Menu Almoço - Combinado 2 (16pçs)",,,Delivery,,VMEN319-24040483,,,Não,"15,0000","0,0000",Uni,Sim,13,,,P,,S,"-83,0000",100,https://www.vendus.pt/foto/a59b99b8f799cbeca1711e0021a714ff.jpeg
+"2x1 grelhado (16pçs)",,,Delivery,,V2X1320-24040445,,,Não,"10,0000","0,0000",Uni,Sim,13,,,P,,S,"-90,0000",100,https://www.vendus.pt/foto/9bfd52c8a9039662d8c1a63c8a361d2e.png
+"2x1 de hot (16 pçs)",,,Delivery,,V2X1321-24040442,,,Não,"10,0000","0,0000",Uni,Sim,13,,,P,,S,"-1400,0000",100,https://www.vendus.pt/foto/f9971e8143febc17e89329f55c0482a5.jpeg
+"Taxa de Entrega ",,,Delivery,,VTAX322-2404040,,,Não,"5,2000","0,0000",Uni,Sim,23,,,P,,S,"-579,0000",100,
+"Special Salmon (8pçs)",,,Delivery,,VSPE323-24040414,,,Não,"14,0000","0,0000",Uni,Sim,13,,,P,,S,"-157,0000",100,https://www.vendus.pt/foto/ec7e68c7f6bf4ba66fbea8fdc0d9de40.jpeg
+"Niguiri salmão (5pçs)",,,Delivery,,VNIG324-2404045,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-108,0000",100,https://www.vendus.pt/foto/935997aaf6c529424ac7b2e8db568c1c.jpeg
+"Uramaki grelhado supremo (8 pçs)",,,Delivery,,VURA325-24040864,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,
+"grelhahot supremo (16 pçs)",,,Delivery,,VGRE326-24040871,,,Não,"14,0000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,
+"Aros Cebola ",,,Delivery,,VARO327-2404135,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-30,0000",100,https://www.vendus.pt/foto/63efc30972b48af7fd9a3a1198a98272.jpg
+"Hot Lovers ",,,Delivery,,VHOT328-24041353,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-45,0000",100,https://www.vendus.pt/foto/47292af7cf68fe061fa7be9c77520846.jpeg
+"Hossomaki Vegano",,,Delivery,,VHOS329-2404132,,,Não,"12,7500","0,0000",Uni,Sim,13,,,P,,S,"-52,0000",100,https://www.vendus.pt/foto/063a57feab01a5fb2ad5290d386bc9db.jpg
+"Combinado 20 (16 pçs)  ",,,Delivery,,VCOM330-24041527,,,Não,"15,0000","0,0000",Uni,Sim,13,,,P,,S,"-543,0000",100,https://www.vendus.pt/foto/a39c52a307beb51a0dd60cd62f32b012.jpeg
+"Combinado 21 (16 pçs) ",,,Delivery,,VCOM331-24041522,,,Não,"17,0000","0,0000",Uni,Sim,13,,,P,,S,"-786,0000",100,https://www.vendus.pt/foto/f14be9b04dbc62aa53eeda3bac4949c3.jpeg
+"Combinado 22 (28 pçs)",,,Delivery,,VCOM332-24041519,,,Não,"19,0000","0,0000",Uni,Sim,13,,,P,,S,"-27,0000",100,
+"Combinado 23 (24 pçs)  ",,,Delivery,,VCOM333-24041580,,,Não,"21,0000","0,0000",Uni,Sim,13,,,P,,S,"-706,0000",100,https://www.vendus.pt/foto/b6530bdfefac9504727580a24046bf84.jpeg
+"Combinado 24 (60 pçs)",,,Delivery,,VCOM334-24041577,,,Não,"50,0000","0,0000",Uni,Sim,13,,,P,,S,"-546,0000",100,https://www.vendus.pt/foto/f48315a94d9703600ed903e8419a0961.jpeg
+" 2x1 - temaki de salmão grelhado",,,Delivery,,V2X1335-24041585,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-66,0000",100,
+"Combinado 20 (16 pçs)",,,"Take away Sushi in Sushi",,VCOM337-24042218,,,Não,"11,5000","0,0000",Uni,Sim,13,,,P,,S,"-13,0000",100,https://www.vendus.pt/foto/e041529d93ab5298c7eb3c8201e54ed6.jpeg
+"Combinado 21 (16 pçs)",,,"Take away Sushi in Sushi",,VCOM338-24042294,,,Não,"12,5000","0,0000",Uni,Sim,13,,,P,,S,"-38,0000",100,https://www.vendus.pt/foto/98eddd3eda5a6b7f9f54d0d31506f7a3.jpeg
+"Combinado 22 (24 pçs)",,,"Take away Sushi in Sushi",,VCOM339-24042275,,,Não,"13,5000","0,0000",Uni,Sim,13,,,P,,S,"-67,0000",100,https://www.vendus.pt/foto/6b176772c2b8ccd7c416d96ab5e4c195.jpeg
+"Combinado 23 (24 pçs)",,,"Take away Sushi in Sushi",,VCOM340-24042294,,,Não,"14,5000","0,0000",Uni,Sim,13,,,P,,S,"-84,0000",100,https://www.vendus.pt/foto/181911d5e3c79b3f72fa84c53f21dbc5.jpeg
+"Combinado 24 (60 pçs)",,,"Take away Sushi in Sushi",,VCOM341-24042221,,,Não,"34,0000","0,0000",Uni,Sim,13,,,P,,S,"-81,0000",100,https://www.vendus.pt/foto/93baddc618036686fba16b95359a5faa.jpeg
+"Combinado 22 (24pçs)",,,Delivery,,VCOM342-24042274,,,Não,"22,0000","0,0000",Uni,Sim,13,,,P,,S,"-626,0000",100,https://www.vendus.pt/foto/b5dd8a9464622a1a0f6496866cb4c069.jpeg
+"Temaki de camarao filadelfia",,,Delivery,,VTEM343-24042410,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-102,0000",100,https://www.vendus.pt/foto/b3a72eca73feffe5a8a01c01a7e2f735.jpeg
+"Combinado 25 (28 pçs)",,,Delivery,,VCOM344-24042944,,,Não,"19,0000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,
+"Combinado 25 (24 pçs)",,,Delivery,,VCOM345-24052221,,,Não,"19,0000","0,0000",Uni,Sim,13,,,P,,S,"-172,0000",100,
+"Combinado 25 (24 pçs)",,,"Take away Sushi in Sushi",,VCOM346-24052234,,,Não,"13,5000","0,0000",Uni,Sim,13,,,P,,S,"-17,0000",100,
+"Hossomaki de Robalo (8 pçs)",,,Delivery,,VHOS347-24061583,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,
+"Combinado 26 (24pçs)",,,Delivery,,VCOM348-24072426,,,Não,"22,0000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,
+Entradas,,,"Take away Sushi in Sushi",,VENT349-24082185,,,Não,"0,0000","0,0000",Uni,Sim,13,,,P,,S,0,,https://www.vendus.pt/foto/86720edb13b1f04ce571384fa5faea50.png
+2x1,,,Delivery,,V2X1350-24082168,,,Não,"0,0000","0,0000",Uni,Sim,13,,,P,,S,0,,https://www.vendus.pt/foto/9b9deb2c8cb6f0e58b5776b39c468e42.png
+"Menu almoço",,,"Take away Sushi in Sushi",,VMEN351-24082123,,,Não,"0,0000","0,0000",Uni,Sim,13,,,P,,S,0,,https://www.vendus.pt/foto/dd247f42b11a1afceab0808aa696a283.png
+"Peças premium",,,"Take away Sushi in Sushi",,VPEC352-24082132,,,Não,"0,0000","0,0000",Uni,Sim,13,,,P,,S,0,,https://www.vendus.pt/foto/9eb1096c71db7d440718f1011c862c09.png
+"peças premium",,,Delivery,,VPEC353-24082129,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/34eb50ae7e1a681f13f47e6ad8ac38c7.png
+"Menu almoço",,,Delivery,,VMEU354-2408213,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/0894c64c1a633e7d24c4f50d3021ca0d.png
+Entradas,,,Delivery,,VENT355-24082123,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/39efe4c296f0defb21978055968e78df.png
+Combinados,,,Delivery,,VCOM356-24082260,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,"-1,0000",,https://www.vendus.pt/foto/3f16a9d45dbf23be46e5c16416e97502.png
+"Combinados ",,,"Take away Sushi in Sushi",,VCOM357-2408220,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/9451f2c831a477e68d9e3e544b340b43.png
+Sashimi,,,Delivery,,VSAS358-24082227,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/fa3721559cf7b6ca018850bb26107d5d.png
+Sashimi,,,"Take away Sushi in Sushi",,VSAS359-24082216,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,"-1,0000",,https://www.vendus.pt/foto/52ca437f91b5a1c6ba05396685157c2f.png
+Niguiri,,,Delivery,,VNIG360-24082218,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,"-1,0000",,https://www.vendus.pt/foto/7a3e6b3bc03ff638c3c0a803cb294e82.png
+Niguiri,,,"Take away Sushi in Sushi",,VNIG361-24082279,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/205f07f848db6bd0c1e23a3468b61163.png
+Hot,,,Delivery,,VHOT362-2408221,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/fa05b6c9d2a8ebeb31bf70e43b70784a.png
+Hot,,,"Take away Sushi in Sushi",,VHOT363-24082285,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/5fab2efad1d859af22e4bfadb4e8a7c8.png
+Poke,,,Delivery,,VPOK364-24082266,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/447c9a9afcd48d2bec5316dd88e6eac7.png
+Poke,,,"Take away Sushi in Sushi",,VPOK365-24082256,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/d4c2163f3c295ca0c6e6b5252aefd5b5.png
+Gunkan,,,Delivery,,VGUN366-24082264,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/013bb18fc05b4fbecde0ea11bcde45dc.png
+Gunkan,,,"Take away Sushi in Sushi",,VGUN367-24082287,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/4c2d8e3ba275e46467820809274b0780.png
+"Temaki Hot",,,Delivery,,VTEM368-2408284,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-216,0000",100,https://www.vendus.pt/foto/87ad59b5118d0c3778fa67b573d02f69.jpeg
+"Temaki Hot",,,"Take away Sushi in Sushi",,VTEM369-24082851,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-70,0000",100,https://www.vendus.pt/foto/8860ce59387828f3995431b424f32089.jpeg
+"Sashimi misto",,,"Take away Sushi in Sushi",,VSAS370-24082850,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-4,0000",100,
+"Niguiri misto (6 pç)",,,"Take away Sushi in Sushi",,VNIG371-24082840,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,
+"Super bock Garrsfa",,,"Take away Sushi in Sushi",,VSUP372-24082884,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-72,0000",100,
+"Vinho Monte da alma da vinha",,,"Take away Sushi in Sushi",,VVIN373-24082894,,,Não,"9,0000","0,0000",Uni,Sim,23,,,P,,S,"-3,0000",100,
+"Vinho tojeira",,,"Take away Sushi in Sushi",,VVIN374-24082899,,,Não,"9,0000","0,0000",Uni,Sim,23,,,P,,S,"-23,0000",100,
+"Vinho Monte da Vaqueira",,,"Take away Sushi in Sushi",,VVIN375-2408283,,,Não,"9,0000","0,0000",Uni,Sim,23,,,P,,S,"-75,0000",100,
+"Copo vinho branco Quintela",,,"Take away Sushi in Sushi",,VCOP376-2408286,,,Não,"4,0000","0,0000",Uni,Sim,23,,,P,,S,"-161,0000",100,
+"Mini rolos Vegetais (6 un)",,,Delivery,,VMIN377-24083064,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-438,0000",100,https://www.vendus.pt/foto/aa137c6836b78679b57d664c1c6a6797.jpg
+"Mini rolos Vegetais",,,"Take away Sushi in Sushi",,VMIN378-24083059,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-170,0000",100,https://www.vendus.pt/foto/9a9cc376dd124e6765d57a3ccb904706.jpg
+Temaki,,,Delivery,,VTEM379-24083061,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/9ba1e7b1bb5d3dfa58c888c33ad5ddff.png
+Temaki,,,"Take away Sushi in Sushi",,VTEM380-24083048,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/6b1afedb48f42cda90c3fcb900d7cd0f.png
+"Big hot",,,Delivery,,VBIG381-24083054,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/6a4d77456d6b4d0a3a8451242e5edc0d.png
+"Big hot",,,"Take away Sushi in Sushi",,VBIG382-24083014,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/a29e3019759c196818ddd0b92f897726.png
+Veg,,,Delivery,,VVEG383-2408302,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/8d350cab992d140b310ee33aa7dabb62.png
+Veg,,,"Take away Sushi in Sushi",,VVEG384-24083049,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/14bec3510dea8e8424c07ba5d02039e0.png
+Sobremesa,,,Delivery,,VSOB385-24083067,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,0,,https://www.vendus.pt/foto/3c26bf5ecaf2e8c56ef63be566b58385.png
+Sobremesa,,,"Take away Sushi in Sushi",,VSOB386-24083084,,,Não,"0,0000","0,0000",Uni,Sim,23,,,P,,S,"-4,0000",,https://www.vendus.pt/foto/09c6ecdafa6e15bcbfd13a619b9e729a.png
+"Taxa de embalagem",,,"Take away Sushi in Sushi",,VTAX387-24091145,,,Não,"0,5000","0,0000",Uni,Sim,13,,,P,,S,"-305,0000",100,
+"Festival almoço",,,"Take away Sushi in Sushi",,VFES388-24091124,,,Não,"17,0000","0,0000",Uni,Sim,6,,,P,,S,"-1434,0000",100,
+Sunomono,,,Delivery,,VSUN389-24091649,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-418,0000",100,
+Saque,,,"Take away Sushi in Sushi",,VSAQ390-24101789,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-5,0000",100,
+chessecake,,,"Take away Sushi in Sushi",,VCHE391-24101760,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-31,0000",100,
+"2x1 temaki de atum",,,Delivery,,V2X1392-24110151,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-4,0000",100,https://www.vendus.pt/foto/a5a859588125985bde385b8e30ee1dcd.jpeg
+"Chá Verde",,,"Take away Sushi in Sushi",,VCHA393-2411154,,,Não,"1,2000","0,0000",Uni,Sim,13,,,P,,S,"-92,0000",100,https://www.vendus.pt/foto/216740f448198feacaf620b46d8a9fa5.jpg
+"Sopa Missô",,,"Take away Sushi in Sushi",,VSOP394-24111570,,,Não,"4,5000","0,0000",Uni,Sim,13,,,P,,S,"-89,0000",100,https://www.vendus.pt/foto/598f75be2ce5b4a3472620cff509d9d0.jpg
+"Niguiri mix (10 pçs)",,,Delivery,,VNIG395-24111784,,,Não,"13,0000","0,0000",Uni,Sim,6,,,P,,S,"-24,0000",100,
+"Niguiri mix (10 pçs)",,,"Take away Sushi in Sushi",,VNIG396-24111793,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-7,0000",100,
+"Sashimi de Salmão (2 pçs)",,,"Take away Sushi in Sushi",,VSAS397-24111896,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-68,0000",100,https://www.vendus.pt/foto/7be258d4f35a627ff88c22283a143a03.jpeg
+"Sashimi trufado (2 pçs)",,,"Take away Sushi in Sushi",,VSAS398-24111840,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/acd629fc31cfc96857fc4de25a737481.jpeg
+"Sashimi Atum (2 pçs)",,,"Take away Sushi in Sushi",,VSAS399-24111876,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-31,0000",100,https://www.vendus.pt/foto/b20707e2613f690ac089be929d678cd7.jpeg
+"Sashimi mix (10 pçs)",,,"Take away Sushi in Sushi",,VSAS400-24111811,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-20,0000",100,
+"Sashimi Salmão (2 pçs)",,,Delivery,,VSAS401-2411181,,,Não,"3,0000","0,0000",Uni,Sim,13,,,P,,S,"-595,0000",100,https://www.vendus.pt/foto/3d25e27e76a18765c163902d6f53da11.jpeg
+"Sashimi salmão trufado (2 pçs)",,,Delivery,,VSAS402-2411184,,,Não,"3,0000","0,0000",Uni,Sim,13,,,P,,S,"-81,0000",100,https://www.vendus.pt/foto/027de0ec7d572ef26253780429713f48.jpeg
+"Sashimi mix (10 pçs)",,,Delivery,,VSAS403-24111845,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-78,0000",100,
+"Sashimi Atum (2 pçs)",,,Delivery,,VSAS404-24111839,,,Não,"3,0000","0,0000",Uni,Sim,13,,,P,,S,"-79,0000",100,https://www.vendus.pt/foto/9b99a7d0f257500814be1ef68f0d8a87.jpeg
+"Sashimi peixe branco (2 pçs)",,,Delivery,,VSAS405-2411187,,,Não,"3,0000","0,0000",Uni,Sim,13,,,P,,S,"-80,0000",100,https://www.vendus.pt/foto/ac29d12d280efaa9d6b1f9afb5443a22.jpeg
+"Sashimi salmão braseado (2 pçs)",,,Delivery,,VSAS406-24111868,,,Não,"3,0000","0,0000",Uni,Sim,13,,,P,,S,"-94,0000",100,https://www.vendus.pt/foto/5e135ef72231e006c1792de30c678edb.jpeg
+"Sashimi peixe branco (2 pçs)",,,"Take away Sushi in Sushi",,VSAS407-24111879,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-35,0000",100,https://www.vendus.pt/foto/272e172c2b4396200497562fbc7f685a.jpeg
+"Sashimi salmão braseado (2 pçs)",,,"Take away Sushi in Sushi",,VSAS408-24111875,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-24,0000",100,https://www.vendus.pt/foto/4879ca39e7fb21b53f1df80323575d23.jpeg
+"NIguiri Salmão (2 pçs)",,,Delivery,,VNIG409-2411181,,,Não,"2,8000","0,0000",Uni,Sim,13,,,P,,S,"-875,0000",100,https://www.vendus.pt/foto/37d71de9dbbdea5166487f438f1970ca.jpeg
+"Niguiri Atum (2 pçs)",,,Delivery,,VNIG410-24111843,,,Não,"2,8000","0,0000",Uni,Sim,13,,,P,,S,"-76,0000",100,https://www.vendus.pt/foto/9b8e3df0029ca020003b5e5eecca7c87.jpeg
+"Niguiri Peixe Branco lemon (2 pçs)",,,Delivery,,VNIG411-24111891,,,Não,"2,8000","0,0000",Uni,Sim,13,,,P,,S,"-99,0000",100,https://www.vendus.pt/foto/a51323ad7be17b0f29dca6f9217bbacc.jpeg
+"Niguiri Camarão lemon (2 pçs)",,,Delivery,,VNIG412-2411183,,,Não,"2,8000","0,0000",Uni,Sim,13,,,P,,S,"-165,0000",100,https://www.vendus.pt/foto/f44028f0eb0fd3cb719f877a76a6445a.jpeg
+"Niguiri Salmão braseado (2 pçs)",,,Delivery,,VNIG413-24111888,,,Não,"2,8000","0,0000",Uni,Sim,13,,,P,,S,"-503,0000",100,https://www.vendus.pt/foto/7ef36a53a1810b11eb5232f4f00e070c.jpeg
+"Niguiri Salmão (2 pçs)",,,"Take away Sushi in Sushi",,VNIG414-24111825,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-53,0000",100,https://www.vendus.pt/foto/63d1453a9e610481c847145af90f810e.jpeg
+"Niguiri Atum (2 pçs)",,,"Take away Sushi in Sushi",,VNIG415-24111813,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-15,0000",100,https://www.vendus.pt/foto/6496948261b11f227076426d4c690a51.jpeg
+"Niguiri Peixe Branco lemon (2 pçs)",,,"Take away Sushi in Sushi",,VNIG416-24111877,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-5,0000",100,https://www.vendus.pt/foto/179116aa1935e57acd189936e1d5a566.jpeg
+"Niguiri Salmão trufado (2 pçs)",,,"Take away Sushi in Sushi",,VNIG417-24111823,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-47,0000",100,https://www.vendus.pt/foto/be1733fa32a8ea69d8cabbb2e4be2140.jpeg
+"Niguiri Salmão braseado (2 pçs)",,,"Take away Sushi in Sushi",,VNIG418-24111819,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-41,0000",100,https://www.vendus.pt/foto/8ec19be0e2a062043640d2b0c18b7f17.jpeg
+"Niguiri Camarão lemon (2 pçs)",,,"Take away Sushi in Sushi",,VNIG419-24111824,,,Não,"2,5000","0,0000",Uni,Sim,23,,,P,,S,"-15,0000",100,https://www.vendus.pt/foto/3651a6aa840d27af1eb6e4dab7a29c47.jpeg
+"Sopa Missô",,,Delivery,,VSOP420-2411181,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-162,0000",100,https://www.vendus.pt/foto/58551a6cefa1c7f5a6e32b59aaa2fa23.jpeg
+"Ura salm fila supre (2 pçs)",,,Delivery,,VURA421-24111950,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/6b37009cb0e5d2a73d68d8c30365c8fe.jpeg
+"Ura salm fila camar supr (2 pçs)",,,Delivery,,VURA422-24111958,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/11029d7c2845c5a6e280051d3f8f27b6.jpeg
+"Ura salm fila supre bras crisp (2 pçs)",,,Delivery,,VURA423-24111965,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/1c4097bb5f7bf7bcbd3206ad89ff1a08.jpeg
+"Ura grelh supre brase crispy (2 pçs)",,,Delivery,,VURA424-24111978,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/00c189382fadcce2f6af214c3b758d83.jpeg
+"Ura Salm supremo (2 pçs)",,,Delivery,,VURA425-24111911,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/e6219c68fe9bcf5ec29a8b37d2f1d7f2.jpeg
+"Ura salm avoca c ovas (2 pçs)",,,Delivery,,VURA426-2411195,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/8a6e1739c7193343838fe7be0323d784.jpeg
+"3) Ura salm fila avoc c ovas (2 pçs) ",,,Delivery,,VURA427-24111953,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-15,0000",100,https://www.vendus.pt/foto/0aacdb41f59aa0921a7f4bf0537da6cb.jpeg
+"Ura camar fila pana supr (2 pçs)",,,Delivery,,VURA428-24111974,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/72184161568b809a871140a9d86f8c49.jpeg
+" 14) Ura salm supre c peix bran (2 pçs)",,,Delivery,,VURA429-24111982,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/0394e4aa97b22c662e62daefc445124f.jpeg
+"Ura camar fila sup de salm (2 pçs)",,,Delivery,,VURA430-24111990,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/fca43c51b944f25e54c937743194db7c.jpeg
+"10) Ura camar c peix bran (2 pçs)",,,Delivery,,VURA431-24111978,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-4,0000",100,https://www.vendus.pt/foto/0413b9a87639a56d4685e45a35ad8f1a.jpeg
+"6) Ura atum sup c ovas (2pçs)",,,Delivery,,VURA432-24111974,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/ebc96dbe8bc9f85398e692a75539df12.jpeg
+"Ura atum avoc spicy (2 pçs)",,,Delivery,,VURA433-24111983,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/7c75a5850e54ad317a25e3c14a0c8e98.jpeg
+yakisoba,,,"Take away Sushi in Sushi",,VYAK434-2411212,,,Não,"9,5000","0,0000",Uni,Sim,13,,,P,,S,"-14,0000",100,https://www.vendus.pt/foto/92db261124f1f9cd6c76bdc82b972409.jpeg
+Yakisoba,,,Delivery,,VYAK435-24112168,,,Não,"11,5000","0,0000",Uni,Sim,13,,,P,,S,"-41,0000",100,https://www.vendus.pt/foto/e5588eda2868a51d36fbcc4a02b093fa.jpeg
+"Combinado 25 (60 pçs)",,,Delivery,,VCOM436-2411212,,,Não,"47,0000","0,0000",Uni,Sim,13,,,P,,S,"-108,0000",100,https://www.vendus.pt/foto/bfb9afc3e008a17f2724c94e7464f4fd.jpeg
+"Combinado 25 (60 pçs)",,,"Take away Sushi in Sushi",,VCOM437-24112114,,,Não,"32,0000","0,0000",Uni,Sim,13,,,P,,S,"-16,0000",100,https://www.vendus.pt/foto/32c898f9565bd189da9aed1f91be6469.jpeg
+"9) Ura salmão com manga",,,Delivery,,VURA438-24112268,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/e580a830b55ac696fe3232dae519a9e1.jpeg
+"1) Ura salm fila supre (2 pçs)",,,Delivery,,V1-U439-24112239,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/0ae4745d42c33c55f8880e1ab512acaa.jpeg
+"5) Ura salm fila camar supr (2 pçs)",,,Delivery,,V5-U440-24112262,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-5,0000",100,https://www.vendus.pt/foto/3218b2e8fda7a7621d5a8c01d7a2cab9.jpeg
+"4) Ura salm fila supre bras crisp (2 pçs)",,,Delivery,,VURA441-24112214,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/c8738db855b95e15523e6a9338804dfa.jpeg
+"13) Ura grelh supre brase crispy (2 pçs)",,,Delivery,,V13-442-24112280,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-8,0000",100,https://www.vendus.pt/foto/6d006e6864254198400681aedcd45ed4.jpeg
+"2) Ura Salm supremo (2 pçs)",,,Delivery,,V2-U443-24112216,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/a20351c7633089ffff1c99ffc7ade5f7.jpeg
+"11) Ura salm avoca c ovas (2 pçs)",,,Delivery,,V11-444-24112216,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/879730839fb0e25f7687b85e5596c098.jpeg
+"12) Ura camar fila pana supr (2 pçs)",,,Delivery,,V12-445-24112265,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/7f847a5deeeeb328238d54b24919ed9a.jpeg
+"8) Ura camar fila sup de salm (2 pçs)",,,Delivery,,V8-U446-24112277,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/bd0069818ebc6a8d0306e26ddb7236bd.jpeg
+"7) Ura atum avoc spicy (2 pçs)",,,Delivery,,V7-U447-24112288,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,
+"1) Ura salm fila supre (2 pçs)",,,"Take away Sushi in Sushi",,V1-U448-24112224,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/389694410f0c622c2175530418d75c01.jpeg
+"2) Ura Salm supremo (2 pçs)",,,"Take away Sushi in Sushi",,V2-U449-24112230,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/085bb0402f7123f7eaa172a36aab14ea.jpeg
+"3) Ura salm fila avoc c ovas (2 pçs)",,,"Take away Sushi in Sushi",,V3-U450-24112250,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/93c191e332714d28367755f07376ac1c.jpeg
+"4) Ura salm fila supre bras crisp (2 pçs)",,,"Take away Sushi in Sushi",,V4-U451-24112232,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/37edd106bad01b6070d3bdbdcea5d9ed.jpeg
+"5) Ura salm fila camar supr (2 pçs)",,,"Take away Sushi in Sushi",,V5-U452-24112252,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/c16925880cfa1bf4d12bbbd08b851352.jpeg
+"6) Ura atum sup c ovas (2pçs)",,,"Take away Sushi in Sushi",,V6-U453-24112236,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/863a82910c833cd2bfa79a2a1451696b.jpeg
+"7) Ura atum avoc spicy (2 pçs)",,,"Take away Sushi in Sushi",,V7-U454-24112256,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/fa129691541a331b21a9974600546a37.jpeg
+"8) Ura camar fila sup de salm (2 pçs)",,,"Take away Sushi in Sushi",,V8-U455-24112219,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/025bf16d05715b929a75a7c868322ebe.jpeg
+"14) Ura salmão com manga",,,Delivery,,V9-U456-24112264,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/3e1cc9b6b1d7678aaf5f8de5aefa0855.jpeg
+"10) Ura camar c peix bran (2 pçs)",,,"Take away Sushi in Sushi",,V10-457-24112250,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/dd8af76a88e693b5a505af64bf744dfc.jpeg
+"8) Ura salm avoca c ovas (2 pçs)",,,"Take away Sushi in Sushi",,V11-458-24112275,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-4,0000",100,https://www.vendus.pt/foto/371e7bd00774861a57d6bf69f3cc846c.jpeg
+"12) Ura camar fila pana supr (2 pçs)",,,"Take away Sushi in Sushi",,V12-459-24112229,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/c0a7e8a5b52db189a6708c848dbb159c.jpeg
+"13) Ura grelh supre brase crispy (2 pçs)",,,"Take away Sushi in Sushi",,V13-460-24112279,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/c78aa61781d6559c2cb4f7cb34aeb297.jpeg
+"14) Ura salm supre c peix bran (2 pçs)",,,"Take away Sushi in Sushi",,V14-461-24112248,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/b93a5d9b44dd8d426a24709bec9f2cab.jpeg
+"uramaki tomate seco e rucula",,,Delivery,,VURA462-24112288,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-48,0000",100,
+"1) Ura salm fila supre (2 pçs)",,,Delivery,,V1-U463-24112755,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-28,0000",100,https://www.vendus.pt/foto/365906a9c36fd04cda2fe49582dc6764.jpeg
+"1) Ura salm fila supre (2 pçs)",,,"Take away Sushi in Sushi",,V1-U464-24112730,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/00f7074c595b7d435e904e41699749b0.jpeg
+"2) Ura salm fila camar supr (2 pçs)",,,Delivery,,V2-U465-24112742,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-11,0000",100,https://www.vendus.pt/foto/24dd66bc1d102b5071ea9ae322012b26.jpeg
+"2) Ura salm fila camar supr (2 pçs)",,,"Take away Sushi in Sushi",,V2-U466-24112752,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/1f5e72b019e4af1950eadd3a37e22f80.jpeg
+" 3) Ura salm fila supre bras crisp (2 pçs)",,,Delivery,,VURA467-24112736,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-25,0000",100,https://www.vendus.pt/foto/f5de0144ca9f4fe79ef35a35e1591f9f.jpeg
+" 3)Ura salm fila supre bras crisp (2 pçs)",,,"Take away Sushi in Sushi",,V3-U468-2411271,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/942a0d1de4140cc161dc09121d1c9ee8.jpeg
+"4) Ura grelh supre brase crispy (2 pçs)",,,Delivery,,V4-U469-24112798,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-22,0000",100,https://www.vendus.pt/foto/aa7f228d6ff4ce37a885d6838b72e145.jpeg
+"4) Ura grelh supre brase crispy (2 pçs)",,,"Take away Sushi in Sushi",,V4-U470-24112743,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/927d4167a6d20d67f6c49c71f1e5ea78.jpeg
+"5) Ura salm fila avoc c ovas (2 pçs)",,,Delivery,,V5-U471-2411278,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-7,0000",100,https://www.vendus.pt/foto/7db4ea452aabc51202ecd5a223927590.jpeg
+"5) Ura salm fila avoc c ovas (2 pçs)",,,"Take away Sushi in Sushi",,V5-U472-24112774,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/d014607ccb91b135381e3927290b7329.jpeg
+"6) Ura Salm supremo (2 pçs)",,,Delivery,,V6-U473-24112740,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/6140f9d15fa12f3e07feac35821b3cb5.jpeg
+"6) Ura Salm supremo (2 pçs)",,,"Take away Sushi in Sushi",,V6-U474-24112774,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/3d0e9b454dbc98341064b801618abc12.jpeg
+" 10) Ura atum avoc spicy (2 pçs)",,,Delivery,,V8-U475-24112748,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/5af7f020f8e38a183f724ad1d7b728e2.jpeg
+"10) Ura atum avoc spicy (2 pçs)",,,"Take away Sushi in Sushi",,V8-U476-2411274,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/3aa5e9d33d3bba4e2f115ba61343a67a.jpeg
+"11) Ura camar fila sup de salm (2 pçs)",,,Delivery,,V11-477-24112737,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/f7fe0ac720e291f3c6fd48e44d24ad57.jpeg
+"8) Ura salm avoca c ovas (2 pçs)",,,Delivery,,VURA478-24112762,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/76f1a7648506fb6a432e69ca2a2db186.jpeg
+"11) Ura camar fila sup de salm (2 pçs)",,,"Take away Sushi in Sushi",,V11-479-24112721,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,
+"14) Ura salmão com manga",,,"Take away Sushi in Sushi",,V14-480-24112715,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-4,0000",100,https://www.vendus.pt/foto/f7cf2ff647abe33d2ef1df9055e5e1a0.jpeg
+"7) Ura salm supre c peix bran (2 pçs)",,,Delivery,,V7-U481-24112725,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/7f04c62f83c387e195e9b88228be6cc0.jpeg
+"7) Ura salm supre c peix bran (2 pçs)",,,"Take away Sushi in Sushi",,V7-U482-24112727,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/9fffa70dd6cea387a5dd5b028cf15bbb.jpeg
+"9) Ura atum sup c ovas (2pçs)",,,Delivery,,V9-U483-24112728,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/abc099895ca8e2257c96bb7efe626085.jpeg
+"9) Ura atum sup c ovas (2pçs)",,,"Take away Sushi in Sushi",,V9-U484-24112710,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/022fbe82560b6c19cc06845977929e0c.jpeg
+"12) Ura camar c peix bran (2 pçs)",,,Delivery,,V12-485-24112740,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/5cc9d9797569c6099fb478131dc707e8.jpeg
+"12) Ura camar c peix bran (2 pçs)",,,"Take away Sushi in Sushi",,V12-486-24112741,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/99f7b436d5270949a10345c02a7eb104.jpeg
+"13) Ura camar fila pana supr (2 pçs)",,,Delivery,,V13-487-24112741,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-50,0000",100,https://www.vendus.pt/foto/c0951c8f40ce712101bb3a8454fc2f89.jpeg
+"13) Ura camar fila pana supr (2 pçs)",,,"Take away Sushi in Sushi",,V13-488-24112783,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/ad38bac9e836c768fbcfe42fc0e93904.jpeg
+"11) Ura camar fila sup de salm (2 pçs)",,,"Take away Sushi in Sushi",,VURA489-24112861,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/67a7a0338b0721a7aac7276bd44319ae.jpeg
+"Camarão ao alho ",,,Delivery,,VCAM490-24113013,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-64,0000",100,https://www.vendus.pt/foto/a258d7b3c8df32d1fe8a6225d5f567df.jpeg
+"Camarão ao alho",,,"Take away Sushi in Sushi",,VCAM491-24113062,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-47,0000",100,https://www.vendus.pt/foto/f6a1666f25b28427df72b4a39e8f4565.jpeg
+"Combinado Gohan (32 pçs)",,,Delivery,,VCOM492-24122289,,,Não,"25,5000","0,0000",Uni,Sim,13,,,P,,S,"-49,0000",100,https://www.vendus.pt/foto/0df68cde9d3801a56223e02d488ab958.jpg
+"Combinadpo Gohan (32 pçs)",,,"Take away Sushi in Sushi",,VCOM493-2501040,,,Não,"19,0000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/a459b4611673ef74a9851990fccd8a67.jpg
+"1) Ura salm fila supre (4 pçs)",,,Delivery,,V1-U494-25010648,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-264,0000",100,https://www.vendus.pt/foto/e6e67dd541644c333f87a30bd012cb81.jpeg
+"1) Ura salm fila supre (4 pçs)",,,"Take away Sushi in Sushi",,V1-U495-25010619,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-25,0000",100,https://www.vendus.pt/foto/65cc1a91c0513e4eda519a0748df10cf.jpeg
+"8) Ura salm avoca c ovas (4 pçs)",,,"Take away Sushi in Sushi",,V8-U496-25010641,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-8,0000",100,https://www.vendus.pt/foto/8a9d5e0006eec082d1c9e12055cadb54.jpeg
+"11) Ura camar fila sup de salm (4 pçs)",,,Delivery,,V11-497-25010621,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-183,0000",100,https://www.vendus.pt/foto/fb9da768eb91068e153af8e2e42af326.jpeg
+"12) Ura camar c peix bran (4 pçs)",,,Delivery,,V12-498-25010633,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-34,0000",100,https://www.vendus.pt/foto/3761cab6abcfc252f848f9eef42c865c.jpeg
+"12) Ura camar c peix bran (4 pçs)",,,"Take away Sushi in Sushi",,V12-499-25010691,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/969756d3c0ac53631831710533f5cd62.jpeg
+"13) Ura camar fila pana supr (4 pçs)",,,Delivery,,V13-500-2501063,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-277,0000",100,https://www.vendus.pt/foto/ced405e9027d52de4983e4c150330046.jpeg
+"13) Ura camar fila pana supr (4 pçs)",,,"Take away Sushi in Sushi",,V13-501-25010687,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-35,0000",100,https://www.vendus.pt/foto/96149f7284595afcfe471645c1eb2fa9.jpeg
+"14) Ura salmão com manga (4 pçs)",,,"Take away Sushi in Sushi",,V14-502-25010613,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-10,0000",100,https://www.vendus.pt/foto/55beac311f1a007e7a1ddb3879eda3bd.jpeg
+"2) Ura salm fila camar supr (4 pçs)",,,Delivery,,V2-U503-25010675,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-156,0000",100,https://www.vendus.pt/foto/c2e5d60e89e02022d2a804b374690296.jpeg
+"2) Ura salm fila camar supr (4 pçs)",,,"Take away Sushi in Sushi",,V2-U504-25010692,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-9,0000",100,https://www.vendus.pt/foto/6868dacf9c3ac2aa49f9061c02281f34.jpeg
+" 3)Ura salm fila supre bras crisp (4 pçs)",,,"Take away Sushi in Sushi",,V3-U505-25010650,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-26,0000",100,https://www.vendus.pt/foto/93ce8397fb1cac0963a6ca654122eaab.jpeg
+" 3)Ura salm fila supre bras crisp (4 pçs)",,,Delivery,,V3-U506-25010690,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-181,0000",100,https://www.vendus.pt/foto/f6d78a18bcd3e73328530d63f89a80c4.jpeg
+"4) Ura grelh supre brase crispy (4 pçs)",,,Delivery,,V4-U507-2501066,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-77,0000",100,https://www.vendus.pt/foto/2f0151e2ca299dbeb01f95a08b5445f8.jpeg
+"4) Ura grelh supre brase crispy (4 pçs)",,,"Take away Sushi in Sushi",,V4-U508-25010663,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-21,0000",100,https://www.vendus.pt/foto/69067f49f8857c7b163f54da5cc982c0.jpeg
+"5) Ura salm fila avoc c ovas (4 pçs)",,,"Take away Sushi in Sushi",,V5-U509-25010697,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-21,0000",100,https://www.vendus.pt/foto/6b3338e50d8776020d1cd0f711a84d4c.jpeg
+"6) Ura Salm supremo (4 pçs)",,,"Take away Sushi in Sushi",,V6-U510-25010669,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/640710c70561b2c8a46e4af8ceb1c457.jpeg
+"6) Ura Salm supremo (4 pçs)",,,Delivery,,V6-U511-25010648,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-34,0000",100,https://www.vendus.pt/foto/b368054845c6c7e5a0f242a3268029ff.jpeg
+"10) Ura atum avoc spicy (4 pçs)",,,"Take away Sushi in Sushi",,V10-512-25010621,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-11,0000",100,https://www.vendus.pt/foto/2315b88e2f488f568bd3669c3c909709.jpeg
+"14) Ura salmão com manga (4 pçs)",,,Delivery,,V14-513-25010678,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-63,0000",100,https://www.vendus.pt/foto/2090a56a72b6b199eaf9a232e19f1ab8.jpeg
+"9) Ura atum sup c ovas (4pçs)",,,Delivery,,V9-U514-25010658,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-48,0000",100,https://www.vendus.pt/foto/ccd865b34ed9cfe64f03b1b0de820d10.jpeg
+"9) Ura atum sup c ovas (4pçs)",,,"Take away Sushi in Sushi",,V9-U515-2501069,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-10,0000",100,https://www.vendus.pt/foto/d6bb8290fdef5580c1bc7b64d1d45a86.jpeg
+"7) Ura atum avoc spicy (4 pçs)",,,"Take away Sushi in Sushi",,V7-U516-25010638,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/b4a39045061ffba66546f2947b9b8adc.jpeg
+"11) Ura camar fila sup de salm (4 pçs)",,,"Take away Sushi in Sushi",,V11-517-2501068,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-7,0000",100,https://www.vendus.pt/foto/216d249a17bd4f65499ab9e5691503b1.jpeg
+"1) Gunkan Salmão Fila (4 pçs)",,,"Take away Sushi in Sushi",,VGUN518-25010683,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-38,0000",100,https://www.vendus.pt/foto/d91437ba31770c33cf31577e47c6fc58.jpeg
+"6) Gunkan de salmão fila bras. (4 pçs)",,,"Take away Sushi in Sushi",,VGUN519-25010658,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/77745e25483b7f75cbaef778a4adac43.jpeg
+"2) Gunkan Crispy (4 pçs)",,,"Take away Sushi in Sushi",,VGUN520-25010629,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/4eba8b78eb41028008296d1dcf4a03ee.jpeg
+"7) Gunkan Crispy Bras. (4 pçs)",,,"Take away Sushi in Sushi",,VGUN521-25010677,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-15,0000",100,https://www.vendus.pt/foto/51b529efe0f2854fdb13e2517d820dfc.jpeg
+"10) Gunkan de Salmão Clássico (4 pçs)",,,"Take away Sushi in Sushi",,VGUN522-25010623,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-3,0000",100,https://www.vendus.pt/foto/12a42933b8edfc941e3bd172f59cafd3.jpeg
+"9) Gunkan de Salmão Bras. (4 pçs)",,,"Take away Sushi in Sushi",,VGUN523-25010636,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-52,0000",100,https://www.vendus.pt/foto/8d6f43a3412ef00b32e67c058b6d46d7.jpeg
+"4) Gunkan Salmão e Camarão (4 pçs) ",,,"Take away Sushi in Sushi",,VGUN524-2501062,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-9,0000",100,https://www.vendus.pt/foto/ba6da81a18222605fde16ae6b3676307.jpeg
+"3) Gunkan com Cebola Caram. (4 pçs)",,,"Take away Sushi in Sushi",,VGUN525-2501063,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-7,0000",100,https://www.vendus.pt/foto/604853f5ce178315c235228ace030052.jpeg
+"5) Gunkan Lovers (4 pçs)",,,"Take away Sushi in Sushi",,VGUN526-25010625,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-16,0000",100,https://www.vendus.pt/foto/b16cda3709761c507e0bf95c08334fed.jpeg
+"8) Gunkan Grill (4 pçs)",,,"Take away Sushi in Sushi",,VGUN527-25010687,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-11,0000",100,https://www.vendus.pt/foto/4f89484b05376bf2ac67f910da3c28f6.jpeg
+"12) Gunkan de pepino (4 pçs)",,,"Take away Sushi in Sushi",,VGUN528-25010624,,,Não,"2,5000","0,0000",Uni,Sim,13,,,P,,S,"-4,0000",100,https://www.vendus.pt/foto/59d3be69840e561fd6e09fdc4d02a043.jpeg
+"11) Gunkan Tropical (4 pçs)",,,"Take away Sushi in Sushi",,VGUN529-25010652,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/05ea1ffcf4bc1b3089d59ebc421ebf09.jpeg
+"13) Gunkan Salmão e Atum (4 pçs)",,,"Take away Sushi in Sushi",,VGUN530-25010648,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-4,0000",100,https://www.vendus.pt/foto/2c8daf523de39fd566f599c83b684fdc.jpeg
+"14) Gunkan Salmão e Atum com ovas (4 pçs)",,,"Take away Sushi in Sushi",,VGUN531-25010660,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-7,0000",100,https://www.vendus.pt/foto/47ce64e0e40ee6ecc95d748d1a5d1a1e.jpeg
+"15) Gunkan de Salmão e peixe branco (4 pçs)",,,"Take away Sushi in Sushi",,VGUN532-25010647,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/da362753c378637449ae2c1f4f9376ea.jpeg
+"16) Gunkan do chef (4 pçs)",,,"Take away Sushi in Sushi",,VGUN533-25010687,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/bb15e0217c2c9ebf05600ae225161380.jpeg
+"Combinado Nori(16 pçs)",,,Delivery,,VCOM534-25010772,,,Não,"16,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,
+"1) Gunkan Salmão Fila (4 pçs)",,,Delivery,,V1-G535-25010996,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-443,0000",100,https://www.vendus.pt/foto/53f3249892c2e503da3b53974c37b2f6.jpeg
+"2) Gunkan crispy (4 pçs)",,,Delivery,,V2-G536-25010959,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-45,0000",100,https://www.vendus.pt/foto/7c3661b15f586060f30e075cabdcf8e4.jpeg
+"3) Gunkan c cebola carameli (4 çs)",,,Delivery,,V3-G537-2501094,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-31,0000",100,https://www.vendus.pt/foto/55761ab890da29db99b3ea53d61cfe94.jpeg
+"4) Gunkan Salmão e Cama (4 pçs)",,,Delivery,,V4-G538-25010973,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-51,0000",100,https://www.vendus.pt/foto/c838b6152de28517349f21c297cd6dde.jpeg
+"5) Gunkan Lovers (4 pçs)",,,Delivery,,V5-G539-25010997,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-88,0000",100,https://www.vendus.pt/foto/c695fc54f869996a0ed402f40a6718dd.jpeg
+"6) Gunkan Salmão Fila Brase (4 pçs)",,,Delivery,,V6-G540-25010991,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-125,0000",100,https://www.vendus.pt/foto/5fc19aeab07c781b6115dfe8e6f0c63a.jpeg
+"7) Gunkan crispy brase (4 pçs)",,,Delivery,,V7-G541-25010937,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-87,0000",100,https://www.vendus.pt/foto/97ec949370ee8342fc901e3ccf9bc3ed.jpeg
+"8) Gunkan Grill (4 pçs)",,,Delivery,,V8-G542-25010997,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-60,0000",100,https://www.vendus.pt/foto/487aee2df744f5a15a4d29569bf1f23c.jpeg
+"9) Gunkan Salmão Braseado (4 pçs)",,,Delivery,,V9-G543-25010917,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-166,0000",100,https://www.vendus.pt/foto/0c56fc0161b0a96639c219a37e6940c5.jpeg
+"10) Gunkan Salmão Clássico (4 pçs)",,,Delivery,,V10-544-25010914,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-23,0000",100,https://www.vendus.pt/foto/881e712bb0e8b8498f7baab0512b5138.jpeg
+"11) Gunkan Tropical (4 pçs)",,,Delivery,,V11-545-25010973,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-26,0000",100,https://www.vendus.pt/foto/34bfb1c8231b446f8bd47939266a1744.jpeg
+"12) Gunkan de pepino (4 pçs)",,,Delivery,,V12-546-2501096,,,Não,"7,0000","0,0000",Uni,Sim,23,,,P,,S,"-25,0000",100,https://www.vendus.pt/foto/912224d36f3c0a4320f04c2098a01455.jpeg
+"13) Gunkan Salmão e Atum (4 pçs)",,,Delivery,,V13-547-25010994,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-22,0000",100,https://www.vendus.pt/foto/8b9da961c252d6dc53be9169c58605ae.jpeg
+"14) Gunkan Salmão e atum com ovas (4 pçs)",,,Delivery,,V14-548-25010999,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/c961d59b9fc7c521a23dafd7ba1a3f21.jpeg
+"15) Gunkan de salmão e peixe branco (4 pçs)",,,Delivery,,V15-549-25010969,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-11,0000",100,https://www.vendus.pt/foto/199971fe03ab2d019c09acc335650b8b.jpeg
+"16) Gunkan do chef (4 pçs)",,,Delivery,,V16-550-25010946,,,Não,"8,5000","0,0000",Uni,Sim,13,,,P,,S,"-52,0000",100,https://www.vendus.pt/foto/c80f5fe61e32042f1d266718e6f2e325.jpeg
+"Combinado Sudarê (24pçs)",,,Delivery,,VCOM551-25010925,,,Não,"23,5000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,
+"Uramaki mix",,,"Take away Sushi in Sushi",,VURA552-25010913,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,0,100,
+"Kombu (16 pçs)",,,Delivery,,VKOM553-25011266,,,Não,"17,0000","0,0000",Uni,Sim,23,,,P,,S,"-791,0000",100,https://www.vendus.pt/foto/5b4f8297d07506c4fce3cccc1225cb7a.jpeg
+"Kombu (16 pçs)",,,"Take away Sushi in Sushi",,VKOM554-25011211,,,Não,"12,5000","0,0000",Uni,Sim,13,,,P,,S,"-118,0000",100,https://www.vendus.pt/foto/27828301ca5523a2cd43c4ec19a67e5a.jpeg
+"Mirin (16 pçs)",,,"Take away Sushi in Sushi",,VMIR555-25011298,,,Não,"13,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/18f04689c9a0f625a6eb6c676306633b.jpeg
+"Mirin (24 pçs",,,Delivery,,VMIR556-2501120,,,Não,"22,0000","0,0000",Uni,Sim,13,,,P,,S,"-350,0000",100,https://www.vendus.pt/foto/a0e63d8b5e51522293a10144f8e845c9.jpeg
+"Sésamo (24 pçs)",,,Delivery,,VSES557-2501121,,,Não,"25,0000","0,0000",Uni,Sim,13,,,P,,S,"-856,0000",100,https://www.vendus.pt/foto/e3a63573e1cdc3a0090e5c3370c7bfb8.jpeg
+"Sésamo (24 pçs)",,,"Take away Sushi in Sushi",,VSES558-25011218,,,Não,"14,5000","0,0000",Uni,Sim,13,,,P,,S,"-110,0000",100,https://www.vendus.pt/foto/dc5122540c3c5b3caeb9b9e0f9222e24.jpeg
+"Shoyo (60 pçs)",,,Delivery,,VSHO559-25011218,,,Não,"55,0000","0,0000",Uni,Sim,13,,,P,,S,"-469,0000",100,https://www.vendus.pt/foto/c83113dbe910ffb7c67717324c60e125.jpeg
+"Shoyo (60 pçs)",,,"Take away Sushi in Sushi",,VSHO560-2501127,,,Não,"34,0000","0,0000",Uni,Sim,13,,,P,,S,"-131,0000",100,https://www.vendus.pt/foto/dbc999739179b9f0733afba5ba9a3fc1.jpeg
+"Soja (60 pçs)",,,Delivery,,VSOJ561-25011253,,,Não,"51,0000","0,0000",Uni,Sim,13,,,P,,S,"-685,0000",100,https://www.vendus.pt/foto/4eead6100762a58dcba2ad32d3babb41.jpeg
+"Soja (60 pçs)",,,"Take away Sushi in Sushi",,VSOJ562-25011292,,,Não,"32,0000","0,0000",Uni,Sim,13,,,P,,S,"-56,0000",100,https://www.vendus.pt/foto/333a64c5e84fa8666a7ed606d2242ad1.jpeg
+"Shari (16 Pçs)",,,Delivery,,VSAL563-25011264,,,Não,"17,0000","0,0000",Uni,Sim,13,,,P,,S,"-824,0000",100,https://www.vendus.pt/foto/55db9bf440e4304ef9ee30e65ec9cb52.jpeg
+"Shari (16 pçs)",,,"Take away Sushi in Sushi",,VSAL564-2501126,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-156,0000",100,https://www.vendus.pt/foto/079ff2d1f782860c7a52deaf946e5d30.jpeg
+"Hashi(16 pçs)",,,Delivery,,VSAL565-25011241,,,Não,"17,0000","0,0000",Uni,Sim,13,,,P,,S,"-196,0000",100,https://www.vendus.pt/foto/3a095f526603a348957df4daea0f46d3.png
+"Hashi (16 pçs)",,,"Take away Sushi in Sushi",,VSAL566-25011260,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-36,0000",100,https://www.vendus.pt/foto/ff0ec29feeff036f757c2c1ee721a0e0.png
+"Fish (16 pçs)",,,Delivery,,VO-M567-25011293,,,Não,"17,5000","0,0000",Uni,Sim,13,,,P,,S,"-18,0000",100,https://www.vendus.pt/foto/9243bc550020818a2a27e93d0a1cd8fd.jpeg
+"Fish (16 pçs)",,,"Take away Sushi in Sushi",,VO-M568-25011239,,,Não,"13,5000","0,0000",Uni,Sim,13,,,P,,S,"-13,0000",100,https://www.vendus.pt/foto/eeaa49b95ad21c611464e032ab23ed0c.jpeg
+"Su (16 pçs)",,,Delivery,,VSU-569-25011278,,,Não,"17,0000","0,0000",Uni,Sim,13,,,P,,S,"-981,0000",100,https://www.vendus.pt/foto/7f2e09cf8dde69d328478e80efd303e8.png
+"Su (16 pçs)",,,"Take away Sushi in Sushi",,VSU-570-25011283,,,Não,"13,0000","0,0000",Uni,Sim,13,,,P,,S,"-46,0000",100,https://www.vendus.pt/foto/9c275b2a50615916bae3b5a6ff105b8a.png
+"California (24 pçs)",,,"Take away Sushi in Sushi",,VCAL571-2501126,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-149,0000",100,https://www.vendus.pt/foto/fe6ed199114ebc267fc155ac25690f6e.jpg
+"Califórnia (24 pçs)",,,Delivery,,VCAL572-25011245,,,Não,"22,0000","0,0000",Uni,Sim,13,,,P,,S,"-491,0000",100,https://www.vendus.pt/foto/81eaf254603726330e47204e78c2d423.jpg
+"Maki (24 pçs)",,,Delivery,,VMAK573-25011262,,,Não,"23,0000","0,0000",Uni,Sim,13,,,P,,S,"-270,0000",100,https://www.vendus.pt/foto/a0d4eaa6fa9f9ec992068a894667512a.jpeg
+"Maki (24 pçs)",,,"Take away Sushi in Sushi",,VMAK574-25011283,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-92,0000",100,https://www.vendus.pt/foto/2570fec8bf7da9b1ff63ec1c2957cdec.jpeg
+"Sashi (24 pçs)",,,Delivery,,VSAS575-25011252,,,Não,"23,0000","0,0000",Uni,Sim,13,,,P,,S,"-25,0000",100,https://www.vendus.pt/foto/435ade6fde508c5b310feed55f0abb75.jpeg
+"Sashi (24 pçs)",,,"Take away Sushi in Sushi",,VSAS576-25011276,,,Não,"18,0000","0,0000",Uni,Sim,13,,,P,,S,"-37,0000",100,https://www.vendus.pt/foto/bd8705e2c7a2d0a2110d98264575c4a0.jpeg
+"Salmon Fila (24 pçs)",,,"Take away Sushi in Sushi",,VSAL577-25011256,,,Não,"18,0000","0,0000",Uni,Sim,13,,,P,,S,"-102,0000",100,https://www.vendus.pt/foto/c1aa94aa1d86ef8217c7366b93af5f76.jpeg
+"Salmon Fila (24 pçs)",,,Delivery,,VSAL578-25011259,,,Não,"23,0000","0,0000",Uni,Sim,13,,,P,,S,"-593,0000",100,https://www.vendus.pt/foto/737b019d7ffb3476cb74b2e3e5cd9326.jpeg
+"Salmon Classic (24 pçs)",,,Delivery,,VSAL579-25011237,,,Não,"23,0000","0,0000",Uni,Sim,13,,,P,,S,"-492,0000",100,https://www.vendus.pt/foto/9a9bc5f27fde55f7c374685c7d2b4656.jpeg
+"Salmon Classic (24 pçs)",,,"Take away Sushi in Sushi",,VSAL580-25011219,,,Não,"18,0000","0,0000",Uni,Sim,13,,,P,,S,"-109,0000",100,https://www.vendus.pt/foto/98205c8282ce93742ab372e2d0973c56.jpeg
+"Do Japa (24 pçs)",,,Delivery,,VDO-581-25011386,,,Não,"23,0000","0,0000",Uni,Sim,13,,,P,,S,"-71,0000",100,https://www.vendus.pt/foto/d8113122eb813c997ddaaab1ccaaabff.jpeg
+"Do Japa (24 pçs)",,,"Take away Sushi in Sushi",,VDO-582-25011346,,,Não,"18,0000","0,0000",Uni,Sim,13,,,P,,S,"-24,0000",100,https://www.vendus.pt/foto/39ff7be55d437273ae726cb05e43ec29.jpeg
+"Salmon Tuna (58 pçs)",,,Delivery,,VSAL583-2501134,,,Não,"49,0000","0,0000",Uni,Sim,13,,,P,,S,"-57,0000",100,https://www.vendus.pt/foto/ef9be5a5f0d592cef9b9d7cec3821e32.jpeg
+"Salmon Tuna (58 pçs)",,,"Take away Sushi in Sushi",,VSAL584-25011349,,,Não,"37,0000","0,0000",Uni,Sim,13,,,P,,S,"-63,0000",100,https://www.vendus.pt/foto/5f9450ce71b07c781560ad8be3ce43d9.jpeg
+"Salmon Fusion (58 pçs)",,,Delivery,,VSAL585-25011317,,,Não,"49,0000","0,0000",Uni,Sim,13,,,P,,S,"-189,0000",100,https://www.vendus.pt/foto/e6b7032259970cc4ebfecceab1ad1f5d.png
+"Salmon Fusion (58 pçs)",,,"Take away Sushi in Sushi",,VSAL586-25011317,,,Não,"37,0000","0,0000",Uni,Sim,13,,,P,,S,"-89,0000",100,https://www.vendus.pt/foto/6101c56b9bb9768667e946a851c37f81.png
+"Salmon Lovers (58 pçs)",,,Delivery,,VSAL587-25011387,,,Não,"55,5000","0,0000",Uni,Sim,13,,,P,,S,"-129,0000",100,https://www.vendus.pt/foto/2dbc4205274c4193379440a2a32cb8b7.jpeg
+"Salmon Lovers (58 pçs)",,,"Take away Sushi in Sushi",,VSAL588-25011331,,,Não,"43,0000","0,0000",Uni,Sim,13,,,P,,S,"-77,0000",100,https://www.vendus.pt/foto/d5b6816aaabd587fe80c4d9ad2d65915.jpeg
+"Do Mar (60 pçs)",,,Delivery,,VDO-589-25011332,,,Não,"58,0000","0,0000",Uni,Sim,13,,,P,,S,"-29,0000",100,https://www.vendus.pt/foto/3cc15e38308f813840dfa37d361be035.jpeg
+"Do Mar (60 pçs)",,,"Take away Sushi in Sushi",,VDO-590-25011399,,,Não,"44,0000","0,0000",Uni,Sim,13,,,P,,S,"-20,8574",100,https://www.vendus.pt/foto/4458ed262613ccd60a113f8aa19d9793.jpeg
+"5) Ura de salm fila avo (4 pçs)",,,Delivery,,V5-U591-25011478,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-175,0000",100,https://www.vendus.pt/foto/d2ea9ef2eb1e8b31472bbc58b1a1c845.jpeg
+"8) Ura de salm Cali c ov (4 pçs)",,,Delivery,,V8-U592-25011460,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-49,0000",100,https://www.vendus.pt/foto/8d44270576a0c35dcbc4cbcfa943c792.jpeg
+"10) Ura de atum avo spi (4 pçs)",,,Delivery,,V10-593-2501142,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-32,0000",100,https://www.vendus.pt/foto/2c179a863363d6e10ca6d40022e3a068.jpeg
+"7) Ura sal  c pei bran lem (4 pçs)",,,Delivery,,V7-U594-25011493,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-47,0000",100,https://www.vendus.pt/foto/96125fc4658c643ffaad47a23ede5290.jpeg
+"2X1 Temaki de delicias e camarão ",,,Delivery,,V2X1595-25011778,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-210,0000",100,
+"2x1 Combinado frio (8 pçs)",,,Delivery,,V2X1596-25011739,,,Não,"11,0000","0,0000",Uni,Não,13,,,P,,S,"-8,0000",100,https://www.vendus.pt/foto/c9939c0599760551e7e4b19c5d5edf5c.jpeg
+"Nori (16 pçs)",,,"Take away Sushi in Sushi",,VCOM597-25011793,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-21,0000",100,https://www.vendus.pt/foto/74b85959d5a4c8f4c449a1e58284ddec.jpeg
+"Nori (16 pçs)",,,Delivery,,VNOR598-25011748,,,Não,"16,5000","0,0000",Uni,Sim,13,,,P,,S,"-181,0000",100,https://www.vendus.pt/foto/ce64beee45100a205faaca79372e0fd8.jpeg
+"Sudarê (24pçs)",,,"Take away Sushi in Sushi",,VCOM599-25011765,,,Não,"14,5000","0,0000",Uni,Sim,13,,,P,,S,"-29,0000",100,https://www.vendus.pt/foto/f40d1b78efb8428ea033270e8c6be1aa.jpeg
+"Sudarê (24 pçs)",,,Delivery,,VSUD600-25011762,,,Não,"23,5000","0,0000",Uni,Sim,13,,,P,,S,"-173,0000",100,https://www.vendus.pt/foto/cc8bb6aef6c21f0145a1fb75d4b960b5.jpeg
+"Gohan (32 pçs)",,,Delivery,,VGOH601-25011711,,,Não,"26,5000","0,0000",Uni,Sim,13,,,P,,S,"-2518,0000",100,https://www.vendus.pt/foto/ed12fafc42389da0d6d196b220b41774.jpg
+"Gohan (32 pçs)",,,"Take away Sushi in Sushi",,VGOH602-2501170,,,Não,"19,0000","0,0000",Uni,Sim,13,,,P,,S,"-152,0000",100,https://www.vendus.pt/foto/c7c0966b7d67fb948e606985a3d392ea.jpg
+"Mirin (24 pçs)",,,"Take away Sushi in Sushi",,VMIR603-25011755,,,Não,"13,5000","0,0000",Uni,Sim,13,,,P,,S,"-74,0000",100,https://www.vendus.pt/foto/d3b0edb8d0f737fa48de374b702c8dab.jpeg
+"Minirolos de queijo (6pçs)",,,Delivery,,VMIN604-25011880,,,Não,"5,5000","0,0000",Uni,Sim,13,,,P,,S,"-163,0000",100,https://www.vendus.pt/foto/01ee94087949ab82353c1e0a328f027a.jpg
+"Minirolos de queijo (6 pçs)",,,"Take away Sushi in Sushi",,VMIN605-25011851,,,Não,"4,0000","0,0000",Uni,Sim,13,,,P,,S,"-17,0000",100,https://www.vendus.pt/foto/f71eb52915726b958cfb738262f9ab5b.jpg
+"2x1 Combinado frio",,,Delivery,,V2X1606-25012340,,,Não,"11,0000","0,0000",Uni,Sim,13,,,P,,S,"-1391,0000",100,https://www.vendus.pt/foto/48287078a4ae4ac6a86fbe239baf207b.jpeg
+"Mini Yakitori (2 un)",,,"Take away Sushi in Sushi",,VMIN608-2501279,,,Não,"4,5000","0,0000",Uni,Sim,13,,,P,,S,"-11,0000",100,https://www.vendus.pt/foto/29d5a28491d5ced1bdfbce169886f3db.jpg
+"Salada Tropical ",,,"Take away Sushi in Sushi",,VSAL609-25012731,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-5,0000",100,https://www.vendus.pt/foto/3a1462fe1690e7e9a876431a83e89ac2.jpg
+"Salada Salmon Fresh ",,,"Take away Sushi in Sushi",,VSAL610-25012782,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/3cc9327870690d71ffa6e18e59ea9aef.jpg
+"15) Special Salmon (4 pçs)",,,"Take away Sushi in Sushi",,V15-611-25012762,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-13,0000",100,https://www.vendus.pt/foto/fd420850de0ba7a810b07e9d8c3295ca.jpg
+"16) Uramaki Mix (4 pçs)",,,"Take away Sushi in Sushi",,V16-612-25012775,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/ccd4d2c3ad34a835fc29b6e7d8678f55.jpg
+" 17) Gunkan do chef (4 pçs) ",,,"Take away Sushi in Sushi",,V17-613-25012763,,,Não,"6,5000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/a8b3c85b2eca74f35f4942dbedc25e7d.jpg
+"16) Gunkan Hot Shrimp (4 pçs) ",,,"Take away Sushi in Sushi",,V16-614-25012764,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-6,0000",100,https://www.vendus.pt/foto/4d2cbb05274f18e31622158f188e00c2.jpg
+"Hot Shrimp Filadélfia (8 pçs)",,,"Take away Sushi in Sushi",,VHOT615-2501279,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-21,0000",100,https://www.vendus.pt/foto/0cdde00c773be4bdff7c5b62ca231554.jpg
+"Hot Especial (8 pçs)",,,"Take away Sushi in Sushi",,VHOT616-25012725,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-51,0000",100,https://www.vendus.pt/foto/3fddb7f5b8ff8c3f1d14687401c7751e.jpg
+"Hot Veg Crispy (8 pçs)",,,"Take away Sushi in Sushi",,VHOT617-25012799,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-9,0000",100,https://www.vendus.pt/foto/1535c5777266cd87139ce9c8b5305e8c.jpg
+"Poke do Chef ",,,"Take away Sushi in Sushi",,VPOK618-25012769,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,0,100,
+Mojito,,,"Take away Sushi in Sushi",,VMOJ619-25020340,,,Não,"6,5000","0,0000",Uni,Sim,23,,,P,,S,"-39,0000",100,https://www.vendus.pt/foto/d94562a8ae08977b936c787ea1c77783.jpg
+Sunomono,,,"Take away Sushi in Sushi",,VSUN619-25020410,,,Não,"3,5000","0,0000",Uni,Sim,13,,,P,,S,"-81,0000",100,https://www.vendus.pt/foto/6d1c1348ba6551a7abd91bee084cdc88.jpg
+"Combo Valentines day",,,Delivery,,VCOM620-25021141,,,Não,"60,0000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/b702b1c71751b43c4cf3b86cda7b0877.jpeg
+"Combo Valentines day ",,,"Take away Sushi in Sushi",,VCOM621-25021117,,,Não,"45,0000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/34fb71b081812b4042c4d40997a49f46.jpeg
+"menu valentines day 35 pessoa",,,"Take away Sushi in Sushi",,VMEN622-25021424,,,Não,"35,0000","0,0000",Uni,Sim,13,,,P,,S,"-10,0000",100,
+"2x1 temaki de grelhado",,,Delivery,,V2X1623-25021886,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-343,0000",100,https://www.vendus.pt/foto/6f146fc0a49e762bb2493e50ac121be8.jpeg
+"2x1 Uramaki grelhado ",,,Delivery,,V2X1624-25021888,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-387,0000",100,https://www.vendus.pt/foto/62e6ce36e4e7a85623034d39c0146e00.png
+"7) Ura salm peixe bran lemon (4pçs)",,,"Take away Sushi in Sushi",,V7-U625-25022083,,,Não,"5,0000","0,0000",Uni,Sim,13,,,P,,S,"-9,0000",100,https://www.vendus.pt/foto/3a9e714b9b8f18c393f59cd1862e3753.jpeg
+"2x1 Uramaki + Hot (8 pçs",,,Delivery,,V2X1626-25022432,,,Não,"9,0000","0,0000",Uni,Sim,13,,,P,,S,"-5,0000",100,
+"Taxa de desperdício ",,,"Take away Sushi in Sushi",,VTAX627-25022510,,,Não,"1,0000","0,0000",Uni,Sim,6,,,P,,S,"-393,0000",100,
+"Yanagi (40 pçs)",,,Delivery,,VYAN628-2502253,,,Não,"37,5000","0,0000",Uni,Sim,13,,,P,,S,"-296,0000",100,https://www.vendus.pt/foto/dd37141a73f4b7fade5d977d7ca437c6.jpeg
+"Sangria vinho branco",,,"Take away Sushi in Sushi",,VSAN629-25030180,,,Não,"18,0000","0,0000",Uni,Sim,23,,,P,,S,"-42,0000",100,https://www.vendus.pt/foto/0f4606f4b757d20c1ba336093e4496e4.jpg
+"Sangria Vinho Tinto",,,"Take away Sushi in Sushi",,VSAN630-2503018,,,Não,"18,0000","0,0000",Uni,Sim,23,,,P,,S,"-11,0000",100,https://www.vendus.pt/foto/b8cdfb61497a44028508db0f6e29af99.jpg
+"sangria de frutos vermelhos",,,"Take away Sushi in Sushi",,VSAN631-25030169,,,Não,"21,0000","0,0000",Uni,Sim,23,,,P,,S,"-14,0000",100,https://www.vendus.pt/foto/a76dbab1ff72a7dfa92c6363513bf72b.jpg
+"Sangria tropical",,,"Take away Sushi in Sushi",,VSAN632-25030117,,,Não,"21,0000","0,0000",Uni,Sim,23,,,P,,S,"-31,0000",100,https://www.vendus.pt/foto/718f8eea768fa55d73255962b31a4650.jpg
+"Yanagi (40 pçs)",,,"Take away Sushi in Sushi",,VYAN633-25031164,,,Não,"24,0000","0,0000",Uni,Sim,13,,,P,,S,"-47,0000",100,
+"2X1 temaki Atum mayo ",,,Delivery,,V2X1641-25042365,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-198,0000",100,https://www.vendus.pt/foto/32e975724dc1d1e1187e59ac811e85c6.jpeg
+"2x1 Temaki de mayo spyce",,,Delivery,,V2X1642-2504234,,,Não,"7,0000","0,0000",Uni,Sim,13,,,P,,S,"-184,0000",100,https://www.vendus.pt/foto/b0a8c9d9d8d983a0499d31e6af1b926d.jpeg
+"Sake (12pçs + 1 Temaki)",,,Delivery,,VSAK646-25071930,,,Não,"20,5000","0,0000",Uni,Sim,13,,,P,,S,"-145,0000",100,https://www.vendus.pt/foto/e346dcd20adc49ef7eba9f5d9b9cd939.jpeg
+"Massa maré alta",,,Delivery,,VMAS647-2507226,,,Não,"15,5000","0,0000",Uni,Sim,13,,,P,,S,"-8,0000",100,https://www.vendus.pt/foto/8598dae4e00a5f1592239c2d74b9ebb7.jpeg
+"Massa Maré alta",,,"Take away Sushi in Sushi",,VMAS648-25072240,,,Não,"12,0000","0,0000",Uni,Sim,13,,,P,,S,"-12,0000",100,https://www.vendus.pt/foto/f1f6ee758b4a8972127de1b59c565523.jpeg
+"Massa Oriente",,,Delivery,,VMAS649-2507234,,,Não,"16,0000","0,0000",Uni,Sim,13,,,P,,S,"-9,0000",100,https://www.vendus.pt/foto/4b11548b47ca38c34c4111fc44af7f50.jpeg
+"Massa Oriente",,,"Take away Sushi in Sushi",,VMAS650-2507238,,,Não,"10,5000","0,0000",Uni,Sim,13,,,P,,S,"-10,0000",100,https://www.vendus.pt/foto/49b75c83484f7f9ad9b97f3f7ed007e5.jpeg
+"Vinho Mateus Rose",,,Delivery,,VMAT651-25103058,,75cl,Não,"11,0000","9,0000",Uni,Sim,23,,,P,ALT,S,"-11,0000",-0.63,
+"Haru (24 pçs)",,,Delivery,,VHAR652-26010945,,,Não,"29,0000","0,0000",Uni,Sim,13,,,P,,S,"-22,0000",100,https://www.vendus.pt/foto/8bd7b52eb76f15ec08a0137f406ad8be.jpeg
+"Haru (24 pçs)",,,"Take away Sushi in Sushi",,VHAR653-26010958,,,Não,"19,0000","0,0000",Uni,Sim,13,,,P,,S,"-5,0000",100,https://www.vendus.pt/foto/07395896dcfe12557a81f4ad9dec3665.jpeg
+"18) Gunkan de salmão e morango (4 pçs)",,,Delivery,,V18-654-26011036,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-11,0000",100,https://www.vendus.pt/foto/2d820a9205c0a6c48d3be25107c0e7bd.jpeg
+"18) Gunkan de salmão e morango (4 pçs)",,,"Take away Sushi in Sushi",,V18-655-2601104,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-2,0000",100,https://www.vendus.pt/foto/1547b8c8aa9935430d44043f3be3a673.jpeg
+"19) Gunkan de salmão e framboesa (4 pçs)",,,Delivery,,V19-656-26011036,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-11,0000",100,https://www.vendus.pt/foto/adb6eb432fd754921596ce1e28a861e5.jpeg
+"19) Gunkan de salmão e framboesa (4 pçs)",,,"Take away Sushi in Sushi",,V19-657-26011061,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,0,100,https://www.vendus.pt/foto/2ffa791f9bab7e1ac2dfc6634cc8eb67.jpeg
+Yanagi,,,Delivery,,VYAN658-26011241,,,Não,"34,0000","0,0000",Uni,Sim,13,,,P,,S,"-123,0000",100,https://www.vendus.pt/foto/6beee6ce27623afedd1f500162863548.jpeg
+"Gyoza de frango (4 pçs)",,,Delivery,,VGYO659-26011548,,,Não,"8,0000","0,0000",Uni,Sim,13,,,P,,S,"-30,0000",100,https://www.vendus.pt/foto/e872fc63d9d362c367c04189b66f5c39.jpeg
+"20) Gunkan de Salmão fila com molho de maracujá (4 pçs)",,,Delivery,,V20-660-26011512,,,Não,"7,5000","0,0000",Uni,Sim,13,,,P,,S,"-5,0000",100,https://www.vendus.pt/foto/ecf7a5af9d865cc5b0eb327a0978da56.jpeg
+"20) Gunkan de Salmão fila com molho de maracujá (4 pçs)",,,"Take away Sushi in Sushi",,V20-661-26011592,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-1,0000",100,https://www.vendus.pt/foto/5df9d8736bbfdb57932c89d4f6092f1c.jpeg
+"gyoza de frango (4pçs)",,,"Take away Sushi in Sushi",,VGYO662-2601150,,,Não,"6,0000","0,0000",Uni,Sim,13,,,P,,S,"-9,0000",100,https://www.vendus.pt/foto/dbfd9d3e462b8b88a4e114ff2ab8be03.jpeg

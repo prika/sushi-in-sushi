@@ -25,6 +25,13 @@ export default function ProdutosPage() {
   const [stats, setStats] = useState<ProductStats | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [productRatings, setProductRatings] = useState<ProductRatingsMap>({});
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterAvailability, setFilterAvailability] = useState<"all" | "available" | "unavailable">("all");
+  const [filterServiceModes, setFilterServiceModes] = useState<string[]>([]);
+  const [filterRodizio, setFilterRodizio] = useState(false);
+  const [sortBy, setSortBy] = useState<"default" | "orders_asc" | "orders_desc" | "rating_asc" | "rating_desc">("default");
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [modalTab, setModalTab] = useState<"geral" | "imagens" | "precos" | "ingredientes">("geral");
 
   useEffect(() => {
     fetch("/api/admin/products/stats")
@@ -54,11 +61,14 @@ export default function ProdutosPage() {
     is_available: true,
     is_rodizio: false,
     sort_order: 0,
+    service_modes: [] as string[],
+    service_prices: {} as Record<string, number>,
+    ingredients: [] as { name: string; quantity: string; unit: string }[],
   });
   const [newImageUrl, setNewImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  const handleOpenModal = (product?: Product) => {
+  const handleOpenModal = (product?: Product, tab?: "geral" | "imagens" | "precos" | "ingredientes") => {
     if (product) {
       setEditingProduct(product);
       setFormData({
@@ -70,6 +80,9 @@ export default function ProdutosPage() {
         is_available: product.isAvailable,
         is_rodizio: product.isRodizio,
         sort_order: product.sortOrder,
+        service_modes: product.serviceModes?.length ? [...product.serviceModes] : [],
+        service_prices: product.servicePrices ? { ...product.servicePrices } : {},
+        ingredients: product.ingredients.length > 0 ? [...product.ingredients] : [],
       });
     } else {
       setEditingProduct(null);
@@ -82,9 +95,13 @@ export default function ProdutosPage() {
         is_available: true,
         is_rodizio: false,
         sort_order: products.length,
+        service_modes: [],
+        service_prices: {},
+        ingredients: [],
       });
     }
     setNewImageUrl("");
+    setModalTab(tab ?? "geral");
     setShowModal(true);
   };
 
@@ -127,15 +144,25 @@ export default function ProdutosPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (formData.service_modes.length === 0) {
+      alert("Selecione pelo menos um modo de serviço.");
+      return;
+    }
+
+    const priceValues = Object.values(formData.service_prices).filter((v) => v > 0);
+    const basePrice = priceValues.length > 0 ? Math.min(...priceValues) : 0;
+
     const productData = {
       name: formData.name,
       description: formData.description || null,
-      price: formData.price,
+      price: basePrice,
       categoryId: formData.category_id,
       imageUrls: formData.image_urls,
       isAvailable: formData.is_available,
       isRodizio: formData.is_rodizio,
       sortOrder: formData.sort_order,
+      serviceModes: formData.service_modes,
+      servicePrices: formData.service_prices,
     };
 
     if (editingProduct) {
@@ -148,10 +175,14 @@ export default function ProdutosPage() {
     // No need to call fetchData - React Query auto-updates!
   };
 
-  const handleDelete = async (product: Product) => {
-    if (!confirm(`Tem certeza que deseja eliminar "${product.name}"?`)) return;
-    await deleteProduct(product.id);
-    // No need to call fetchData - React Query auto-updates!
+  const handleDelete = (product: Product) => {
+    setDeletingProduct(product);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingProduct) return;
+    await deleteProduct(deletingProduct.id);
+    setDeletingProduct(null);
   };
 
   const handleToggleAvailable = async (product: Product) => {
@@ -163,12 +194,27 @@ export default function ProdutosPage() {
     return categories.find(c => c.id === categoryId)?.name || "Sem categoria";
   };
 
+  const orderCount = (productId: string) =>
+    stats?.orderCountByProductId?.[productId] ?? 0;
+
   const filteredProducts = products.filter(product => {
     const matchesCategory = !selectedCategory || product.categoryId === selectedCategory;
     const matchesSearch = !searchTerm ||
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
+    const matchesAvailability = filterAvailability === "all" ||
+      (filterAvailability === "available" && product.isAvailable) ||
+      (filterAvailability === "unavailable" && !product.isAvailable);
+    const matchesServiceMode = filterServiceModes.length === 0 ||
+      filterServiceModes.some((m) => product.serviceModes?.includes(m));
+    const matchesRodizio = !filterRodizio || product.isRodizio;
+    return matchesCategory && matchesSearch && matchesAvailability && matchesServiceMode && matchesRodizio;
+  }).sort((a, b) => {
+    if (sortBy === "orders_desc") return orderCount(b.id) - orderCount(a.id);
+    if (sortBy === "orders_asc") return orderCount(a.id) - orderCount(b.id);
+    if (sortBy === "rating_desc") return (productRatings[String(b.id)]?.avgRating ?? 0) - (productRatings[String(a.id)]?.avgRating ?? 0);
+    if (sortBy === "rating_asc") return (productRatings[String(a.id)]?.avgRating ?? 0) - (productRatings[String(b.id)]?.avgRating ?? 0);
+    return 0;
   });
 
   if (isLoading) {
@@ -178,9 +224,6 @@ export default function ProdutosPage() {
       </div>
     );
   }
-
-  const orderCount = (productId: string) =>
-    stats?.orderCountByProductId?.[productId] ?? 0;
 
   return (
     <div className="space-y-6">
@@ -233,10 +276,10 @@ export default function ProdutosPage() {
       </div>
 
       {/* Category filters */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="flex gap-1.5 overflow-x-auto pb-2">
           <button
             onClick={() => setSelectedCategory(null)}
-            className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+            className={`px-3 py-1 text-sm rounded-lg whitespace-nowrap transition-colors ${
               !selectedCategory
                 ? "bg-[#D4AF37] text-black"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -248,7 +291,7 @@ export default function ProdutosPage() {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+              className={`px-3 py-1 text-sm rounded-lg whitespace-nowrap transition-colors ${
                 selectedCategory === cat.id
                   ? "bg-[#D4AF37] text-black"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -259,6 +302,125 @@ export default function ProdutosPage() {
           ))}
       </div>
 
+      {/* Filters toggle + count */}
+      {(() => {
+        const activeCount = (filterAvailability !== "all" ? 1 : 0) + filterServiceModes.length + (filterRodizio ? 1 : 0) + (sortBy !== "default" ? 1 : 0);
+        return (
+          <>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                showFilters ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              Filtros
+              {activeCount > 0 && (
+                <span className="px-1.5 py-0.5 text-xs font-medium rounded-full bg-[#D4AF37] text-black">{activeCount}</span>
+              )}
+            </button>
+            <span className="text-sm text-gray-400">{filteredProducts.length} produto{filteredProducts.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          {/* Filters panel */}
+          {showFilters && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4 sm:space-y-0 sm:flex sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-3">
+              {/* Availability toggle */}
+              <div className="inline-flex items-center gap-2">
+                <span className={`text-sm transition-colors ${filterAvailability === "unavailable" ? "text-red-600 font-medium" : "text-gray-400"}`}>Indisponivel</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={filterAvailability !== "all"}
+                  onClick={() => setFilterAvailability((v) => v === "all" ? "available" : v === "available" ? "unavailable" : "all")}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                    filterAvailability === "available" ? "bg-green-500"
+                      : filterAvailability === "unavailable" ? "bg-red-500"
+                      : "bg-gray-300"
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                    filterAvailability === "available" ? "translate-x-[26px]"
+                      : filterAvailability === "unavailable" ? "translate-x-[3px]"
+                      : "translate-x-[14px]"
+                  }`} />
+                </button>
+                <span className={`text-sm transition-colors ${filterAvailability === "available" ? "text-green-600 font-medium" : "text-gray-400"}`}>Disponivel</span>
+              </div>
+
+              <span className="hidden sm:block w-px h-5 bg-gray-200" />
+
+              {/* Service Modes */}
+              <div className="flex items-center gap-3 flex-wrap">
+                {([
+                  { value: "dine_in", label: "Sala", color: "text-blue-600 focus:ring-blue-500" },
+                  { value: "takeaway", label: "Take Away", color: "text-teal-600 focus:ring-teal-500" },
+                  { value: "delivery", label: "Delivery", color: "text-orange-600 focus:ring-orange-500" },
+                ] as const).map((m) => (
+                  <label key={m.value} className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={filterServiceModes.includes(m.value)}
+                      onChange={() => setFilterServiceModes((prev) =>
+                        prev.includes(m.value) ? prev.filter((v) => v !== m.value) : [...prev, m.value]
+                      )}
+                      className={`w-4 h-4 border-gray-300 rounded ${m.color}`}
+                    />
+                    <span className="text-sm text-gray-700">{m.label}</span>
+                  </label>
+                ))}
+              </div>
+
+              <span className="hidden sm:block w-px h-5 bg-gray-200" />
+
+              {/* Rodízio */}
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filterRodizio}
+                  onChange={() => setFilterRodizio((v) => !v)}
+                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-700">Rodizio</span>
+              </label>
+
+              <span className="hidden sm:block w-px h-5 bg-gray-200" />
+
+              {/* Sort */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="w-full sm:w-auto px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 bg-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+              >
+                <option value="default">Ordenar: Predefinido</option>
+                <option value="orders_desc">Pedidos (mais primeiro)</option>
+                <option value="orders_asc">Pedidos (menos primeiro)</option>
+                <option value="rating_desc">Avaliacao (melhor primeiro)</option>
+                <option value="rating_asc">Avaliacao (pior primeiro)</option>
+              </select>
+
+              {activeCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setFilterAvailability("all"); setFilterServiceModes([]); setFilterRodizio(false); setSortBy("default"); }}
+                  className="w-full sm:w-auto px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-center"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+          )}
+          </>
+        );
+      })()}
+
+      {/* Products + Side Panel */}
+      <div className="flex gap-6">
+      <div className={showModal ? "flex-1 min-w-0" : "w-full"}>
       {/* Products: Grid or Table */}
       {filteredProducts.length === 0 ? (
         <div className="bg-white rounded-xl p-12 text-center border border-gray-200">
@@ -274,6 +436,7 @@ export default function ProdutosPage() {
                 <th className="px-4 py-3 font-medium">Preço</th>
                 <th className="px-4 py-3 font-medium">Disponível</th>
                 <th className="px-4 py-3 font-medium">Rodízio</th>
+                <th className="px-4 py-3 font-medium">Modo Servico</th>
                 <th className="px-4 py-3 font-medium">Imagens</th>
                 <th className="px-4 py-3 font-medium">Avaliações</th>
                 <th className="px-4 py-3 font-medium">Vezes pedido</th>
@@ -288,7 +451,7 @@ export default function ProdutosPage() {
                 >
                   <td className="px-4 py-2">
                     {(product.imageUrl || (product.imageUrls?.length ?? 0) > 0) ? (
-                      <div className="relative w-10 h-10 rounded overflow-hidden bg-gray-100 shrink-0">
+                      <div className="relative w-10 h-10 rounded overflow-hidden bg-gray-100 shrink-0 cursor-pointer" onClick={() => handleOpenModal(product, "imagens")}>
                         <Image
                           src={product.imageUrl ?? product.imageUrls?.[0] ?? ""}
                           alt=""
@@ -304,17 +467,42 @@ export default function ProdutosPage() {
                   </td>
                   <td className="px-4 py-2">
                     <div>
-                      <div className="font-medium">{product.name}</div>
+                      <div className="font-medium cursor-pointer hover:text-[#D4AF37] transition-colors" onClick={() => handleOpenModal(product)}>{product.name}</div>
                       <div className="text-xs text-gray-500">{getCategoryName(product.categoryId)}</div>
                     </div>
                   </td>
-                  <td className="px-4 py-2 font-semibold text-[#D4AF37]">{product.price.toFixed(2)}€</td>
+                  <td className="px-4 py-2 cursor-pointer" onClick={() => handleOpenModal(product, "precos")}>
+                    <div className="font-semibold text-[#D4AF37] tabular-nums">{product.price.toFixed(2)}€</div>
+                    {Object.keys(product.servicePrices ?? {}).length > 0 && (
+                      <div className="flex flex-col gap-0.5 mt-0.5">
+                        {Object.entries(product.servicePrices).map(([mode, price]) => (
+                          <div key={mode} className="flex justify-between text-xs text-gray-500 gap-2">
+                            <span>{mode === "delivery" ? "Del" : mode === "takeaway" ? "TA" : mode === "dine_in" ? "Sala" : mode}</span>
+                            <span className="tabular-nums">{price.toFixed(2)}€</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-2">
                     <span className={product.isAvailable ? "text-green-600" : "text-red-600"}>
                       {product.isAvailable ? "Sim" : "Não"}
                     </span>
                   </td>
                   <td className="px-4 py-2">{product.isRodizio ? "Sim" : "Não"}</td>
+                  <td className="px-4 py-2 cursor-pointer" onClick={() => handleOpenModal(product, "precos")}>
+                    {product.serviceModes?.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {product.serviceModes.map((m) => (
+                          <span key={m} className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                            {m === "delivery" ? "Delivery" : m === "takeaway" ? "Take Away" : m === "dine_in" ? "Sala" : m}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2 text-gray-600">
                     {product.imageUrls?.length ?? (product.imageUrl ? 1 : 0)}
                   </td>
@@ -366,16 +554,14 @@ export default function ProdutosPage() {
           </table>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className={`grid gap-4 ${showModal ? "sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"}`}>
           {filteredProducts.map((product) => (
             <div
               key={product.id}
-              className={`bg-white rounded-xl border border-gray-200 overflow-hidden ${
-                !product.isAvailable ? "opacity-50" : ""
-              }`}
+              className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col"
             >
-              {(product.imageUrl || (product.imageUrls?.length ?? 0) > 0) && (
-                <div className="h-32 bg-gray-100 relative">
+              {(product.imageUrl || (product.imageUrls?.length ?? 0) > 0) ? (
+                <div className="h-32 bg-gray-100 relative cursor-pointer" onClick={() => handleOpenModal(product, "imagens")}>
                   <Image
                     src={product.imageUrl ?? product.imageUrls?.[0] ?? ""}
                     alt={product.name}
@@ -383,22 +569,51 @@ export default function ProdutosPage() {
                     className="object-cover"
                     unoptimized
                   />
+                  <div className="absolute top-2 left-2 flex gap-1">
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full shadow-sm ${
+                      product.isAvailable
+                        ? "bg-white/90 text-gray-700 border border-gray-200"
+                        : "bg-red-500 text-white"
+                    }`}>
+                      {product.isAvailable ? "Disponivel" : "Indisponivel"}
+                    </span>
+                    {product.isRodizio && (
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full shadow-sm bg-purple-500 text-white">
+                        Rodizio
+                      </span>
+                    )}
+                  </div>
                   {(product.imageUrls?.length ?? (product.imageUrl ? 1 : 0)) > 1 && (
                     <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-xs">
                       +{(product.imageUrls?.length ?? 1) - 1}
                     </span>
                   )}
                 </div>
-              )}
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{product.name}</h3>
-                    <p className="text-xs text-gray-500">{getCategoryName(product.categoryId)}</p>
+              ) : (
+                <div className="h-32 bg-gray-100 relative flex items-center justify-center cursor-pointer" onClick={() => handleOpenModal(product, "imagens")}>
+                  <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <div className="absolute top-2 left-2 flex gap-1">
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full shadow-sm ${
+                      product.isAvailable
+                        ? "bg-white/90 text-gray-700 border border-gray-200"
+                        : "bg-red-500 text-white"
+                    }`}>
+                      {product.isAvailable ? "Disponivel" : "Indisponivel"}
+                    </span>
+                    {product.isRodizio && (
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full shadow-sm bg-purple-500 text-white">
+                        Rodizio
+                      </span>
+                    )}
                   </div>
-                  <span className="text-lg font-bold text-[#D4AF37]">
-                    {product.price.toFixed(2)}€
-                  </span>
+                </div>
+              )}
+              <div className="p-4 flex flex-col flex-1">
+                <div className="mb-2">
+                  <h3 className="font-semibold text-gray-900 cursor-pointer hover:text-[#D4AF37] transition-colors" onClick={() => handleOpenModal(product)}>{product.name}</h3>
+                  <p className="text-xs text-gray-500">{getCategoryName(product.categoryId)}</p>
                 </div>
                 {product.description && (
                   <p className="text-sm text-gray-500 line-clamp-2 mb-2">{product.description}</p>
@@ -419,51 +634,45 @@ export default function ProdutosPage() {
                     {orderCount(product.id)}× pedido
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-1">
-                    {product.isRodizio && (
-                      <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
-                        Rodízio
-                      </span>
-                    )}
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      product.isAvailable
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}>
-                      {product.isAvailable ? "Disponível" : "Indisponível"}
-                    </span>
+                {(product.serviceModes?.length ?? 0) > 0 && (
+                  <div className="flex flex-col gap-1 mb-3 mt-auto cursor-pointer" onClick={() => handleOpenModal(product, "precos")}>
+                    {product.serviceModes?.map((m) => (
+                      <div key={m} className={`flex items-center justify-between px-3 py-1.5 text-sm font-medium rounded-lg ${
+                        m === "delivery"
+                          ? "bg-orange-100 text-orange-700"
+                          : m === "takeaway"
+                            ? "bg-teal-100 text-teal-700"
+                            : m === "dine_in"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-gray-100 text-gray-700"
+                      }`}>
+                        <span>{m === "delivery" ? "Delivery" : m === "takeaway" ? "Take Away" : m === "dine_in" ? "Sala" : m}</span>
+                        {product.servicePrices?.[m] !== undefined && (
+                          <span className="font-bold tabular-nums min-w-[4rem] text-right">{product.servicePrices[m].toFixed(2)}€</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleToggleAvailable(product)}
-                      className={`p-1.5 rounded ${
-                        product.isAvailable
-                          ? "text-green-600 hover:bg-green-50"
-                          : "text-gray-400 hover:bg-gray-50"
-                      }`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleOpenModal(product)}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    onClick={() => handleDelete(product)}
+                    className="flex items-center gap-1 px-2 py-1.5 text-sm text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Remover
+                  </button>
+                  <button
+                    onClick={() => handleOpenModal(product)}
+                    className="flex items-center gap-1 px-2 py-1.5 text-sm text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Editar
+                  </button>
                 </div>
               </div>
             </div>
@@ -471,135 +680,180 @@ export default function ProdutosPage() {
         </div>
       )}
 
-      {/* Modal */}
+      </div>
+      {/* Side Panel */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white">
-              <h2 className="text-lg font-semibold text-gray-900">
+        <div className="w-96 shrink-0">
+          <div className="sticky top-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50">
+              <h2 className="text-base font-semibold text-gray-900">
                 {editingProduct ? "Editar Produto" : "Novo Produto"}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-2 text-gray-400 hover:text-gray-600"
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-                  required
-                />
-              </div>
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200">
+              {([
+                { key: "geral" as const, label: "Geral" },
+                { key: "imagens" as const, label: "Imagens", badge: formData.image_urls.length },
+                { key: "precos" as const, label: "Precos", badge: formData.service_modes.length },
+                { key: "ingredientes" as const, label: "Ingredientes", badge: formData.ingredients.length },
+              ]).map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setModalTab(tab.key)}
+                  className={`flex-1 px-2 py-2.5 text-xs font-medium transition-colors ${
+                    modalTab === tab.key
+                      ? "text-[#D4AF37] border-b-2 border-[#D4AF37]"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {tab.label}
+                  {"badge" in tab && (tab.badge ?? 0) > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-gray-100 text-gray-600">
+                      {tab.badge}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descrição
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-                  rows={3}
-                />
-              </div>
+            <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Preço (€)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Categoria
-                  </label>
-                  <select
-                    value={formData.category_id}
-                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-                    required
-                  >
-                    <option value="">Selecionar...</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Imagens do produto
-                </label>
-                {formData.image_urls.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {formData.image_urls.map((url, index) => (
-                      <div
-                        key={`${url}-${index}`}
-                        className="relative group inline-block w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-100"
-                      >
-                        <Image
-                          src={url}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          unoptimized
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = "none";
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+              {/* Tab: Geral */}
+              {modalTab === "geral" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nome
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                      required
+                    />
                   </div>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <input
-                    type="url"
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addImageUrl())}
-                    className="flex-1 min-w-[180px] px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-                    placeholder="https://..."
-                  />
-                  <button
-                    type="button"
-                    onClick={addImageUrl}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                  >
-                    Adicionar URL
-                  </button>
-                  <label className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer">
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Descricao
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Categoria
+                    </label>
+                    <select
+                      value={formData.category_id}
+                      onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                      required
+                    >
+                      <option value="">Selecionar...</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_available}
+                        onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
+                        className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
+                      />
+                      <span className="text-sm text-gray-700">Disponivel</span>
+                    </label>
+
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_rodizio}
+                        onChange={(e) => setFormData({ ...formData, is_rodizio: e.target.checked })}
+                        className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
+                      />
+                      <span className="text-sm text-gray-700">Rodizio</span>
+                    </label>
+                  </div>
+                </>
+              )}
+
+              {/* Tab: Imagens */}
+              {modalTab === "imagens" && (
+                <div className="space-y-4">
+                  {formData.image_urls.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.image_urls.map((url, index) => (
+                        <div
+                          key={`${url}-${index}`}
+                          className="relative group inline-block w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-100"
+                        >
+                          <Image
+                            src={url}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            unoptimized
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {formData.image_urls.length === 0 && (
+                    <div className="text-center py-6 text-gray-400 text-sm">
+                      Nenhuma imagem adicionada
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      type="url"
+                      value={newImageUrl}
+                      onChange={(e) => setNewImageUrl(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addImageUrl())}
+                      className="flex-1 min-w-[180px] px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                      placeholder="https://..."
+                    />
+                    <button
+                      type="button"
+                      onClick={addImageUrl}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                      Adicionar URL
+                    </button>
+                  </div>
+                  <label className="block w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer text-center text-sm">
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp,image/gif"
@@ -607,49 +861,218 @@ export default function ProdutosPage() {
                       onChange={handleFileUpload}
                       disabled={uploading}
                     />
-                    {uploading ? "A enviar…" : "Upload"}
+                    {uploading ? "A enviar…" : "Upload de ficheiro"}
                   </label>
                 </div>
-              </div>
+              )}
 
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_available}
-                    onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
-                    className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
-                  />
-                  <span className="text-sm text-gray-700">Disponível</span>
-                </label>
+              {/* Tab: Precos */}
+              {modalTab === "precos" && (
+                <div className="space-y-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Modos de servico e precos
+                  </label>
+                  <div className="space-y-2">
+                    {[
+                      { value: "dine_in", label: "Sala", bg: "bg-blue-50 border-blue-200", text: "text-blue-700", check: "text-blue-600 focus:ring-blue-500" },
+                      { value: "delivery", label: "Delivery", bg: "bg-orange-50 border-orange-200", text: "text-orange-700", check: "text-orange-600 focus:ring-orange-500" },
+                      { value: "takeaway", label: "Take Away", bg: "bg-teal-50 border-teal-200", text: "text-teal-700", check: "text-teal-600 focus:ring-teal-500" },
+                    ].map((mode) => {
+                      const isActive = formData.service_modes.includes(mode.value);
+                      return (
+                        <div
+                          key={mode.value}
+                          className={`flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors ${
+                            isActive ? mode.bg : "bg-gray-50 border-gray-200"
+                          }`}
+                        >
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isActive}
+                              onChange={(e) => {
+                                setFormData((prev) => {
+                                  const newModes = e.target.checked
+                                    ? [...prev.service_modes, mode.value]
+                                    : prev.service_modes.filter((m) => m !== mode.value);
+                                  const newPrices = { ...prev.service_prices };
+                                  if (!e.target.checked) {
+                                    delete newPrices[mode.value];
+                                  }
+                                  return { ...prev, service_modes: newModes, service_prices: newPrices };
+                                });
+                              }}
+                              className={`w-4 h-4 border-gray-300 rounded ${mode.check}`}
+                            />
+                            <span className={`text-sm font-medium ${isActive ? mode.text : "text-gray-500"}`}>
+                              {mode.label}
+                            </span>
+                          </label>
+                          {isActive && (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={formData.service_prices[mode.value] ?? ""}
+                                placeholder="0.00"
+                                onChange={(e) =>
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    service_prices: {
+                                      ...prev.service_prices,
+                                      [mode.value]: parseFloat(e.target.value) || 0,
+                                    },
+                                  }))
+                                }
+                                className={`w-24 px-2 py-1 border rounded-md text-sm font-semibold text-right focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent ${mode.text} bg-white border-gray-300`}
+                                required
+                              />
+                              <span className={`text-sm font-medium ${mode.text}`}>€</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_rodizio}
-                    onChange={(e) => setFormData({ ...formData, is_rodizio: e.target.checked })}
-                    className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
-                  />
-                  <span className="text-sm text-gray-700">Rodízio</span>
-                </label>
-              </div>
+              {/* Tab: Ingredientes */}
+              {modalTab === "ingredientes" && (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-500">
+                    Ingredientes que compoe este produto e quantidades aproximadas por dose.
+                  </p>
+
+                  {formData.ingredients.map((ing, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={ing.name}
+                        onChange={(e) =>
+                          setFormData((prev) => {
+                            const updated = [...prev.ingredients];
+                            updated[idx] = { ...updated[idx], name: e.target.value };
+                            return { ...prev, ingredients: updated };
+                          })
+                        }
+                        placeholder="Ingrediente"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                      />
+                      <input
+                        type="text"
+                        value={ing.quantity}
+                        onChange={(e) =>
+                          setFormData((prev) => {
+                            const updated = [...prev.ingredients];
+                            updated[idx] = { ...updated[idx], quantity: e.target.value };
+                            return { ...prev, ingredients: updated };
+                          })
+                        }
+                        placeholder="Qtd"
+                        className="w-16 px-2 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 text-right focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                      />
+                      <select
+                        value={ing.unit}
+                        onChange={(e) =>
+                          setFormData((prev) => {
+                            const updated = [...prev.ingredients];
+                            updated[idx] = { ...updated[idx], unit: e.target.value };
+                            return { ...prev, ingredients: updated };
+                          })
+                        }
+                        className="w-20 px-2 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                      >
+                        <option value="g">g</option>
+                        <option value="kg">kg</option>
+                        <option value="ml">ml</option>
+                        <option value="L">L</option>
+                        <option value="un">un</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            ingredients: prev.ingredients.filter((_, i) => i !== idx),
+                          }))
+                        }
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        ingredients: [...prev.ingredients, { name: "", quantity: "", unit: "g" }],
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-[#D4AF37] hover:text-[#D4AF37] transition-colors"
+                  >
+                    + Adicionar ingrediente
+                  </button>
+
+                  {formData.ingredients.length === 0 && (
+                    <div className="text-center py-6 text-gray-400 text-sm">
+                      Nenhum ingrediente adicionado
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030]"
+                  className="flex-1 px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm"
                 >
                   {editingProduct ? "Guardar" : "Criar"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {deletingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Eliminar produto</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Tem certeza que deseja eliminar <span className="font-medium text-gray-900">&ldquo;{deletingProduct.name}&rdquo;</span>? Esta ação não pode ser revertida.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setDeletingProduct(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+              >
+                Eliminar
+              </button>
+            </div>
           </div>
         </div>
       )}

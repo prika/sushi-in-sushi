@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { syncCategoriesToVendus } from "../categories";
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(),
+  createAdminClient: vi.fn(),
 }));
 
 vi.mock("../client", () => ({
@@ -26,6 +26,9 @@ vi.mock("../client", () => ({
       super(message);
       this.name = "VendusApiError";
     }
+    getUserMessage() {
+      return `Erro Vendus: ${this.message}`;
+    }
   },
 }));
 
@@ -38,7 +41,7 @@ vi.mock("../config", () => ({
   }),
 }));
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getVendusClient } from "../client";
 
 function createSupabaseMock(config: {
@@ -109,7 +112,7 @@ describe("syncCategoriesToVendus", () => {
       ],
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await syncCategoriesToVendus("circunvalacao");
@@ -147,7 +150,7 @@ describe("syncCategoriesToVendus", () => {
       onUpdate: () => updateCalled++,
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await syncCategoriesToVendus("circunvalacao");
@@ -167,7 +170,7 @@ describe("syncCategoriesToVendus", () => {
       localCategories: [],
     });
 
-    vi.mocked(createClient).mockResolvedValue(supabase as never);
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
     vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
 
     const result = await syncCategoriesToVendus("circunvalacao");
@@ -175,5 +178,247 @@ describe("syncCategoriesToVendus", () => {
     expect(result.recordsProcessed).toBe(0);
     expect(vendusClient.get).not.toHaveBeenCalled();
     expect(vendusClient.post).not.toHaveBeenCalled();
+  });
+
+  it("records error when Vendus API create fails", async () => {
+    const { VendusApiError: MockError } = await import("../client");
+    const vendusClient = {
+      get: vi.fn().mockResolvedValue({ categories: [] }),
+      post: vi.fn().mockRejectedValue(
+        new MockError("SERVER_ERROR", "Vendus down", undefined, 500),
+      ),
+    };
+
+    const supabase = createSupabaseMock({
+      localCategories: [
+        { id: "c1", name: "Entradas", vendus_id: null },
+      ],
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncCategoriesToVendus("circunvalacao");
+
+    expect(result.recordsFailed).toBe(1);
+    expect(result.success).toBe(false);
+    expect(result.errors.length).toBe(1);
+    expect(result.errors[0].error).toContain("Entradas");
+  });
+
+  it("records error when Supabase update fails after create", async () => {
+    const vendusClient = {
+      get: vi.fn().mockResolvedValue({ categories: [] }),
+      post: vi.fn().mockResolvedValue({ id: "vendus-new" }),
+    };
+
+    // Create mock with update that returns error
+    const from = (table: string) => {
+      if (table === "categories") {
+        return {
+          select: () => ({
+            order: () =>
+              Promise.resolve({
+                data: [{ id: "c1", name: "Sobremesas", vendus_id: null }],
+                error: null,
+              }),
+          }),
+          update: () => ({
+            eq: () =>
+              Promise.resolve({
+                data: null,
+                error: { message: "update permission denied" },
+              }),
+          }),
+        };
+      }
+      return {};
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue({ from } as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncCategoriesToVendus("circunvalacao");
+
+    expect(result.recordsFailed).toBe(1);
+    expect(result.success).toBe(false);
+    expect(result.errors[0].error).toContain("Sobremesas");
+  });
+
+  it("records error when Supabase update fails for existing Vendus match", async () => {
+    const vendusClient = {
+      get: vi.fn().mockResolvedValue({
+        categories: [{ id: "v-1", name: "Entradas" }],
+      }),
+      post: vi.fn(),
+    };
+
+    // Supabase update fails
+    const from = (table: string) => {
+      if (table === "categories") {
+        return {
+          select: () => ({
+            order: () =>
+              Promise.resolve({
+                data: [{ id: "c1", name: "Entradas", vendus_id: null }],
+                error: null,
+              }),
+          }),
+          update: () => ({
+            eq: () =>
+              Promise.resolve({
+                data: null,
+                error: { message: "DB error" },
+              }),
+          }),
+        };
+      }
+      return {};
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue({ from } as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncCategoriesToVendus("circunvalacao");
+
+    expect(result.recordsFailed).toBe(1);
+    expect(result.success).toBe(false);
+  });
+
+  it("handles Supabase fetch error gracefully", async () => {
+    const vendusClient = {
+      get: vi.fn(),
+      post: vi.fn(),
+    };
+
+    const from = (table: string) => {
+      if (table === "categories") {
+        return {
+          select: () => ({
+            order: () =>
+              Promise.resolve({
+                data: null,
+                error: { message: "table not found" },
+              }),
+          }),
+        };
+      }
+      return {};
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue({ from } as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncCategoriesToVendus("circunvalacao");
+
+    expect(result.success).toBe(false);
+    expect(result.errors.length).toBe(1);
+    expect(result.errors[0].error).toContain("categorias");
+  });
+
+  it("handles Vendus categories returned as array directly", async () => {
+    const vendusClient = {
+      get: vi.fn().mockResolvedValue([
+        { id: "v-existing", name: "Entradas" },
+      ]),
+      post: vi.fn(),
+    };
+
+    let updateCalled = 0;
+    const supabase = createSupabaseMock({
+      localCategories: [
+        { id: "c1", name: "Entradas", vendus_id: null },
+      ],
+      onUpdate: () => updateCalled++,
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncCategoriesToVendus("circunvalacao");
+
+    expect(result.recordsUpdated).toBe(1);
+    expect(vendusClient.post).not.toHaveBeenCalled();
+  });
+
+  it("uses raw.data when raw.categories is missing", async () => {
+    const vendusClient = {
+      get: vi.fn().mockResolvedValue({
+        data: [{ id: "v-data", name: "Bebidas" }],
+      }),
+      post: vi.fn(),
+    };
+
+    let updateCalled = 0;
+    const supabase = createSupabaseMock({
+      localCategories: [
+        { id: "c1", name: "Bebidas", vendus_id: null },
+      ],
+      onUpdate: () => updateCalled++,
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncCategoriesToVendus("circunvalacao");
+
+    expect(result.recordsUpdated).toBe(1);
+  });
+
+  it("falls through to empty array when both raw.categories and raw.data are falsy", async () => {
+    const vendusClient = {
+      get: vi.fn().mockResolvedValue({}),
+      post: vi.fn().mockResolvedValue({ id: "vendus-new" }),
+    };
+
+    const supabase = createSupabaseMock({
+      localCategories: [
+        { id: "c1", name: "Pratos", vendus_id: null },
+      ],
+    });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncCategoriesToVendus("circunvalacao");
+
+    // No Vendus match found, so it creates a new one
+    expect(result.recordsCreated).toBe(1);
+  });
+
+  it("handles non-Error thrown value in outer catch", async () => {
+    // createAdminClient is called BEFORE the try block, so the returned
+    // supabase object must throw non-Error when used INSIDE the try block
+    const supabase = {
+      from: () => {
+        throw "string error"; // eslint-disable-line no-throw-literal
+      },
+    };
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(
+      { get: vi.fn(), post: vi.fn() } as never,
+    );
+
+    const result = await syncCategoriesToVendus("circunvalacao");
+
+    expect(result.success).toBe(false);
+    expect(result.errors[0].error).toBe("Erro desconhecido");
+  });
+
+  it("calculates duration", async () => {
+    const vendusClient = {
+      get: vi.fn(),
+      post: vi.fn(),
+    };
+
+    const supabase = createSupabaseMock({ localCategories: [] });
+
+    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
+
+    const result = await syncCategoriesToVendus("circunvalacao");
+
+    expect(result.duration).toBeGreaterThanOrEqual(0);
   });
 });

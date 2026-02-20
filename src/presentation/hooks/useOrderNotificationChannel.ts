@@ -1,30 +1,17 @@
 "use client";
 
 import { useEffect, type MutableRefObject } from "react";
-
-/** Channel returned by supabase.channel() - minimal shape used by this hook */
-export interface RealtimeChannelLike {
-  on: (
-    type: "broadcast",
-    opts: Record<string, string>,
-    callback: (payload: { payload: Record<string, unknown> }) => void
-  ) => { subscribe: () => void };
-}
-
-/** Supabase client minimal shape for order notification channel */
-export interface OrderNotificationSupabaseLike {
-  channel: (name: string) => RealtimeChannelLike;
-  removeChannel: (channel: RealtimeChannelLike) => void;
-}
+import type { SupabaseClient, RealtimeChannel } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
 
 export interface UseOrderNotificationChannelParams {
   session: { id: string } | null;
   step: "welcome" | "active";
-  supabase: OrderNotificationSupabaseLike;
+  supabase: SupabaseClient<Database>;
   t: (key: string, opts?: { name?: string; count?: number }) => string;
   fetchSessionOrders: () => void;
   setOrderNotification: (value: string | null) => void;
-  channelRef: MutableRefObject<RealtimeChannelLike | null>;
+  channelRef: MutableRefObject<RealtimeChannel | null>;
   deviceId: string; // Current device ID to ignore own broadcasts
 }
 

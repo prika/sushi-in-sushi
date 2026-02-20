@@ -32,6 +32,7 @@ function createTestSession(overrides: Partial<Session> = {}): Session {
     isRodizio: false,
     numPeople: 2,
     totalAmount: 0,
+    orderingMode: 'client',
     startedAt: new Date("2024-01-01T12:00:00Z"),
     closedAt: null,
     createdAt: new Date("2024-01-01T12:00:00Z"),

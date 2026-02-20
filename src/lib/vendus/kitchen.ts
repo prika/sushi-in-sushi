@@ -2,7 +2,7 @@
  * Vendus Kitchen Printing Service
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getVendusClient, VendusApiError } from "./client";
 import { getVendusConfig } from "./config";
 import type {
@@ -27,12 +27,12 @@ export async function sendOrderToKitchen(
 
   // If Vendus not configured, return success (kitchen printing is optional)
   if (!config) {
-    console.log("[Vendus] Kitchen printing skipped - Vendus not configured");
+    console.info("[Vendus] Kitchen printing skipped - Vendus not configured");
     return { success: true };
   }
 
   const client = getVendusClient(config, locationSlug);
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   try {
     // Fetch session with table info
@@ -86,7 +86,7 @@ export async function sendOrderToKitchen(
       printer_id: printerId,
     };
 
-    console.log(
+    console.info(
       "[Vendus] Sending to kitchen:",
       kitchenOrder.table_name,
       kitchenOrder.items.length,
@@ -109,7 +109,7 @@ export async function sendOrderToKitchen(
       records_processed: orders.length,
     });
 
-    console.log("[Vendus] Kitchen print successful");
+    console.info("[Vendus] Kitchen print successful");
     return { success: true };
   } catch (error) {
     // Kitchen printing failures should not block operations
@@ -172,11 +172,13 @@ export async function getKitchenPrinters(locationSlug: string): Promise<
   const client = getVendusClient(config, locationSlug);
 
   try {
-    const response = await client.get<{
-      printers: Array<{ id: string; name: string; type: string }>;
-    }>(`/stores/${config.storeId}/printers`);
+    // Vendus API may return an array directly or { printers: [...] }
+    type Printer = { id: string; name: string; type: string };
+    const raw = await client.get<Printer[] | { printers: Printer[] }>(
+      `/stores/${config.storeId}/printers`,
+    );
 
-    return response.printers || [];
+    return Array.isArray(raw) ? raw : (raw.printers || []);
   } catch (error) {
     console.error("[Vendus] Failed to fetch printers:", error);
     return [];

@@ -16,6 +16,7 @@ function createTestSession(overrides: Partial<Session> = {}): Session {
     isRodizio: false,
     numPeople: 2,
     totalAmount: 0,
+    orderingMode: 'client',
     startedAt: new Date('2024-01-01T12:00:00Z'),
     closedAt: null,
     createdAt: new Date('2024-01-01T12:00:00Z'),
@@ -35,6 +36,10 @@ function createTestOrder(overrides: Partial<Order> = {}): Order {
     notes: null,
     status: 'delivered',
     sessionCustomerId: null,
+    preparedBy: null,
+    preparingStartedAt: null,
+    readyAt: null,
+    deliveredAt: null,
     createdAt: new Date('2024-01-01T12:00:00Z'),
     updatedAt: new Date('2024-01-01T12:00:00Z'),
     ...overrides,
@@ -71,6 +76,7 @@ function createMockOrderRepository(): IOrderRepository {
     updateStatus: vi.fn(),
     delete: vi.fn(),
     countByStatus: vi.fn(),
+    getAveragePreparationTime: vi.fn(),
   };
 }
 

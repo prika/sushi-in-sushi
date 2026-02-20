@@ -26,15 +26,6 @@ interface ResendWebhookEvent {
   };
 }
 
-// Helper to get typed supabase query
-function getExtendedSupabase(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-) {
-  return supabase as unknown as {
-    from: (table: string) => ReturnType<typeof supabase.from>;
-  };
-}
-
 // Verify Resend webhook signature
 function verifyWebhookSignature(
   payload: string,
@@ -106,20 +97,19 @@ export async function POST(request: NextRequest) {
     console.info(`📧 Resend webhook: ${type} for email ${emailId}`);
 
     const supabase = await createClient();
-    const extendedSupabase = getExtendedSupabase(supabase);
 
     // Log the event
-    await extendedSupabase.from("email_events").insert({
+    await supabase.from("email_events").insert({
       email_id: emailId,
       event_type: status,
       recipient_email: data.to?.[0],
-      raw_data: event,
+      raw_data: JSON.parse(payload),
       event_timestamp: created_at,
     });
 
     // Find and update the reservation
     // First, check if it's a customer email
-    const { data: customerReservation } = await extendedSupabase
+    const { data: customerReservation } = await supabase
       .from("reservations")
       .select("id")
       .eq("customer_email_id", emailId)
@@ -136,13 +126,13 @@ export async function POST(request: NextRequest) {
         updateData.customer_email_opened_at = created_at;
       }
 
-      await extendedSupabase
+      await supabase
         .from("reservations")
         .update(updateData)
         .eq("id", customerReservation.id);
 
       // Update the email event with reservation ID
-      await extendedSupabase
+      await supabase
         .from("email_events")
         .update({
           reservation_id: customerReservation.id,
@@ -158,7 +148,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if it's a confirmation email
-    const { data: confirmationReservation } = await extendedSupabase
+    const { data: confirmationReservation } = await supabase
       .from("reservations")
       .select("id")
       .eq("confirmation_email_id", emailId)
@@ -175,13 +165,13 @@ export async function POST(request: NextRequest) {
         updateData.confirmation_email_opened_at = created_at;
       }
 
-      await extendedSupabase
+      await supabase
         .from("reservations")
         .update(updateData)
         .eq("id", confirmationReservation.id);
 
       // Update the email event with reservation ID
-      await extendedSupabase
+      await supabase
         .from("email_events")
         .update({
           reservation_id: confirmationReservation.id,
@@ -197,7 +187,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if it's a day-before reminder email
-    const { data: dayBeforeReservation } = await extendedSupabase
+    const { data: dayBeforeReservation } = await supabase
       .from("reservations")
       .select("id")
       .eq("day_before_reminder_id", emailId)
@@ -214,13 +204,13 @@ export async function POST(request: NextRequest) {
         updateData.day_before_reminder_opened_at = created_at;
       }
 
-      await extendedSupabase
+      await supabase
         .from("reservations")
         .update(updateData)
         .eq("id", dayBeforeReservation.id);
 
       // Update the email event with reservation ID
-      await extendedSupabase
+      await supabase
         .from("email_events")
         .update({
           reservation_id: dayBeforeReservation.id,
@@ -236,7 +226,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if it's a same-day reminder email
-    const { data: sameDayReservation } = await extendedSupabase
+    const { data: sameDayReservation } = await supabase
       .from("reservations")
       .select("id")
       .eq("same_day_reminder_id", emailId)
@@ -253,13 +243,13 @@ export async function POST(request: NextRequest) {
         updateData.same_day_reminder_opened_at = created_at;
       }
 
-      await extendedSupabase
+      await supabase
         .from("reservations")
         .update(updateData)
         .eq("id", sameDayReservation.id);
 
       // Update the email event with reservation ID
-      await extendedSupabase
+      await supabase
         .from("email_events")
         .update({
           reservation_id: sameDayReservation.id,

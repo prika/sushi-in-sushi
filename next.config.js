@@ -68,6 +68,10 @@ const nextConfig = {
         hostname: "xrmzhvpkvkgoryvfozfy.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
+      {
+        protocol: "https",
+        hostname: "www.vendus.pt",
+      },
     ],
   },
   async headers() {

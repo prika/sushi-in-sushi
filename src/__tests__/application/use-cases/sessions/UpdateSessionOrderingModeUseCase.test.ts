@@ -30,12 +30,17 @@ describe('UpdateSessionOrderingModeUseCase', () => {
   beforeEach(() => {
     mockSessionRepository = {
       findById: vi.fn(),
-      update: vi.fn(),
-      create: vi.fn(),
-      delete: vi.fn(),
+      findByIdWithTable: vi.fn(),
+      findByIdWithOrders: vi.fn(),
+      findActiveByTable: vi.fn(),
       findAll: vi.fn(),
-      findByTableId: vi.fn(),
-      findActiveByTableId: vi.fn(),
+      findActive: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateStatus: vi.fn(),
+      close: vi.fn(),
+      countByStatus: vi.fn(),
+      calculateTotal: vi.fn(),
     };
 
     mockActivityLogger = {

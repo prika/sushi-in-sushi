@@ -129,6 +129,10 @@ describe('Reservation Validation', () => {
     });
 
     it('aceita hora futura com buffer para hoje', () => {
+      const now = new Date();
+      // Skip when close to midnight — getFutureTime(2) wraps past 00:00
+      if (now.getHours() >= 22) return;
+
       const today = getTodayDate();
       const futureTime = getFutureTime(2); // 2 horas no futuro
       expect(isValidReservationTime(today, futureTime, 30)).toBe(true);

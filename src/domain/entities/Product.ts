@@ -6,6 +6,12 @@
 /**
  * Entidade Product - Representa um item do menu
  */
+export interface Ingredient {
+  name: string;
+  quantity: string;
+  unit: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -19,6 +25,12 @@ export interface Product {
   isAvailable: boolean;
   isRodizio: boolean;
   sortOrder: number;
+  /** Service modes: "delivery", "takeaway", "dine_in" */
+  serviceModes: string[];
+  /** Per-service-mode price overrides. Keys match serviceModes values. */
+  servicePrices: Record<string, number>;
+  /** Product ingredients list */
+  ingredients: Ingredient[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +48,9 @@ export interface CreateProductData {
   isAvailable?: boolean;
   isRodizio?: boolean;
   sortOrder?: number;
+  serviceModes?: string[];
+  servicePrices?: Record<string, number>;
+  ingredients?: Ingredient[];
 }
 
 /**
@@ -51,6 +66,9 @@ export interface UpdateProductData {
   isAvailable?: boolean;
   isRodizio?: boolean;
   sortOrder?: number;
+  serviceModes?: string[];
+  servicePrices?: Record<string, number>;
+  ingredients?: Ingredient[];
 }
 
 /**

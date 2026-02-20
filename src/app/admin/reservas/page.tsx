@@ -99,12 +99,7 @@ export default function ReservationsPage() {
     setFetchError(null);
     const supabase = createClient();
 
-    // Use type assertion for tables not yet in generated types
-    const extendedSupabase = supabase as unknown as {
-      from: (table: string) => ReturnType<typeof supabase.from>;
-    };
-
-    let query = extendedSupabase
+    let query = supabase
       .from("reservations")
       .select("*")
       .order("reservation_date", { ascending: true })
@@ -136,7 +131,7 @@ export default function ReservationsPage() {
       return;
     }
 
-    setReservations((data as Reservation[]) || []);
+    setReservations(data || []);
     setIsLoading(false);
   }, [viewMode, selectedDate, locationFilter, statusFilter]);
 

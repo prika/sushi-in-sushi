@@ -23,7 +23,7 @@ export async function POST(
     const user = await getAuthUser();
 
     // DEBUG: Log authentication status
-    console.log('[assign-waiter POST] Auth status:', {
+    console.info('[assign-waiter POST] Auth status:', {
       hasUser: !!user,
       userId: user?.id,
       userRole: user?.role,

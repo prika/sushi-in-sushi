@@ -68,6 +68,9 @@ function createTestProduct(overrides: Partial<Product> = {}): Product {
     imageUrl: '/images/salmon.jpg',
     imageUrls: ['/images/salmon.jpg'],
     sortOrder: 1,
+    serviceModes: [],
+    servicePrices: {},
+    ingredients: [],
     createdAt: new Date('2024-01-01T12:00:00Z'),
     updatedAt: new Date('2024-01-01T12:00:00Z'),
     ...overrides,
@@ -87,6 +90,7 @@ function createMockOrderRepository(): IOrderRepository {
     updateStatus: vi.fn(),
     delete: vi.fn(),
     countByStatus: vi.fn(),
+    getAveragePreparationTime: vi.fn(),
   };
 }
 

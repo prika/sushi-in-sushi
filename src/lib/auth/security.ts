@@ -11,7 +11,7 @@
  * Functions gracefully handle missing tables/functions.
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import type {
@@ -525,6 +525,13 @@ export interface SecureLoginResult {
   error?: string;
   rateLimited?: boolean;
   blockedUntil?: Date;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    location: string | null;
+  };
 }
 
 /**
@@ -601,10 +608,11 @@ export async function secureLogin(
     };
   }
 
-  // Get staff record
-  const { data: staff, error: staffError } = await supabase
+  // Get staff record (use admin client to bypass RLS)
+  const adminClient = createAdminClient();
+  const { data: staff, error: staffError } = await adminClient
     .from("staff")
-    .select("id, role_id, roles!inner(name)")
+    .select("id, name, email, location, role_id, roles!inner(name)")
     .eq("auth_user_id", data.user.id)
     .eq("is_active", true)
     .single();
@@ -683,9 +691,18 @@ export async function secureLogin(
     },
   });
 
+  const roleName = (staff as unknown as { roles: { name: string } }).roles.name;
+
   return {
     success: true,
     requiresMfa: mfaRequired,
     mfaFactorId,
+    user: {
+      id: staff.id,
+      email: (staff as unknown as { email: string }).email,
+      name: (staff as unknown as { name: string }).name,
+      role: roleName,
+      location: (staff as unknown as { location: string | null }).location,
+    },
   };
 }
