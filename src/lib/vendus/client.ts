@@ -41,6 +41,8 @@ export class VendusApiError extends Error {
         return "Erro de ligacao ao Vendus. Verifique a sua ligacao.";
       case "UNAUTHORIZED":
         return "Credenciais do Vendus invalidas.";
+      case "FORBIDDEN":
+        return "API key do Vendus sem permissao de escrita. Verifique as permissoes no dashboard Vendus.";
       case "NOT_FOUND":
         return "Recurso nao encontrado no Vendus.";
       case "RATE_LIMITED":

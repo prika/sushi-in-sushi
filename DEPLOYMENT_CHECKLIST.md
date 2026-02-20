@@ -1,23 +1,5 @@
 # Checklist de Deployment - Alterações 2026-02-13
 
-## ✅ Código - Tudo Completo
-
-### Arquivos Modificados
-- [x] `/src/components/admin/TableMap.tsx` - Waiter names
-- [x] `/src/app/admin/mesas/page.tsx` - Status uniformizado
-- [x] `/src/app/mesa/[numero]/page.tsx` - Botão "Sair da Mesa"
-- [x] `/src/app/waiter/page.tsx` - Correções de filtros e sessões
-- [x] `/src/app/waiter/mesa/[id]/page.tsx` - Buscar pending_payment
-- [x] `/src/app/api/tables/[id]/assign-waiter/route.ts` - Fix autenticação
-
-### Build Status
-```bash
-✅ 952 testes passando
-✅ TypeScript compilation success
-✅ No blocking errors
-```
-
----
 
 ## ⚠️ Base de Dados - Ações Pendentes
 
