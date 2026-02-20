@@ -13,6 +13,28 @@ Esta pasta contém scripts SQL para diagnóstico, manutenção e desenvolvimento
 
 ---
 
+## Scripts de Utilidade (Waiter/Mesas)
+
+### `quick-assign-waiter.sql`
+
+**Proposito:** Atribuicao automatica do primeiro empregado disponivel a todas as mesas de uma localizacao. Usa CTE para obter UUID automaticamente.
+
+**Quando Usar:** Quando precisar de atribuir empregados rapidamente sem copiar UUIDs.
+
+### `assign-waiters-to-tables.sql`
+
+**Proposito:** Template para atribuicao manual de empregado especifico a mesas. Requer UUID manual.
+
+### `check-waiter-data.sql`
+
+**Proposito:** Diagnostico de empregados disponiveis, suas atribuicoes e roles.
+
+### `fix-order-timestamps.sql`
+
+**Proposito:** Diagnostico e correcao de pedidos com timestamps em falta (created_at, updated_at).
+
+---
+
 ## Scripts de Diagnóstico
 
 ### `CONSOLIDADO_diagnostico_e_fixes.sql`
@@ -182,6 +204,30 @@ psql postgresql://postgres:postgres@localhost:54322/postgres \
 
 ---
 
+## Scripts Vendus
+
+### `apply-vendus-to-prod.sql`
+
+**Proposito:** Migracao consolidada Vendus para producao (tabelas, views, RLS, payment methods). Idempotente, seguro para re-runs.
+
+### `reset-vendus-sync-for-pull.sql`
+
+**Proposito:** Reset do estado de sync Vendus para permitir novo import (pull) de produtos.
+
+---
+
+## Scripts de Teste de Migracoes
+
+### `test_close_session_function.sql`
+
+**Proposito:** Suite de testes para funcao `close_session_and_free_table()` (migracao 043). 7 cenarios de teste.
+
+### `verify_migrations.sql`
+
+**Proposito:** Verificacao pos-migracao para migrations 039 e 043.
+
+---
+
 ## ⚠️ Avisos Importantes
 
 ### NUNCA Execute em Produção (Sem Pensar!)
@@ -249,7 +295,7 @@ psql $DATABASE_URL < backup_YYYYMMDD_HHMMSS.sql
 
 ### Migrations de Produção
 Migrations prontas para produção estão em `/supabase/migrations/`
-- Numeradas sequencialmente: 001-043
+- Numeradas sequencialmente: 001-053
 - Executadas automaticamente via `npx supabase db push`
 - Ver: `/supabase/migrations/README.md`
 
@@ -283,8 +329,8 @@ Scripts de seed para popular tabelas estão em `/src/scripts/`
 ## 📞 Suporte
 
 **Encontrou problemas?**
-1. Ver [RECENT_CHANGES.md](../../RECENT_CHANGES.md) para problemas conhecidos
-2. Ver [README_WAITER_CLIENT_FLOWS.md](../../README_WAITER_CLIENT_FLOWS.md) para troubleshooting de fluxos
+1. Ver [RECENT_CHANGES.md](../../docs/RECENT_CHANGES.md) para problemas conhecidos
+2. Ver [README_WAITER_CLIENT_FLOWS.md](../../docs/README_WAITER_CLIENT_FLOWS.md) para troubleshooting de fluxos
 3. Executar diagnóstico: `CONSOLIDADO_diagnostico_e_fixes.sql` SEÇÃO 1-2
 
 **Projeto:** Sushi in Sushi

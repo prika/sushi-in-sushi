@@ -1,154 +1,36 @@
-# Sushi in Sushi - Documentação Técnica
+# Sushi in Sushi - Documentacao Tecnica
 
-Documentação completa do projeto **Sushi in Sushi**, um sistema de gestão de restaurante com Clean Architecture.
+## Indice
 
-## 📚 Índice
+| Documento | Conteudo |
+|-----------|----------|
+| **[PERFORMANCE.md](PERFORMANCE.md)** | React Query (89-96% faster), hook optimization, database indexes |
+| **[TESTING.md](TESTING.md)** | Padroes de teste, mocking, Vitest, Vendus tests |
+| **[VENDUS_SYNC.md](VENDUS_SYNC.md)** | Configuracao Vendus POS, sync produtos, faturacao, impressao cozinha |
 
-### Documentação Principal
+### Outros documentos
 
-1. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Arquitetura Clean Architecture do projeto
-   - Domain, Application, Infrastructure, Presentation layers
-   - Dependency Injection pattern
-   - Result pattern para tratamento de erros
+| Documento | Conteudo |
+|-----------|----------|
+| **[CLAUDE.md](../CLAUDE.md)** | Convencoes de desenvolvimento, arquitetura Clean Architecture |
+| **[README.md](../README.md)** | Visao geral do projeto, features, stack |
+| **[DEPLOYMENT_PLAN.md](../DEPLOYMENT_PLAN.md)** | Plano completo de deploy para sushinsushi.pt |
 
-2. **[PERFORMANCE.md](PERFORMANCE.md)** - Otimizações de Performance
-   - React Query implementation (89-96% faster)
-   - Hook optimization (zero memoization strategy)
-   - Database indexes (40-60% improvement)
-   - Best practices
+### Guias de features
 
-3. **[TESTING.md](TESTING.md)** - Guia de Testes
-   - Testing patterns para hooks React
-   - Unit tests com Vitest
-   - Mocking strategies
-   - 1581 testes passando
+| Documento | Conteudo |
+|-----------|----------|
+| **[GAMES_FEATURE.md](GAMES_FEATURE.md)** | Jogos interativos (Tinder, Quiz, Preference) |
+| **[ORDERING_MODE_STATUS.md](ORDERING_MODE_STATUS.md)** | Controlo de modo de pedido (rodizio/a la carte) |
+| **[README_WAITER_CLIENT_FLOWS.md](README_WAITER_CLIENT_FLOWS.md)** | Fluxos waiter/cliente/admin, troubleshooting |
+| **[WAITER_LOCATION_FILTERING.md](WAITER_LOCATION_FILTERING.md)** | Filtragem por localizacao, seguranca 3 camadas |
+| **[WAITER_MANUAL_ASSIGNMENT_GUIDE.md](WAITER_MANUAL_ASSIGNMENT_GUIDE.md)** | Atribuicao manual de empregados a mesas |
+| **[TWILIO_SETUP.md](TWILIO_SETUP.md)** | Configuracao SMS Twilio |
+| **[RECENT_CHANGES.md](RECENT_CHANGES.md)** | Alteracoes recentes e changelog |
 
-4. **[VENDUS_SYNC.md](VENDUS_SYNC.md)** - Integracao Vendus POS
-   - Configuracao passo a passo (API Key, Store ID, Register ID)
-   - Sincronizacao de produtos e categorias (push/pull)
-   - Faturacao certificada AT
-   - Impressao de cozinha, migracoes, resolucao de problemas
+### Base de dados
 
-### Convenções de Desenvolvimento
-
-- **[CLAUDE.md](../CLAUDE.md)** - Contexto e convenções do projeto
-- **[README.md](../README.md)** - Visão geral do projeto
-
-## 🏗️ Arquitetura
-
-O projeto segue **Clean Architecture** com 4 camadas bem definidas:
-
-```
-┌─────────────────────────────────────────┐
-│   Presentation Layer (React/Next.js)   │
-├─────────────────────────────────────────┤
-│   Application Layer (Use Cases)        │
-├─────────────────────────────────────────┤
-│   Domain Layer (Entities + Rules)      │
-├─────────────────────────────────────────┤
-│   Infrastructure Layer (Supabase)      │
-└─────────────────────────────────────────┘
-```
-
-**Principais Conquistas:**
-- ✅ 11 entidades de domínio
-- ✅ 12 repositórios (interfaces + implementações)
-- ✅ 50+ use cases testados
-- ✅ 3 domain services
-- ✅ 1581 testes passando
-
-## ⚡ Performance
-
-**Melhorias Significativas Implementadas:**
-
-### React Query (Phase 3)
-- **Products:** 89% faster (270ms → 30ms)
-- **Kitchen orders:** 96% faster (500ms → 20ms)
-- Cache inteligente com invalidação automática
-
-### Hook Optimization
-- Zero memoization (useRef + lazy init)
-- Zero re-renders desnecessários
-- 31 warnings ESLint resolvidos
-
-### Database Indexes
-- 18 indexes estratégicos
-- 40-60% melhoria esperada em queries
-
-## 🧪 Testes
-
-**Cobertura Exemplar:**
-- ✅ 1581 testes passando
-- ✅ Use Cases: 100% testados
-- ✅ Domain Services: 100% testados
-- ✅ Infrastructure: Padrão estabelecido
-- ✅ React Hooks: Padrão estabelecido
-
-## 📖 Como Usar Esta Documentação
-
-### Para Novos Desenvolvedores
-1. Leia [ARCHITECTURE.md](ARCHITECTURE.md) para entender a estrutura
-2. Reveja [PERFORMANCE.md](PERFORMANCE.md) para conhecer as otimizações
-3. Consulte [TESTING.md](TESTING.md) ao escrever testes
-4. Consulte [VENDUS_SYNC.md](VENDUS_SYNC.md) para configurar o Vendus POS
-
-### Para Adicionar Funcionalidades
-1. Comece pelo Domain Layer (entidades + interfaces)
-2. Implemente no Application Layer (use cases)
-3. Crie implementações no Infrastructure Layer
-4. Exponha na Presentation Layer (hooks)
-5. Escreva testes para todas as camadas
-
-### Para Otimizações
-1. Consulte [PERFORMANCE.md](PERFORMANCE.md) para patterns
-2. Use React Query para data fetching
-3. Use useRef para instâncias estáveis
-4. Evite memoização desnecessária
-
-## 🗂️ Estrutura de Ficheiros
-
-```
-docs/
-├── README.md           # Este ficheiro (índice completo)
-├── ARCHITECTURE.md     # Arquitetura Clean Architecture
-├── PERFORMANCE.md      # Otimizações de performance
-├── TESTING.md          # Guia de testes e padrões
-└── VENDUS_SYNC.md      # Integracao Vendus POS
-```
-
-## 🔗 Links Úteis
-
-### Documentação do Projeto
-- [README.md principal](../README.md) - Visão geral do projeto
-- [CLAUDE.md](../CLAUDE.md) - Convenções e contexto para desenvolvimento
-
-### Código Fonte
-- `/src/domain/` - Entidades e regras de negócio
-- `/src/application/` - Use cases e lógica de aplicação
-- `/src/infrastructure/` - Implementações Supabase
-- `/src/presentation/` - Hooks e componentes React
-
-### Base de Dados
-- `/supabase/migrations/` - Migrações oficiais do projeto
-
-## 📝 Notas Importantes
-
-### Ficheiros Principais
-- **`README.md`** - Documentação principal do projeto
-- **`CLAUDE.md`** - Convenções oficiais para desenvolvimento
-- **`docs/`** - Toda a documentação técnica
-
-## 🚀 Estado Atual (2026-02-19)
-
-- ✅ Clean Architecture 100% implementada
-- ✅ 1581 testes passando (66 ficheiros)
-- ✅ Performance otimizada (React Query + Hooks + Indexes)
-- ✅ Zero warnings ESLint
-- ✅ Integracao Vendus POS (faturacao, sync, impressao cozinha)
-- ✅ Vendus: 131 testes, 88% cobertura
-
----
-
-**Ultima atualizacao:** 2026-02-19
-**Versao:** 1.1
-**Mantido por:** Equipa de Desenvolvimento Sushi in Sushi
+| Local | Conteudo |
+|-------|----------|
+| `/supabase/migrations/` | Migracoes oficiais (001-053) |
+| `/supabase/scripts/` | Scripts de diagnostico, cleanup e utilidades ([README](../supabase/scripts/README.md)) |

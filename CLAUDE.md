@@ -27,7 +27,7 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 - ✅ **Migration 043** - Função `close_session_and_free_table` para atomicidade
 - ✅ **Scripts SQL consolidados** - Diagnóstico e correção de inconsistências
 
-Ver detalhes completos em [RECENT_CHANGES.md](RECENT_CHANGES.md)
+Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 
 ### Estado do Projeto (2026-02-08)
 
@@ -65,7 +65,7 @@ Ver detalhes completos em [RECENT_CHANGES.md](RECENT_CHANGES.md)
 
 - ✅ **CLAUDE.md** - Convenções e arquitetura completa
 - ✅ **ANALISE_PROJETO.md** - Análise detalhada do projeto
-- ✅ **REACT_HOOK_TESTING_GUIDE.md** - Guia de testes de hooks
+- ✅ **docs/TESTING.md** - Guia de testes de hooks
 
 ### 🚀 Features Recentes
 
@@ -211,7 +211,7 @@ npx supabase db reset
 - `staff_time_off` - Férias e folgas dos funcionários
 
 ### SQL Scripts de Utilidade
-Scripts no diretório raiz do projeto:
+Scripts em `supabase/scripts/`:
 - `check-waiter-data.sql` - Verifica empregados disponíveis e suas atribuições
 - `assign-waiters-to-tables.sql` - Atribui empregado específico a mesas (requer UUID manual)
 - `quick-assign-waiter.sql` - **RECOMENDADO:** Atribui automaticamente primeiro empregado disponível (usa CTE)
@@ -219,7 +219,7 @@ Scripts no diretório raiz do projeto:
 **Notas importantes:**
 - Sempre fazer JOIN com roles: `JOIN roles r ON s.role_id = r.id`
 - staff_id é UUID, nunca usar valores integer
-- Para automação, usar quick-assign-waiter.sql que pega UUID automaticamente
+- Para automação, usar `supabase/scripts/quick-assign-waiter.sql` que pega UUID automaticamente
 
 ### Enums Importantes
 - **SessionStatus:** active, pending_payment, paid, closed

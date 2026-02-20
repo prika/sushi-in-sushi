@@ -40,10 +40,12 @@ Sistema de gestão completo para uma cadeia de restaurantes de sushi portuguesa.
 | **Backend** | Next.js API Routes, Supabase (PostgreSQL) |
 | **Real-time** | Supabase Realtime (subscriptions) |
 | **Caching** | React Query (TanStack Query) |
-| **Autenticação** | JWT com jose 6.1, cookies httpOnly |
+| **Autenticação** | JWT com jose 6.1, cookies httpOnly, Supabase Auth (prod) |
+| **POS** | Vendus POS (faturação certificada AT) |
+| **SMS** | Twilio (verificação de telefone) |
 | **Email** | Resend API com webhook tracking |
 | **i18n** | next-intl 4.8 (6 idiomas) |
-| **Testes** | Vitest (931 testes) |
+| **Testes** | Vitest (1691 testes) |
 | **Icons** | Lucide React |
 | **QR Codes** | qrcode |
 
@@ -140,6 +142,7 @@ Sistema de pedidos colaborativo via QR code, permitindo múltiplos dispositivos 
 | **Tracking de Pedidos** | Acompanhamento visual: pendente → a preparar → pronto → entregue |
 | **Cooldown de Pedidos** | Período de espera entre pedidos para evitar spam |
 | **Participantes** | Visualização de quantos dispositivos estão ligados à mesa |
+| **Sair da Mesa** | Cliente pode sair se não consumiu (€0 + 0 pedidos), sessão fechada atomicamente |
 
 #### Estados dos Pedidos
 
@@ -162,6 +165,7 @@ pending (Na fila) → preparing (A preparar) → ready (Pronto para servir) → 
 5. Acompanhar estado em tempo real
 6. Jogar jogos enquanto espera
 7. Solicitar conta quando terminar
+8. Sair da mesa sem consumo (se aplicável)
 
 ---
 
@@ -442,12 +446,13 @@ Interface dedicada para empregados de mesa.
 |----------------|-----------|
 | Mesas Atribuídas | Ver apenas as mesas do empregado |
 | Painel da Mesa | Título "Painel da Mesa #{número}" para cada mesa |
-| Sessões Activas | Sessões em curso nas mesas atribuídas |
+| Sessões Activas | Sessões em curso nas mesas atribuídas (inclui `pending_payment`) |
 | Pedidos Prontos | Pedidos prontos para servir (única secção consolidada) |
 | Marcar como Entregue | Empregado avança pedidos de "pronto para servir" para "entregue" |
 | Chamadas | Alertas de chamadas de assistência |
 | Participantes | Tracking de dispositivos por sessão |
 | Atribuição Automática | Sistema de auto-assign de empregados a mesas |
+| Filtro de Mesas | Mesas disponíveis para comandar excluem mesas de outros empregados |
 
 **Nota:** O empregado é responsável pela transição final do estado do pedido (ready → delivered).
 
@@ -561,7 +566,7 @@ O projecto usa **Supabase Realtime** para sincronização instantânea:
 
 ## Testes
 
-**931 testes passando** com Vitest.
+**1691 testes passando** com Vitest (66 test suites).
 
 ### Cobertura por Camada
 
@@ -571,6 +576,7 @@ O projecto usa **Supabase Realtime** para sincronização instantânea:
 | **Domain Services** | 143+ testes | 100% (OrderService 44, SessionService 34, TableService 40, GameService 25+) |
 | **Infrastructure** | 129+ testes | Padrão estabelecido (8 repositórios testados) |
 | **Presentation Hooks** | 69+ testes | Padrão estabelecido (6 hooks testados) |
+| **Vendus POS** | 131 testes | 88% cobertura (client, config, invoices, products, categories, tables, kitchen) |
 
 ### Repositórios Testados
 
@@ -584,6 +590,18 @@ O projecto usa **Supabase Realtime** para sincronização instantânea:
 | SupabaseGamePrizeRepository | 12 |
 | SupabaseStaffTimeOffRepository | 10 |
 | SupabaseReservationSettingsRepository | 7 |
+
+### Módulos Vendus Testados
+
+| Módulo | Testes |
+|--------|--------|
+| client (HTTP, retry, errors) | 35 |
+| invoices (faturação, retry queue) | 27 |
+| config (configuração, constantes) | 21 |
+| tables (import mesas) | 17 |
+| products (sync push/pull) | 15 |
+| kitchen (impressão cozinha) | 12 |
+| categories (sync categorias) | 4 |
 
 ### Hooks Testados
 
@@ -652,12 +670,24 @@ O projecto usa **Supabase Realtime** para sincronização instantânea:
 | `/api/export` | GET | Exportação de dados |
 | `/api/activity/log` | POST | Log de actividade |
 
+### Vendus POS (`/api/vendus/`)
+
+| Endpoint | Método | Descrição |
+|----------|--------|-----------|
+| `/api/vendus/sync/products` | POST | Sync produtos (push/pull) |
+| `/api/vendus/sync/categories` | POST | Sync categorias |
+| `/api/vendus/sync/tables` | POST | Import mesas do Vendus |
+| `/api/vendus/invoices` | GET/POST | Listar/criar facturas |
+| `/api/locations` | GET | Listar localizações |
+| `/api/locations/:slug` | PATCH | Actualizar localização (Vendus config) |
+
 ### Webhooks e Cron
 
 | Endpoint | Método | Descrição |
 |----------|--------|-----------|
 | `/api/webhooks/resend` | POST | Tracking de eventos de email |
 | `/api/cron/reservation-reminders` | POST | Lembretes automáticos de reservas |
+| `/api/cron/vendus-sync` | GET | Sync automática Vendus + retry queue |
 
 ---
 
@@ -685,6 +715,11 @@ O projecto usa **Supabase Realtime** para sincronização instantânea:
 | `staff_time_off` | Férias e folgas de funcionários |
 | `waiter_tables` | Atribuição empregado-mesa |
 | `waiter_calls` | Chamadas de assistência |
+| `locations` | Localizações com config Vendus (`vendus_store_id`, `vendus_register_id`, `vendus_enabled`) |
+| `payment_methods` | Métodos de pagamento com `vendus_id` opcional |
+| `invoices` | Facturas com referência Vendus (`vendus_id`, `vendus_document_number`) |
+| `vendus_sync_log` | Log de operações de sincronização Vendus |
+| `vendus_retry_queue` | Fila de retry para operações falhadas |
 | `product_ratings` | Avaliações de produtos (swipe game, per-order-item via `order_id`) |
 | `game_questions` | Perguntas de quiz e preferência |
 | `game_sessions` | Sessões de jogo |
@@ -702,7 +737,6 @@ supabase/migrations/
 ├── 003_reservations.sql            # Sistema de reservas
 ├── 004_email_tracking.sql          # Tracking de emails
 ├── 005_restaurant_closures.sql     # Gestão de folgas
-├── 046_vendus_integration.sql      # Integração Vendus
 ├── 007_waiter_calls.sql            # Chamadas de empregados
 ├── 008_session_customers.sql       # Participantes na sessão
 ├── 009_waiter_calls_order_id.sql   # Relação chamadas-pedidos
@@ -718,7 +752,25 @@ supabase/migrations/
 ├── 032_unified_game_scoring.sql    # Sistema de pontuação unificado
 ├── 033_games_mode.sql              # Modo de selecção de jogos
 ├── 034_order_prepared_by.sql       # Tracking de quem preparou cada pedido
-└── 035_order_item_ratings.sql      # Ratings per-order-item (order_id em product_ratings)
+├── 035_order_item_ratings.sql      # Ratings per-order-item (order_id em product_ratings)
+├── 036_order_delivered_at.sql      # Timestamp de entrega
+├── 037_waiter_calls_customer.sql   # Chamadas com dados de cliente
+├── 038_identity_verification.sql   # Verificação de identidade (Twilio)
+├── 039_session_ordering_mode.sql   # Modo de pedido na sessão
+├── 040_waiter_location_filter.sql  # Filtro de localização para waiter
+├── 041_fix_waiter_assignments.sql  # Correcção de atribuições de waiter
+├── 042_enable_auto_assignment.sql  # Auto-atribuição de empregados
+├── 043_close_session_update_table.sql # Função close_session_and_free_table
+├── 044_fix_close_session_function.sql # Fix da função de fecho
+├── 045_fix_product_ratings.sql     # Fix constraints product_ratings
+├── 046_vendus_integration.sql      # Integração Vendus: tabelas core
+├── 047_vendus_categories.sql       # Vendus: mapeamento de categorias
+├── 048_locations_flexible.sql      # Remove constraint de slugs fixos
+├── 049_products_location.sql       # Produtos por localização
+├── 050_products_service_modes.sql  # Modos de serviço por produto
+├── 051_import_vendus_products.sql  # Import de produtos Vendus
+├── 052_products_service_prices.sql # Preços por modo de serviço
+└── 053_products_vendus_ids.sql     # IDs Vendus em produtos
 ```
 
 ### Scripts SQL de Utilidade
@@ -741,7 +793,18 @@ Scripts no diretório raiz do projeto para gestão de empregados:
 
 ## Autenticação
 
-### Sistema de Tokens
+### Sistema Dual de Autenticação
+
+O sistema suporta dois modos de autenticação, seleccionado automaticamente pelo ambiente:
+
+| Modo | Ambiente | Descrição |
+|------|----------|-----------|
+| **Legacy** | `npm run dev` | Comparação de password na tabela `staff`, sem Supabase Auth |
+| **Secure** | `npm run dev:prod` / `build` | Supabase Auth (`signInWithPassword`), JWT cookie, rate limiting, MFA |
+
+Ambos os modos geram um cookie JWT (`sushi-auth-token`) para as API routes.
+
+### Tokens JWT
 
 | Aspecto | Implementação |
 |---------|---------------|
@@ -751,6 +814,12 @@ Scripts no diretório raiz do projeto para gestão de empregados:
 | **Expiração** | 24 horas |
 | **Payload** | id, email, name, role, location |
 | **MFA** | Suporte a autenticação multi-factor |
+
+### Setup de Produção (Supabase Auth)
+
+1. Criar utilizador em Supabase Auth (Dashboard > Authentication > Users)
+2. Email deve corresponder ao registo na tabela `staff`
+3. Ligar: `UPDATE staff SET auth_user_id = '<auth-uuid>' WHERE email = '<email>'`
 
 ### Roles e Permissões
 
@@ -821,15 +890,33 @@ Os tipos são gravados em `src/types/supabase.ts`.
 | Lembretes | Cron jobs (véspera e dia) |
 | Webhooks | Tracking de eventos de email |
 
-### Vendus POS (Branch: vendus_billing)
+### Vendus POS (Faturação Certificada)
+
+Integração com o [Vendus POS](https://www.vendus.pt) para faturação certificada pela AT (Autoridade Tributária).
 
 | Funcionalidade | Descrição |
 |----------------|-----------|
-| Sync de Produtos | Sincronização bidireccional |
-| Importar Mesas | Importar mesas/salas do Vendus |
-| Faturação | Emissão de facturas/recibos |
-| Impressão Cozinha | Enviar para impressora da cozinha |
-| Retry Queue | Fila de retry para operações falhadas |
+| **Sync de Produtos** | Sincronização bidireccional (push/pull) com preview e resolução de conflitos |
+| **Sync de Categorias** | Export de categorias para o Vendus |
+| **Importar Mesas** | Importar mesas/salas do Vendus |
+| **Faturação** | Emissão de facturas certificadas AT (FS sem NIF, FR com NIF) |
+| **Impressão Cozinha** | Enviar pedidos para impressora da cozinha (opcional, não-bloqueante) |
+| **Retry Queue** | Fila de retry com backoff exponencial (max 5 tentativas) |
+| **Cron Sync** | Sincronização automática via Vercel Cron |
+| **Config por Local** | Store ID e Register ID configurados por restaurante via admin |
+
+**Painel Admin:** `/admin/vendus/` (dashboard, locations, sync, invoices, mapping)
+
+**Testes:** 131 testes nos módulos Vendus (88% cobertura)
+
+Ver documentação completa em [docs/VENDUS_SYNC.md](docs/VENDUS_SYNC.md).
+
+### Twilio (Verificação SMS)
+
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| **Verificação de Telefone** | Código SMS para validar número de telefone |
+| **Registo Progressivo** | Integrado no fluxo de fidelização (Tier 2+) |
 
 ---
 
@@ -897,6 +984,11 @@ FROM_EMAIL=reservas@seudominio.pt
 # Vendus POS (opcional)
 VENDUS_API_KEY=sua_api_key
 
+# Twilio SMS (verificacao de telefone)
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_PHONE_NUMBER=your_twilio_number
+
 # Cron Jobs
 CRON_SECRET=secret-para-cron-jobs
 ```
@@ -907,7 +999,7 @@ CRON_SECRET=secret-para-cron-jobs
 
 | Comando | Ambiente | Descrição |
 |---------|----------|-----------|
-| `npm run dev` | development | Dev server com legacy auth e DB de dev |
+| `npm run dev` | development | Dev server com legacy auth e DB de dev (DEV badge visível) |
 | `npm run dev:prod` | production | Dev server com Supabase Auth e DB de prod |
 | `npm run build` | production | Corre testes + build de producao |
 | `npm start` | production | Iniciar servidor de producao |
@@ -971,20 +1063,21 @@ src/
 │   │   ├── clientes/            # Gestão de clientes
 │   │   ├── jogos/               # Gestão de jogos + analytics
 │   │   ├── definicoes/          # Configurações (5 tabs)
+│   │   ├── vendus/              # Integração Vendus POS (dashboard, sync, invoices, locations, mapping)
 │   │   ├── qrcodes/             # Geração de QR codes
 │   │   └── exportar/            # Exportação de dados
 │   ├── cozinha/                 # Ecrã de cozinha
 │   ├── waiter/                  # Interface empregado
 │   ├── mesa/[numero]/           # Pedidos por mesa (6 tabs)
 │   ├── login/                   # Página de login
-│   └── api/                     # 30+ API Routes
+│   └── api/                     # 35+ API Routes
 │
 ├── components/                  # Componentes React
 │   ├── ui/                      # Componentes base
 │   ├── mesa/                    # Componentes de mesa (jogos, ratings)
 │   └── ...                      # Componentes de página
 │
-├── __tests__/                   # 931 testes (Vitest)
+├── __tests__/                   # 1691 testes (Vitest)
 │   ├── application/use-cases/   # Testes de todos os use cases
 │   ├── domain/services/         # Testes de domain services
 │   ├── infrastructure/          # Testes de repositórios
@@ -992,7 +1085,8 @@ src/
 │
 ├── lib/                         # Utilitários
 │   ├── auth.ts                  # Autenticação
-│   ├── supabase/                # Clientes Supabase
+│   ├── supabase/                # Clientes Supabase (dual env: dev/prod)
+│   ├── vendus/                  # Integração Vendus POS (131 testes)
 │   └── email/                   # Serviço de email
 │
 ├── types/                       # Tipos TypeScript
@@ -1011,22 +1105,28 @@ src/
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Clean Architecture em detalhe |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Optimizações de performance |
 | [docs/TESTING.md](docs/TESTING.md) | Guia de testes |
+| [docs/VENDUS_SYNC.md](docs/VENDUS_SYNC.md) | Integração Vendus POS (setup, sync, faturação) |
 
 ---
 
-## Estado Actual (2026-02-13)
+## Estado Actual (2026-02-20)
 
 - Clean Architecture 100% implementada (20 entidades, 88+ use cases, 17 repositórios)
-- 931 testes passando (100% use cases, 100% domain services)
+- **1691 testes passando** (100% use cases, 100% domain services, 131 testes Vendus)
 - Performance optimizada (React Query + Hooks optimizados + 18 índices DB)
+- **Vendus POS Integration** — Faturação certificada AT, sync bidireccional de produtos/categorias, retry queue
+- **Dual Auth System** — Legacy (dev) e Supabase Auth (prod) com selecção automática por ambiente
 - **Kitchen Workflow Optimization** — Fluxo da cozinha termina em "Pronto para servir" (view-only), empregados avançam para "Entregue"
 - **Waiter Display** — Nomes de empregados exibidos nos cartões da cozinha via repositório optimizado
+- **"Sair da Mesa"** — Clientes podem sair quando não consumiram, com fecho atómico de sessão + libertação de mesa
+- **Painel do Waiter corrigido** — Sessões `pending_payment` visíveis, filtro correcto de mesas de outros waiters
+- **Status Uniformizado** — Status de mesas calculado dinamicamente baseado em sessões activas
 - Sistema de jogos interactivos completo (Quiz, Preference, Swipe)
 - Kitchen Staff Tracking — identidade individual de quem prepara cada pedido com métricas de performance
 - Avaliações per-order-item — mesmo produto pedido 2x gera 2 cartões de avaliação independentes
-- Programa de fidelização progressivo com 4 tiers
+- Programa de fidelização progressivo com 4 tiers + verificação SMS (Twilio)
 - Gestão multi-restaurante dinâmica
 - Suporte a 6 idiomas
-- 30+ API routes
+- 35+ API routes
 - Real-time em pedidos, carrinho, jogos e chamadas
-- Scripts SQL de utilidade para atribuição de empregados a mesas
+- 53 migrations de base de dados
