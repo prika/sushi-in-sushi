@@ -30,6 +30,8 @@ export default defineConfig({
             "src/__tests__/domain/**/*.test.ts",
             "src/__tests__/application/**/*.test.ts",
             "src/__tests__/security/**/*.test.ts",
+            "src/__tests__/infrastructure/**/*.test.ts",
+            "src/__tests__/lib/**/*.test.ts",
             "src/lib/**/__tests__/**/*.test.ts",
           ],
         },
@@ -52,6 +54,7 @@ export default defineConfig({
       include: [
         "src/domain/**",
         "src/application/**",
+        "src/infrastructure/**",
         "src/lib/**",
         "src/components/**",
       ],

@@ -361,8 +361,6 @@ export interface ProductSyncOptions {
   productIds?: string[];
   /** Enviar todos os produtos, ignorando vendus_sync_status (para testes) */
   pushAll?: boolean;
-  /** Exportar categorias antes dos produtos (default: true no push) */
-  syncCategoriesFirst?: boolean;
   /** Apenas pré-visualizar; não aplicar alterações no pull */
   previewOnly?: boolean;
   /** Categoria para novos produtos criados no pull; usa primeira categoria se omitido */

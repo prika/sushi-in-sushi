@@ -11,8 +11,16 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { VendusClient, getVendusClient, VendusApiError } from "./client";
 import { getVendusConfig, VENDUS_TAX_RATES } from "./config";
-import { syncCategoriesToVendus } from "./categories";
-import type { VendusCategory, VendusCategoriesResponse } from "./categories";
+// Types for reading Vendus categories (used in pull/push for category mapping)
+interface VendusCategory {
+  id: string;
+  name: string;
+}
+
+interface VendusCategoriesResponse {
+  categories?: VendusCategory[];
+  data?: VendusCategory[];
+}
 import type {
   VendusProduct,
   VendusProductRequest,
@@ -67,7 +75,6 @@ function matchProductToCategory(
  * @param options.previewOnly - Se true, não aplica alterações e devolve preview
  * @param options.defaultCategoryId - Categoria para novos produtos no pull
  * @param options.pushAll - No push: enviar todos os produtos (ignorar status)
- * @param options.syncCategoriesFirst - No push: exportar categorias antes
  * @returns Resultado com recordsCreated, recordsUpdated, warnings, preview
  * @throws Error se Vendus não estiver configurado
  */
@@ -79,7 +86,6 @@ export async function syncProducts(
     direction,
     productIds,
     pushAll = false,
-    syncCategoriesFirst = true,
     previewOnly = false,
     defaultCategoryId,
     initiatedBy,
@@ -133,9 +139,6 @@ export async function syncProducts(
     }
 
     if ((direction === "push" || direction === "both") && !previewOnly) {
-      if (syncCategoriesFirst) {
-        await syncCategoriesToVendus(locationSlug, initiatedBy);
-      }
       await pushProductsToVendus(client, supabase, result, {
         productIds,
         pushAll,

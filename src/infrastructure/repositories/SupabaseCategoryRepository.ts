@@ -21,6 +21,7 @@ interface DatabaseCategory {
   slug: string;
   icon: string | null;
   sort_order: number;
+  zone_id: string | null;
   created_at: string;
 }
 
@@ -103,6 +104,7 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
         slug: data.slug,
         icon: data.icon || null,
         sort_order: data.sortOrder ?? 0,
+        zone_id: data.zoneId ?? null,
       })
       .select()
       .single();
@@ -118,6 +120,7 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
     if (data.slug !== undefined) updateData.slug = data.slug;
     if (data.icon !== undefined) updateData.icon = data.icon;
     if (data.sortOrder !== undefined) updateData.sort_order = data.sortOrder;
+    if (data.zoneId !== undefined) updateData.zone_id = data.zoneId;
 
     const { data: category, error } = await this.supabase
       .from('categories')
@@ -146,6 +149,7 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
       slug: data.slug,
       icon: data.icon,
       sortOrder: data.sort_order,
+      zoneId: data.zone_id,
       createdAt: new Date(data.created_at),
     };
   }

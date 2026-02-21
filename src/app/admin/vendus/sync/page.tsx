@@ -146,7 +146,6 @@ export default function VendusSyncPage() {
           locationSlug: selectedLocation,
           direction,
           pushAll: options?.pushAll ?? false,
-          syncCategoriesFirst: false,
           previewOnly: options?.previewOnly ?? false,
           defaultCategoryId: options?.defaultCategoryId ?? categories[0]?.id,
         }),
@@ -183,43 +182,6 @@ export default function VendusSyncPage() {
       previewOnly: false,
       defaultCategoryId: categories[0]?.id,
     });
-  };
-
-  const handleSyncCategories = async () => {
-    setIsSyncing(true);
-    setSyncResult(null);
-
-    try {
-      const response = await fetch("/api/vendus/sync/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locationSlug: selectedLocation }),
-      });
-
-      const result = await response.json();
-      setSyncResult({
-        ...result,
-        success: result.success,
-        recordsProcessed: result.recordsProcessed,
-        recordsCreated: result.recordsCreated,
-        recordsUpdated: result.recordsUpdated,
-        recordsFailed: result.recordsFailed,
-        errors: result.errors || [],
-        duration: result.duration,
-      });
-    } catch (error) {
-      setSyncResult({
-        success: false,
-        recordsProcessed: 0,
-        recordsCreated: 0,
-        recordsUpdated: 0,
-        recordsFailed: 0,
-        errors: [{ id: "global", error: "Erro ao exportar categorias" }],
-        duration: 0,
-      });
-    } finally {
-      setIsSyncing(false);
-    }
   };
 
   const getSyncBadge = (status: SyncStatus | null) => {

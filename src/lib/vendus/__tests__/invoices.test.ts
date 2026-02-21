@@ -64,6 +64,12 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getVendusClient, VendusApiError } from "../client";
 import { getVendusConfig } from "../config";
 
+// Suppress console output in tests
+beforeEach(() => {
+  vi.spyOn(console, "info").mockImplementation(() => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
+});
+
 // =============================================
 // HELPERS
 // =============================================

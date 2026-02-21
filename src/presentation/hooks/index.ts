@@ -25,6 +25,10 @@ export * from './useKitchenOrdersOptimized';
 export * from './useRestaurants';
 export * from './useLocations';
 
+// Category and kitchen zone management hooks
+export * from './useCategories';
+export * from './useKitchenZones';
+
 // Cart and order review hooks
 export * from './useCart';
 export * from './useOrderReview';
