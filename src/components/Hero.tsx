@@ -18,34 +18,14 @@ export function Hero() {
       {/* Background image */}
       <div className="absolute inset-0">
         <Image
-          src="https://images.unsplash.com/photo-1579871494447-9811cf80d66c?q=80&w=2070"
+          src="/photos/restaurant1.jpg"
           alt="Sushi background"
           fill
           className="object-cover"
           priority
         />
         <div className="absolute inset-0 bg-background/85" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
-      </div>
-
-      {/* Decorative sushi images */}
-      <div className="absolute top-20 left-10 w-32 h-32 md:w-48 md:h-48 opacity-20 blur-sm" aria-hidden="true">
-        <Image
-          src="https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?q=80&w=500"
-          alt=""
-          fill
-          className="object-contain"
-          role="presentation"
-        />
-      </div>
-      <div className="absolute bottom-32 right-10 w-40 h-40 md:w-56 md:h-56 opacity-20 blur-sm" aria-hidden="true">
-        <Image
-          src="https://images.unsplash.com/photo-1611143669185-af224c5e3252?q=80&w=500"
-          alt=""
-          fill
-          className="object-contain"
-          role="presentation"
-        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
       </div>
 
       {/* Content */}

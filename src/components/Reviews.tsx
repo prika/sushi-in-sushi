@@ -108,7 +108,7 @@ export function Reviews() {
         <BlurFade delay={0.5} inView>
           <div className="text-center mt-12">
             <a
-              href="https://www.google.com/maps/place/Sushi+in+Sushi+-+Circunvala%C3%A7%C3%A3o"
+              href="https://maps.app.goo.gl/HvAR1ro45wE2zFUT9"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-muted hover:text-gold transition-colors text-sm"

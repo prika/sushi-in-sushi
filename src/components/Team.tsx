@@ -10,29 +10,93 @@ import { cn } from "@/lib/utils";
 
 const teamMembers = [
   {
+    id: "member0",
+    name: "Evandro",
+    role: "Gerente e Chef de Cozinha",
+    image:
+      "/photos/evandro.jpg",
+  },
+  {
     id: "member1",
-    image: "https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=400&h=500&fit=crop",
-  },
-  {
-    id: "member2",
-    image: "https://images.unsplash.com/photo-1581299894007-aaa50297cf16?w=400&h=500&fit=crop",
-  },
-  {
-    id: "member3",
-    image: "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&h=500&fit=crop",
-  },
-  {
-    id: "member4",
-    image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=500&fit=crop",
+    name: "Yessa",
+    role: "Gerente e Chef de Cozinha",
+    image:
+      "/photos/yessa.jpg",
   },
   {
     id: "member5",
-    image: "https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?w=400&h=500&fit=crop",
+    name: "Line",
+    role: "Assistente de Mesa",
+    image:
+      "/photos/line.jpg",
+  },
+  {
+    id: "member4",
+    name: "Vitoria",
+    role: "Assistente de Cozinha",
+    image:
+      "/photos/vitoria.jpg",
+  },
+ 
+ 
+  {
+    id: "member3",
+    name: "Waleska",
+    role: "Assistente de Cozinha",
+    image:
+      "/photos/waleska.jpg",
   },
   {
     id: "member6",
-    image: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&h=500&fit=crop",
+    name: "Unknown",
+    role: "Assistente de Cozinha",
+    image:
+      "/photos/unknown.jpg",
   },
+  {
+    id: "member2",
+    name: "Mayra",
+    role: "Chef de Cozinha",
+    image:
+      "/photos/mayra.jpg",
+  },
+  {
+    id: "member8",
+    name: "Rakib",
+    role: "Assistente de Cozinha",
+    image:
+      "/photos/rakib.jpg",
+  },
+  {
+    id: "member7",
+    name: "Chloe",
+    role: "Assistente de Mesa",
+    image:
+      "/photos/chloe.jpg",
+  },
+  
+  {
+    id: "member8",
+    name: "Ricky",
+    role: "Assistente de Cozinha",
+    image:
+      "/photos/ricky.jpg",
+  },
+  {
+    id: "member9",
+    name: "Unknown 2",
+    role: "Assistente de Cozinha",
+    image:
+      "/photos/unknown2.jpg",
+  },
+  {
+    id: "member10",
+    name: "Unknown 3",
+    role: "Assistente de Cozinha",
+    image:
+      "/photos/unknown3.jpg",
+  },
+  
 ];
 
 export function Team() {
@@ -125,7 +189,7 @@ export function Team() {
                     <div className="relative aspect-[3/4] rounded-lg overflow-hidden mb-3 bg-card">
                       <Image
                         src={member.image}
-                        alt={t(`members.${member.id}.name`)}
+                        alt={member.name}
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                         unoptimized
@@ -133,10 +197,10 @@ export function Team() {
                       <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-4">
                         <h3 className="font-display text-base font-semibold text-white">
-                          {t(`members.${member.id}.name`)}
+                          {member.name}
                         </h3>
                         <p className="text-gold text-xs mt-0.5">
-                          {t(`members.${member.id}.role`)}
+                          {member.role}
                         </p>
                       </div>
                     </div>
