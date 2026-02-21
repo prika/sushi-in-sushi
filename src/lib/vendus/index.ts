@@ -30,9 +30,6 @@ export {
   clearClientCache,
 } from "./client";
 
-// Categories
-export { syncCategoriesToVendus } from "./categories";
-
 // Products
 export {
   syncProducts,

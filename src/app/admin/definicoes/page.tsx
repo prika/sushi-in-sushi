@@ -24,12 +24,24 @@ import {
   useRestaurants,
   useLocations,
   useProductsOptimized,
+  useCategories,
+  useKitchenZones,
 } from "@/presentation/hooks";
 import type {
   Restaurant,
   CreateRestaurantData,
   UpdateRestaurantData,
 } from "@/domain/entities/Restaurant";
+import type {
+  CategoryWithCount,
+  CreateCategoryData,
+  UpdateCategoryData,
+} from "@/domain/entities/Category";
+import type {
+  KitchenZoneWithCategoryCount,
+  CreateKitchenZoneData,
+  UpdateKitchenZoneData,
+} from "@/domain/entities/KitchenZone";
 
 // =============================================
 // CONSTANTS
@@ -50,7 +62,9 @@ type TabId =
   | "weekly-closures"
   | "export"
   | "tables"
-  | "restaurants";
+  | "restaurants"
+  | "categories"
+  | "kitchen-zones";
 
 // =============================================
 // NOTIFICATIONS TAB COMPONENT
@@ -3199,6 +3213,707 @@ function RestaurantManagementTab() {
 }
 
 // =============================================
+// CATEGORIES TAB COMPONENT
+// =============================================
+
+function CategoriesTab() {
+  const { categories, isLoading, error, create, update, remove, reorder, refresh } =
+    useCategories();
+  const { activeZones } = useKitchenZones();
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<CategoryWithCount | null>(null);
+
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: "success" | "error" | "warning" | "info";
+  }>({ isOpen: false, title: "", message: "", variant: "info" });
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: "danger" | "warning" | "info";
+    confirmText: string;
+    cancelText: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "warning",
+    confirmText: "Confirmar",
+    cancelText: "Cancelar",
+    onConfirm: () => {},
+  });
+
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    slug: "",
+    icon: "",
+    zoneId: "" as string,
+  });
+
+  const generateSlug = (name: string) =>
+    name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  const handleOpenModal = (category?: CategoryWithCount) => {
+    if (category) {
+      setEditingCategory(category);
+      setFormData({
+        name: category.name,
+        slug: category.slug,
+        icon: category.icon || "",
+        zoneId: category.zoneId || "",
+      });
+    } else {
+      setEditingCategory(null);
+      setFormData({ name: "", slug: "", icon: "", zoneId: "" });
+    }
+    setShowModal(true);
+  };
+
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = async (targetIndex: number) => {
+    if (dragIndex === null || dragIndex === targetIndex) {
+      handleDragEnd();
+      return;
+    }
+
+    const reordered = [...categories];
+    const [moved] = reordered.splice(dragIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    handleDragEnd();
+
+    // Optimistic update + batch persist via hook
+    await reorder(reordered.map((c) => c.id));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      name: formData.name,
+      slug: formData.slug,
+      icon: formData.icon || null,
+      sortOrder: editingCategory ? editingCategory.sortOrder : categories.length,
+      zoneId: formData.zoneId || null,
+    };
+
+    if (editingCategory) {
+      const result = await update(editingCategory.id, payload as UpdateCategoryData);
+      if (result) {
+        setAlertModal({ isOpen: true, title: "Sucesso", message: "Categoria atualizada", variant: "success" });
+        setShowModal(false);
+      }
+    } else {
+      const result = await create(payload as CreateCategoryData);
+      if (result) {
+        setAlertModal({ isOpen: true, title: "Sucesso", message: "Categoria criada", variant: "success" });
+        setShowModal(false);
+      }
+    }
+  };
+
+  const handleDelete = (category: CategoryWithCount) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Eliminar categoria",
+      message: category.productCount > 0
+        ? `Esta categoria tem ${category.productCount} produto(s) associado(s). Tem certeza que deseja eliminar?`
+        : "Tem certeza que deseja eliminar esta categoria?",
+      variant: "danger",
+      confirmText: "Eliminar",
+      cancelText: "Cancelar",
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        await remove(category.id);
+      },
+    });
+  };
+
+  const getZoneName = (zoneId: string | null) => {
+    if (!zoneId) return null;
+    return activeZones.find((z) => z.id === zoneId);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin h-8 w-8 border-2 border-[#D4AF37] border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <button
+          onClick={() => handleOpenModal()}
+          className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Nova Categoria
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">{error}</div>
+      )}
+
+      {/* Categories Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="w-10 px-2 py-3"></th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Icon</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zona</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produtos</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {categories.map((cat, index) => {
+              const zone = getZoneName(cat.zoneId);
+              const isDragging = dragIndex === index;
+              const isDragOver = dragOverIndex === index;
+              return (
+                <tr
+                  key={cat.id}
+                  draggable
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragEnd={handleDragEnd}
+                  onDrop={() => handleDrop(index)}
+                  className={`transition-colors ${
+                    isDragging
+                      ? "opacity-50 bg-gray-100"
+                      : isDragOver
+                        ? "bg-yellow-50 border-t-2 border-[#D4AF37]"
+                        : "hover:bg-gray-50"
+                  }`}
+                >
+                  <td className="w-10 px-2 py-4 text-center cursor-grab active:cursor-grabbing">
+                    <svg className="w-5 h-5 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                    </svg>
+                  </td>
+                  <td className="px-4 py-4 text-2xl">{cat.icon || "—"}</td>
+                  <td className="px-4 py-4 font-medium text-gray-900">{cat.name}</td>
+                  <td className="px-4 py-4 text-sm text-gray-500 font-mono">{cat.slug}</td>
+                  <td className="px-4 py-4">
+                    {zone ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
+                        style={{ backgroundColor: zone.color }}
+                      >
+                        {zone.name}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400">Sem zona</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-500">{cat.productCount}</td>
+                  <td className="px-4 py-4 text-right space-x-2">
+                    <button
+                      onClick={() => handleOpenModal(cat)}
+                      className="text-sm text-[#D4AF37] hover:text-[#C4A030] font-medium"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(cat)}
+                      className="text-sm text-red-600 hover:text-red-800 font-medium"
+                    >
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {categories.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
+                  Nenhuma categoria encontrada
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+      />
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-gray-900">
+                  {editingCategory ? "Editar Categoria" : "Nova Categoria"}
+                </h3>
+                <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      name,
+                      slug: editingCategory ? prev.slug : generateSlug(name),
+                    }));
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  placeholder="Ex: Sushi, Sashimi, Bebidas..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Código (slug)</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.slug}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent font-mono"
+                  placeholder="sushi-especial"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Icon (emoji)</label>
+                <input
+                  type="text"
+                  value={formData.icon}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, icon: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent text-2xl"
+                  placeholder="🍣"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Zona de Cozinha</label>
+                <select
+                  value={formData.zoneId}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, zoneId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                >
+                  <option value="">Sem zona</option>
+                  {activeZones.map((zone) => (
+                    <option key={zone.id} value={zone.id}>
+                      {zone.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors"
+                >
+                  {editingCategory ? "Guardar" : "Criar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================
+// KITCHEN ZONES TAB COMPONENT
+// =============================================
+
+function KitchenZonesTab() {
+  const { zones, isLoading, error, create, update, remove, refresh } =
+    useKitchenZones();
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingZone, setEditingZone] = useState<KitchenZoneWithCategoryCount | null>(null);
+
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: "success" | "error" | "warning" | "info";
+  }>({ isOpen: false, title: "", message: "", variant: "info" });
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: "danger" | "warning" | "info";
+    confirmText: string;
+    cancelText: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "warning",
+    confirmText: "Confirmar",
+    cancelText: "Cancelar",
+    onConfirm: () => {},
+  });
+
+  const [formData, setFormData] = useState({
+    name: "",
+    slug: "",
+    color: "#6B7280",
+    sortOrder: 0,
+    isActive: true,
+  });
+
+  const generateSlug = (name: string) =>
+    name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  const handleOpenModal = (zone?: KitchenZoneWithCategoryCount) => {
+    if (zone) {
+      setEditingZone(zone);
+      setFormData({
+        name: zone.name,
+        slug: zone.slug,
+        color: zone.color,
+        sortOrder: zone.sortOrder,
+        isActive: zone.isActive,
+      });
+    } else {
+      setEditingZone(null);
+      setFormData({ name: "", slug: "", color: "#6B7280", sortOrder: 0, isActive: true });
+    }
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (editingZone) {
+      const result = await update(editingZone.id, formData as UpdateKitchenZoneData);
+      if (result) {
+        setAlertModal({ isOpen: true, title: "Sucesso", message: "Zona atualizada", variant: "success" });
+        setShowModal(false);
+      }
+    } else {
+      const result = await create(formData as CreateKitchenZoneData);
+      if (result) {
+        setAlertModal({ isOpen: true, title: "Sucesso", message: "Zona criada", variant: "success" });
+        setShowModal(false);
+      }
+    }
+  };
+
+  const handleDelete = (zone: KitchenZoneWithCategoryCount) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Eliminar zona",
+      message: zone.categoryCount > 0
+        ? `Esta zona tem ${zone.categoryCount} categoria(s) associada(s). Ao eliminar, as categorias ficam sem zona atribuída. Continuar?`
+        : "Tem certeza que deseja eliminar esta zona?",
+      variant: "danger",
+      confirmText: "Eliminar",
+      cancelText: "Cancelar",
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        await remove(zone.id);
+      },
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin h-8 w-8 border-2 border-[#D4AF37] border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <button
+          onClick={() => handleOpenModal()}
+          className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Nova Zona
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">{error}</div>
+      )}
+
+      {/* Zones Grid */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {zones.map((zone) => (
+          <div
+            key={zone.id}
+            className={`bg-white rounded-xl shadow-sm border-2 p-5 ${
+              zone.isActive ? "border-gray-200" : "border-gray-200 opacity-50"
+            }`}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-5 h-5 rounded-full border border-gray-300 flex-shrink-0"
+                  style={{ backgroundColor: zone.color }}
+                />
+                <div>
+                  <h3 className="font-bold text-gray-900">{zone.name}</h3>
+                  <p className="text-xs text-gray-500 font-mono">{zone.slug}</p>
+                </div>
+              </div>
+              {!zone.isActive && (
+                <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">
+                  Inativa
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-500">
+                {zone.categoryCount} {zone.categoryCount === 1 ? "categoria" : "categorias"}
+              </div>
+              <div className="text-xs text-gray-400">Ordem: {zone.sortOrder}</div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-100">
+              <button
+                onClick={() => handleOpenModal(zone)}
+                className="text-sm text-[#D4AF37] hover:text-[#C4A030] font-medium"
+              >
+                Editar
+              </button>
+              <button
+                onClick={() => handleDelete(zone)}
+                className="text-sm text-red-600 hover:text-red-800 font-medium"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        ))}
+        {zones.length === 0 && (
+          <div className="col-span-full py-12 text-center text-gray-500">
+            Nenhuma zona encontrada
+          </div>
+        )}
+      </div>
+
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+      />
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-gray-900">
+                  {editingZone ? "Editar Zona" : "Nova Zona"}
+                </h3>
+                <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      name,
+                      slug: editingZone ? prev.slug : generateSlug(name),
+                    }));
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  placeholder="Ex: Quentes, Frios, Bar..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Código (slug)</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.slug}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent font-mono"
+                  placeholder="quentes"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cor</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={formData.color}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
+                    className="h-10 w-14 rounded border border-gray-300 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={formData.color}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent font-mono"
+                    placeholder="#EF4444"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ordem</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.sortOrder}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, isActive: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
+                </label>
+                <span className="text-sm font-medium text-gray-700">Ativa</span>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors"
+                >
+                  {editingZone ? "Guardar" : "Criar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================
 // MAIN SETTINGS PAGE
 // =============================================
 
@@ -3211,6 +3926,8 @@ export default function SettingsPage() {
     { id: "export", label: "Exportar" },
     { id: "tables", label: "Gestao de Mesas" },
     { id: "restaurants", label: "Gestao de Restaurantes" },
+    { id: "categories", label: "Categorias" },
+    { id: "kitchen-zones", label: "Zonas de Cozinha" },
   ];
 
   return (
@@ -3250,6 +3967,8 @@ export default function SettingsPage() {
         {activeTab === "export" && <ExportTab />}
         {activeTab === "tables" && <TableManagementTab />}
         {activeTab === "restaurants" && <RestaurantManagementTab />}
+        {activeTab === "categories" && <CategoriesTab />}
+        {activeTab === "kitchen-zones" && <KitchenZonesTab />}
       </div>
     </div>
   );

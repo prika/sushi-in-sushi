@@ -12,6 +12,7 @@ export interface Category {
   slug: string;
   icon: string | null;
   sortOrder: number;
+  zoneId: string | null;
   createdAt: Date;
 }
 
@@ -23,6 +24,7 @@ export interface CreateCategoryData {
   slug: string;
   icon?: string | null;
   sortOrder?: number;
+  zoneId?: string | null;
 }
 
 /**
@@ -33,6 +35,7 @@ export interface UpdateCategoryData {
   slug?: string;
   icon?: string | null;
   sortOrder?: number;
+  zoneId?: string | null;
 }
 
 /**

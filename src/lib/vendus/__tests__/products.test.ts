@@ -52,16 +52,6 @@ vi.mock("../config", () => ({
   VENDUS_TAX_RATES: { NORMAL: "1" },
 }));
 
-vi.mock("../categories", () => ({
-  syncCategoriesToVendus: vi.fn().mockResolvedValue({
-    success: true,
-    recordsProcessed: 0,
-    recordsCreated: 0,
-    recordsUpdated: 0,
-    recordsFailed: 0,
-  }),
-}));
-
 import { createAdminClient } from "@/lib/supabase/server";
 import { getVendusClient } from "../client";
 
@@ -170,6 +160,12 @@ function createVendusClientMock(
     put: vi.fn(),
   };
 }
+
+// Suppress noisy console output from Vendus sync functions
+beforeEach(() => {
+  vi.spyOn(console, 'info').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
 
 describe("syncProducts - pull", () => {
   beforeEach(() => {
@@ -337,7 +333,7 @@ describe("syncProducts - pull", () => {
           id: "local-1",
           name: "Produto Antigo",
           price: 10,
-          description: null,
+          description: undefined,
           is_available: true,
           vendus_id: "1004",
           vendus_ids: { dine_in: "1004" },
@@ -387,7 +383,7 @@ describe("syncProducts - pull", () => {
           id: "local-1",
           name: "Produto Conflito",
           price: 18,
-          description: null,
+          description: undefined,
           is_available: true,
           vendus_id: "1005",
           vendus_ids: { dine_in: "1005" },
@@ -424,7 +420,6 @@ describe("syncProducts - pull", () => {
 // =============================================
 
 import { getVendusConfig } from "../config";
-import { syncCategoriesToVendus } from "../categories";
 
 /**
  * Creates a Supabase mock tailored for push sync tests.
@@ -556,37 +551,6 @@ describe("syncProducts - push", () => {
     ).rejects.toThrow("Vendus nao configurado");
   });
 
-  it("syncs categories first by default", async () => {
-    const vendusClient = createPushVendusClientMock();
-    const supabase = createPushSupabaseMock({ pushProducts: [] });
-
-    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
-    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
-
-    await syncProducts({
-      locationSlug: "circunvalacao",
-      direction: "push",
-    });
-
-    expect(syncCategoriesToVendus).toHaveBeenCalled();
-  });
-
-  it("skips category sync when syncCategoriesFirst=false", async () => {
-    const vendusClient = createPushVendusClientMock();
-    const supabase = createPushSupabaseMock({ pushProducts: [] });
-
-    vi.mocked(createAdminClient).mockReturnValue(supabase as never);
-    vi.mocked(getVendusClient).mockReturnValue(vendusClient as never);
-
-    await syncProducts({
-      locationSlug: "circunvalacao",
-      direction: "push",
-      syncCategoriesFirst: false,
-    });
-
-    expect(syncCategoriesToVendus).not.toHaveBeenCalled();
-  });
-
   it("creates new product in Vendus when no vendus_id", async () => {
     const vendusClient = createPushVendusClientMock();
     const supabase = createPushSupabaseMock({
@@ -613,7 +577,7 @@ describe("syncProducts - push", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.recordsCreated).toBe(1);
@@ -633,7 +597,7 @@ describe("syncProducts - push", () => {
         {
           id: "local-2",
           name: "Miso Soup",
-          description: null,
+          description: undefined,
           price: 4.5,
           is_available: true,
           vendus_id: "vendus-existing-2",
@@ -652,7 +616,7 @@ describe("syncProducts - push", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.recordsUpdated).toBe(1);
@@ -670,7 +634,7 @@ describe("syncProducts - push", () => {
         {
           id: "local-3",
           name: "Gyoza",
-          description: null,
+          description: undefined,
           price: 7,
           is_available: true,
           vendus_id: null,
@@ -690,7 +654,7 @@ describe("syncProducts - push", () => {
     await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     // Should save vendus_id, vendus_ids and sync status
@@ -716,7 +680,7 @@ describe("syncProducts - push", () => {
         {
           id: "local-fail",
           name: "Tempura",
-          description: null,
+          description: undefined,
           price: 12,
           is_available: true,
           vendus_id: null,
@@ -736,7 +700,7 @@ describe("syncProducts - push", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.recordsFailed).toBe(1);
@@ -758,7 +722,7 @@ describe("syncProducts - push", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.recordsProcessed).toBe(0);
@@ -773,7 +737,7 @@ describe("syncProducts - push", () => {
         {
           id: "abcdefghij1234567890-extra-long-id",
           name: "Test",
-          description: null,
+          description: undefined,
           price: 5,
           is_available: true,
           vendus_id: null,
@@ -792,7 +756,7 @@ describe("syncProducts - push", () => {
     await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     const postArgs = vendusClient.post.mock.calls[0][1] as Record<string, unknown>;
@@ -1153,7 +1117,7 @@ describe("syncProducts - pull edge cases", () => {
           id: "local-gyoza",
           name: "Gyoza",
           price: 7,
-          description: null,
+          description: undefined,
           is_available: true,
           vendus_id: null,
           vendus_ids: null,
@@ -1202,7 +1166,7 @@ describe("syncProducts - pull edge cases", () => {
           id: "local-tempura",
           name: "Tempura Old",
           price: 10,
-          description: null,
+          description: undefined,
           is_available: true,
           vendus_id: "3002",
           vendus_ids: { dine_in: "3002" },
@@ -1251,7 +1215,7 @@ describe("syncProducts - pull edge cases", () => {
           id: "local-udon",
           name: "Udon",
           price: 8,
-          description: null,
+          description: undefined,
           is_available: true,
           vendus_id: null,
           vendus_ids: null,
@@ -1288,7 +1252,7 @@ describe("syncProducts - pull edge cases", () => {
           tax_id: "1",
           status: "on",
           category_id: 10,
-          description: null,
+          description: undefined,
           created_at: "2024-01-01T00:00:00Z",
           updated_at: "2024-01-01T00:00:00Z",
         },
@@ -1371,7 +1335,7 @@ describe("syncProducts - pull edge cases", () => {
           id: "local-lw",
           name: "Produto Local Wins",
           price: 25,
-          description: null,
+          description: undefined,
           is_available: true,
           vendus_id: "7001",
           vendus_ids: { dine_in: "7001" },
@@ -1422,7 +1386,7 @@ describe("syncProducts - pull edge cases", () => {
           id: "local-nc",
           name: "Name Conflict",
           price: 18,
-          description: null,
+          description: undefined,
           is_available: true,
           vendus_id: null,
           vendus_ids: null,
@@ -1472,11 +1436,11 @@ describe("syncProducts - pull edge cases", () => {
           id: "local-null-ua",
           name: "Null Updated Old",
           price: 8,
-          description: null,
+          description: undefined,
           is_available: true,
           vendus_id: "7003",
           vendus_ids: { dine_in: "7003" },
-          updated_at: null,
+          updated_at: undefined,
           vendus_synced_at: null,
         },
       ],
@@ -1634,7 +1598,7 @@ describe("syncProducts - pull edge cases", () => {
           tax_id: "1",
           status: "off",
           category_id: 10,
-          description: null,
+          description: undefined,
           created_at: "2024-01-01T00:00:00Z",
           updated_at: "2024-01-01T00:00:00Z", // Older than first
         },
@@ -1646,9 +1610,9 @@ describe("syncProducts - pull edge cases", () => {
           tax_id: "1",
           status: "on",
           category_id: 10,
-          description: null,
+          description: undefined,
           created_at: "2024-01-01T00:00:00Z",
-          updated_at: null, // No updated_at
+          updated_at: undefined, // No updated_at
         },
       ],
     };
@@ -1708,7 +1672,7 @@ describe("syncProducts - pull edge cases", () => {
           id: "local-falsy",
           name: "Other",
           price: 10,
-          description: null,
+          description: undefined,
           is_available: true,
           vendus_id: null,
           vendus_ids: { dine_in: "" }, // Falsy value
@@ -1849,7 +1813,7 @@ describe("syncProducts - pull edge cases", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.success).toBe(false);
@@ -1956,7 +1920,7 @@ describe("syncProducts - pull edge cases", () => {
                   id: "local-err",
                   name: "Error Product",
                   price: 8,
-                  description: null,
+                  description: undefined,
                   is_available: true,
                   vendus_id: "6001",
                   vendus_ids: { dine_in: "6001" },
@@ -2227,7 +2191,7 @@ describe("syncProducts - push edge cases", () => {
         {
           id: "specific-1",
           name: "Targeted",
-          description: null,
+          description: undefined,
           price: 10,
           is_available: true,
           vendus_id: null,
@@ -2246,7 +2210,7 @@ describe("syncProducts - push edge cases", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
       productIds: ["specific-1"],
     });
 
@@ -2306,7 +2270,7 @@ describe("syncProducts - push edge cases", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.success).toBe(false);
@@ -2335,7 +2299,7 @@ describe("syncProducts - push edge cases", () => {
         {
           id: "multi-mode-1",
           name: "Sushi Mix",
-          description: null,
+          description: undefined,
           price: 15,
           is_available: true,
           vendus_id: null,
@@ -2355,7 +2319,7 @@ describe("syncProducts - push edge cases", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     // Should create 2 Vendus products (one per mode)
@@ -2389,7 +2353,7 @@ describe("syncProducts - push edge cases", () => {
         {
           id: "legacy-1",
           name: "Legacy Product",
-          description: null,
+          description: undefined,
           price: 10,
           is_available: true,
           vendus_id: "vendus-legacy-99",
@@ -2408,7 +2372,7 @@ describe("syncProducts - push edge cases", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     // Should UPDATE (not create) because legacy vendus_id maps to dine_in
@@ -2440,7 +2404,7 @@ describe("syncProducts - push edge cases", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "both",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.operation).toBe("product_sync");
@@ -2743,7 +2707,7 @@ describe("syncProducts - remaining branch coverage", () => {
       {
         id: "pa-1",
         name: "PushAll Product",
-        description: null,
+        description: undefined,
         price: 10,
         is_available: true,
         vendus_id: null,
@@ -2819,7 +2783,7 @@ describe("syncProducts - remaining branch coverage", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
       pushAll: true,
     });
 
@@ -2856,7 +2820,7 @@ describe("syncProducts - remaining branch coverage", () => {
                       {
                         id: "nullcat-1",
                         name: "NullCat Product",
-                        description: null,
+                        description: undefined,
                         price: 10,
                         is_available: true,
                         vendus_id: null,
@@ -2907,7 +2871,7 @@ describe("syncProducts - remaining branch coverage", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.recordsCreated).toBe(1);
@@ -2930,7 +2894,7 @@ describe("syncProducts - remaining branch coverage", () => {
         {
           id: "catobj-1",
           name: "CatObj Product",
-          description: null,
+          description: undefined,
           price: 10,
           is_available: true,
           vendus_id: null,
@@ -2949,7 +2913,7 @@ describe("syncProducts - remaining branch coverage", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.recordsCreated).toBe(1);
@@ -2972,7 +2936,7 @@ describe("syncProducts - remaining branch coverage", () => {
         {
           id: "catdata-1",
           name: "CatData Product",
-          description: null,
+          description: undefined,
           price: 10,
           is_available: true,
           vendus_id: null,
@@ -2991,7 +2955,7 @@ describe("syncProducts - remaining branch coverage", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.recordsCreated).toBe(1);
@@ -3012,7 +2976,7 @@ describe("syncProducts - remaining branch coverage", () => {
         {
           id: "catempty-1",
           name: "CatEmpty Product",
-          description: null,
+          description: undefined,
           price: 10,
           is_available: true,
           vendus_id: null,
@@ -3031,7 +2995,7 @@ describe("syncProducts - remaining branch coverage", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.recordsCreated).toBe(1);
@@ -3056,7 +3020,7 @@ describe("syncProducts - remaining branch coverage", () => {
         {
           id: "dup-mode-1",
           name: "DupMode Product",
-          description: null,
+          description: undefined,
           price: 10,
           is_available: true,
           vendus_id: null,
@@ -3075,7 +3039,7 @@ describe("syncProducts - remaining branch coverage", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     // Should use the first category ID for dine_in, skip the second
@@ -3091,7 +3055,7 @@ describe("syncProducts - remaining branch coverage", () => {
         {
           id: "unavail-1",
           name: "Unavailable Product",
-          description: null,
+          description: undefined,
           price: 10,
           is_available: false, // Should produce status: "off"
           vendus_id: null,
@@ -3110,7 +3074,7 @@ describe("syncProducts - remaining branch coverage", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.recordsCreated).toBe(1);
@@ -3131,7 +3095,7 @@ describe("syncProducts - remaining branch coverage", () => {
         {
           id: "push-err-1",
           name: "Push Error Product",
-          description: null,
+          description: undefined,
           price: 10,
           is_available: true,
           vendus_id: null,
@@ -3150,7 +3114,7 @@ describe("syncProducts - remaining branch coverage", () => {
     const result = await syncProducts({
       locationSlug: "circunvalacao",
       direction: "push",
-      syncCategoriesFirst: false,
+
     });
 
     expect(result.recordsFailed).toBe(1);
@@ -3180,11 +3144,11 @@ describe("syncProducts - remaining branch coverage", () => {
           id: "local-null-ua",
           name: "Null UpdatedAt",
           price: 10,
-          description: null,
+          description: undefined,
           is_available: true,
           vendus_id: "9101",
           vendus_ids: { dine_in: "9101" },
-          updated_at: null, // null updated_at → triggers ?? undefined
+          updated_at: undefined, // null updated_at → triggers ?? undefined
           vendus_synced_at: "2024-01-01T00:00:00Z",
         },
       ],

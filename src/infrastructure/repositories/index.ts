@@ -19,3 +19,4 @@ export * from './SupabaseGameSessionRepository';
 export * from './SupabaseGameAnswerRepository';
 export * from './SupabaseGamePrizeRepository';
 export * from './SupabaseKitchenMetricsRepository';
+export * from './SupabaseKitchenZoneRepository';

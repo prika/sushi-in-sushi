@@ -22,3 +22,4 @@ export * from './GameSession';
 export * from './GameAnswer';
 export * from './GamePrize';
 export * from './KitchenMetrics';
+export * from './KitchenZone';
