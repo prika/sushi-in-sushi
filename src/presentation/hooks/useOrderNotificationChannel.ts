@@ -8,9 +8,9 @@ export interface UseOrderNotificationChannelParams {
   session: { id: string } | null;
   step: "welcome" | "active";
   supabase: SupabaseClient<Database>;
-  t: (key: string, opts?: { name?: string; count?: number }) => string;
+  t: (_key: string, _opts?: { name?: string; count?: number }) => string;
   fetchSessionOrders: () => void;
-  setOrderNotification: (value: string | null) => void;
+  setOrderNotification: (_value: string | null) => void;
   channelRef: MutableRefObject<RealtimeChannel | null>;
   deviceId: string; // Current device ID to ignore own broadcasts
 }
@@ -40,7 +40,11 @@ export function useOrderNotificationChannel({
 
     channel
       .on("broadcast", { event: "order-submitted" }, (payload) => {
-        const msg = payload.payload as { customerName: string; itemCount: number; deviceId?: string };
+        const msg = payload.payload as {
+          customerName: string;
+          itemCount: number;
+          deviceId?: string;
+        };
 
         // Ignore broadcasts from this device (prevent duplicates)
         // Real-time INSERT events already handle adding orders for the submitting device
@@ -52,10 +56,13 @@ export function useOrderNotificationChannel({
           t("mesa.review.reviewNotification", {
             name: msg.customerName,
             count: msg.itemCount,
-          })
+          }),
         );
         fetchSessionOrders();
-        notificationTimerId = setTimeout(() => setOrderNotification(null), 5000);
+        notificationTimerId = setTimeout(
+          () => setOrderNotification(null),
+          5000,
+        );
       })
       .subscribe();
 
@@ -66,5 +73,14 @@ export function useOrderNotificationChannel({
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [session, step, supabase, t, fetchSessionOrders, setOrderNotification, channelRef, deviceId]);
+  }, [
+    session,
+    step,
+    supabase,
+    t,
+    fetchSessionOrders,
+    setOrderNotification,
+    channelRef,
+    deviceId,
+  ]);
 }

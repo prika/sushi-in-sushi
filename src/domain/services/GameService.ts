@@ -52,7 +52,7 @@ export class GameService {
         return answer.rating === 5 ? question.points : Math.floor(question.points / 2);
       case 'quiz':
         // Correct answer = full points, wrong = 0
-        if (question.correctAnswerIndex == null) return 0;
+        if (question.correctAnswerIndex === null) return 0;
         return answer.selectedIndex === question.correctAnswerIndex ? question.points : 0;
       case 'preference':
         // All preferences earn full points (it's about data, not right/wrong)

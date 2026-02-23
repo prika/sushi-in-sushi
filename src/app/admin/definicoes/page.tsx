@@ -17,8 +17,8 @@ import {
   generateQRCodeToCanvas,
   buildTableOrderURLByNumber,
 } from "@/lib/qrcode";
-import { TableMap } from "@/components/admin/TableMap";
-import { TableDetailModal } from "@/components/admin/TableDetailModal";
+import { _TableMap } from "@/components/admin/TableMap";
+import { _TableDetailModal } from "@/components/admin/TableDetailModal";
 import {
   useTableManagement,
   useRestaurants,
@@ -1110,12 +1110,12 @@ function TableManagementTab() {
     is_active: true,
   });
 
-  const [selectedLocation, setSelectedLocation] = useState<string>(
+  const [selectedLocation, _setSelectedLocation] = useState<string>(
     locations[0]?.slug || "circunvalacao",
   );
-  const [selectedTableForDetail, setSelectedTableForDetail] =
+  const [_selectedTableForDetail, setSelectedTableForDetail] =
     useState<TableDTO | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [_showDetailModal, setShowDetailModal] = useState(false);
 
   // Helper to get location label
   const getLocationLabel = (slug: string) => {
@@ -1124,13 +1124,13 @@ function TableManagementTab() {
 
   const {
     tables: mapTables,
-    isLoading: mapIsLoading,
-    refresh: refreshMap,
-    startWalkInSession,
-    markTableInactive,
-    reactivateTable,
-    requestBill,
-    closeSession,
+    isLoading: _mapIsLoading,
+    refresh: _refreshMap,
+    _startWalkInSession,
+    _markTableInactive,
+    _reactivateTable,
+    _requestBill,
+    _closeSession,
   } = useTableManagement({
     location: selectedLocation as "circunvalacao" | "boavista",
     refreshInterval: 15000,
@@ -1356,12 +1356,12 @@ function TableManagementTab() {
     };
   };
 
-  const handleTableClick = (table: TableDTO) => {
+  const _handleTableClick = (table: TableDTO) => {
     setSelectedTableForDetail(table);
     setShowDetailModal(true);
   };
 
-  const handleDetailModalClose = () => {
+  const _handleDetailModalClose = () => {
     setShowDetailModal(false);
     setSelectedTableForDetail(null);
   };
@@ -1380,7 +1380,7 @@ function TableManagementTab() {
     return counts;
   };
 
-  const statusCounts = getStatusCounts();
+  const _statusCounts = getStatusCounts();
 
   const handlePrintAllQRs = (location?: string) => {
     const tablesToPrint = location
@@ -2194,7 +2194,7 @@ function RestaurantManagementTab() {
         gamesPrizeType: restaurant.gamesPrizeType,
         gamesPrizeValue: restaurant.gamesPrizeValue ?? "",
         gamesPrizeProductId:
-          restaurant.gamesPrizeProductId != null
+          restaurant.gamesPrizeProductId !== null
             ? String(restaurant.gamesPrizeProductId)
             : "",
         gamesMinRoundsForPrize: restaurant.gamesMinRoundsForPrize,
@@ -3217,7 +3217,7 @@ function RestaurantManagementTab() {
 // =============================================
 
 function CategoriesTab() {
-  const { categories, isLoading, error, create, update, remove, reorder, refresh } =
+  const { categories, isLoading, error, create, update, remove, reorder, _refresh } =
     useCategories();
   const { activeZones } = useKitchenZones();
 
@@ -3595,7 +3595,7 @@ function CategoriesTab() {
 // =============================================
 
 function KitchenZonesTab() {
-  const { zones, isLoading, error, create, update, remove, refresh } =
+  const { zones, isLoading, error, create, update, remove, _refresh } =
     useKitchenZones();
 
   const [showModal, setShowModal] = useState(false);

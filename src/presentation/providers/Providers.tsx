@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Providers - Wrapper para todos os providers da aplicação
@@ -7,11 +7,11 @@
  * Deve ser usado no layout principal da aplicação.
  */
 
-import { ReactNode } from 'react';
-import { DependencyProvider } from '../contexts/DependencyContext';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { ToastProvider } from '@/components/ui/Toast';
-import { QueryProvider } from './QueryProvider';
+import { ReactNode } from "react";
+import { DependencyProvider } from "../contexts/DependencyContext";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ToastProvider } from "@/components/ui/Toast";
+import { QueryProvider } from "./QueryProvider";
 
 interface ProvidersProps {
   children: ReactNode;

@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { SupabaseCategoryRepository } from '@/infrastructure/repositories/SupabaseCategoryRepository';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { SupabaseCategoryRepository } from "@/infrastructure/repositories/SupabaseCategoryRepository";
 import {
   Category,
   CreateCategoryData,
   UpdateCategoryData,
   CategoryWithCount,
-} from '@/domain/entities/Category';
+} from "@/domain/entities/Category";
 import {
   GetAllCategoriesUseCase,
   CreateCategoryUseCase,
   UpdateCategoryUseCase,
   DeleteCategoryUseCase,
-} from '@/application/use-cases/categories';
+} from "@/application/use-cases/categories";
 
 export interface UseCategoriesOptions {
   autoLoad?: boolean;
@@ -23,15 +23,15 @@ export interface UseCategoriesResult {
   categories: CategoryWithCount[];
   isLoading: boolean;
   error: string | null;
-  create: (data: CreateCategoryData) => Promise<Category | null>;
-  update: (id: string, data: UpdateCategoryData) => Promise<Category | null>;
-  remove: (id: string) => Promise<boolean>;
-  reorder: (orderedIds: string[]) => Promise<void>;
+  create: (_data: CreateCategoryData) => Promise<Category | null>;
+  update: (_id: string, _data: UpdateCategoryData) => Promise<Category | null>;
+  remove: (_id: string) => Promise<boolean>;
+  reorder: (_orderedIds: string[]) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
 export function useCategories(
-  options: UseCategoriesOptions = {}
+  options: UseCategoriesOptions = {},
 ): UseCategoriesResult {
   const { autoLoad = true } = options;
 
@@ -73,7 +73,7 @@ export function useCategories(
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Erro ao carregar categorias'
+        err instanceof Error ? err.message : "Erro ao carregar categorias",
       );
     } finally {
       setIsLoading(false);
@@ -91,7 +91,7 @@ export function useCategories(
       setError(result.error);
       return null;
     },
-    [createCategory, fetchCategories]
+    [createCategory, fetchCategories],
   );
 
   const update = useCallback(
@@ -105,7 +105,7 @@ export function useCategories(
       setError(result.error);
       return null;
     },
-    [updateCategory, fetchCategories]
+    [updateCategory, fetchCategories],
   );
 
   const remove = useCallback(
@@ -119,7 +119,7 @@ export function useCategories(
       setError(result.error);
       return false;
     },
-    [deleteCategory, fetchCategories]
+    [deleteCategory, fetchCategories],
   );
 
   const reorder = useCallback(
@@ -141,16 +141,21 @@ export function useCategories(
         const currentMap = new Map(categories.map((c) => [c.id, c.sortOrder]));
         for (let i = 0; i < orderedIds.length; i++) {
           if (currentMap.get(orderedIds[i]) !== i) {
-            await updateCategory.execute({ id: orderedIds[i], data: { sortOrder: i } });
+            await updateCategory.execute({
+              id: orderedIds[i],
+              data: { sortOrder: i },
+            });
           }
         }
         await fetchCategories();
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao reordenar categorias');
+        setError(
+          err instanceof Error ? err.message : "Erro ao reordenar categorias",
+        );
         await fetchCategories();
       }
     },
-    [categories, updateCategory, fetchCategories]
+    [categories, updateCategory, fetchCategories],
   );
 
   useEffect(() => {

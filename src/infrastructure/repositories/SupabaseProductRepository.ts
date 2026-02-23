@@ -13,7 +13,7 @@ import {
   CreateProductData,
   UpdateProductData,
   ProductWithCategory,
-  type Ingredient,
+  type LegacyIngredient,
 } from '@/domain/entities/Product';
 
 /**
@@ -32,7 +32,7 @@ interface DatabaseProduct {
   sort_order: number;
   service_modes: string[] | null;
   service_prices: Record<string, number> | null;
-  ingredients: Ingredient[] | null;
+  ingredients: LegacyIngredient[] | null;
   created_at: string;
   updated_at?: string; // optional: products table may not have this column
 }
@@ -167,7 +167,6 @@ export class SupabaseProductRepository implements IProductRepository {
         sort_order: data.sortOrder ?? 0,
         service_modes: data.serviceModes ?? [],
         service_prices: data.servicePrices ?? {},
-        ingredients: data.ingredients ?? [],
       })
       .select()
       .single();
@@ -194,7 +193,6 @@ export class SupabaseProductRepository implements IProductRepository {
     if (data.sortOrder !== undefined) updateData.sort_order = data.sortOrder;
     if (data.serviceModes !== undefined) updateData.service_modes = data.serviceModes;
     if (data.servicePrices !== undefined) updateData.service_prices = data.servicePrices;
-    if (data.ingredients !== undefined) updateData.ingredients = data.ingredients;
 
     const { data: product, error } = await this.supabase
       .from('products')

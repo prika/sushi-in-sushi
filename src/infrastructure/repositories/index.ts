@@ -20,3 +20,5 @@ export * from './SupabaseGameAnswerRepository';
 export * from './SupabaseGamePrizeRepository';
 export * from './SupabaseKitchenMetricsRepository';
 export * from './SupabaseKitchenZoneRepository';
+export * from './SupabaseIngredientRepository';
+export * from './SupabaseProductIngredientRepository';

@@ -2,12 +2,12 @@
  * OrderRealtimeHandler - Handler especializado para eventos de pedidos em tempo real
  */
 
-import { createClient } from '@/lib/supabase/client';
+import { _createClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   IRealtimeSubscription,
   RealtimeEvent,
-  RealtimeCallback,
+  _RealtimeCallback,
 } from '@/application/ports/IRealtimeSubscription';
 import { Order } from '@/domain/entities/Order';
 import { OrderStatus } from '@/domain/value-objects/OrderStatus';
@@ -36,7 +36,7 @@ export interface OrderRealtimeEvent extends RealtimeEvent<Order> {
 /**
  * Callback específico para eventos de pedidos
  */
-export type OrderRealtimeCallback = (event: OrderRealtimeEvent) => void;
+export type OrderRealtimeCallback = (_event: OrderRealtimeEvent) => void;
 
 /**
  * Opções para o handler de pedidos
@@ -83,7 +83,7 @@ export class OrderRealtimeHandler implements IRealtimeSubscription<Order> {
     );
   }
 
-  subscribe(callback: (event: RealtimeEvent<Order>) => void): void {
+  subscribe(callback: (_event: RealtimeEvent<Order>) => void): void {
     // Adaptar callback genérico para callback específico
     this.subscribeWithDetails((event) => {
       callback({

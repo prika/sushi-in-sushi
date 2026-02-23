@@ -56,6 +56,23 @@ export class StartSessionUseCase {
         };
       }
 
+      // Se a mesa tem currentSessionId, verificar se a sessão ainda está ativa
+      // Limpar dados stale de sessões antigas não fechadas corretamente
+      if (table.currentSessionId) {
+        const existingSession = await this.sessionRepository.findById(table.currentSessionId);
+        const isStale = !existingSession || existingSession.status === 'closed' || existingSession.status === 'paid';
+        if (isStale) {
+          // Limpar dados stale — a sessão já não existe ou está fechada
+          await this.tableRepository.update(input.tableId, {
+            status: 'available',
+            currentSessionId: null,
+          });
+          // Atualizar referência local
+          table.currentSessionId = undefined;
+          table.status = 'available';
+        }
+      }
+
       // Verificar se pode iniciar sessão
       const canStart = SessionService.canStartSession(table);
       if (!canStart.isValid) {

@@ -4,7 +4,7 @@
 import type { SessionStatus as DomainSessionStatus } from "@/domain/value-objects/SessionStatus";
 import type { OrderStatus as DomainOrderStatus } from "@/domain/value-objects/OrderStatus";
 import type { TableStatus as DomainTableStatus } from "@/domain/value-objects/TableStatus";
-import type { Ingredient } from "@/domain/entities/Product";
+import type { LegacyIngredient as Ingredient } from "@/domain/entities/Product";
 
 // Re-export domain types for backwards compatibility
 export type SessionStatus = DomainSessionStatus;

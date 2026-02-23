@@ -28,8 +28,6 @@ import type {
   ProductSyncOptions,
   SyncResult,
   SyncPreview,
-  SyncPreviewItem,
-  SyncPreviewConflict,
   SyncWarning,
 } from "./types";
 
@@ -300,7 +298,7 @@ async function pullProductsFromVendus(
       const raw = await client.get<VendusProduct[] | VendusProductsResponse>(
         `/products?per_page=${perPage}&page=${page}`,
       );
-      const pageProducts = Array.isArray(raw) ? raw : (raw.products || []);
+      const pageProducts = Array.isArray(raw) ? raw : raw.products || [];
       vendusProducts = vendusProducts.concat(pageProducts);
       hasMore = pageProducts.length === perPage;
       page++;
@@ -316,7 +314,7 @@ async function pullProductsFromVendus(
       >("/products/categories?per_page=500");
       const cats = Array.isArray(rawCats)
         ? rawCats
-        : (rawCats.categories || rawCats.data || []);
+        : rawCats.categories || rawCats.data || [];
       for (const vc of cats) vendusCategoryMap.set(Number(vc.id), vc.name);
     } catch {
       /* default to dine_in if categories unavailable */
@@ -419,7 +417,9 @@ async function pullProductsFromVendus(
         if (vendusCatName && !existing.vendusCatNames.includes(vendusCatName)) {
           existing.vendusCatNames.push(vendusCatName);
         }
-        const ts = vProduct.updated_at ? new Date(vProduct.updated_at).getTime() : 0;
+        const ts = vProduct.updated_at
+          ? new Date(vProduct.updated_at).getTime()
+          : 0;
         if (ts > existing.vendusUpdatedAt) {
           existing.vendusUpdatedAt = ts;
           existing.vendusUpdatedAtStr = vProduct.updated_at;
@@ -436,15 +436,22 @@ async function pullProductsFromVendus(
           primaryVendusId: vid,
           reference: vProduct.reference,
           taxId: vProduct.tax_id,
-          vendusUpdatedAt: vProduct.updated_at ? new Date(vProduct.updated_at).getTime() : 0,
+          vendusUpdatedAt: vProduct.updated_at
+            ? new Date(vProduct.updated_at).getTime()
+            : 0,
           vendusUpdatedAtStr: vProduct.updated_at,
-          matchedCategoryId: matchProductToCategory(productName, localCategories),
+          matchedCategoryId: matchProductToCategory(
+            productName,
+            localCategories,
+          ),
           vendusCatNames: vendusCatName ? [vendusCatName] : [],
         });
       }
     }
 
-    console.info(`[Vendus] Merged ${vendusProducts.length} Vendus products into ${groupedByName.size} unique products`);
+    console.info(
+      `[Vendus] Merged ${vendusProducts.length} Vendus products into ${groupedByName.size} unique products`,
+    );
 
     // ── Process each merged product ──────────────────────────────────
     for (const [, merged] of Array.from(groupedByName.entries())) {
@@ -483,8 +490,17 @@ async function pullProductsFromVendus(
         if (existingById) {
           const dataToApply = resolveConflict(
             existingById,
-            { id: vid, title: merged.title, updated_at: merged.vendusUpdatedAtStr },
-            merged.vendusUpdatedAt, vendusLinkData, fullUpdateData, result, preview, "vendus_id",
+            {
+              id: vid,
+              title: merged.title,
+              updated_at: merged.vendusUpdatedAtStr,
+            },
+            merged.vendusUpdatedAt,
+            vendusLinkData,
+            fullUpdateData,
+            result,
+            preview,
+            "vendus_id",
           );
 
           if (previewOnly) {
@@ -513,8 +529,17 @@ async function pullProductsFromVendus(
           if (nameMatch) {
             const dataToApply = resolveConflict(
               nameMatch,
-              { id: vid, title: merged.title, updated_at: merged.vendusUpdatedAtStr },
-              merged.vendusUpdatedAt, vendusLinkData, fullUpdateData, result, preview, "name",
+              {
+                id: vid,
+                title: merged.title,
+                updated_at: merged.vendusUpdatedAtStr,
+              },
+              merged.vendusUpdatedAt,
+              vendusLinkData,
+              fullUpdateData,
+              result,
+              preview,
+              "name",
             );
 
             if (previewOnly) {
@@ -569,7 +594,8 @@ async function pullProductsFromVendus(
                   name: merged.title,
                   description: merged.description,
                   price: merged.basePrice,
-                  category_id: merged.matchedCategoryId || resolvedDefaultCategoryId,
+                  category_id:
+                    merged.matchedCategoryId || resolvedDefaultCategoryId,
                   is_available: merged.isActive,
                   is_rodizio: false,
                   sort_order: 999,
@@ -584,7 +610,9 @@ async function pullProductsFromVendus(
                 break;
               } else {
                 result.recordsCreated++;
-                console.info(`[Vendus] Created product from Vendus: ${merged.title}`);
+                console.info(
+                  `[Vendus] Created product from Vendus: ${merged.title}`,
+                );
               }
             }
           }
@@ -690,10 +718,12 @@ async function pushProductsToVendus(
   // Build service_mode -> vendus_category_id map from Vendus categories
   const serviceModeToVendusCategoryId = new Map<string, string>();
   try {
-    const rawCats = await client.get<VendusCategory[] | VendusCategoriesResponse>(
-      "/products/categories?per_page=500",
-    );
-    const cats = Array.isArray(rawCats) ? rawCats : (rawCats.categories || rawCats.data || []);
+    const rawCats = await client.get<
+      VendusCategory[] | VendusCategoriesResponse
+    >("/products/categories?per_page=500");
+    const cats = Array.isArray(rawCats)
+      ? rawCats
+      : rawCats.categories || rawCats.data || [];
     for (const vc of cats) {
       const mode = vendusCategoryToServiceMode(vc.name);
       if (!serviceModeToVendusCategoryId.has(mode)) {
@@ -773,7 +803,9 @@ async function pushProductsToVendus(
           );
           vendusId = response.id;
           result.recordsCreated++;
-          console.info(`[Vendus] Created product: ${product.name} [${mode}] (${vendusId})`);
+          console.info(
+            `[Vendus] Created product: ${product.name} [${mode}] (${vendusId})`,
+          );
         }
 
         updatedVendusIds[mode] = vendusId;

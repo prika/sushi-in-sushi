@@ -88,7 +88,7 @@ export class SupabaseGamePrizeRepository implements IGamePrizeRepository {
       .select()
       .single();
 
-    if (error || updated == null) {
+    if (error || updated === null) {
       throw new Error(error?.message ?? "Prize already redeemed or not found");
     }
     return this.mapToEntity(updated);

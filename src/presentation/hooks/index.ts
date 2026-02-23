@@ -39,6 +39,10 @@ export * from './useOrderCooldown';
 // Order notification channel (broadcast + timer cleanup)
 export * from './useOrderNotificationChannel';
 
+// Ingredient management hooks
+export * from './useIngredients';
+export * from './useProductIngredients';
+
 // Games hooks
 export * from './useGameSession';
 export * from './useGameConfig';

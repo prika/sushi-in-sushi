@@ -16,7 +16,7 @@ import {
   SessionWithOrders,
 } from '@/domain/entities/Session';
 import { SessionStatus } from '@/domain/value-objects/SessionStatus';
-import { OrderingMode, toOrderingMode } from '@/domain/value-objects/OrderingMode';
+import { _OrderingMode, toOrderingMode } from '@/domain/value-objects/OrderingMode';
 import { Location } from '@/types/database';
 
 /**
@@ -141,7 +141,7 @@ export class SupabaseSessionRepository implements ISessionRepository {
   }
 
   async findActive(location?: Location): Promise<SessionWithTable[]> {
-    let query = this.supabase
+    const query = this.supabase
       .from('sessions')
       .select(`
         *,
@@ -231,7 +231,7 @@ export class SupabaseSessionRepository implements ISessionRepository {
   }
 
   async countByStatus(location?: Location): Promise<Record<SessionStatus, number>> {
-    let query = this.supabase.from('sessions').select(`
+    const query = this.supabase.from('sessions').select(`
       status,
       table:tables(location)
     `);

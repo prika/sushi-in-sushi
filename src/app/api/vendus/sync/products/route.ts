@@ -69,7 +69,6 @@ export async function POST(request: NextRequest) {
     const direction = (body.direction as string) || "both";
     const productIds = body.productIds as string[] | undefined;
     const pushAll = (body.pushAll as boolean) ?? false;
-    const syncCategoriesFirst = (body.syncCategoriesFirst as boolean) ?? true;
     const previewOnly = (body.previewOnly as boolean) ?? false;
     const defaultCategoryId = body.defaultCategoryId as string | undefined;
 
@@ -92,10 +91,6 @@ export async function POST(request: NextRequest) {
       direction: direction as "push" | "pull" | "both",
       productIds,
       pushAll,
-      syncCategoriesFirst:
-        direction === "push" || direction === "both"
-          ? syncCategoriesFirst
-          : false,
       previewOnly,
       defaultCategoryId,
       initiatedBy: user.id,

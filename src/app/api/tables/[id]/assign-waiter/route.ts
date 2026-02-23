@@ -237,7 +237,7 @@ export async function DELETE(
       );
     }
 
-    const roleName = (staffData.roles as any)?.name;
+    const _roleName = (staffData.roles as any)?.name;
 
     // 3. Delete assignment
     const { error: deleteError } = await supabase

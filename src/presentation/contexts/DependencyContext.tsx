@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * DependencyContext - Contexto para injeção de dependências
@@ -8,61 +8,61 @@
  * não dependam diretamente da infraestrutura.
  */
 
-import React, { createContext, useContext, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useMemo, ReactNode } from "react";
 
 // Repositórios (Interfaces)
-import { IOrderRepository } from '@/domain/repositories/IOrderRepository';
-import { IProductRepository } from '@/domain/repositories/IProductRepository';
-import { ICategoryRepository } from '@/domain/repositories/ICategoryRepository';
-import { ISessionRepository } from '@/domain/repositories/ISessionRepository';
-import { ITableRepository } from '@/domain/repositories/ITableRepository';
-import { IStaffRepository } from '@/domain/repositories/IStaffRepository';
-import { IReservationRepository } from '@/domain/repositories/IReservationRepository';
-import { IRestaurantClosureRepository } from '@/domain/repositories/IRestaurantClosureRepository';
-import { IWaiterCallRepository } from '@/domain/repositories/IWaiterCallRepository';
-import { ICustomerRepository } from '@/domain/repositories/ICustomerRepository';
-import { IRestaurantRepository } from '@/domain/repositories/IRestaurantRepository';
-import { IGameQuestionRepository } from '@/domain/repositories/IGameQuestionRepository';
-import { IGameSessionRepository } from '@/domain/repositories/IGameSessionRepository';
-import { IGameAnswerRepository } from '@/domain/repositories/IGameAnswerRepository';
-import { IGamePrizeRepository } from '@/domain/repositories/IGamePrizeRepository';
+import { IOrderRepository } from "@/domain/repositories/IOrderRepository";
+import { IProductRepository } from "@/domain/repositories/IProductRepository";
+import { ICategoryRepository } from "@/domain/repositories/ICategoryRepository";
+import { ISessionRepository } from "@/domain/repositories/ISessionRepository";
+import { ITableRepository } from "@/domain/repositories/ITableRepository";
+import { IStaffRepository } from "@/domain/repositories/IStaffRepository";
+import { IReservationRepository } from "@/domain/repositories/IReservationRepository";
+import { IRestaurantClosureRepository } from "@/domain/repositories/IRestaurantClosureRepository";
+import { IWaiterCallRepository } from "@/domain/repositories/IWaiterCallRepository";
+import { ICustomerRepository } from "@/domain/repositories/ICustomerRepository";
+import { IRestaurantRepository } from "@/domain/repositories/IRestaurantRepository";
+import { IGameQuestionRepository } from "@/domain/repositories/IGameQuestionRepository";
+import { IGameSessionRepository } from "@/domain/repositories/IGameSessionRepository";
+import { IGameAnswerRepository } from "@/domain/repositories/IGameAnswerRepository";
+import { IGamePrizeRepository } from "@/domain/repositories/IGamePrizeRepository";
 
 // Ports (Interfaces de serviços)
-import { IActivityLogger } from '@/application/ports/IActivityLogger';
+import { IActivityLogger } from "@/application/ports/IActivityLogger";
 
 // Implementações Supabase
-import { SupabaseOrderRepositoryOptimized as SupabaseOrderRepository } from '@/infrastructure/repositories/SupabaseOrderRepository.optimized';
-import { SupabaseProductRepository } from '@/infrastructure/repositories/SupabaseProductRepository';
-import { SupabaseCategoryRepository } from '@/infrastructure/repositories/SupabaseCategoryRepository';
-import { SupabaseSessionRepository } from '@/infrastructure/repositories/SupabaseSessionRepository';
-import { SupabaseTableRepository } from '@/infrastructure/repositories/SupabaseTableRepository';
-import { SupabaseStaffRepository } from '@/infrastructure/repositories/SupabaseStaffRepository';
-import { SupabaseReservationRepository } from '@/infrastructure/repositories/SupabaseReservationRepository';
-import { SupabaseRestaurantClosureRepository } from '@/infrastructure/repositories/SupabaseRestaurantClosureRepository';
-import { SupabaseWaiterCallRepository } from '@/infrastructure/repositories/SupabaseWaiterCallRepository';
-import { SupabaseCustomerRepository } from '@/infrastructure/repositories/SupabaseCustomerRepository';
-import { SupabaseRestaurantRepository } from '@/infrastructure/repositories/SupabaseRestaurantRepository';
-import { SupabaseGameQuestionRepository } from '@/infrastructure/repositories/SupabaseGameQuestionRepository';
-import { SupabaseGameSessionRepository } from '@/infrastructure/repositories/SupabaseGameSessionRepository';
-import { SupabaseGameAnswerRepository } from '@/infrastructure/repositories/SupabaseGameAnswerRepository';
-import { SupabaseGamePrizeRepository } from '@/infrastructure/repositories/SupabaseGamePrizeRepository';
+import { SupabaseOrderRepositoryOptimized as SupabaseOrderRepository } from "@/infrastructure/repositories/SupabaseOrderRepository.optimized";
+import { SupabaseProductRepository } from "@/infrastructure/repositories/SupabaseProductRepository";
+import { SupabaseCategoryRepository } from "@/infrastructure/repositories/SupabaseCategoryRepository";
+import { SupabaseSessionRepository } from "@/infrastructure/repositories/SupabaseSessionRepository";
+import { SupabaseTableRepository } from "@/infrastructure/repositories/SupabaseTableRepository";
+import { SupabaseStaffRepository } from "@/infrastructure/repositories/SupabaseStaffRepository";
+import { SupabaseReservationRepository } from "@/infrastructure/repositories/SupabaseReservationRepository";
+import { SupabaseRestaurantClosureRepository } from "@/infrastructure/repositories/SupabaseRestaurantClosureRepository";
+import { SupabaseWaiterCallRepository } from "@/infrastructure/repositories/SupabaseWaiterCallRepository";
+import { SupabaseCustomerRepository } from "@/infrastructure/repositories/SupabaseCustomerRepository";
+import { SupabaseRestaurantRepository } from "@/infrastructure/repositories/SupabaseRestaurantRepository";
+import { SupabaseGameQuestionRepository } from "@/infrastructure/repositories/SupabaseGameQuestionRepository";
+import { SupabaseGameSessionRepository } from "@/infrastructure/repositories/SupabaseGameSessionRepository";
+import { SupabaseGameAnswerRepository } from "@/infrastructure/repositories/SupabaseGameAnswerRepository";
+import { SupabaseGamePrizeRepository } from "@/infrastructure/repositories/SupabaseGamePrizeRepository";
 
 // Implementações de serviços
-import { ApiActivityLogger } from '@/infrastructure/services/ApiActivityLogger';
+import { ApiActivityLogger } from "@/infrastructure/services/ApiActivityLogger";
 
 // Use Cases - Orders
-import { GetKitchenOrdersUseCase } from '@/application/use-cases/orders/GetKitchenOrdersUseCase';
-import { GetSessionOrdersUseCase } from '@/application/use-cases/orders/GetSessionOrdersUseCase';
-import { UpdateOrderStatusUseCase } from '@/application/use-cases/orders/UpdateOrderStatusUseCase';
-import { CreateOrderUseCase } from '@/application/use-cases/orders/CreateOrderUseCase';
+import { GetKitchenOrdersUseCase } from "@/application/use-cases/orders/GetKitchenOrdersUseCase";
+import { GetSessionOrdersUseCase } from "@/application/use-cases/orders/GetSessionOrdersUseCase";
+import { UpdateOrderStatusUseCase } from "@/application/use-cases/orders/UpdateOrderStatusUseCase";
+import { CreateOrderUseCase } from "@/application/use-cases/orders/CreateOrderUseCase";
 
 // Use Cases - Sessions
-import { StartSessionUseCase } from '@/application/use-cases/sessions/StartSessionUseCase';
-import { AutoAssignWaiterUseCase } from '@/application/use-cases/sessions/AutoAssignWaiterUseCase';
-import { CloseSessionUseCase } from '@/application/use-cases/sessions/CloseSessionUseCase';
-import { RequestBillUseCase } from '@/application/use-cases/sessions/RequestBillUseCase';
-import { GetActiveSessionsUseCase } from '@/application/use-cases/sessions/GetActiveSessionsUseCase';
-import { UpdateSessionOrderingModeUseCase } from '@/application/use-cases/sessions/UpdateSessionOrderingModeUseCase';
+import { StartSessionUseCase } from "@/application/use-cases/sessions/StartSessionUseCase";
+import { AutoAssignWaiterUseCase } from "@/application/use-cases/sessions/AutoAssignWaiterUseCase";
+import { CloseSessionUseCase } from "@/application/use-cases/sessions/CloseSessionUseCase";
+import { RequestBillUseCase } from "@/application/use-cases/sessions/RequestBillUseCase";
+import { GetActiveSessionsUseCase } from "@/application/use-cases/sessions/GetActiveSessionsUseCase";
+import { UpdateSessionOrderingModeUseCase } from "@/application/use-cases/sessions/UpdateSessionOrderingModeUseCase";
 
 // Use Cases - Staff
 import {
@@ -71,7 +71,7 @@ import {
   UpdateStaffUseCase,
   DeleteStaffUseCase,
   GetAllRolesUseCase,
-} from '@/application/use-cases/staff';
+} from "@/application/use-cases/staff";
 
 // Use Cases - Reservations
 import {
@@ -79,7 +79,7 @@ import {
   CreateReservationUseCase,
   ConfirmReservationUseCase,
   CancelReservationUseCase,
-} from '@/application/use-cases/reservations';
+} from "@/application/use-cases/reservations";
 
 // Use Cases - Closures
 import {
@@ -87,7 +87,7 @@ import {
   CreateClosureUseCase,
   DeleteClosureUseCase,
   CheckClosureUseCase,
-} from '@/application/use-cases/closures';
+} from "@/application/use-cases/closures";
 
 // Use Cases - WaiterCalls
 import {
@@ -95,7 +95,7 @@ import {
   GetPendingWaiterCallsUseCase,
   AcknowledgeWaiterCallUseCase,
   CompleteWaiterCallUseCase,
-} from '@/application/use-cases/waiter-calls';
+} from "@/application/use-cases/waiter-calls";
 
 // Use Cases - Customers
 import {
@@ -103,7 +103,7 @@ import {
   CreateCustomerUseCase,
   UpdateCustomerUseCase,
   AddCustomerPointsUseCase,
-} from '@/application/use-cases/customers';
+} from "@/application/use-cases/customers";
 
 // Use Cases - Games
 import {
@@ -113,7 +113,7 @@ import {
   GetGameLeaderboardUseCase,
   GetGameConfigUseCase,
   RedeemGamePrizeUseCase,
-} from '@/application/use-cases/games';
+} from "@/application/use-cases/games";
 
 /**
  * Interface das dependências disponíveis
@@ -229,7 +229,8 @@ export function DependencyProvider({
       customDependencies?.productRepository || new SupabaseProductRepository();
 
     const categoryRepository =
-      customDependencies?.categoryRepository || new SupabaseCategoryRepository();
+      customDependencies?.categoryRepository ||
+      new SupabaseCategoryRepository();
 
     const sessionRepository =
       customDependencies?.sessionRepository || new SupabaseSessionRepository();
@@ -241,31 +242,40 @@ export function DependencyProvider({
       customDependencies?.staffRepository || new SupabaseStaffRepository();
 
     const reservationRepository =
-      customDependencies?.reservationRepository || new SupabaseReservationRepository();
+      customDependencies?.reservationRepository ||
+      new SupabaseReservationRepository();
 
     const closureRepository =
-      customDependencies?.closureRepository || new SupabaseRestaurantClosureRepository();
+      customDependencies?.closureRepository ||
+      new SupabaseRestaurantClosureRepository();
 
     const waiterCallRepository =
-      customDependencies?.waiterCallRepository || new SupabaseWaiterCallRepository();
+      customDependencies?.waiterCallRepository ||
+      new SupabaseWaiterCallRepository();
 
     const customerRepository =
-      customDependencies?.customerRepository || new SupabaseCustomerRepository();
+      customDependencies?.customerRepository ||
+      new SupabaseCustomerRepository();
 
     const restaurantRepository =
-      customDependencies?.restaurantRepository || new SupabaseRestaurantRepository();
+      customDependencies?.restaurantRepository ||
+      new SupabaseRestaurantRepository();
 
     const gameQuestionRepository =
-      customDependencies?.gameQuestionRepository || new SupabaseGameQuestionRepository();
+      customDependencies?.gameQuestionRepository ||
+      new SupabaseGameQuestionRepository();
 
     const gameSessionRepository =
-      customDependencies?.gameSessionRepository || new SupabaseGameSessionRepository();
+      customDependencies?.gameSessionRepository ||
+      new SupabaseGameSessionRepository();
 
     const gameAnswerRepository =
-      customDependencies?.gameAnswerRepository || new SupabaseGameAnswerRepository();
+      customDependencies?.gameAnswerRepository ||
+      new SupabaseGameAnswerRepository();
 
     const gamePrizeRepository =
-      customDependencies?.gamePrizeRepository || new SupabaseGamePrizeRepository();
+      customDependencies?.gamePrizeRepository ||
+      new SupabaseGamePrizeRepository();
 
     // Criar use cases - Orders
     const getKitchenOrders =
@@ -293,11 +303,19 @@ export function DependencyProvider({
 
     const startSession =
       customDependencies?.startSession ||
-      new StartSessionUseCase(sessionRepository, tableRepository, autoAssignWaiter);
+      new StartSessionUseCase(
+        sessionRepository,
+        tableRepository,
+        autoAssignWaiter,
+      );
 
     const closeSession =
       customDependencies?.closeSession ||
-      new CloseSessionUseCase(sessionRepository, orderRepository, tableRepository);
+      new CloseSessionUseCase(
+        sessionRepository,
+        orderRepository,
+        tableRepository,
+      );
 
     const requestBill =
       customDependencies?.requestBill ||
@@ -399,7 +417,10 @@ export function DependencyProvider({
     // Criar use cases - Games
     const startGameSession =
       customDependencies?.startGameSession ||
-      new StartGameSessionUseCase(gameSessionRepository, gameQuestionRepository);
+      new StartGameSessionUseCase(
+        gameSessionRepository,
+        gameQuestionRepository,
+      );
 
     const submitGameAnswer =
       customDependencies?.submitGameAnswer ||
@@ -407,7 +428,11 @@ export function DependencyProvider({
 
     const completeGameSession =
       customDependencies?.completeGameSession ||
-      new CompleteGameSessionUseCase(gameSessionRepository, gameAnswerRepository, gamePrizeRepository);
+      new CompleteGameSessionUseCase(
+        gameSessionRepository,
+        gameAnswerRepository,
+        gamePrizeRepository,
+      );
 
     const getGameLeaderboard =
       customDependencies?.getGameLeaderboard ||
@@ -423,8 +448,7 @@ export function DependencyProvider({
 
     // Criar services
     const activityLogger =
-      customDependencies?.activityLogger ||
-      new ApiActivityLogger();
+      customDependencies?.activityLogger || new ApiActivityLogger();
 
     const updateSessionOrderingMode =
       customDependencies?.updateSessionOrderingMode ||
@@ -524,7 +548,7 @@ export function useDependencies(): Dependencies {
 
   if (!context) {
     throw new Error(
-      'useDependencies deve ser usado dentro de um DependencyProvider'
+      "useDependencies deve ser usado dentro de um DependencyProvider",
     );
   }
 

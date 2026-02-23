@@ -75,7 +75,7 @@ export default function MesaPage() {
   const [activeTab, setActiveTab] = useState<Tab>("menu");
   const [orderType, setOrderType] = useState<OrderType>(null);
   const [numPessoas, setNumPessoas] = useState(2);
-  const [isLunch, setIsLunch] = useState(() => {
+  const [isLunch, _setIsLunch] = useState(() => {
     const hour = new Date().getHours();
     return hour >= 11 && hour < 16;
   });
@@ -194,7 +194,7 @@ export default function MesaPage() {
     const stored = localStorage.getItem("mesa-device-id");
     if (stored) return stored;
 
-    const id = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const id = `device-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     localStorage.setItem("mesa-device-id", id);
     return id;
   });
@@ -1077,18 +1077,6 @@ export default function MesaPage() {
     syncToLoyaltyCustomer,
     sendVerificationCode,
   ]);
-
-  // Select existing customer
-  const selectCustomer = useCallback(
-    (customer: SessionCustomer) => {
-      if (session?.id) {
-        setCurrentCustomer(customer);
-        localStorage.setItem(`customer_${session.id}`, customer.id);
-        setShowCustomerModal(false);
-      }
-    },
-    [session?.id],
-  );
 
   // Submit order
   const submitOrder = useCallback(async () => {
@@ -3973,7 +3961,7 @@ export default function MesaPage() {
       )}
 
       {/* Custom Styles */}
-      <style jsx>{`
+      <style>{`
         @keyframes slide-up {
           from {
             transform: translateY(100%);

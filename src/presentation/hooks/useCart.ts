@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useCart - Hook para gestão do carrinho de compras
@@ -10,17 +10,17 @@
  * - Delegação de mutações ao CartService
  */
 
-import { useState, useCallback, useMemo } from 'react';
-import { CartService } from '@/domain/services/CartService';
-import { CartItem } from '@/domain/entities/CartItem';
-import type { Product } from '@/domain/entities/Product';
+import { useState, useCallback, useMemo } from "react";
+import { CartService } from "@/domain/services/CartService";
+import { CartItem } from "@/domain/entities/CartItem";
+import type { Product } from "@/domain/entities/Product";
 
 /**
  * Opções do hook
  */
 export interface UseCartOptions {
   /** Tipo de pedido: rodizio, carta, ou null (ainda não selecionado) */
-  orderType: 'rodizio' | 'carta' | null;
+  orderType: "rodizio" | "carta" | null;
   /** Se é hora de almoço (afeta preço do rodízio) */
   isLunch: boolean;
   /** Número de pessoas na mesa */
@@ -34,15 +34,15 @@ export interface UseCartResult {
   /** Itens atuais no carrinho */
   cart: CartItem[];
   /** Adiciona um produto ao carrinho */
-  addToCart: (product: Product, addedBy: string) => void;
+  addToCart: (_product: Product, _addedBy: string) => void;
   /** Remove um produto do carrinho */
-  removeFromCart: (productId: string) => void;
+  removeFromCart: (_productId: string) => void;
   /** Atualiza a quantidade de um item */
-  updateQuantity: (productId: string, newQuantity: number) => void;
+  updateQuantity: (_productId: string, _newQuantity: number) => void;
   /** Atualiza as notas de um item */
-  updateNotes: (productId: string, notes: string) => void;
+  updateNotes: (_productId: string, _notes: string) => void;
   /** Retorna a quantidade de um produto no carrinho */
-  getCartQuantity: (productId: string) => number;
+  getCartQuantity: (_productId: string) => number;
   /** Limpa todo o carrinho */
   clearCart: () => void;
   /** Total dos extras (exclui itens rodízio em modo rodízio) */
@@ -56,7 +56,7 @@ export interface UseCartResult {
   /** ID do produto com notas em edição (ou null) */
   editingNotes: string | null;
   /** Define qual produto está com notas em edição */
-  setEditingNotes: (productId: string | null) => void;
+  setEditingNotes: (_productId: string | null) => void;
 }
 
 /**
@@ -72,25 +72,28 @@ export function useCart(options: UseCartOptions): UseCartResult {
   // Preço do rodízio (memoizado)
   const rodizioPrice = useMemo(
     () => CartService.getRodizioPrice(isLunch),
-    [isLunch]
+    [isLunch],
   );
 
   // Total dos extras (memoizado)
   const cartTotal = useMemo(
-    () => CartService.calculateExtrasTotal(cart, orderType === 'rodizio'),
-    [cart, orderType]
+    () => CartService.calculateExtrasTotal(cart, orderType === "rodizio"),
+    [cart, orderType],
   );
 
   // Contagem de itens (memoizado)
-  const cartItemsCount = useMemo(
-    () => CartService.countItems(cart),
-    [cart]
-  );
+  const cartItemsCount = useMemo(() => CartService.countItems(cart), [cart]);
 
   // Total final (memoizado)
   const finalTotal = useMemo(
-    () => CartService.calculateFinalTotal(cartTotal, orderType, rodizioPrice, numPessoas),
-    [cartTotal, orderType, rodizioPrice, numPessoas]
+    () =>
+      CartService.calculateFinalTotal(
+        cartTotal,
+        orderType,
+        rodizioPrice,
+        numPessoas,
+      ),
+    [cartTotal, orderType, rodizioPrice, numPessoas],
   );
 
   /**
@@ -110,9 +113,14 @@ export function useCart(options: UseCartOptions): UseCartResult {
   /**
    * Atualiza a quantidade de um item
    */
-  const updateQuantity = useCallback((productId: string, newQuantity: number) => {
-    setCart((prev) => CartService.updateItemQuantity(prev, productId, newQuantity));
-  }, []);
+  const updateQuantity = useCallback(
+    (productId: string, newQuantity: number) => {
+      setCart((prev) =>
+        CartService.updateItemQuantity(prev, productId, newQuantity),
+      );
+    },
+    [],
+  );
 
   /**
    * Atualiza as notas de um item
@@ -128,7 +136,7 @@ export function useCart(options: UseCartOptions): UseCartResult {
     (productId: string): number => {
       return CartService.getItemQuantity(cart, productId);
     },
-    [cart]
+    [cart],
   );
 
   /**

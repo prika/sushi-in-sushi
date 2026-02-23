@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from "react";
 
 export interface UseOrderCooldownOptions {
   sessionOrders: Array<{ created_at: string }>;
@@ -43,7 +43,7 @@ export function useOrderCooldown({
   }, [cooldownMinutes, mostRecentOrderTime]);
 
   const [remainingSeconds, setRemainingSeconds] = useState<number>(() =>
-    calculateRemaining()
+    calculateRemaining(),
   );
 
   // Recalculate when inputs change
@@ -72,11 +72,11 @@ export function useOrderCooldown({
   const isCooldownActive = remainingSeconds > 0;
 
   const remainingFormatted = useMemo(() => {
-    if (remainingSeconds <= 0) return '0:00';
+    if (remainingSeconds <= 0) return "0:00";
 
     const minutes = Math.floor(remainingSeconds / 60);
     const seconds = remainingSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   }, [remainingSeconds]);
 
   const progress = useMemo(() => {

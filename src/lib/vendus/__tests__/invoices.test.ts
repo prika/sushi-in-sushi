@@ -1272,7 +1272,7 @@ describe("getInvoices", () => {
 
   it("applies locationSlug and status filters", async () => {
     const mockInvoices = [{ id: "inv-1" }];
-    let appliedFilters: Array<{ col: string; val: unknown }> = [];
+    const appliedFilters: Array<{ col: string; val: unknown }> = [];
 
     const supabase = {
       from: (table: string) => {

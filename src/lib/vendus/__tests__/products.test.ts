@@ -11,7 +11,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { syncProducts } from "../products";
+import {
+  syncProducts,
+  getProductSyncStatus,
+  markProductForSync,
+  getProductsWithSyncStatus,
+  getProductSyncStats,
+} from "../products";
 import type { VendusProductsResponse } from "../types";
 
 // Mock dependencies
@@ -1327,7 +1333,7 @@ describe("syncProducts - pull edge cases", () => {
       ],
     };
 
-    let updateData: unknown = null;
+    const updateData: unknown = null;
     const supabase = createSupabaseMock({
       firstCategory: { id: "cat-1" },
       allProducts: [
@@ -3173,13 +3179,6 @@ describe("syncProducts - remaining branch coverage", () => {
 // =============================================
 // HELPER FUNCTIONS TESTS
 // =============================================
-
-import {
-  getProductSyncStatus,
-  markProductForSync,
-  getProductsWithSyncStatus,
-  getProductSyncStats,
-} from "../products";
 
 describe("getProductSyncStatus", () => {
   beforeEach(() => {

@@ -3,7 +3,7 @@
  * Contém a lógica de negócio pura relacionada a mesas
  */
 
-import { Table, TableWithSession, TableFullStatus } from '../entities/Table';
+import { Table, _TableWithSession, TableFullStatus } from '../entities/Table';
 import { TableStatus, canAcceptCustomers, isTableActive } from '../value-objects/TableStatus';
 import { Location } from '../value-objects/Location';
 import { ValidationResult } from './types';

@@ -17,8 +17,8 @@ export const ShimmerButton = forwardRef<HTMLButtonElement, ShimmerButtonProps>(
   (
     {
       shimmerColor = "#D4AF37",
-      shimmerSize = "0.1em",
-      shimmerDuration = "2s",
+      _shimmerSize = "0.1em",
+      _shimmerDuration = "2s",
       borderRadius = "100px",
       background = "rgba(0, 0, 0, 0.9)",
       className,

@@ -200,14 +200,14 @@ describe('POST /api/mesa/ratings', () => {
 
     it('requer productId', () => {
       const body = { sessionId: 'session-1', rating: 5 };
-      const isValid = body.productId != null;
+      const isValid = body.productId !== null && body.productId !== undefined;
 
       expect(isValid).toBe(false);
     });
 
     it('requer rating', () => {
       const body = { sessionId: 'session-1', productId: 1 };
-      const isValid = (body as any).rating != null;
+      const isValid = (body as any).rating !== null && (body as any).rating !== undefined;
 
       expect(isValid).toBe(false);
     });

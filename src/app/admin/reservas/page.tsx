@@ -14,8 +14,6 @@ import {
   Check,
   X,
   Filter,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import type { ReservationStatus, Location } from "@/types/database";
 
@@ -482,7 +480,7 @@ function ReservationCard({
 
   return (
     <>
-      <style jsx>{`
+      <style>{`
         @keyframes pulse-border {
           0%, 100% { border-color: rgb(253 224 71); }
           50% { border-color: rgb(250 204 21); }
@@ -576,9 +574,9 @@ function ReservationModal({
   reservation: Reservation;
   onClose: () => void;
   onUpdateStatus: (
-    id: string,
-    status: ReservationStatus,
-    reason?: string
+    _id: string,
+    _status: ReservationStatus,
+    _reason?: string
   ) => Promise<void>;
   isUpdating: boolean;
 }) {

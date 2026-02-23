@@ -33,17 +33,17 @@ export interface UseClosuresResult {
   isLoading: boolean;
   error: string | null;
   create: (
-    data: CreateClosureData,
-    createdBy?: string,
+    _data: CreateClosureData,
+    _createdBy?: string,
   ) => Promise<RestaurantClosure | null>;
   update: (
-    id: number,
-    data: UpdateClosureData,
+    _id: number,
+    _data: UpdateClosureData,
   ) => Promise<RestaurantClosure | null>;
-  remove: (id: number) => Promise<boolean>;
+  remove: (_id: number) => Promise<boolean>;
   checkClosure: (
-    date: string,
-    location?: string,
+    _date: string,
+    _location?: string,
   ) => Promise<ClosureCheckResult>;
   refresh: () => Promise<void>;
 }
@@ -79,7 +79,14 @@ export function useClosures(
     };
   }
 
-  const { getAllClosures, getRecurringClosures, createClosure, updateClosure, deleteClosure, checkClosureUseCase } = useCasesRef.current;
+  const {
+    getAllClosures,
+    getRecurringClosures,
+    createClosure,
+    updateClosure,
+    deleteClosure,
+    checkClosureUseCase,
+  } = useCasesRef.current;
 
   const fetchClosures = useCallback(async () => {
     setIsLoading(true);

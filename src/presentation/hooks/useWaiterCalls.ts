@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
 /**
  * useWaiterCalls - Hook para gestão de chamadas de empregado
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { SupabaseWaiterCallRepository } from '@/infrastructure/repositories/SupabaseWaiterCallRepository';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { SupabaseWaiterCallRepository } from "@/infrastructure/repositories/SupabaseWaiterCallRepository";
 import {
   WaiterCall,
   WaiterCallWithDetails,
   CreateWaiterCallData,
   WaiterCallFilter,
-} from '@/domain/entities/WaiterCall';
+} from "@/domain/entities/WaiterCall";
 import {
   GetAllWaiterCallsUseCase,
   GetPendingWaiterCallsUseCase,
@@ -19,7 +19,7 @@ import {
   AcknowledgeWaiterCallUseCase,
   CompleteWaiterCallUseCase,
   CancelWaiterCallUseCase,
-} from '@/application/use-cases/waiter-calls';
+} from "@/application/use-cases/waiter-calls";
 
 export interface UseWaiterCallsOptions {
   filter?: WaiterCallFilter;
@@ -32,14 +32,16 @@ export interface UseWaiterCallsResult {
   calls: WaiterCallWithDetails[];
   isLoading: boolean;
   error: string | null;
-  create: (data: CreateWaiterCallData) => Promise<WaiterCall | null>;
-  acknowledge: (id: string, staffId: string) => Promise<WaiterCall | null>;
-  complete: (id: string) => Promise<WaiterCall | null>;
-  cancel: (id: string) => Promise<WaiterCall | null>;
+  create: (_data: CreateWaiterCallData) => Promise<WaiterCall | null>;
+  acknowledge: (_id: string, _staffId: string) => Promise<WaiterCall | null>;
+  complete: (_id: string) => Promise<WaiterCall | null>;
+  cancel: (_id: string) => Promise<WaiterCall | null>;
   refresh: () => Promise<void>;
 }
 
-export function useWaiterCalls(options: UseWaiterCallsOptions = {}): UseWaiterCallsResult {
+export function useWaiterCalls(
+  options: UseWaiterCallsOptions = {},
+): UseWaiterCallsResult {
   const { filter, autoLoad = true, pendingOnly = false, location } = options;
 
   const [calls, setCalls] = useState<WaiterCallWithDetails[]>([]);
@@ -68,7 +70,14 @@ export function useWaiterCalls(options: UseWaiterCallsOptions = {}): UseWaiterCa
     };
   }
 
-  const { getAllCalls, getPendingCalls, createCall, acknowledgeCall, completeCall, cancelCall } = useCasesRef.current;
+  const {
+    getAllCalls,
+    getPendingCalls,
+    createCall,
+    acknowledgeCall,
+    completeCall,
+    cancelCall,
+  } = useCasesRef.current;
 
   const fetchCalls = useCallback(async () => {
     setIsLoading(true);
@@ -85,55 +94,69 @@ export function useWaiterCalls(options: UseWaiterCallsOptions = {}): UseWaiterCa
         setError(result.error);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar chamadas');
+      setError(
+        err instanceof Error ? err.message : "Erro ao carregar chamadas",
+      );
     } finally {
       setIsLoading(false);
     }
   }, [filter, pendingOnly, location, getAllCalls, getPendingCalls]);
 
-  const create = useCallback(async (data: CreateWaiterCallData): Promise<WaiterCall | null> => {
-    setError(null);
-    const result = await createCall.execute(data);
-    if (result.success) {
-      await fetchCalls();
-      return result.data;
-    }
-    setError(result.error);
-    return null;
-  }, [createCall, fetchCalls]);
+  const create = useCallback(
+    async (data: CreateWaiterCallData): Promise<WaiterCall | null> => {
+      setError(null);
+      const result = await createCall.execute(data);
+      if (result.success) {
+        await fetchCalls();
+        return result.data;
+      }
+      setError(result.error);
+      return null;
+    },
+    [createCall, fetchCalls],
+  );
 
-  const acknowledge = useCallback(async (id: string, staffId: string): Promise<WaiterCall | null> => {
-    setError(null);
-    const result = await acknowledgeCall.execute(id, staffId);
-    if (result.success) {
-      await fetchCalls();
-      return result.data;
-    }
-    setError(result.error);
-    return null;
-  }, [acknowledgeCall, fetchCalls]);
+  const acknowledge = useCallback(
+    async (id: string, staffId: string): Promise<WaiterCall | null> => {
+      setError(null);
+      const result = await acknowledgeCall.execute(id, staffId);
+      if (result.success) {
+        await fetchCalls();
+        return result.data;
+      }
+      setError(result.error);
+      return null;
+    },
+    [acknowledgeCall, fetchCalls],
+  );
 
-  const complete = useCallback(async (id: string): Promise<WaiterCall | null> => {
-    setError(null);
-    const result = await completeCall.execute(id);
-    if (result.success) {
-      await fetchCalls();
-      return result.data;
-    }
-    setError(result.error);
-    return null;
-  }, [completeCall, fetchCalls]);
+  const complete = useCallback(
+    async (id: string): Promise<WaiterCall | null> => {
+      setError(null);
+      const result = await completeCall.execute(id);
+      if (result.success) {
+        await fetchCalls();
+        return result.data;
+      }
+      setError(result.error);
+      return null;
+    },
+    [completeCall, fetchCalls],
+  );
 
-  const cancel = useCallback(async (id: string): Promise<WaiterCall | null> => {
-    setError(null);
-    const result = await cancelCall.execute(id);
-    if (result.success) {
-      await fetchCalls();
-      return result.data;
-    }
-    setError(result.error);
-    return null;
-  }, [cancelCall, fetchCalls]);
+  const cancel = useCallback(
+    async (id: string): Promise<WaiterCall | null> => {
+      setError(null);
+      const result = await cancelCall.execute(id);
+      if (result.success) {
+        await fetchCalls();
+        return result.data;
+      }
+      setError(result.error);
+      return null;
+    },
+    [cancelCall, fetchCalls],
+  );
 
   useEffect(() => {
     if (autoLoad) {

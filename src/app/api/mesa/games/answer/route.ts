@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
     if (
       !gameSessionId ||
       !gameType ||
-      answer == null ||
-      (!questionId && productId == null)
+      answer === null ||
+      (!questionId && productId === null)
     ) {
       return NextResponse.json(
         {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       gameSessionId,
       sessionCustomerId: sessionCustomerId || null,
       questionId: questionId || null,
-      productId: productId != null ? Number(productId) : null,
+      productId: productId !== null ? Number(productId) : null,
       gameType,
       answer,
       questionPoints: questionPoints || 10,
@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
     }
 
     // For tinder game type, also write to product_ratings for backwards compatibility
-    if (gameType === "tinder" && sessionId && productId != null) {
-      if (answer == null || typeof answer !== "object") {
+    if (gameType === "tinder" && sessionId && productId !== null) {
+      if (answer === null || typeof answer !== "object") {
         return NextResponse.json(
           { error: "Para o jogo tinder, answer deve ser um objeto com rating" },
           { status: 400 },

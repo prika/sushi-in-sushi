@@ -22,3 +22,5 @@ export * from './IGameAnswerRepository';
 export * from './IGamePrizeRepository';
 export * from './IKitchenMetricsRepository';
 export * from './IKitchenZoneRepository';
+export * from './IIngredientRepository';
+export * from './IProductIngredientRepository';

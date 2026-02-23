@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { sessionId, sessionCustomerId, productId, orderId, rating } = body;
 
-    if (!sessionId || productId == null || rating == null) {
+    if (!sessionId || productId === null || rating === null) {
       return NextResponse.json(
         { error: "sessionId, productId e rating são obrigatórios" },
         { status: 400 }

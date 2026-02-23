@@ -384,7 +384,6 @@ describe('SupabaseProductRepository', () => {
         sortOrder: 1,
         serviceModes: ['dine_in'],
         servicePrices: { dine_in: 4.50 },
-        ingredients: [{ name: 'Salmon', quantity: '50', unit: 'g' }],
       });
 
       expect(result.id).toBe('new-prod');
@@ -400,7 +399,6 @@ describe('SupabaseProductRepository', () => {
         sort_order: 1,
         service_modes: ['dine_in'],
         service_prices: { dine_in: 4.50 },
-        ingredients: [{ name: 'Salmon', quantity: '50', unit: 'g' }],
       });
       expect(builder.select).toHaveBeenCalled();
       expect(builder.single).toHaveBeenCalled();
@@ -463,7 +461,6 @@ describe('SupabaseProductRepository', () => {
           sort_order: 0,
           service_modes: [],
           service_prices: {},
-          ingredients: [],
         })
       );
     });
@@ -561,7 +558,6 @@ describe('SupabaseProductRepository', () => {
         sortOrder: 99,
         serviceModes: ['delivery', 'takeaway'],
         servicePrices: { delivery: 12.00 },
-        ingredients: [{ name: 'Rice', quantity: '100', unit: 'g' }],
       });
 
       expect(builder.update).toHaveBeenCalledWith({
@@ -574,7 +570,6 @@ describe('SupabaseProductRepository', () => {
         sort_order: 99,
         service_modes: ['delivery', 'takeaway'],
         service_prices: { delivery: 12.00 },
-        ingredients: [{ name: 'Rice', quantity: '100', unit: 'g' }],
       });
     });
 

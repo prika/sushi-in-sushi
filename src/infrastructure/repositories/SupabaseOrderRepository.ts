@@ -22,7 +22,7 @@ import { OrderStatus } from '@/domain/value-objects/OrderStatus';
  */
 function getExtendedClient(client: SupabaseClient) {
   return client as unknown as {
-    from: (table: string) => ReturnType<typeof client.from>;
+    from: (_table: string) => ReturnType<typeof client.from>;
   };
 }
 
@@ -123,7 +123,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
   async findForKitchen(filter?: OrderFilter): Promise<KitchenOrder[]> {
     const statuses = filter?.statuses || ['pending', 'preparing', 'ready'];
 
-    let query = this.supabase
+    const query = this.supabase
       .from('orders')
       .select(`
         *,

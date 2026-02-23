@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useDependencies } from '../contexts/DependencyContext';
-import { KitchenOrderDTO } from '@/application/dto/OrderDTO';
-import { OrderStatus } from '@/domain/value-objects/OrderStatus';
-import { Location } from '@/types/database';
-import { useMemo, useRef, useEffect, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDependencies } from "../contexts/DependencyContext";
+import { KitchenOrderDTO } from "@/application/dto/OrderDTO";
+import { OrderStatus } from "@/domain/value-objects/OrderStatus";
+import { Location } from "@/types/database";
+import { useMemo, useRef, useEffect, useState } from "react";
 
 /**
  * OPTIMIZED: useKitchenOrders with React Query
@@ -35,16 +35,22 @@ interface UseKitchenOrdersOptions {
   userId?: string;
   autoRefetch?: boolean;
   refetchInterval?: number;
-  onNewOrder?: (order: KitchenOrderDTO) => void;
+  onNewOrder?: (_order: KitchenOrderDTO) => void;
 }
 
 export function useKitchenOrdersOptimized(
-  options: UseKitchenOrdersOptions = {}
+  options: UseKitchenOrdersOptions = {},
 ) {
   const { getKitchenOrders, updateOrderStatus } = useDependencies();
   const queryClient = useQueryClient();
 
-  const { location, userId, autoRefetch = true, refetchInterval = 10000, onNewOrder } = options;
+  const {
+    location,
+    userId,
+    autoRefetch = true,
+    refetchInterval = 10000,
+    onNewOrder,
+  } = options;
 
   // Track previous order IDs to detect new orders
   const previousOrderIds = useRef<Set<string>>(new Set());
@@ -57,15 +63,15 @@ export function useKitchenOrdersOptimized(
     error,
     refetch,
   } = useQuery({
-    queryKey: ['kitchen-orders', location],
+    queryKey: ["kitchen-orders", location],
     queryFn: async () => {
       const result = await getKitchenOrders.execute({
-        statuses: ['pending', 'preparing', 'ready'],
+        statuses: ["pending", "preparing", "ready"],
         location,
       });
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch kitchen orders');
+        throw new Error(result.error || "Failed to fetch kitchen orders");
       }
 
       return result.data;
@@ -82,7 +88,7 @@ export function useKitchenOrdersOptimized(
   const orders = useMemo(() => response?.orders || [], [response?.orders]);
   const byStatus = useMemo(
     () => response?.byStatus || { pending: [], preparing: [], ready: [] },
-    [response?.byStatus]
+    [response?.byStatus],
   );
   const counts = useMemo(
     () =>
@@ -94,7 +100,7 @@ export function useKitchenOrdersOptimized(
         delivered: 0,
         cancelled: 0,
       },
-    [response?.counts]
+    [response?.counts],
   );
 
   // Detect new orders and trigger callback
@@ -144,24 +150,32 @@ export function useKitchenOrdersOptimized(
       });
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to update order status');
+        throw new Error(result.error || "Failed to update order status");
       }
 
       return result.data;
     },
     onMutate: async ({ orderId, newStatus }) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['kitchen-orders'] });
+      await queryClient.cancelQueries({ queryKey: ["kitchen-orders"] });
 
       // Snapshot previous value
       const previousResponse = queryClient.getQueryData([
-        'kitchen-orders',
+        "kitchen-orders",
         location,
       ]);
 
       // Optimistically update UI (update orders in response)
-      if (previousResponse && typeof previousResponse === 'object' && 'orders' in previousResponse) {
-        const typedResponse = previousResponse as { orders: KitchenOrderDTO[]; byStatus: any; counts: any };
+      if (
+        previousResponse &&
+        typeof previousResponse === "object" &&
+        "orders" in previousResponse
+      ) {
+        const typedResponse = previousResponse as {
+          orders: KitchenOrderDTO[];
+          byStatus: any;
+          counts: any;
+        };
 
         // Update the order status and set timestamps
         const now = new Date().toISOString();
@@ -171,13 +185,13 @@ export function useKitchenOrdersOptimized(
           const updated = {
             ...order,
             status: newStatus,
-            updatedAt: now
+            updatedAt: now,
           };
 
           // Set timestamps based on new status
-          if (newStatus === 'preparing') {
+          if (newStatus === "preparing") {
             updated.preparingStartedAt = now;
-          } else if (newStatus === 'ready') {
+          } else if (newStatus === "ready") {
             updated.readyAt = now;
           }
           // Note: deliveredAt not set here as KitchenOrderDTO doesn't include it
@@ -188,9 +202,9 @@ export function useKitchenOrdersOptimized(
 
         // Recalculate byStatus and counts from updated orders
         const newByStatus = {
-          pending: updatedOrders.filter((o) => o.status === 'pending'),
-          preparing: updatedOrders.filter((o) => o.status === 'preparing'),
-          ready: updatedOrders.filter((o) => o.status === 'ready'),
+          pending: updatedOrders.filter((o) => o.status === "pending"),
+          preparing: updatedOrders.filter((o) => o.status === "preparing"),
+          ready: updatedOrders.filter((o) => o.status === "ready"),
         };
 
         const newCounts = {
@@ -209,7 +223,7 @@ export function useKitchenOrdersOptimized(
           counts: newCounts,
         };
 
-        queryClient.setQueryData(['kitchen-orders', location], updated);
+        queryClient.setQueryData(["kitchen-orders", location], updated);
       }
 
       return { previousResponse };
@@ -218,14 +232,14 @@ export function useKitchenOrdersOptimized(
       // Rollback optimistic update on error
       if (context?.previousResponse) {
         queryClient.setQueryData(
-          ['kitchen-orders', location],
-          context.previousResponse
+          ["kitchen-orders", location],
+          context.previousResponse,
         );
       }
     },
     onSettled: () => {
       // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['kitchen-orders'] });
+      queryClient.invalidateQueries({ queryKey: ["kitchen-orders"] });
     },
   });
 
@@ -252,7 +266,7 @@ export function useKitchenOrdersOptimized(
         ? Math.floor(
             (Date.now() - new Date(byStatus.pending[0].createdAt).getTime()) /
               1000 /
-              60
+              60,
           )
         : 0;
 

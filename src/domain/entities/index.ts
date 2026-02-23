@@ -23,3 +23,5 @@ export * from './GameAnswer';
 export * from './GamePrize';
 export * from './KitchenMetrics';
 export * from './KitchenZone';
+export * from './Ingredient';
+export * from './ProductIngredient';

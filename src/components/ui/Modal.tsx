@@ -87,7 +87,7 @@ export function Modal({
         <div className="px-6 py-4">{children}</div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes modal-in {
           from {
             opacity: 0;

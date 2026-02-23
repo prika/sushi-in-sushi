@@ -6,7 +6,8 @@
 /**
  * Entidade Product - Representa um item do menu
  */
-export interface Ingredient {
+/** @deprecated Use Ingredient from '@/domain/entities/Ingredient' for catalog items */
+export interface LegacyIngredient {
   name: string;
   quantity: string;
   unit: string;
@@ -29,8 +30,8 @@ export interface Product {
   serviceModes: string[];
   /** Per-service-mode price overrides. Keys match serviceModes values. */
   servicePrices: Record<string, number>;
-  /** Product ingredients list */
-  ingredients: Ingredient[];
+  /** Legacy product ingredients (JSONB) */
+  ingredients: LegacyIngredient[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,7 +51,6 @@ export interface CreateProductData {
   sortOrder?: number;
   serviceModes?: string[];
   servicePrices?: Record<string, number>;
-  ingredients?: Ingredient[];
 }
 
 /**
@@ -68,7 +68,6 @@ export interface UpdateProductData {
   sortOrder?: number;
   serviceModes?: string[];
   servicePrices?: Record<string, number>;
-  ingredients?: Ingredient[];
 }
 
 /**

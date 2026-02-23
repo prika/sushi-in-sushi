@@ -4,9 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSound } from "@/hooks/useSound";
-import { useActivityLog, useLocations } from "@/presentation/hooks";
+import { useActivityLog, useLocations, useKitchenOrdersOptimized } from "@/presentation/hooks";
 import { useToast } from "@/components/ui";
-import { useKitchenOrdersOptimized } from "@/presentation/hooks";
 import type { KitchenOrderDTO } from "@/application/dto/OrderDTO";
 import type { OrderStatus } from "@/domain/value-objects/OrderStatus";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -209,12 +208,7 @@ export default function CozinhaPage() {
           message: message,
         });
 
-        console.info(
-          "[Kitchen] Notified waiter:",
-          order.waiterName || "",
-          "for order:",
-          order.id
-        );
+        // Notified waiter for order
         showToast("success", `Atendente ${order.waiterName || ""} notificado`);
       } catch (err) {
         console.error("Error notifying waiter:", err);
@@ -227,13 +221,6 @@ export default function CozinhaPage() {
   // Handle order status update with side effects
   const handleUpdateStatus = useCallback(
     async (order: KitchenOrderDTO, newStatus: OrderStatus) => {
-      console.info(
-        "[Kitchen] Updating order status:",
-        order.id,
-        "->",
-        newStatus
-      );
-
       try {
         await updateStatus(order.id, newStatus);
 
@@ -578,7 +565,7 @@ function Column({
   orders: KitchenOrderDTO[];
   newOrderIds: Set<string>;
   actionLabel: string | null;
-  onAction: (order: KitchenOrderDTO) => void;
+  onAction: (_order: KitchenOrderDTO) => void;
   onToggleVisibility?: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -595,12 +582,6 @@ function Column({
     yellow: "text-yellow-500",
     orange: "text-orange-500",
     green: "text-green-500",
-  };
-
-  const borderColorMap = {
-    red: "border-red-500",
-    yellow: "border-yellow-500",
-    green: "border-green-500",
   };
 
   return (
@@ -662,7 +643,7 @@ function Column({
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes pulse-once {
           0%,
           100% {
@@ -690,7 +671,7 @@ function OrderCard({
   order: KitchenOrderDTO;
   isNew: boolean;
   actionLabel: string | null;
-  onAction: (order: KitchenOrderDTO) => void;
+  onAction: (_order: KitchenOrderDTO) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: order.id,

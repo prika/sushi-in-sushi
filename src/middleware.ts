@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import createIntlMiddleware from "next-intl/middleware";
 import { jwtVerify } from "jose";
 import { routing } from "./i18n/routing";
@@ -91,7 +90,7 @@ async function verifyAuthSupabase(request: NextRequest): Promise<{
 }
 
 function getRouteConfig(
-  pathname: string
+  pathname: string,
 ): { roles: RoleName[]; redirect: string } | null {
   // Check each route prefix
   for (const [route, config] of Object.entries(ROUTE_CONFIG)) {

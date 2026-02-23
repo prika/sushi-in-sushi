@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useSessionManagement - Hook para gestão de sessões
@@ -7,16 +7,16 @@
  * usando a arquitectura em camadas.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useState, useEffect, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   useGetActiveSessionsUseCase,
   useStartSessionUseCase,
   useCloseSessionUseCase,
   useRequestBillUseCase,
-} from '../contexts/DependencyContext';
-import { SessionWithStats } from '@/application/use-cases/sessions/GetActiveSessionsUseCase';
-import { Location } from '@/types/database';
+} from "../contexts/DependencyContext";
+import { SessionWithStats } from "@/application/use-cases/sessions/GetActiveSessionsUseCase";
+import { Location } from "@/types/database";
 
 interface UseSessionManagementOptions {
   location?: Location;
@@ -34,22 +34,30 @@ interface UseSessionManagementReturn {
   isLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  startSession: (params: {
+  startSession: (_params: {
     tableId: string;
     isRodizio: boolean;
     numPeople: number;
   }) => Promise<{ success: boolean; error?: string }>;
-  closeSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
-  requestBill: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+  closeSession: (
+    _sessionId: string,
+  ) => Promise<{ success: boolean; error?: string }>;
+  requestBill: (
+    _sessionId: string,
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function useSessionManagement(
-  options: UseSessionManagementOptions = {}
+  options: UseSessionManagementOptions = {},
 ): UseSessionManagementReturn {
   const { location, enableRealtime = true, refreshInterval = 0 } = options;
 
   const [sessions, setSessions] = useState<SessionWithStats[]>([]);
-  const [counts, setCounts] = useState({ active: 0, pendingPayment: 0, total: 0 });
+  const [counts, setCounts] = useState({
+    active: 0,
+    pendingPayment: 0,
+    total: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,10 +76,10 @@ export function useSessionManagement(
         setCounts(result.data.counts);
         setError(null);
       } else {
-        setError(result.error || 'Erro ao carregar sessões');
+        setError(result.error || "Erro ao carregar sessões");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
       setIsLoading(false);
     }
@@ -97,13 +105,13 @@ export function useSessionManagement(
     const supabase = createClient();
 
     const channel = supabase
-      .channel('sessions-management')
+      .channel("sessions-management")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'sessions' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sessions" },
         () => {
           fetchSessions();
-        }
+        },
       )
       .subscribe();
 
@@ -113,7 +121,11 @@ export function useSessionManagement(
   }, [enableRealtime, fetchSessions]);
 
   const startSession = useCallback(
-    async (params: { tableId: string; isRodizio: boolean; numPeople: number }) => {
+    async (params: {
+      tableId: string;
+      isRodizio: boolean;
+      numPeople: number;
+    }) => {
       const result = await startSessionUseCase.execute(params);
 
       if (result.success) {
@@ -125,7 +137,7 @@ export function useSessionManagement(
         error: result.error,
       };
     },
-    [startSessionUseCase, fetchSessions]
+    [startSessionUseCase, fetchSessions],
   );
 
   const closeSession = useCallback(
@@ -141,7 +153,7 @@ export function useSessionManagement(
         error: result.error,
       };
     },
-    [closeSessionUseCase, fetchSessions]
+    [closeSessionUseCase, fetchSessions],
   );
 
   const requestBill = useCallback(
@@ -157,7 +169,7 @@ export function useSessionManagement(
         error: result.error,
       };
     },
-    [requestBillUseCase, fetchSessions]
+    [requestBillUseCase, fetchSessions],
   );
 
   return {

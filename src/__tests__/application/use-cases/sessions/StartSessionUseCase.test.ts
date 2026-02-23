@@ -149,6 +149,10 @@ describe("StartSessionUseCase", () => {
         currentSessionId: "existing-session",
       });
       vi.mocked(mockTableRepository.findById).mockResolvedValue(table);
+      // Sessão ativa existe — não é stale
+      vi.mocked(mockSessionRepository.findById).mockResolvedValue(
+        createTestSession({ id: "existing-session", status: "active" })
+      );
 
       const result = await useCase.execute({
         tableId: "table-1",

@@ -13,7 +13,6 @@ import type { GameAnswer } from "@/domain/entities/GameAnswer";
 import type { GamePrize as GamePrizeEntity } from "@/domain/entities/GamePrize";
 import type { LeaderboardEntry } from "@/domain/repositories/IGameAnswerRepository";
 import type { GamesMode, GameConfig } from "@/domain/value-objects/GameConfig";
-import type { OrderItem } from "./SwipeRatingGame";
 
 type GameFlowStep = "select" | "playing" | "leaderboard" | "prize";
 type GameChoice = "quiz" | "preference" | "tinder";
@@ -33,7 +32,7 @@ interface GameHubProps {
   totalRatingsAtTable: number;
   onRated: () => void;
   onClose: () => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: (_key: string, _params?: Record<string, string | number>) => string;
 }
 
 const ALL_GAME_CHOICES: GameChoice[] = ["quiz", "preference", "tinder"];

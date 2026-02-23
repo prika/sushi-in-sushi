@@ -1,16 +1,15 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import { useRequireWaiter } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import { useActivityLog } from "@/presentation/hooks";
-import { useTableManagement } from "@/presentation/hooks/useTableManagement";
 import { useSessionOrderingMode } from "@/presentation/hooks/useSessionOrderingMode";
 import { ORDERING_MODE_LABELS, ORDERING_MODE_ICONS, type OrderingMode } from "@/domain/value-objects/OrderingMode";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 import type { Table, Session, OrderWithProduct, Product, Category, WaiterCall } from "@/types/database";
 
 interface TableWithDetails extends Table {
@@ -24,6 +23,7 @@ export default function WaiterMesaPage() {
   const { user, isLoading: authLoading } = useRequireWaiter();
   const router = useRouter();
   const { logActivity } = useActivityLog();
+  const { showToast } = useToast();
   const [table, setTable] = useState<TableWithDetails | null>(null);
   const [orders, setOrders] = useState<OrderWithProduct[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -46,9 +46,8 @@ export default function WaiterMesaPage() {
   // Use memoized supabase client to prevent real-time subscription issues
   const supabase = useMemo(() => createClient(), []);
 
-  // Hooks for table management and ordering mode
-  const { startWalkInSession } = useTableManagement();
-  const { orderingMode, updateMode, isUpdating } = useSessionOrderingMode(
+  // Hook for ordering mode
+  const { orderingMode, updateMode } = useSessionOrderingMode(
     table?.activeSession?.id || null,
     table?.activeSession?.ordering_mode as OrderingMode
   );
@@ -88,7 +87,7 @@ export default function WaiterMesaPage() {
 
       // Check if table is from waiter's location
       if (user.location && tableData.location !== user.location) {
-        console.warn(`Waiter location mismatch: ${user.location} !== ${tableData.location}`);
+        // Waiter location mismatch — redirect
         router.push("/waiter");
         return;
       }
@@ -255,24 +254,45 @@ export default function WaiterMesaPage() {
   const handleStartSession = useCallback(async () => {
     if (!table || !user) return;
 
-    const result = await startWalkInSession(
-      table.id,
-      sessionForm.isRodizio,
-      sessionForm.numPeople
-    );
-
-    if (result.success) {
-      await logActivity("session_started", "session", result.sessionId || "", {
-        tableNumber: table.number,
-        location: table.location,
-        isRodizio: sessionForm.isRodizio,
-        numPeople: sessionForm.numPeople,
-        orderingMode: 'client',
+    try {
+      // Usar API route com admin client para contornar RLS
+      const response = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tableId: table.id,
+          isRodizio: sessionForm.isRodizio,
+          numPeople: sessionForm.numPeople,
+          orderingMode: "client",
+        }),
       });
-      setShowStartSessionModal(false);
-      fetchData(); // Refresh data
+
+      const data = await response.json();
+
+      if (response.ok && (data.session || data.recovered)) {
+        const sessionId = data.session?.id || "";
+        await logActivity("session_started", "session", sessionId, {
+          tableNumber: table.number,
+          location: table.location,
+          isRodizio: sessionForm.isRodizio,
+          numPeople: sessionForm.numPeople,
+          orderingMode: "client",
+          recovered: data.recovered || false,
+        });
+        setShowStartSessionModal(false);
+        if (data.recovered) {
+          showToast("info", "Sessão existente recuperada");
+        }
+        fetchData(); // Refresh data
+      } else {
+        console.error("[WaiterMesa] Erro ao iniciar sessão:", data.error);
+        showToast("error", data.error || "Erro ao iniciar sessão");
+      }
+    } catch (err) {
+      console.error("[WaiterMesa] Exceção ao iniciar sessão:", err);
+      showToast("error", "Erro inesperado ao iniciar sessão");
     }
-  }, [table, user, sessionForm, startWalkInSession, logActivity, fetchData]);
+  }, [table, user, sessionForm, logActivity, fetchData, showToast]);
 
   const handleToggleOrderingMode = useCallback(async () => {
     if (!table?.activeSession || !orderingMode) return;
@@ -754,7 +774,7 @@ function OrderCard({
   onStatusChange,
 }: {
   order: OrderWithProduct;
-  onStatusChange: (orderId: string, status: string) => void;
+  onStatusChange: (_orderId: string, _status: string) => void;
 }) {
   const statusColors: Record<string, string> = {
     pending: "bg-orange-500/20 text-orange-400",

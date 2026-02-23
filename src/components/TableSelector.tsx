@@ -11,7 +11,7 @@ interface TableData {
 interface TableSelectorProps {
   tables: TableData[];
   selectedId?: string | null;
-  onSelect: (tableId: string) => void;
+  onSelect: (_tableId: string) => void;
   showStatus?: boolean;
   disabled?: boolean;
 }

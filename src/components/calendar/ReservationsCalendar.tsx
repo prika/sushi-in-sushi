@@ -19,7 +19,7 @@ interface Reservation {
 interface ReservationsCalendarProps {
   reservations: Reservation[];
   selectedDate: string | null;
-  onDateSelect: (date: string) => void;
+  onDateSelect: (_date: string) => void;
 }
 
 // =============================================

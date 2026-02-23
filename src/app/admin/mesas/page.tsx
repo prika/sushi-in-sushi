@@ -99,7 +99,7 @@ export default function MesasPage() {
     // Combine tables with waiter info and real status
     const tablesWithWaiter = (data || []).map((table) => {
       const hasActiveSession = activeSessionsMap.has(table.id);
-      const sessionStatus = activeSessionsMap.get(table.id);
+      const _sessionStatus = activeSessionsMap.get(table.id);
 
       // Determine real status based on session and table state
       let realStatus: "available" | "occupied" | "reserved" | "inactive";

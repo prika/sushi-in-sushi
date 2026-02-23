@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { SupabaseRestaurantRepository } from '@/infrastructure/repositories/SupabaseRestaurantRepository';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { SupabaseRestaurantRepository } from "@/infrastructure/repositories/SupabaseRestaurantRepository";
 import {
   Restaurant,
   CreateRestaurantData,
   UpdateRestaurantData,
   RestaurantFilter,
-} from '@/domain/entities/Restaurant';
+} from "@/domain/entities/Restaurant";
 import {
   GetAllRestaurantsUseCase,
   CreateRestaurantUseCase,
   UpdateRestaurantUseCase,
   DeleteRestaurantUseCase,
-} from '@/application/use-cases/restaurants';
+} from "@/application/use-cases/restaurants";
 
 export interface UseRestaurantsOptions {
   filter?: RestaurantFilter;
@@ -24,14 +24,17 @@ export interface UseRestaurantsResult {
   restaurants: Restaurant[];
   isLoading: boolean;
   error: string | null;
-  create: (data: CreateRestaurantData) => Promise<Restaurant | null>;
-  update: (id: string, data: UpdateRestaurantData) => Promise<Restaurant | null>;
-  remove: (id: string) => Promise<boolean>;
+  create: (_data: CreateRestaurantData) => Promise<Restaurant | null>;
+  update: (
+    _id: string,
+    _data: UpdateRestaurantData,
+  ) => Promise<Restaurant | null>;
+  remove: (_id: string) => Promise<boolean>;
   refresh: () => Promise<void>;
 }
 
 export function useRestaurants(
-  options: UseRestaurantsOptions = {}
+  options: UseRestaurantsOptions = {},
 ): UseRestaurantsResult {
   const { filter, autoLoad = true } = options;
 
@@ -56,7 +59,12 @@ export function useRestaurants(
     };
   }
 
-  const { getAllRestaurants, createRestaurant, updateRestaurant, deleteRestaurant } = useCasesRef.current;
+  const {
+    getAllRestaurants,
+    createRestaurant,
+    updateRestaurant,
+    deleteRestaurant,
+  } = useCasesRef.current;
 
   const fetchRestaurants = useCallback(async () => {
     setIsLoading(true);
@@ -71,7 +79,9 @@ export function useRestaurants(
         setError(result.error);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar restaurantes');
+      setError(
+        err instanceof Error ? err.message : "Erro ao carregar restaurantes",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -88,11 +98,14 @@ export function useRestaurants(
       setError(result.error);
       return null;
     },
-    [createRestaurant, fetchRestaurants]
+    [createRestaurant, fetchRestaurants],
   );
 
   const update = useCallback(
-    async (id: string, data: UpdateRestaurantData): Promise<Restaurant | null> => {
+    async (
+      id: string,
+      data: UpdateRestaurantData,
+    ): Promise<Restaurant | null> => {
       setError(null);
       const result = await updateRestaurant.execute({ id, data });
       if (result.success) {
@@ -102,7 +115,7 @@ export function useRestaurants(
       setError(result.error);
       return null;
     },
-    [updateRestaurant, fetchRestaurants]
+    [updateRestaurant, fetchRestaurants],
   );
 
   const remove = useCallback(
@@ -116,7 +129,7 @@ export function useRestaurants(
       setError(result.error);
       return false;
     },
-    [deleteRestaurant, fetchRestaurants]
+    [deleteRestaurant, fetchRestaurants],
   );
 
   useEffect(() => {

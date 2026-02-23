@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
 /**
  * useGameConfig - Hook para obter a configuração de jogos de um restaurante
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { useDependencies } from '../contexts/DependencyContext';
-import { GameConfig } from '@/domain/value-objects/GameConfig';
+import { useState, useEffect, useCallback } from "react";
+import { useDependencies } from "../contexts/DependencyContext";
+import { GameConfig } from "@/domain/value-objects/GameConfig";
 
 export interface UseGameConfigOptions {
   restaurantSlug: string;
@@ -21,15 +21,17 @@ export interface UseGameConfigResult {
 
 const DEFAULT_CONFIG: GameConfig = {
   gamesEnabled: false,
-  gamesMode: 'selection',
-  gamesPrizeType: 'none',
+  gamesMode: "selection",
+  gamesPrizeType: "none",
   gamesPrizeValue: null,
   gamesPrizeProductId: null,
   gamesMinRoundsForPrize: 3,
   gamesQuestionsPerRound: 5,
 };
 
-export function useGameConfig(options: UseGameConfigOptions): UseGameConfigResult {
+export function useGameConfig(
+  options: UseGameConfigOptions,
+): UseGameConfigResult {
   const { restaurantSlug } = options;
   const { getGameConfig } = useDependencies();
 
@@ -57,7 +59,11 @@ export function useGameConfig(options: UseGameConfigOptions): UseGameConfigResul
         setConfig(DEFAULT_CONFIG);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar configuração de jogos');
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Erro ao carregar configuração de jogos",
+      );
       setConfig(DEFAULT_CONFIG);
     } finally {
       setIsLoading(false);

@@ -286,7 +286,6 @@ describe('POST /api/vendus/sync/products', () => {
       direction: 'push',
       productIds: undefined,
       pushAll: true,
-      syncCategoriesFirst: false,
       previewOnly: false,
       defaultCategoryId: undefined,
       initiatedBy: 'admin-1',
@@ -405,21 +404,7 @@ describe('POST /api/vendus/sync/products', () => {
     );
   });
 
-  it('disables syncCategoriesFirst for pull direction', async () => {
-    mockGetAuthUser.mockResolvedValue(adminUser);
-    mockSyncProducts.mockResolvedValue({ success: true, recordsProcessed: 0, recordsCreated: 0, recordsUpdated: 0, recordsFailed: 0 });
-
-    const request = createJsonRequest('/api/vendus/sync/products', {
-      locationSlug: 'circunvalacao',
-      direction: 'pull',
-      syncCategoriesFirst: true,
-    });
-    await postProducts(request);
-
-    expect(mockSyncProducts).toHaveBeenCalledWith(
-      expect.objectContaining({ syncCategoriesFirst: false }),
-    );
-  });
+  // Test removed: syncCategoriesFirst was removed from ProductSyncOptions
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -10,12 +10,12 @@ const TIMER_SECONDS = 15;
 interface QuizGameProps {
   questions: GameQuestion[];
   onAnswer: (
-    questionId: string,
-    selectedIndex: number,
+    _questionId: string,
+    _selectedIndex: number,
   ) => Promise<GameAnswer | null>;
   onComplete: () => void;
   onClose: () => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: (_key: string, _params?: Record<string, string | number>) => string;
 }
 
 type AnswerState = "idle" | "correct" | "wrong" | "timeout";

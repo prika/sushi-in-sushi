@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, Button, Modal } from "@/components/ui";
 import { useClosures, useLocations } from "@/presentation/hooks";
-import type { RestaurantClosure, CreateClosureData } from "@/domain/entities/RestaurantClosure";
+import type { _RestaurantClosure, CreateClosureData } from "@/domain/entities/RestaurantClosure";
 import type { Location } from "@/types/database";
 
 const DAY_LABELS: Record<number, string> = {
@@ -33,7 +33,7 @@ export default function FolgasPage() {
   const [filterType, setFilterType] = useState<"all" | "specific" | "recurring">("all");
 
   // Use the closures hook
-  const { closures, isLoading, error, create, remove, refresh } = useClosures({
+  const { closures, isLoading, error, create, remove, _refresh } = useClosures({
     autoLoad: true,
   });
 

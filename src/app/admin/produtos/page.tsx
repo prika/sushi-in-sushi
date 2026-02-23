@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, _useCallback } from "react";
 import Image from "next/image";
-import { useProductsOptimized } from "@/presentation/hooks";
-import type { Product, Category } from "@/domain/entities";
+import { useProductsOptimized, useIngredients, useProductIngredients } from "@/presentation/hooks";
+import type { Product, _Category } from "@/domain/entities";
+import type {
+  IngredientWithProductCount,
+  _CreateIngredientData,
+  _UpdateIngredientData,
+} from "@/domain/entities/Ingredient";
+import { AlertModal, ConfirmDialog } from "@/components/ui";
 
 type ProductStats = { orderCountByProductId: Record<string, number> };
 type ProductRatingsMap = Record<string, { avgRating: number; count: number }>;
@@ -17,6 +23,13 @@ export default function ProdutosPage() {
     updateProduct,
     deleteProduct,
   } = useProductsOptimized();
+
+  const { ingredients: catalogIngredients, refresh: _refreshCatalog } = useIngredients();
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const {
+    productIngredients: currentProductIngredients,
+    setIngredients: saveProductIngredients,
+  } = useProductIngredients(editingProductId);
 
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -32,6 +45,7 @@ export default function ProdutosPage() {
   const [sortBy, setSortBy] = useState<"default" | "orders_asc" | "orders_desc" | "rating_asc" | "rating_desc">("default");
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [modalTab, setModalTab] = useState<"geral" | "imagens" | "precos" | "ingredientes">("geral");
+  const [pageTab, setPageTab] = useState<"produtos" | "ingredientes">("produtos");
 
   useEffect(() => {
     fetch("/api/admin/products/stats")
@@ -63,7 +77,7 @@ export default function ProdutosPage() {
     sort_order: 0,
     service_modes: [] as string[],
     service_prices: {} as Record<string, number>,
-    ingredients: [] as { name: string; quantity: string; unit: string }[],
+    ingredients: [] as { ingredientId: string; quantity: number; ingredientName: string; ingredientUnit: string }[],
   });
   const [newImageUrl, setNewImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -71,6 +85,7 @@ export default function ProdutosPage() {
   const handleOpenModal = (product?: Product, tab?: "geral" | "imagens" | "precos" | "ingredientes") => {
     if (product) {
       setEditingProduct(product);
+      setEditingProductId(product.id);
       setFormData({
         name: product.name,
         description: product.description || "",
@@ -82,10 +97,11 @@ export default function ProdutosPage() {
         sort_order: product.sortOrder,
         service_modes: product.serviceModes?.length ? [...product.serviceModes] : [],
         service_prices: product.servicePrices ? { ...product.servicePrices } : {},
-        ingredients: product.ingredients.length > 0 ? [...product.ingredients] : [],
+        ingredients: [],  // Loaded async via useProductIngredients
       });
     } else {
       setEditingProduct(null);
+      setEditingProductId(null);
       setFormData({
         name: "",
         description: "",
@@ -104,6 +120,21 @@ export default function ProdutosPage() {
     setModalTab(tab ?? "geral");
     setShowModal(true);
   };
+
+  // Sync product ingredients from hook into formData when they load
+  useEffect(() => {
+    if (currentProductIngredients.length > 0 && editingProductId) {
+      setFormData((prev) => ({
+        ...prev,
+        ingredients: currentProductIngredients.map((pi) => ({
+          ingredientId: pi.ingredientId,
+          quantity: pi.quantity,
+          ingredientName: pi.ingredientName,
+          ingredientUnit: pi.ingredientUnit,
+        })),
+      }));
+    }
+  }, [currentProductIngredients, editingProductId]);
 
   const addImageUrl = () => {
     const url = newImageUrl.trim();
@@ -165,10 +196,31 @@ export default function ProdutosPage() {
       servicePrices: formData.service_prices,
     };
 
+    let savedProductId: string | null = null;
+
     if (editingProduct) {
       await updateProduct({ id: editingProduct.id, data: productData });
+      savedProductId = editingProduct.id;
     } else {
-      await createProduct(productData);
+      const created = await createProduct(productData);
+      savedProductId = created?.id ?? null;
+    }
+
+    // Save product ingredients if we have a product ID
+    if (savedProductId && formData.ingredients.length > 0) {
+      await saveProductIngredients({
+        productId: savedProductId,
+        ingredients: formData.ingredients.map((ing) => ({
+          ingredientId: ing.ingredientId,
+          quantity: ing.quantity,
+        })),
+      });
+    } else if (savedProductId && formData.ingredients.length === 0 && editingProduct) {
+      // Clear ingredients if all were removed
+      await saveProductIngredients({
+        productId: savedProductId,
+        ingredients: [],
+      });
     }
 
     setShowModal(false);
@@ -227,6 +279,34 @@ export default function ProdutosPage() {
 
   return (
     <div className="space-y-6">
+      {/* Page-level tabs */}
+      <div className="flex gap-1 border-b border-gray-200">
+        {[
+          { id: "produtos" as const, label: "Produtos" },
+          { id: "ingredientes" as const, label: "Ingredientes" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setPageTab(tab.id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              pageTab === tab.id
+                ? "border-[#D4AF37] text-[#D4AF37]"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Ingredients Catalog Tab */}
+      {pageTab === "ingredientes" && (
+        <IngredientsCatalogTab />
+      )}
+
+      {/* Products Tab */}
+      {pageTab === "produtos" && (<>
       {/* Header + Search */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -938,91 +1018,100 @@ export default function ProdutosPage() {
                 </div>
               )}
 
-              {/* Tab: Ingredientes */}
+              {/* Tab: Ingredientes (catalog-based) */}
               {modalTab === "ingredientes" && (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-500">
-                    Ingredientes que compoe este produto e quantidades aproximadas por dose.
+                    Selecione ingredientes do catálogo e defina a quantidade por dose.
                   </p>
 
-                  {formData.ingredients.map((ing, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={ing.name}
-                        onChange={(e) =>
-                          setFormData((prev) => {
-                            const updated = [...prev.ingredients];
-                            updated[idx] = { ...updated[idx], name: e.target.value };
-                            return { ...prev, ingredients: updated };
-                          })
-                        }
-                        placeholder="Ingrediente"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-                      />
-                      <input
-                        type="text"
-                        value={ing.quantity}
-                        onChange={(e) =>
-                          setFormData((prev) => {
-                            const updated = [...prev.ingredients];
-                            updated[idx] = { ...updated[idx], quantity: e.target.value };
-                            return { ...prev, ingredients: updated };
-                          })
-                        }
-                        placeholder="Qtd"
-                        className="w-16 px-2 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 text-right focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-                      />
-                      <select
-                        value={ing.unit}
-                        onChange={(e) =>
-                          setFormData((prev) => {
-                            const updated = [...prev.ingredients];
-                            updated[idx] = { ...updated[idx], unit: e.target.value };
-                            return { ...prev, ingredients: updated };
-                          })
-                        }
-                        className="w-20 px-2 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-                      >
-                        <option value="g">g</option>
-                        <option value="kg">kg</option>
-                        <option value="ml">ml</option>
-                        <option value="L">L</option>
-                        <option value="un">un</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            ingredients: prev.ingredients.filter((_, i) => i !== idx),
-                          }))
-                        }
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
+                  {formData.ingredients.map((ing, idx) => {
+                    const availableIngredients = catalogIngredients.filter(
+                      (ci) => ci.id === ing.ingredientId || !formData.ingredients.some((fi) => fi.ingredientId === ci.id)
+                    );
+                    return (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select
+                          value={ing.ingredientId}
+                          onChange={(e) => {
+                            const selected = catalogIngredients.find((ci) => ci.id === e.target.value);
+                            setFormData((prev) => {
+                              const updated = [...prev.ingredients];
+                              updated[idx] = {
+                                ...updated[idx],
+                                ingredientId: e.target.value,
+                                ingredientName: selected?.name ?? "",
+                                ingredientUnit: selected?.unit ?? "",
+                              };
+                              return { ...prev, ingredients: updated };
+                            });
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                        >
+                          <option value="">Selecionar ingrediente...</option>
+                          {availableIngredients.map((ci) => (
+                            <option key={ci.id} value={ci.id}>
+                              {ci.name} ({ci.unit})
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          value={ing.quantity || ""}
+                          onChange={(e) =>
+                            setFormData((prev) => {
+                              const updated = [...prev.ingredients];
+                              updated[idx] = { ...updated[idx], quantity: parseFloat(e.target.value) || 0 };
+                              return { ...prev, ingredients: updated };
+                            })
+                          }
+                          placeholder="Qtd"
+                          min="0"
+                          step="0.1"
+                          className="w-20 px-2 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 text-right focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                        />
+                        <span className="text-sm text-gray-500 w-8">{ing.ingredientUnit || ""}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              ingredients: prev.ingredients.filter((_, i) => i !== idx),
+                            }))
+                          }
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        ingredients: [...prev.ingredients, { name: "", quantity: "", unit: "g" }],
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-[#D4AF37] hover:text-[#D4AF37] transition-colors"
-                  >
-                    + Adicionar ingrediente
-                  </button>
+                  {catalogIngredients.length > formData.ingredients.length && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          ingredients: [...prev.ingredients, { ingredientId: "", quantity: 0, ingredientName: "", ingredientUnit: "" }],
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-[#D4AF37] hover:text-[#D4AF37] transition-colors"
+                    >
+                      + Adicionar ingrediente
+                    </button>
+                  )}
 
                   {formData.ingredients.length === 0 && (
                     <div className="text-center py-6 text-gray-400 text-sm">
-                      Nenhum ingrediente adicionado
+                      Nenhum ingrediente adicionado.
+                      {catalogIngredients.length === 0 && (
+                        <span className="block mt-1">
+                          Crie ingredientes primeiro na tab &ldquo;Ingredientes&rdquo;.
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1075,6 +1164,229 @@ export default function ProdutosPage() {
             </div>
           </div>
         </div>
+      )}
+      </>)}
+    </div>
+  );
+}
+
+// =============================================
+// INGREDIENTS CATALOG TAB
+// =============================================
+
+const UNIT_OPTIONS = [
+  { value: "g", label: "g (gramas)" },
+  { value: "kg", label: "kg (quilogramas)" },
+  { value: "ml", label: "ml (mililitros)" },
+  { value: "L", label: "L (litros)" },
+  { value: "un", label: "un (unidades)" },
+];
+
+function IngredientsCatalogTab() {
+  const { ingredients, isLoading, error, create, update, remove, _refresh } = useIngredients();
+  const [showModal, setShowModal] = useState(false);
+  const [editingIngredient, setEditingIngredient] = useState<IngredientWithProductCount | null>(null);
+  const [formData, setFormData] = useState({ name: "", unit: "g" });
+  const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; variant: "success" | "error" } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; ingredient: IngredientWithProductCount } | null>(null);
+
+  const handleOpenModal = (ingredient?: IngredientWithProductCount) => {
+    if (ingredient) {
+      setEditingIngredient(ingredient);
+      setFormData({ name: ingredient.name, unit: ingredient.unit });
+    } else {
+      setEditingIngredient(null);
+      setFormData({ name: "", unit: "g" });
+    }
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingIngredient) {
+      const result = await update(editingIngredient.id, formData);
+      if (result) {
+        setAlertModal({ isOpen: true, title: "Sucesso", message: "Ingrediente atualizado", variant: "success" });
+        setShowModal(false);
+      }
+    } else {
+      const result = await create(formData);
+      if (result) {
+        setAlertModal({ isOpen: true, title: "Sucesso", message: "Ingrediente criado", variant: "success" });
+        setShowModal(false);
+      }
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDialog?.ingredient) return;
+    const success = await remove(confirmDialog.ingredient.id);
+    if (success) {
+      setAlertModal({ isOpen: true, title: "Sucesso", message: "Ingrediente eliminado", variant: "success" });
+    }
+    setConfirmDialog(null);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <div className="animate-spin h-6 w-6 border-2 border-[#D4AF37] border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900">Catálogo de Ingredientes</h2>
+        <button
+          type="button"
+          onClick={() => handleOpenModal()}
+          className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm"
+        >
+          + Novo Ingrediente
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+      )}
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+            <tr>
+              <th className="text-left px-4 py-3 font-medium">Nome</th>
+              <th className="text-left px-4 py-3 font-medium">Unidade</th>
+              <th className="text-center px-4 py-3 font-medium">Produtos</th>
+              <th className="text-right px-4 py-3 font-medium">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {ingredients.length === 0 && (
+              <tr>
+                <td colSpan={4} className="text-center py-8 text-gray-400">
+                  Nenhum ingrediente. Clique em &ldquo;+ Novo Ingrediente&rdquo; para começar.
+                </td>
+              </tr>
+            )}
+            {ingredients.map((ing) => (
+              <tr key={ing.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium text-gray-900">{ing.name}</td>
+                <td className="px-4 py-3 text-gray-600">{ing.unit}</td>
+                <td className="px-4 py-3 text-center">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    ing.productCount > 0 ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
+                  }`}>
+                    {ing.productCount}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenModal(ing)}
+                    className="text-gray-400 hover:text-[#D4AF37] mr-2"
+                    title="Editar"
+                  >
+                    <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (ing.productCount > 0) {
+                        setAlertModal({ isOpen: true, title: "Ingrediente em uso", message: `Este ingrediente está associado a ${ing.productCount} produto(s). Remova-o dos produtos primeiro.`, variant: "error" });
+                      } else {
+                        setConfirmDialog({ isOpen: true, ingredient: ing });
+                      }
+                    }}
+                    className="text-gray-400 hover:text-red-500"
+                    title="Eliminar"
+                  >
+                    <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {editingIngredient ? "Editar Ingrediente" : "Novo Ingrediente"}
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Ex: Salmão, Arroz, Molho de soja"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Unidade de Medida</label>
+                <select
+                  value={formData.unit}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, unit: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                >
+                  {UNIT_OPTIONS.map((u) => (
+                    <option key={u.value} value={u.value}>{u.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm"
+                >
+                  {editingIngredient ? "Guardar" : "Criar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Alert Modal */}
+      {alertModal && (
+        <AlertModal
+          isOpen={alertModal.isOpen}
+          onClose={() => setAlertModal(null)}
+          title={alertModal.title}
+          message={alertModal.message}
+          variant={alertModal.variant}
+        />
+      )}
+
+      {/* Delete Confirmation */}
+      {confirmDialog && (
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          title="Eliminar ingrediente"
+          message={`Tem certeza que deseja eliminar "${confirmDialog.ingredient.name}"?`}
+          confirmText="Eliminar"
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmDialog(null)}
+        />
       )}
     </div>
   );

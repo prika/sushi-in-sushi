@@ -73,7 +73,7 @@ export default function WaiterDashboard() {
       if (user.role === "waiter") {
         // Waiters can only see tables from their assigned location
         if (!user.location) {
-          console.warn("Waiter has no location assigned");
+          console.error("Waiter has no location assigned");
           tableList = [];
         } else {
           const { data: assignments } = await supabase
@@ -415,7 +415,7 @@ export default function WaiterDashboard() {
   }
 
   const activeTables = tables.filter((t) => t.activeSession);
-  const availableTables = tables.filter((t) => !t.activeSession);
+  const _availableTables = tables.filter((t) => !t.activeSession);
 
   // Filter customer calls (excluding kitchen notifications)
   const customerCalls = waiterCalls.filter(
@@ -430,7 +430,7 @@ export default function WaiterDashboard() {
   const preparingOrders = orders.filter((o) => o.status === "preparing");
   const pendingOrders = orders.filter((o) => o.status === "pending");
 
-  const statusConfig = {
+  const _statusConfig = {
     pending: {
       label: "Pendente",
       color: "text-orange-400",

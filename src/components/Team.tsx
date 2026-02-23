@@ -179,7 +179,7 @@ export function Team() {
                 transform: `translateX(-${currentIndex * (100 / itemsPerView)}%)`,
               }}
             >
-              {teamMembers.map((member, index) => (
+              {teamMembers.map((member, _index) => (
                 <div
                   key={member.id}
                   className="shrink-0 px-2"

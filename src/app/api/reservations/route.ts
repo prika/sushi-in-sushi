@@ -9,7 +9,6 @@ import {
 import type { ReservationFilter, CreateReservationData, Reservation } from "@/domain/entities/Reservation";
 import type { Location } from "@/types/database";
 import { sendReservationEmails } from "@/lib/email";
-import type { Reservation as LegacyReservation } from "@/types/database";
 
 // Helper to map domain entity to legacy format for emails
 function mapToLegacyReservation(reservation: Reservation): LegacyReservation {

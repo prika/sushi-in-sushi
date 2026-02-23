@@ -32,16 +32,16 @@ interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<LoginResult>;
+  login: (_email: string, _password: string) => Promise<LoginResult>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  hasRole: (roles: RoleName[]) => boolean;
+  hasRole: (_roles: RoleName[]) => boolean;
   isAdmin: boolean;
   isKitchen: boolean;
   isWaiter: boolean;
   // MFA support
   mfaStatus: MfaStatus | null;
-  verifyMfa: (code: string) => Promise<MfaVerifyResult>;
+  verifyMfa: (_code: string) => Promise<MfaVerifyResult>;
   enrollMfa: () => Promise<MfaEnrollResult>;
   refreshMfaStatus: () => Promise<void>;
 }

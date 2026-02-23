@@ -28,7 +28,7 @@ export class SubmitGameAnswerUseCase {
         return Results.error('ID da sessão de jogo é obrigatório', 'MISSING_GAME_SESSION_ID');
       }
 
-      if (!input.questionId && input.productId == null) {
+      if (!input.questionId && !input.productId) {
         return Results.error('questionId ou productId é obrigatório', 'MISSING_QUESTION_OR_PRODUCT_ID');
       }
 

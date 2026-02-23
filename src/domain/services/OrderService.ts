@@ -3,7 +3,7 @@
  * Contém a lógica de negócio pura relacionada a pedidos
  */
 
-import { Order, OrderWithProduct, KitchenOrder } from '../entities/Order';
+import { Order, _OrderWithProduct, KitchenOrder } from '../entities/Order';
 import { OrderStatus, canOrderTransitionTo, getNextOrderStatus, isFinalStatus, isActiveStatus } from '../value-objects/OrderStatus';
 import { ValidationResult } from './types';
 

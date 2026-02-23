@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useProducts - Hook para gestão de produtos
@@ -10,10 +10,10 @@
  * - Agrupamento por categoria
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useDependencies } from '../contexts/DependencyContext';
-import { Product, ProductWithCategory } from '@/domain/entities/Product';
-import { Category, CategoryWithCount } from '@/domain/entities/Category';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useDependencies } from "../contexts/DependencyContext";
+import { Product } from "@/domain/entities/Product";
+import { Category, CategoryWithCount } from "@/domain/entities/Category";
 
 /**
  * Opções do hook
@@ -87,22 +87,22 @@ export interface UseProductsResult {
   /**
    * Seleciona uma categoria
    */
-  selectCategory: (categoryId: string | null) => void;
+  selectCategory: (_categoryId: string | null) => void;
 
   /**
    * Define query de pesquisa
    */
-  setSearchQuery: (query: string) => void;
+  setSearchQuery: (_query: string) => void;
 
   /**
    * Obtém um produto por ID
    */
-  getProduct: (id: string) => Product | undefined;
+  getProduct: (_id: string) => Product | undefined;
 
   /**
    * Obtém uma categoria por ID
    */
-  getCategory: (id: string) => Category | undefined;
+  getCategory: (_id: string) => Category | undefined;
 
   /**
    * Força refresh dos dados
@@ -114,7 +114,7 @@ export interface UseProductsResult {
  * Hook para gestão de produtos
  */
 export function useProducts(
-  options: UseProductsOptions = {}
+  options: UseProductsOptions = {},
 ): UseProductsResult {
   const { onlyAvailable = true, onlyRodizio, initialCategoryId } = options;
 
@@ -123,13 +123,15 @@ export function useProducts(
   // Estado
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [categoriesWithCount, setCategoriesWithCount] = useState<CategoryWithCount[]>([]);
+  const [categoriesWithCount, setCategoriesWithCount] = useState<
+    CategoryWithCount[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
-    initialCategoryId || null
+    initialCategoryId || null,
   );
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   /**
    * Carrega produtos e categorias
@@ -151,7 +153,9 @@ export function useProducts(
       setCategories(categoriesData);
       setCategoriesWithCount(categoriesData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar produtos');
+      setError(
+        err instanceof Error ? err.message : "Erro ao carregar produtos",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -192,7 +196,7 @@ export function useProducts(
       filtered = filtered.filter(
         (p) =>
           p.name.toLowerCase().includes(query) ||
-          p.description?.toLowerCase().includes(query)
+          p.description?.toLowerCase().includes(query),
       );
     }
 
@@ -211,7 +215,7 @@ export function useProducts(
    */
   const getProduct = useCallback(
     (id: string) => products.find((p) => p.id === id),
-    [products]
+    [products],
   );
 
   /**
@@ -219,7 +223,7 @@ export function useProducts(
    */
   const getCategory = useCallback(
     (id: string) => categories.find((c) => c.id === id),
-    [categories]
+    [categories],
   );
 
   return {

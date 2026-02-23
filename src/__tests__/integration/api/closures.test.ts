@@ -10,9 +10,8 @@ import {
   getPastDate,
   createTestClosure,
 } from "../../helpers/factories";
-import { GET as GETClosures } from "@/app/api/closures/route";
+import { GET as GETClosures, POST, DELETE } from "@/app/api/closures/route";
 import { GET as GETClosuresCheck } from "@/app/api/closures/check/route";
-import { POST, DELETE } from "@/app/api/closures/route";
 
 // Hoisted mocks (available when vi.mock factories run)
 const { mockVerifyAuth, mockSupabaseFrom } = vi.hoisted(() => ({
