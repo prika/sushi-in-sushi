@@ -209,7 +209,6 @@ function mapProductToApi(data: Record<string, unknown>) {
     quantity: data.quantity ?? 1,
     serviceModes: data.service_modes ?? [],
     servicePrices: data.service_prices ?? {},
-    ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
     createdAt: data.created_at,
     updatedAt: data.updated_at ?? data.created_at,
   };

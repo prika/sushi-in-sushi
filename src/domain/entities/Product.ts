@@ -2,17 +2,6 @@
  * Product Entity
  * Representa um produto/item do menu no domínio
  */
-
-/**
- * Entidade Product - Representa um item do menu
- */
-/** @deprecated Use Ingredient from '@/domain/entities/Ingredient' for catalog items */
-export interface LegacyIngredient {
-  name: string;
-  quantity: string;
-  unit: string;
-}
-
 export interface Product {
   id: string;
   name: string;
@@ -32,8 +21,6 @@ export interface Product {
   servicePrices: Record<string, number>;
   /** Number of pieces in this product */
   quantity: number;
-  /** Legacy product ingredients (JSONB) */
-  ingredients: LegacyIngredient[];
   createdAt: Date;
   updatedAt: Date;
 }

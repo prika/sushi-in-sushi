@@ -4,7 +4,6 @@
 import type { SessionStatus as DomainSessionStatus } from "@/domain/value-objects/SessionStatus";
 import type { OrderStatus as DomainOrderStatus } from "@/domain/value-objects/OrderStatus";
 import type { TableStatus as DomainTableStatus } from "@/domain/value-objects/TableStatus";
-import type { LegacyIngredient as Ingredient } from "@/domain/entities/Product";
 
 // Re-export domain types for backwards compatibility
 export type SessionStatus = DomainSessionStatus;
@@ -118,7 +117,6 @@ export type Database = {
           is_rodizio: boolean;
           sort_order: number;
           quantity: number;
-          ingredients: Ingredient[] | null;
           vendus_id: string | null;
           vendus_ids: Record<string, string>;
           vendus_reference: string | null;
@@ -143,7 +141,6 @@ export type Database = {
           is_rodizio?: boolean;
           sort_order?: number;
           quantity?: number;
-          ingredients?: Ingredient[] | null;
           vendus_id?: string | null;
           vendus_ids?: Record<string, string>;
           vendus_reference?: string | null;
@@ -168,7 +165,6 @@ export type Database = {
           is_rodizio?: boolean;
           sort_order?: number;
           quantity?: number;
-          ingredients?: Ingredient[] | null;
           vendus_id?: string | null;
           vendus_ids?: Record<string, string>;
           vendus_reference?: string | null;
@@ -187,6 +183,72 @@ export type Database = {
             columns: ["category_id"];
             isOneToOne: false;
             referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ingredients: {
+        Row: {
+          id: string;
+          name: string;
+          unit: string;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          unit: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          unit?: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      product_ingredients: {
+        Row: {
+          id: string;
+          product_id: string;
+          ingredient_id: string;
+          quantity: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          ingredient_id: string;
+          quantity: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          ingredient_id?: string;
+          quantity?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_ingredients_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_ingredients_ingredient_id_fkey";
+            columns: ["ingredient_id"];
+            isOneToOne: false;
+            referencedRelation: "ingredients";
             referencedColumns: ["id"];
           },
         ];
@@ -1620,6 +1682,13 @@ export type Database = {
       close_session_and_free_table: {
         Args: {
           session_id_param: string;
+        };
+        Returns: void;
+      };
+      set_product_ingredients: {
+        Args: {
+          p_product_id: string;
+          p_ingredients: unknown;
         };
         Returns: void;
       };

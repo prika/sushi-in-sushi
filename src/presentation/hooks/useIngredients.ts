@@ -1,19 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { SupabaseIngredientRepository } from "@/infrastructure/repositories/SupabaseIngredientRepository";
+import { useState, useEffect, useCallback } from "react";
 import {
   Ingredient,
   CreateIngredientData,
   UpdateIngredientData,
   IngredientWithProductCount,
 } from "@/domain/entities/Ingredient";
-import {
-  GetAllIngredientsUseCase,
-  CreateIngredientUseCase,
-  UpdateIngredientUseCase,
-  DeleteIngredientUseCase,
-} from "@/application/use-cases/ingredients";
 
 export interface UseIngredientsOptions {
   autoLoad?: boolean;
@@ -43,42 +36,25 @@ export function useIngredients(
   const [isLoading, setIsLoading] = useState(autoLoad);
   const [error, setError] = useState<string | null>(null);
 
-  const useCasesRef = useRef<{
-    getAllIngredients: GetAllIngredientsUseCase;
-    createIngredient: CreateIngredientUseCase;
-    updateIngredient: UpdateIngredientUseCase;
-    deleteIngredient: DeleteIngredientUseCase;
-  }>();
-
-  if (!useCasesRef.current) {
-    const repo = new SupabaseIngredientRepository();
-    useCasesRef.current = {
-      getAllIngredients: new GetAllIngredientsUseCase(repo),
-      createIngredient: new CreateIngredientUseCase(repo),
-      updateIngredient: new UpdateIngredientUseCase(repo),
-      deleteIngredient: new DeleteIngredientUseCase(repo),
-    };
-  }
-
-  const {
-    getAllIngredients,
-    createIngredient,
-    updateIngredient,
-    deleteIngredient,
-  } = useCasesRef.current;
-
   const fetchIngredients = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await getAllIngredients.execute();
-
-      if (result.success) {
-        setIngredients(result.data);
-      } else {
-        setError(result.error);
+      const res = await fetch("/api/admin/ingredients");
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Erro ao carregar ingredientes");
+        return;
       }
+      const data = await res.json();
+      setIngredients(
+        data.map((d: Record<string, unknown>) => ({
+          ...d,
+          createdAt: new Date(d.createdAt as string),
+          updatedAt: new Date(d.updatedAt as string),
+        })),
+      );
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Erro ao carregar ingredientes",
@@ -86,20 +62,36 @@ export function useIngredients(
     } finally {
       setIsLoading(false);
     }
-  }, [getAllIngredients]);
+  }, []);
 
   const create = useCallback(
     async (data: CreateIngredientData): Promise<Ingredient | null> => {
       setError(null);
-      const result = await createIngredient.execute(data);
-      if (result.success) {
+      try {
+        const res = await fetch("/api/admin/ingredients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          setError(result.error || "Erro ao criar ingrediente");
+          return null;
+        }
         await fetchIngredients();
-        return result.data;
+        return {
+          ...result,
+          createdAt: new Date(result.createdAt),
+          updatedAt: new Date(result.updatedAt),
+        };
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Erro ao criar ingrediente",
+        );
+        return null;
       }
-      setError(result.error);
-      return null;
     },
-    [createIngredient, fetchIngredients],
+    [fetchIngredients],
   );
 
   const update = useCallback(
@@ -108,29 +100,57 @@ export function useIngredients(
       data: UpdateIngredientData,
     ): Promise<Ingredient | null> => {
       setError(null);
-      const result = await updateIngredient.execute({ id, data });
-      if (result.success) {
+      try {
+        const res = await fetch("/api/admin/ingredients", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, ...data }),
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          setError(result.error || "Erro ao atualizar ingrediente");
+          return null;
+        }
         await fetchIngredients();
-        return result.data;
+        return {
+          ...result,
+          createdAt: new Date(result.createdAt),
+          updatedAt: new Date(result.updatedAt),
+        };
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Erro ao atualizar ingrediente",
+        );
+        return null;
       }
-      setError(result.error);
-      return null;
     },
-    [updateIngredient, fetchIngredients],
+    [fetchIngredients],
   );
 
   const remove = useCallback(
     async (id: string): Promise<boolean> => {
       setError(null);
-      const result = await deleteIngredient.execute(id);
-      if (result.success) {
+      try {
+        const res = await fetch("/api/admin/ingredients", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        });
+        if (!res.ok) {
+          const result = await res.json();
+          setError(result.error || "Erro ao eliminar ingrediente");
+          return false;
+        }
         await fetchIngredients();
         return true;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Erro ao eliminar ingrediente",
+        );
+        return false;
       }
-      setError(result.error);
-      return false;
     },
-    [deleteIngredient, fetchIngredients],
+    [fetchIngredients],
   );
 
   useEffect(() => {

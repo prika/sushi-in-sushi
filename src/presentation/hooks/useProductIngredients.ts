@@ -1,15 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { SupabaseProductIngredientRepository } from "@/infrastructure/repositories/SupabaseProductIngredientRepository";
+import { useState, useEffect, useCallback } from "react";
 import {
   ProductIngredient,
   SetProductIngredientsData,
 } from "@/domain/entities/ProductIngredient";
-import {
-  GetProductIngredientsUseCase,
-  SetProductIngredientsUseCase,
-} from "@/application/use-cases/product-ingredients";
 
 export interface UseProductIngredientsResult {
   productIngredients: ProductIngredient[];
@@ -30,22 +25,6 @@ export function useProductIngredients(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const useCasesRef = useRef<{
-    getProductIngredients: GetProductIngredientsUseCase;
-    setProductIngredientsUseCase: SetProductIngredientsUseCase;
-  }>();
-
-  if (!useCasesRef.current) {
-    const repo = new SupabaseProductIngredientRepository();
-    useCasesRef.current = {
-      getProductIngredients: new GetProductIngredientsUseCase(repo),
-      setProductIngredientsUseCase: new SetProductIngredientsUseCase(repo),
-    };
-  }
-
-  const { getProductIngredients, setProductIngredientsUseCase } =
-    useCasesRef.current;
-
   const fetchIngredients = useCallback(async () => {
     if (!productId) {
       setProductIngredients([]);
@@ -56,12 +35,21 @@ export function useProductIngredients(
     setError(null);
 
     try {
-      const result = await getProductIngredients.execute(productId);
-      if (result.success) {
-        setProductIngredients(result.data);
-      } else {
-        setError(result.error);
+      const res = await fetch(
+        `/api/admin/product-ingredients?productId=${productId}`,
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Erro ao carregar ingredientes do produto");
+        return;
       }
+      const data = await res.json();
+      setProductIngredients(
+        data.map((d: Record<string, unknown>) => ({
+          ...d,
+          createdAt: new Date(d.createdAt as string),
+        })),
+      );
     } catch (err) {
       setError(
         err instanceof Error
@@ -71,22 +59,45 @@ export function useProductIngredients(
     } finally {
       setIsLoading(false);
     }
-  }, [productId, getProductIngredients]);
+  }, [productId]);
 
   const setIngredients = useCallback(
     async (
       data: SetProductIngredientsData,
     ): Promise<ProductIngredient[] | null> => {
       setError(null);
-      const result = await setProductIngredientsUseCase.execute(data);
-      if (result.success) {
-        setProductIngredients(result.data);
-        return result.data;
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/admin/product-ingredients", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          setError(
+            result.error || "Erro ao definir ingredientes do produto",
+          );
+          return null;
+        }
+        const mapped = result.map((d: Record<string, unknown>) => ({
+          ...d,
+          createdAt: new Date(d.createdAt as string),
+        }));
+        setProductIngredients(mapped);
+        return mapped;
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Erro ao definir ingredientes do produto",
+        );
+        return null;
+      } finally {
+        setIsLoading(false);
       }
-      setError(result.error);
-      return null;
     },
-    [setProductIngredientsUseCase],
+    [],
   );
 
   useEffect(() => {

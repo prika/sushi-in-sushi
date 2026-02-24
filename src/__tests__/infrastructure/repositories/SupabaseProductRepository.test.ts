@@ -23,7 +23,6 @@ function createDbProduct(overrides: Partial<{
   sort_order: number;
   service_modes: string[] | null;
   service_prices: Record<string, number> | null;
-  ingredients: Array<{ name: string; quantity: string; unit: string }> | null;
   created_at: string;
   updated_at: string;
 }> = {}) {
@@ -41,7 +40,6 @@ function createDbProduct(overrides: Partial<{
     quantity: 1,
     service_modes: ['dine_in'],
     service_prices: { dine_in: 4.50 },
-    ingredients: [{ name: 'Salmon', quantity: '50', unit: 'g' }],
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-02T00:00:00.000Z',
     ...overrides,
@@ -663,7 +661,6 @@ describe('SupabaseProductRepository', () => {
         sort_order: 5,
         service_modes: ['dine_in', 'delivery'],
         service_prices: { dine_in: 4.50, delivery: 6.00 },
-        ingredients: [{ name: 'Salmon', quantity: '50', unit: 'g' }],
         created_at: '2024-06-15T10:30:00.000Z',
         updated_at: '2024-06-16T11:00:00.000Z',
       });
@@ -680,7 +677,6 @@ describe('SupabaseProductRepository', () => {
         sortOrder: 5,
         serviceModes: ['dine_in', 'delivery'],
         servicePrices: { dine_in: 4.50, delivery: 6.00 },
-        ingredients: [{ name: 'Salmon', quantity: '50', unit: 'g' }],
       });
       expect(result?.createdAt).toBeInstanceOf(Date);
       expect(result?.updatedAt).toBeInstanceOf(Date);
@@ -782,14 +778,5 @@ describe('SupabaseProductRepository', () => {
       expect(result?.servicePrices).toEqual({});
     });
 
-    it('deve usar array vazio para ingredients null', async () => {
-      const dbRow = createDbProduct({ ingredients: null });
-      const builder = mockClient._createBuilder({ data: dbRow, error: null });
-      mockClient._setBuilder(builder);
-
-      const result = await repository.findById('prod-1');
-
-      expect(result?.ingredients).toEqual([]);
-    });
   });
 });

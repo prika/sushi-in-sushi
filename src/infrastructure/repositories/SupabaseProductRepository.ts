@@ -13,7 +13,6 @@ import {
   CreateProductData,
   UpdateProductData,
   ProductWithCategory,
-  type LegacyIngredient,
 } from '@/domain/entities/Product';
 
 /**
@@ -33,7 +32,6 @@ interface DatabaseProduct {
   service_modes: string[] | null;
   service_prices: Record<string, number> | null;
   quantity: number | null;
-  ingredients: LegacyIngredient[] | null;
   created_at: string;
   updated_at?: string; // optional: products table may not have this column
 }
@@ -243,7 +241,6 @@ export class SupabaseProductRepository implements IProductRepository {
       quantity: data.quantity ?? 1,
       serviceModes: data.service_modes ?? [],
       servicePrices: data.service_prices ?? {},
-      ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
       createdAt: new Date(data.created_at),
       updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(data.created_at),
     };

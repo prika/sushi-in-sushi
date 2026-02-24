@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { useAdminProducts, useIngredients, useProductIngredients } from "@/presentation/hooks";
 import type { Product } from "@/domain/entities";
@@ -45,13 +45,31 @@ export default function ProdutosPage() {
   const [modalTab, setModalTab] = useState<"geral" | "imagens" | "precos" | "ingredientes">("geral");
   const [pageTab, setPageTab] = useState<"produtos" | "ingredientes">("produtos");
 
+  // Map productId -> ingredient list for table view
+  const [allProductIngredients, setAllProductIngredients] = useState<
+    Record<string, { name: string; quantity: number; unit: string }[]>
+  >({});
+
+  const refreshAllProductIngredients = useCallback(() => {
+    fetch("/api/admin/product-ingredients")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: { productId: string; ingredientName: string; quantity: number; ingredientUnit: string }[]) => {
+        const map: Record<string, { name: string; quantity: number; unit: string }[]> = {};
+        for (const pi of data) {
+          if (!map[pi.productId]) map[pi.productId] = [];
+          map[pi.productId].push({ name: pi.ingredientName, quantity: pi.quantity, unit: pi.ingredientUnit });
+        }
+        setAllProductIngredients(map);
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetch("/api/admin/products/stats")
       .then((res) => (res.ok ? res.json() : null))
       .then((data: ProductStats | null) => data && setStats(data))
       .catch(() => {});
 
-    // Fetch product ratings from game stats
     fetch("/api/admin/game-stats")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -63,7 +81,9 @@ export default function ProdutosPage() {
         setProductRatings(map);
       })
       .catch(() => {});
-  }, []);
+
+    refreshAllProductIngredients();
+  }, [refreshAllProductIngredients]);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -73,10 +93,12 @@ export default function ProdutosPage() {
     is_available: true,
     is_rodizio: false,
     sort_order: 0,
+    quantity: 1,
     service_modes: [] as string[],
     service_prices: {} as Record<string, number>,
     ingredients: [] as { ingredientId: string; quantity: number; ingredientName: string; ingredientUnit: string }[],
   });
+  const [initialFormData, setInitialFormData] = useState<typeof formData | null>(null);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
 
@@ -84,7 +106,7 @@ export default function ProdutosPage() {
     if (product) {
       setEditingProduct(product);
       setEditingProductId(product.id);
-      setFormData({
+      const initial = {
         name: product.name,
         description: product.description || "",
         price: product.price,
@@ -93,10 +115,13 @@ export default function ProdutosPage() {
         is_available: product.isAvailable,
         is_rodizio: product.isRodizio,
         sort_order: product.sortOrder,
+        quantity: product.quantity ?? 1,
         service_modes: product.serviceModes?.length ? [...product.serviceModes] : [],
         service_prices: product.servicePrices ? { ...product.servicePrices } : {},
-        ingredients: [],  // Loaded async via useProductIngredients
-      });
+        ingredients: [] as { ingredientId: string; quantity: number; ingredientName: string; ingredientUnit: string }[],
+      };
+      setFormData(initial);
+      setInitialFormData(initial);
     } else {
       setEditingProduct(null);
       setEditingProductId(null);
@@ -109,10 +134,12 @@ export default function ProdutosPage() {
         is_available: true,
         is_rodizio: false,
         sort_order: products.length,
+        quantity: 1,
         service_modes: [],
         service_prices: {},
         ingredients: [],
       });
+      setInitialFormData(null);
     }
     setNewImageUrl("");
     setModalTab(tab ?? "geral");
@@ -122,17 +149,34 @@ export default function ProdutosPage() {
   // Sync product ingredients from hook into formData when they load
   useEffect(() => {
     if (currentProductIngredients.length > 0 && editingProductId) {
-      setFormData((prev) => ({
-        ...prev,
-        ingredients: currentProductIngredients.map((pi) => ({
-          ingredientId: pi.ingredientId,
-          quantity: pi.quantity,
-          ingredientName: pi.ingredientName,
-          ingredientUnit: pi.ingredientUnit,
-        })),
+      const mapped = currentProductIngredients.map((pi) => ({
+        ingredientId: pi.ingredientId,
+        quantity: pi.quantity,
+        ingredientName: pi.ingredientName,
+        ingredientUnit: pi.ingredientUnit,
       }));
+      setFormData((prev) => ({ ...prev, ingredients: mapped }));
+      setInitialFormData((prev) => prev ? { ...prev, ingredients: mapped } : null);
     }
   }, [currentProductIngredients, editingProductId]);
+
+  const hasChanges = useMemo(() => {
+    if (!editingProduct || !initialFormData) return true;
+    return (
+      formData.name !== initialFormData.name ||
+      formData.description !== initialFormData.description ||
+      formData.price !== initialFormData.price ||
+      formData.category_id !== initialFormData.category_id ||
+      formData.is_available !== initialFormData.is_available ||
+      formData.is_rodizio !== initialFormData.is_rodizio ||
+      formData.sort_order !== initialFormData.sort_order ||
+      formData.quantity !== initialFormData.quantity ||
+      JSON.stringify(formData.image_urls) !== JSON.stringify(initialFormData.image_urls) ||
+      JSON.stringify(formData.service_modes) !== JSON.stringify(initialFormData.service_modes) ||
+      JSON.stringify(formData.service_prices) !== JSON.stringify(initialFormData.service_prices) ||
+      JSON.stringify(formData.ingredients) !== JSON.stringify(initialFormData.ingredients)
+    );
+  }, [formData, initialFormData, editingProduct]);
 
   const addImageUrl = () => {
     const url = newImageUrl.trim();
@@ -190,6 +234,7 @@ export default function ProdutosPage() {
       isAvailable: formData.is_available,
       isRodizio: formData.is_rodizio,
       sortOrder: formData.sort_order,
+      quantity: formData.quantity,
       serviceModes: formData.service_modes,
       servicePrices: formData.service_prices,
     };
@@ -221,8 +266,14 @@ export default function ProdutosPage() {
       });
     }
 
-    setShowModal(false);
-    // No need to call fetchData - React Query auto-updates!
+    refreshAllProductIngredients();
+
+    if (editingProduct) {
+      // Keep panel open, reset baseline so button shows "Sem alterações"
+      setInitialFormData({ ...formData });
+    } else {
+      setShowModal(false);
+    }
   };
 
   const handleDelete = (product: Product) => {
@@ -511,13 +562,12 @@ export default function ProdutosPage() {
               <tr className="border-b border-gray-200 bg-gray-50">
                 <th className="px-4 py-3 font-medium">Imagem</th>
                 <th className="px-4 py-3 font-medium">Produto</th>
+                <th className="px-4 py-3 font-medium">Qtd</th>
                 <th className="px-4 py-3 font-medium">Preço</th>
                 <th className="px-4 py-3 font-medium">Disponível</th>
                 <th className="px-4 py-3 font-medium">Rodízio</th>
                 <th className="px-4 py-3 font-medium">Modo Servico</th>
-                <th className="px-4 py-3 font-medium">Imagens</th>
-                <th className="px-4 py-3 font-medium">Avaliações</th>
-                <th className="px-4 py-3 font-medium">Vezes pedido</th>
+                <th className="px-4 py-3 font-medium">Ingredientes</th>
                 <th className="px-4 py-3 font-medium text-right">Ações</th>
               </tr>
             </thead>
@@ -529,15 +579,22 @@ export default function ProdutosPage() {
                 >
                   <td className="px-4 py-2">
                     {(product.imageUrl || (product.imageUrls?.length ?? 0) > 0) ? (
-                      <div className="relative w-10 h-10 rounded overflow-hidden bg-gray-100 shrink-0 cursor-pointer" onClick={() => handleOpenModal(product, "imagens")}>
-                        <Image
-                          src={product.imageUrl ?? product.imageUrls?.[0] ?? ""}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          unoptimized
-                          sizes="40px"
-                        />
+                      <div className="cursor-pointer" onClick={() => handleOpenModal(product, "imagens")}>
+                        <div className="relative w-10 h-10 rounded overflow-hidden bg-gray-100 shrink-0">
+                          <Image
+                            src={product.imageUrl ?? product.imageUrls?.[0] ?? ""}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            unoptimized
+                            sizes="40px"
+                          />
+                        </div>
+                        {(product.imageUrls?.length ?? (product.imageUrl ? 1 : 0)) > 0 && (
+                          <span className="text-[10px] text-gray-400 mt-0.5 block">
+                            {product.imageUrls?.length ?? (product.imageUrl ? 1 : 0)} img
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <span className="text-gray-300">—</span>
@@ -548,6 +605,9 @@ export default function ProdutosPage() {
                       <div className="font-medium cursor-pointer hover:text-[#D4AF37] transition-colors" onClick={() => handleOpenModal(product)}>{product.name}</div>
                       <div className="text-xs text-gray-500">{getCategoryName(product.categoryId)}</div>
                     </div>
+                  </td>
+                  <td className="px-4 py-2 text-center tabular-nums text-gray-700">
+                    {product.quantity ?? 1}
                   </td>
                   <td className="px-4 py-2 cursor-pointer" onClick={() => handleOpenModal(product, "precos")}>
                     <div className="font-semibold text-[#D4AF37] tabular-nums">{product.price.toFixed(2)}€</div>
@@ -581,20 +641,19 @@ export default function ProdutosPage() {
                       <span className="text-gray-400">-</span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-gray-600">
-                    {product.imageUrls?.length ?? (product.imageUrl ? 1 : 0)}
+                  <td className="px-4 py-2 cursor-pointer" onClick={() => handleOpenModal(product, "ingredientes")}>
+                    {allProductIngredients[product.id]?.length > 0 ? (
+                      <div className="flex flex-col gap-0.5">
+                        {allProductIngredients[product.id].map((ing, i) => (
+                          <span key={i} className="text-xs text-gray-600">
+                            {ing.name} <span className="text-gray-400 tabular-nums">{ing.quantity}{ing.unit}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
                   </td>
-                  <td className="px-4 py-2 text-gray-600">
-                    <span className="inline-flex items-center gap-1" title="Avaliação dos clientes">
-                      <svg className="w-4 h-4 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                      {productRatings[String(product.id)]
-                        ? `${productRatings[String(product.id)].avgRating} (${productRatings[String(product.id)].count})`
-                        : "—"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 font-medium text-gray-900">{orderCount(product.id)}</td>
                   <td className="px-4 py-2 text-right">
                     <div className="flex justify-end gap-1">
                       <button
@@ -875,6 +934,20 @@ export default function ProdutosPage() {
                       <span className="text-sm text-gray-700">Rodizio</span>
                     </label>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantidade (pecas)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                      min="1"
+                      step="1"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                    />
+                  </div>
                 </>
               )}
 
@@ -1125,9 +1198,14 @@ export default function ProdutosPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm"
+                  disabled={editingProduct ? !hasChanges : false}
+                  className={`flex-1 px-4 py-2 font-semibold rounded-lg text-sm ${
+                    editingProduct && !hasChanges
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
+                  }`}
                 >
-                  {editingProduct ? "Guardar" : "Criar"}
+                  {editingProduct ? (hasChanges ? "Guardar" : "Sem alterações") : "Criar"}
                 </button>
               </div>
             </form>
