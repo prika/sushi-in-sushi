@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 type SyncStatus = "synced" | "pending" | "error" | "not_applicable";
 
@@ -101,20 +100,16 @@ export default function VendusSyncPage() {
   );
 
   const fetchProducts = useCallback(async () => {
-    const supabase = createClient();
-    const [productsRes, categoriesRes, locationsRes] = await Promise.all([
-      supabase.from("products_with_vendus_status").select("*").order("name"),
-      supabase.from("categories").select("id, name").order("sort_order"),
+    const [syncDataRes, locationsRes] = await Promise.all([
+      fetch("/api/vendus/sync/products").then((r) => r.json()),
       fetch("/api/locations").then((r) => r.json()),
     ]);
 
-    if (productsRes.error) {
-      console.error("Error fetching products:", productsRes.error);
+    if (syncDataRes.error) {
+      console.error("Error fetching sync data:", syncDataRes.error);
     } else {
-      setProducts((productsRes.data || []) as ProductWithStatus[]);
-    }
-    if (categoriesRes.data) {
-      setCategories(categoriesRes.data);
+      setProducts((syncDataRes.products || []) as ProductWithStatus[]);
+      setCategories(syncDataRes.categories || []);
     }
     const locs = Array.isArray(locationsRes) ? locationsRes : [];
     setLocations(locs);

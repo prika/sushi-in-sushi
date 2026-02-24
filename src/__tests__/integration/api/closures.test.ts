@@ -20,11 +20,9 @@ const { mockVerifyAuth, mockSupabaseFrom } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(() =>
-    Promise.resolve({
-      from: mockSupabaseFrom,
-    }),
-  ),
+  createAdminClient: vi.fn(() => ({
+    from: mockSupabaseFrom,
+  })),
 }));
 
 vi.mock("@/lib/auth", () => ({

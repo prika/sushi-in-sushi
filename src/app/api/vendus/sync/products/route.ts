@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { syncProducts, getProductSyncStats } from "@/lib/vendus";
 import { logActivity } from "@/lib/auth/activity";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/vendus/sync/products
- * Get product sync statistics
+ * Get products with vendus status and categories (for sync page)
  */
 export async function GET() {
   try {
@@ -24,12 +25,25 @@ export async function GET() {
       );
     }
 
-    const stats = await getProductSyncStats();
-    return NextResponse.json(stats);
+    const supabase = createAdminClient();
+
+    const [productsRes, categoriesRes] = await Promise.all([
+      supabase
+        .from("products_with_vendus_status" as any)
+        .select("*")
+        .order("name"),
+      supabase.from("categories").select("id, name").order("sort_order"),
+    ]);
+
+    return NextResponse.json({
+      products: productsRes.data || [],
+      categories: categoriesRes.data || [],
+      stats: await getProductSyncStats(),
+    });
   } catch (error) {
-    console.error("Erro ao obter estatisticas de sync:", error);
+    console.error("Erro ao obter dados de sync:", error);
     return NextResponse.json(
-      { error: "Erro ao obter estatisticas" },
+      { error: "Erro ao obter dados de sync" },
       { status: 500 },
     );
   }

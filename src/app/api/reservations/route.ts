@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { SupabaseReservationRepository } from "@/infrastructure/repositories/SupabaseReservationRepository";
 import { SupabaseRestaurantClosureRepository } from "@/infrastructure/repositories/SupabaseRestaurantClosureRepository";
 import {
@@ -7,7 +7,7 @@ import {
   CreateReservationUseCase,
 } from "@/application/use-cases/reservations";
 import type { ReservationFilter, CreateReservationData, Reservation } from "@/domain/entities/Reservation";
-import type { Location } from "@/types/database";
+import type { Location, Reservation as LegacyReservation } from "@/types/database";
 import { sendReservationEmails } from "@/lib/email";
 
 // Helper to map domain entity to legacy format for emails
@@ -63,7 +63,7 @@ function mapToLegacyReservation(reservation: Reservation): LegacyReservation {
 // GET - List reservations (for admin)
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseReservationRepository(supabase);
     const getAllReservations = new GetAllReservationsUseCase(repository);
 
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const reservationRepository = new SupabaseReservationRepository(supabase);
     const closureRepository = new SupabaseRestaurantClosureRepository(supabase);
     const createReservation = new CreateReservationUseCase(reservationRepository, closureRepository);

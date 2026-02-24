@@ -12,10 +12,6 @@ import {
 import { useRouter } from "next/navigation";
 import type { AuthUser, RoleName, Location } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
-import { shouldUseSupabaseAuth } from "@/lib/supabase/env";
-
-// Auth mode: Supabase Auth in production, legacy (staff table) in development
-const USE_SUPABASE_AUTH = shouldUseSupabaseAuth();
 
 // =============================================
 // TYPES
@@ -91,32 +87,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const supabase = useMemo(() => createClient(), []);
 
   // Fetch staff profile from Supabase using RPC functions (SECURITY DEFINER)
-  // This bypasses RLS issues with the roles table
+  // Both RPCs run in parallel to reduce latency
   const fetchStaffProfile = useCallback(
     async (_authUserId: string): Promise<AuthUser | null> => {
-      // Use get_current_staff() RPC which is SECURITY DEFINER
-      const { data: staffArray, error: staffError } = await (supabase as any).rpc("get_current_staff");
+      const [staffResult, roleResult] = await Promise.all([
+        (supabase as any).rpc("get_current_staff"),
+        (supabase as any).rpc("get_current_staff_role"),
+      ]);
 
-      if (staffError || !staffArray || staffArray.length === 0) {
-        console.error("Error fetching staff profile:", staffError);
+      if (staffResult.error || !staffResult.data || staffResult.data.length === 0) {
         return null;
       }
 
-      const staff = staffArray[0];
-
-      // Get role name using RPC function
-      const { data: roleName, error: roleError } = await (supabase as any).rpc("get_current_staff_role");
-
-      if (roleError || !roleName) {
-        console.error("Error fetching staff role:", roleError);
+      if (roleResult.error || !roleResult.data) {
         return null;
       }
+
+      const staff = staffResult.data[0];
 
       return {
         id: staff.id,
         name: staff.name,
         email: staff.email,
-        role: roleName as RoleName,
+        role: roleResult.data as RoleName,
         location: staff.location as Location | null,
       };
     },
@@ -125,11 +118,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Fetch MFA status
   const refreshMfaStatus = useCallback(async () => {
-    if (!USE_SUPABASE_AUTH) {
-      setMfaStatus(null);
-      return;
-    }
-
     try {
       const response = await fetch("/api/auth/mfa/status");
       if (response.ok) {
@@ -148,25 +136,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
-  // Fetch current user (legacy API)
-  const refreshUserLegacy = useCallback(async () => {
-    try {
-      const response = await fetch("/api/auth/me");
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      } else {
-        setUser(null);
-      }
-    } catch {
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Fetch current user (Supabase Auth)
-  const refreshUserSupabase = useCallback(async () => {
+  // Fetch current user via Supabase Auth
+  const refreshUser = useCallback(async () => {
     try {
       const {
         data: { user: authUser },
@@ -181,7 +152,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const staffProfile = await fetchStaffProfile(authUser.id);
       setUser(staffProfile);
 
-      // Also refresh MFA status
       if (staffProfile) {
         await refreshMfaStatus();
       }
@@ -193,80 +163,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [supabase, fetchStaffProfile, refreshMfaStatus]);
 
-  // Combined refresh function
-  const refreshUser = useCallback(async () => {
-    if (USE_SUPABASE_AUTH) {
-      await refreshUserSupabase();
-    } else {
-      await refreshUserLegacy();
-    }
-  }, [refreshUserLegacy, refreshUserSupabase]);
-
-  // Initialize auth state
+  // Initialize auth state via onAuthStateChange only (avoids double fetch)
+  // INITIAL_SESSION fires on mount with the existing session (or null)
+  // SIGNED_IN fires on new login
   useEffect(() => {
-    if (USE_SUPABASE_AUTH) {
-      // Initial fetch
-      refreshUserSupabase();
-
-      // Listen for auth state changes
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === "SIGNED_IN" && session?.user) {
-          const staffProfile = await fetchStaffProfile(session.user.id);
-          setUser(staffProfile);
-          if (staffProfile) {
-            await refreshMfaStatus();
-          }
-        } else if (event === "SIGNED_OUT") {
-          setUser(null);
-          setMfaStatus(null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (
+        (event === "INITIAL_SESSION" || event === "SIGNED_IN") &&
+        session?.user
+      ) {
+        const staffProfile = await fetchStaffProfile(session.user.id);
+        setUser(staffProfile);
+        if (staffProfile) {
+          await refreshMfaStatus();
         }
-        setIsLoading(false);
-      });
+      } else if (
+        event === "INITIAL_SESSION" ||
+        event === "SIGNED_OUT"
+      ) {
+        setUser(null);
+        setMfaStatus(null);
+      }
+      setIsLoading(false);
+    });
 
-      return () => {
-        subscription.unsubscribe();
-      };
-    } else {
-      refreshUserLegacy();
-    }
-  }, [supabase, refreshUserLegacy, refreshUserSupabase, fetchStaffProfile, refreshMfaStatus]);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase, fetchStaffProfile, refreshMfaStatus]);
 
-  // Login function (legacy)
-  const loginLegacy = useCallback(
+  // Login function (Supabase Auth with rate limiting and audit logging)
+  const login = useCallback(
     async (email: string, password: string): Promise<LoginResult> => {
       try {
         const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          return {
-            success: false,
-            error: data.error || "Credenciais inválidas",
-          };
-        }
-
-        setUser(data.user);
-        return { success: true };
-      } catch {
-        return { success: false, error: "Erro ao fazer login" };
-      }
-    },
-    []
-  );
-
-  // Login function (Supabase Auth with security features)
-  const loginSupabase = useCallback(
-    async (email: string, password: string): Promise<LoginResult> => {
-      try {
-        // Call secure login API that handles rate limiting and audit logging
-        const response = await fetch("/api/auth/secure-login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
@@ -321,18 +253,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [supabase, fetchStaffProfile, refreshMfaStatus]
   );
 
-  // Combined login function
-  const login = useCallback(
-    async (email: string, password: string): Promise<LoginResult> => {
-      if (USE_SUPABASE_AUTH) {
-        return loginSupabase(email, password);
-      } else {
-        return loginLegacy(email, password);
-      }
-    },
-    [loginLegacy, loginSupabase]
-  );
-
   // Verify MFA code
   const verifyMfa = useCallback(
     async (code: string): Promise<MfaVerifyResult> => {
@@ -355,7 +275,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           };
         }
 
-        // Refresh user and MFA status after successful verification
         await refreshUser();
         return { success: true };
       } catch {
@@ -391,22 +310,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
-  // Logout function (legacy)
-  const logoutLegacy = useCallback(async () => {
+  // Logout function
+  const logout = useCallback(async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      setUser(null);
-      setMfaStatus(null);
-      router.push("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  }, [router]);
-
-  // Logout function (Supabase Auth)
-  const logoutSupabase = useCallback(async () => {
-    try {
-      // Log the logout event
       await fetch("/api/auth/logout", { method: "POST" });
       await supabase.auth.signOut();
       setUser(null);
@@ -416,15 +322,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error("Logout error:", error);
     }
   }, [supabase, router]);
-
-  // Combined logout function
-  const logout = useCallback(async () => {
-    if (USE_SUPABASE_AUTH) {
-      await logoutSupabase();
-    } else {
-      await logoutLegacy();
-    }
-  }, [logoutLegacy, logoutSupabase]);
 
   // Role check helpers
   const hasRole = useCallback(
@@ -506,7 +403,6 @@ export function useRequireAuth(allowedRoles?: RoleName[]): AuthContextType {
 
     if (!auth.isLoading && auth.isAuthenticated && allowedRoles) {
       if (!auth.hasRole(allowedRoles)) {
-        // Redirect to appropriate dashboard based on role
         switch (auth.user?.role) {
           case "admin":
             router.push("/admin");
@@ -550,7 +446,6 @@ export function useRequireWaiter(): AuthContextType {
 
 /**
  * Hook that requires MFA verification
- * Redirects to MFA verification page if MFA is required but not verified
  */
 export function useRequireMfa(): AuthContextType {
   const auth = useAuth();

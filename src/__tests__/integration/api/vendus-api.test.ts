@@ -27,18 +27,23 @@ const {
   mockGetInvoices,
   mockVoidInvoice,
   mockGetInvoicePdf,
-} = vi.hoisted(() => ({
-  mockGetAuthUser: vi.fn(),
-  mockLogActivity: vi.fn().mockResolvedValue(undefined),
-  mockSyncProducts: vi.fn(),
-  mockGetProductSyncStats: vi.fn(),
-  mockImportTablesFromVendus: vi.fn(),
-  mockGetTableMapping: vi.fn(),
-  mockCreateInvoice: vi.fn(),
-  mockGetInvoices: vi.fn(),
-  mockVoidInvoice: vi.fn(),
-  mockGetInvoicePdf: vi.fn(),
-}));
+  mockAdminFrom,
+} = vi.hoisted(() => {
+  const mockAdminFrom = vi.fn();
+  return {
+    mockGetAuthUser: vi.fn(),
+    mockLogActivity: vi.fn().mockResolvedValue(undefined),
+    mockSyncProducts: vi.fn(),
+    mockGetProductSyncStats: vi.fn(),
+    mockImportTablesFromVendus: vi.fn(),
+    mockGetTableMapping: vi.fn(),
+    mockCreateInvoice: vi.fn(),
+    mockGetInvoices: vi.fn(),
+    mockVoidInvoice: vi.fn(),
+    mockGetInvoicePdf: vi.fn(),
+    mockAdminFrom,
+  };
+});
 
 // ─── Module mocks ────────────────────────────────────────────────────────────
 
@@ -48,6 +53,12 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/auth/activity', () => ({
   logActivity: (...args: unknown[]) => mockLogActivity(...args),
+}));
+
+vi.mock('@/lib/supabase/server', () => ({
+  createAdminClient: () => ({
+    from: (...args: unknown[]) => mockAdminFrom(...args),
+  }),
 }));
 
 vi.mock('@/lib/vendus', () => ({
@@ -152,33 +163,39 @@ describe('GET /api/vendus/sync/products', () => {
     expect(body.error).toBe('Acesso nao autorizado');
   });
 
-  it('returns sync stats on success', async () => {
+  it('returns products, categories and stats on success', async () => {
     mockGetAuthUser.mockResolvedValue(adminUser);
-    const stats = {
-      total: 50,
-      synced: 40,
-      pending: 10,
-      failed: 0,
-    };
+    const stats = { total: 50, synced: 40, pending: 10, error: 0 };
+    const mockProducts = [{ id: 'p1', name: 'Sashimi' }];
+    const mockCategories = [{ id: 'c1', name: 'Sushi' }];
     mockGetProductSyncStats.mockResolvedValue(stats);
+    mockAdminFrom.mockImplementation((table: string) => {
+      const data = table === 'categories' ? mockCategories : mockProducts;
+      return {
+        select: () => ({
+          order: () => Promise.resolve({ data, error: null }),
+        }),
+      };
+    });
 
     const response = await getProducts();
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body).toEqual(stats);
-    expect(mockGetProductSyncStats).toHaveBeenCalledOnce();
+    expect(body.products).toEqual(mockProducts);
+    expect(body.categories).toEqual(mockCategories);
+    expect(body.stats).toEqual(stats);
   });
 
-  it('returns 500 when getProductSyncStats throws', async () => {
+  it('returns 500 when admin query throws', async () => {
     mockGetAuthUser.mockResolvedValue(adminUser);
-    mockGetProductSyncStats.mockRejectedValue(new Error('DB connection failed'));
+    mockAdminFrom.mockImplementation(() => { throw new Error('DB connection failed'); });
 
     const response = await getProducts();
     const body = await response.json();
 
     expect(response.status).toBe(500);
-    expect(body.error).toBe('Erro ao obter estatisticas');
+    expect(body.error).toBe('Erro ao obter dados de sync');
   });
 });
 

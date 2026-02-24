@@ -5,9 +5,6 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-// Feature flag for Supabase Auth
-const USE_SUPABASE_AUTH = process.env.NEXT_PUBLIC_USE_SUPABASE_AUTH === "true";
-
 export async function POST() {
   try {
     // Get client info for audit logging
@@ -17,36 +14,34 @@ export async function POST() {
     const ipAddress = forwardedFor?.split(",")[0]?.trim() || realIp || undefined;
     const userAgent = headersList.get("user-agent") || undefined;
 
-    if (USE_SUPABASE_AUTH) {
-      const supabase = await createClient();
+    const supabase = await createClient();
 
-      // Get current user before signing out
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    // Get current user before signing out
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-      if (user) {
-        // Get staff record
-        const { data: staff } = await supabase
-          .from("staff")
-          .select("id, email")
-          .eq("auth_user_id", user.id)
-          .single();
+    if (user) {
+      // Get staff record
+      const { data: staff } = await supabase
+        .from("staff")
+        .select("id, email")
+        .eq("auth_user_id", user.id)
+        .single();
 
-        // Log the logout event
-        await logAuthEvent({
-          eventType: "logout",
-          staffId: staff?.id,
-          authUserId: user.id,
-          email: staff?.email ?? user.email,
-          ipAddress,
-          userAgent,
-          success: true,
-        });
-      }
+      // Log the logout event
+      await logAuthEvent({
+        eventType: "logout",
+        staffId: staff?.id,
+        authUserId: user.id,
+        email: staff?.email ?? user.email,
+        ipAddress,
+        userAgent,
+        success: true,
+      });
     }
 
-    // Clear legacy cookie (safe to call even if not using legacy auth)
+    // Clear app JWT cookie
     await clearAuthCookie();
 
     return NextResponse.json({ success: true });

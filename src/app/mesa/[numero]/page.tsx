@@ -6,6 +6,7 @@ import {
   useCallback,
   useRef,
   useMemo,
+  Suspense,
 } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -62,6 +63,20 @@ const STATUS_ICONS: Record<OrderStatus, { icon: string; color: string }> = {
 };
 
 export default function MesaPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+          <div className="animate-spin h-8 w-8 border-2 border-[#D4AF37] border-t-transparent rounded-full" />
+        </main>
+      }
+    >
+      <MesaPageContent />
+    </Suspense>
+  );
+}
+
+function MesaPageContent() {
   const { t } = useMesaLocale();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -75,10 +90,13 @@ export default function MesaPage() {
   const [activeTab, setActiveTab] = useState<Tab>("menu");
   const [orderType, setOrderType] = useState<OrderType>(null);
   const [numPessoas, setNumPessoas] = useState(2);
-  const [isLunch, _setIsLunch] = useState(() => {
+  const [isLunch, setIsLunch] = useState(false);
+
+  // Compute isLunch on client only to avoid SSR hydration mismatch
+  useEffect(() => {
     const hour = new Date().getHours();
-    return hour >= 11 && hour < 16;
-  });
+    setIsLunch(hour >= 11 && hour < 16);
+  }, []);
 
   // Session state
   const [session, setSession] = useState<Session | null>(null);
@@ -145,6 +163,8 @@ export default function MesaPage() {
   const [isRequestingBill, setIsRequestingBill] = useState(false);
   const [billRequested, setBillRequested] = useState(false);
   const [showLeaveTableModal, setShowLeaveTableModal] = useState(false);
+  const [wantsNif, setWantsNif] = useState(false);
+  const [nifInput, setNifInput] = useState("");
   const [isLeavingTable, setIsLeavingTable] = useState(false);
 
   // Cooldown state
@@ -287,58 +307,33 @@ export default function MesaPage() {
   }, [orderItemsForRating, ratingsStats.userRatedOrderIds]);
 
   // Fetch table info, waiter, and recover existing session on load
+  // Uses API route to bypass RLS - ensures session detection works even when waiter started it
   useEffect(() => {
     async function fetchTableAndSession() {
       try {
-        // Get table by number and location
-        const { data: tableData } = await supabase
-          .from("tables")
-          .select("id")
-          .eq("number", parseInt(mesaNumero))
-          .eq("location", localizacao)
-          .maybeSingle();
+        // Use API route (admin client) to reliably check for sessions
+        const res = await fetch(`/api/sessions?tableNumber=${encodeURIComponent(mesaNumero)}&location=${encodeURIComponent(localizacao)}`);
+        const data = await res.json();
 
-        if (!tableData) return;
+        if (!data.tableId) return;
 
-        setTableId(tableData.id);
+        setTableId(data.tableId);
 
-        // Fetch waiter assignment using the view
-        const { data: waiterData } = await supabase
-          .from("waiter_assignments")
-          .select("staff_name")
-          .eq("table_id", tableData.id)
-          .maybeSingle();
-
-        if (waiterData) {
-          setWaiterName(waiterData.staff_name);
+        if (data.waiterName) {
+          setWaiterName(data.waiterName);
         }
 
-        // Fetch cooldown setting and games mode from restaurant
-        const { data: restaurantData } = await supabase
-          .from("restaurants")
-          .select("id, order_cooldown_minutes, games_mode")
-          .eq("slug", localizacao)
-          .maybeSingle();
-        if (restaurantData) {
-          setCooldownMinutes(restaurantData.order_cooldown_minutes ?? 0);
-          setGamesMode((restaurantData.games_mode ?? "selection") as GamesMode);
-          if (restaurantData.id) setRestaurantId(restaurantData.id);
+        if (data.restaurant) {
+          setCooldownMinutes(data.restaurant.order_cooldown_minutes ?? 0);
+          setGamesMode((data.restaurant.games_mode ?? "selection") as GamesMode);
+          if (data.restaurant.id) setRestaurantId(data.restaurant.id);
         }
 
-        // Check for existing active session on this table
-        const { data: activeSession } = await supabase
-          .from("sessions")
-          .select("*")
-          .eq("table_id", tableData.id)
-          .in("status", ["active", "pending_payment"])
-          .order("started_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (activeSession) {
-          setSession(activeSession);
-          setOrderType(activeSession.is_rodizio ? "rodizio" : "carta");
-          setNumPessoas(activeSession.num_people || 2);
+        // If an active session exists (e.g. waiter already started it), enter directly
+        if (data.session) {
+          setSession(data.session);
+          setOrderType(data.session.is_rodizio ? "rodizio" : "carta");
+          setNumPessoas(data.session.num_people || 2);
           setStep("active");
         }
       } catch (err) {
@@ -349,7 +344,7 @@ export default function MesaPage() {
     }
 
     fetchTableAndSession();
-  }, [supabase, mesaNumero, localizacao]);
+  }, [mesaNumero, localizacao]);
 
   // Prompt customer identification when entering active session
   useEffect(() => {
@@ -1164,13 +1159,26 @@ export default function MesaPage() {
   const requestBill = useCallback(async () => {
     if (!session) return;
 
+    // Validate NIF if provided (Portuguese NIF: 9 digits)
+    const nif = wantsNif ? nifInput.trim() : undefined;
+    if (wantsNif && nif && !/^\d{9}$/.test(nif)) {
+      setError("NIF inválido. Deve ter 9 dígitos.");
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+
     setIsRequestingBill(true);
     setError(null);
 
     try {
+      const updateData: Record<string, unknown> = { status: "pending_payment" };
+      if (nif) {
+        updateData.customer_nif = nif;
+      }
+
       const { error: updateError } = await supabase
         .from("sessions")
-        .update({ status: "pending_payment" })
+        .update(updateData)
         .eq("id", session.id);
 
       if (updateError) throw updateError;
@@ -1180,6 +1188,8 @@ export default function MesaPage() {
       );
       setBillRequested(true);
       setShowBillModal(false);
+      setWantsNif(false);
+      setNifInput("");
       setSuccessMessage(t("mesa.success.billRequested"));
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
@@ -1188,7 +1198,7 @@ export default function MesaPage() {
     } finally {
       setIsRequestingBill(false);
     }
-  }, [session, supabase, t]);
+  }, [session, supabase, t, wantsNif, nifInput]);
 
   // Leave table (only if no orders/consumption)
   const leaveTable = useCallback(async () => {
@@ -2903,10 +2913,10 @@ export default function MesaPage() {
             <h3 className="text-xl font-semibold mb-2">
               {t("mesa.requestBill")}
             </h3>
-            <p className="text-gray-400 mb-6">{t("mesa.confirmBill")}</p>
+            <p className="text-gray-400 mb-4">{t("mesa.confirmBill")}</p>
 
             {session && (
-              <div className="bg-gray-900 rounded-xl p-4 mb-6">
+              <div className="bg-gray-900 rounded-xl p-4 mb-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">{t("mesa.totalToPay")}</span>
                   <span className="text-2xl font-bold text-[#D4AF37]">
@@ -2916,16 +2926,47 @@ export default function MesaPage() {
               </div>
             )}
 
+            {/* NIF / Contribuinte toggle */}
+            <div className="bg-gray-900 rounded-xl p-4 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-300">Fatura com contribuinte?</span>
+                <button
+                  onClick={() => setWantsNif(!wantsNif)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    wantsNif ? "bg-[#D4AF37]" : "bg-gray-700"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                      wantsNif ? "translate-x-6" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+              {wantsNif && (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={9}
+                  placeholder="NIF (9 dígitos)"
+                  value={nifInput}
+                  onChange={(e) => setNifInput(e.target.value.replace(/\D/g, ""))}
+                  className="w-full mt-2 px-4 py-3 bg-gray-800 rounded-xl text-white placeholder-gray-500 text-lg tracking-wider text-center border border-gray-700 focus:border-[#D4AF37] focus:outline-none"
+                />
+              )}
+            </div>
+
             <div className="flex gap-3">
               <button
-                onClick={() => setShowBillModal(false)}
+                onClick={() => { setShowBillModal(false); setWantsNif(false); setNifInput(""); }}
                 className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
               >
                 {t("mesa.cancel")}
               </button>
               <button
                 onClick={requestBill}
-                disabled={isRequestingBill}
+                disabled={isRequestingBill || (wantsNif && nifInput.length > 0 && nifInput.length !== 9)}
                 className="flex-1 py-3 rounded-xl bg-[#D4AF37] text-black font-semibold hover:bg-[#C4A030] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isRequestingBill ? (

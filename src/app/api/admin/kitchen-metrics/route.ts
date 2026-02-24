@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
 import { SupabaseKitchenMetricsRepository } from "@/infrastructure/repositories/SupabaseKitchenMetricsRepository";
 import { GetKitchenMetricsUseCase } from "@/application/use-cases/kitchen-metrics/GetKitchenMetricsUseCase";
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseKitchenMetricsRepository(supabase);
     const useCase = new GetKitchenMetricsUseCase(repository);
 

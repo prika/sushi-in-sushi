@@ -10,6 +10,7 @@ export interface ReservationSettings {
   sameDayReminderHours: number;
   rodizioWastePolicyEnabled: boolean;
   rodizioWasteFeePerPiece: number;
+  waiterAlertMinutes: number;
   updatedAt: Date;
   updatedBy: string | null;
 }
@@ -21,4 +22,5 @@ export interface UpdateReservationSettingsData {
   sameDayReminderHours?: number;
   rodizioWastePolicyEnabled?: boolean;
   rodizioWasteFeePerPiece?: number;
+  waiterAlertMinutes?: number;
 }

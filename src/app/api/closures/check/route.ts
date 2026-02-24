@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { SupabaseRestaurantClosureRepository } from "@/infrastructure/repositories/SupabaseRestaurantClosureRepository";
 import { CheckClosureUseCase } from "@/application/use-cases/closures";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // GET - Check if a date is closed for a location
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseRestaurantClosureRepository(supabase);
     const checkClosure = new CheckClosureUseCase(repository);
 

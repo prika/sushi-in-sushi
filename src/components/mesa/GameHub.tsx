@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui";
 import { QuizGame } from "./QuizGame";
 import { PreferenceGame } from "./PreferenceGame";
-import { SwipeRatingGame, type TableLeaderInfo } from "./SwipeRatingGame";
+import { SwipeRatingGame, type TableLeaderInfo, type OrderItem } from "./SwipeRatingGame";
 import { GameLeaderboard } from "./GameLeaderboard";
 import { GamePrize } from "./GamePrize";
 import type { GameQuestion } from "@/domain/entities/GameQuestion";

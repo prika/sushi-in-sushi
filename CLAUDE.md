@@ -14,18 +14,16 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 
 ## 🎉 Estado Atual do Projeto
 
-### Última Atualização: 2026-02-13
+### Última Atualização: 2026-02-23
 
 **Alterações Recentes:**
-- ✅ **Nomes de Waiter no Admin** - Exibição de waiter atribuído em mapas de mesa
-- ✅ **Funcionalidade "Sair da Mesa"** - Clientes podem sair quando não consumiram nada
-- ✅ **Status Uniformizado** - Status calculado dinamicamente baseado em sessões
-- ✅ **Correções no Painel do Waiter**:
-  - Busca sessões `pending_payment` (conta pedida)
-  - Filtra mesas de outros waiters corretamente
-  - Fix autenticação API (legada vs Supabase Auth)
-- ✅ **Migration 043** - Função `close_session_and_free_table` para atomicidade
-- ✅ **Scripts SQL consolidados** - Diagnóstico e correção de inconsistências
+- ✅ **Alerta de Reservas para Empregados** - Waiter alertado X min antes de reservas confirmadas (configurável no admin, default 60min)
+- ✅ **Atribuição de Mesas para Reservas** - Modal com grelha de mesas: principal (dourado) + adicionais (azul, modo reservado)
+- ✅ **Migration 058** - `reservation_tables` (junção reserva→mesas), `waiter_alert_minutes`, `tables_assigned`
+- ✅ **Vendus Invoice Multi-Modo** - Faturas usam `vendus_ids[orderingMode]` correto por modo de serviço
+- ✅ **"Encerrar Mesa" vs "Pedir Conta"** - Sem pedidos → encerrar direto; com pedidos → modal de faturação
+- ✅ **Dashboard Waiter Reestruturado** - Tabs Ativas/Disponíveis, reservas próximas, chamadas desaparecem ao concluir
+- ✅ **Notificações Imediatas** - Estado local atualizado sem esperar refetch + polling 15s fallback
 
 Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 
@@ -209,6 +207,8 @@ npx supabase db reset
 - `waiter_calls` - Chamadas de assistência
 - `restaurant_closures` - Dias de fecho do restaurante
 - `staff_time_off` - Férias e folgas dos funcionários
+- `reservation_tables` - Junção reserva→mesas (principal + adicionais para junção física)
+- `reservation_settings` - Configurações de reservas (lembretes, desperdício, alerta waiter)
 
 ### SQL Scripts de Utilidade
 Scripts em `supabase/scripts/`:
@@ -738,6 +738,11 @@ As migrações estão em `/supabase/migrations/`:
 - `007_waiter_calls.sql` - Chamadas de empregados
 - `008_session_customers.sql` - Participantes na sessão
 - `009_waiter_calls_order_id.sql` - Relação chamadas-pedidos
+- `043_close_session_update_table.sql` - Função atómica `close_session_and_free_table`
+- `046-049` - Vendus POS integration (sync, products, invoices, retry queue)
+- `053_products_vendus_ids.sql` - `vendus_ids` JSONB multi-modo (dine_in, delivery, takeaway)
+- `055_ingredients_catalog.sql` - Catálogo de ingredientes e product-ingredients
+- `058_reservation_table_assignment.sql` - Atribuição de mesas a reservas, alerta waiter
 
 ## Notas Importantes
 
@@ -754,3 +759,26 @@ As migrações estão em `/supabase/migrations/`:
 - DependencyContext deve usar `SupabaseOrderRepositoryOptimized`
 - Painel do waiter tem título "Painel da Mesa #{number}"
 - Uma única seção "Prontos para Servir" (não duplicar)
+
+### Waiter Dashboard Layout
+Ordem das secções no painel do waiter (`/waiter`):
+1. **Stats Bar** — mesas ativas / total, pessoas
+2. **Prontos para Servir** — green, pedidos prontos da cozinha
+3. **Reservas Proximas** — purple, reservas confirmadas dentro da janela de alerta
+4. **Chamadas de Clientes** — red/yellow, chamadas pendentes/acknowledged
+5. **Tabs: Mesas Ativas / Disponíveis** — gold tabs com grelha de mesas
+6. **Na Cozinha / Aguardam Cozinha** — bottom, menos proeminente
+
+### Reservation Table Assignment
+- **Setting:** `reservation_settings.waiter_alert_minutes` (default: 60, min: 15, max: 180)
+- **Admin:** `/admin/definicoes` → Notificações → card "Alerta para Empregados"
+- **Tabela:** `reservation_tables` (reservation_id, table_id, is_primary, assigned_by, assigned_at)
+- **Flag:** `reservations.tables_assigned` (false até waiter atribuir mesas)
+- **Fluxo waiter:** Vê alerta → clica "Atribuir Mesa" → seleciona principal (dourado) + adicionais (azul) → confirmar
+- **Resultado:** Mesas ficam com status "reserved", `reservation_tables` preenchida, alerta desaparece
+- **Sem pedidos na mesa:** Botão "Encerrar Mesa" (fecho direto) em vez de "Pedir Conta"
+
+### Vendus Invoice Multi-Mode
+- Produtos com preços diferentes por modo têm `vendus_ids` JSONB: `{"dine_in": "123", "delivery": "456"}`
+- Faturas resolvem: `vendus_ids[session.ordering_mode]` → `vendus_id` → `product_id`
+- Migration 053 adicionou a coluna e migrou dados existentes

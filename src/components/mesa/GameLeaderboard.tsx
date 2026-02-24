@@ -87,7 +87,7 @@ export function GameLeaderboard({
     (entry: LeaderboardEntryWithRank): "up" | "down" | "same" | null => {
       if (isFirstRenderRef.current) return null;
       const prev = prevRanksRef.current.get(getRankKey(entry));
-      if (prev === null) return null;
+      if (prev === null || prev === undefined) return null;
       if (entry.rank < prev) return "up";
       if (entry.rank > prev) return "down";
       return "same";
@@ -108,7 +108,7 @@ export function GameLeaderboard({
           ? (currentEntry.rank ?? leaderboard.indexOf(currentEntry) + 1)
           : null;
 
-        if (prevRank !== null && currentRank !== null) {
+        if (prevRank !== null && prevRank !== undefined && currentRank !== null) {
           if (currentRank < prevRank) {
             // User moved up
             setToast(t("mesa.games.realtime.movedUp", { rank: currentRank }));

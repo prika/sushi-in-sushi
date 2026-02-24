@@ -50,32 +50,33 @@ export async function updateSession(request: NextRequest) {
  * Gets the staff profile for the authenticated user.
  * Returns null if user is not authenticated or not linked to a staff record.
  * Uses RPC functions with SECURITY DEFINER to bypass RLS on roles table.
+ * Both RPCs run in parallel for faster response.
  */
 export async function getStaffFromAuth(
   supabase: Awaited<ReturnType<typeof updateSession>>["supabase"],
   _userId: string
 ) {
-  // Use get_current_staff() RPC which is SECURITY DEFINER
-  const { data: staffArray, error: staffError } = await (supabase as any).rpc("get_current_staff");
+  // Run both RPCs in parallel to reduce latency
+  const [staffResult, roleResult] = await Promise.all([
+    (supabase as any).rpc("get_current_staff"),
+    (supabase as any).rpc("get_current_staff_role"),
+  ]);
 
-  if (staffError || !staffArray || staffArray.length === 0) {
+  if (staffResult.error || !staffResult.data || staffResult.data.length === 0) {
     return null;
   }
 
-  const staff = staffArray[0];
-
-  // Get role name using RPC function
-  const { data: roleName, error: roleError } = await (supabase as any).rpc("get_current_staff_role");
-
-  if (roleError || !roleName) {
+  if (roleResult.error || !roleResult.data) {
     return null;
   }
+
+  const staff = staffResult.data[0];
 
   return {
     id: staff.id,
     name: staff.name,
     email: staff.email,
     location: staff.location,
-    role: roleName as string,
+    role: roleResult.data as string,
   };
 }

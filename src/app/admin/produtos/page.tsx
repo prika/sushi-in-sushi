@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useEffect, _useCallback } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import { useProductsOptimized, useIngredients, useProductIngredients } from "@/presentation/hooks";
-import type { Product, _Category } from "@/domain/entities";
+import { useAdminProducts, useIngredients, useProductIngredients } from "@/presentation/hooks";
+import type { Product } from "@/domain/entities";
 import type {
   IngredientWithProductCount,
-  _CreateIngredientData,
-  _UpdateIngredientData,
 } from "@/domain/entities/Ingredient";
 import { AlertModal, ConfirmDialog } from "@/components/ui";
 
@@ -22,7 +20,7 @@ export default function ProdutosPage() {
     createProduct,
     updateProduct,
     deleteProduct,
-  } = useProductsOptimized();
+  } = useAdminProducts();
 
   const { ingredients: catalogIngredients, refresh: _refreshCatalog } = useIngredients();
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -1183,7 +1181,7 @@ const UNIT_OPTIONS = [
 ];
 
 function IngredientsCatalogTab() {
-  const { ingredients, isLoading, error, create, update, remove, _refresh } = useIngredients();
+  const { ingredients, isLoading, error, create, update, remove } = useIngredients();
   const [showModal, setShowModal] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<IngredientWithProductCount | null>(null);
   const [formData, setFormData] = useState({ name: "", unit: "g" });

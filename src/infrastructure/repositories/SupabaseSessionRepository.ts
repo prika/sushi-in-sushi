@@ -16,7 +16,7 @@ import {
   SessionWithOrders,
 } from '@/domain/entities/Session';
 import { SessionStatus } from '@/domain/value-objects/SessionStatus';
-import { _OrderingMode, toOrderingMode } from '@/domain/value-objects/OrderingMode';
+import { toOrderingMode } from '@/domain/value-objects/OrderingMode';
 import { Location } from '@/types/database';
 
 /**

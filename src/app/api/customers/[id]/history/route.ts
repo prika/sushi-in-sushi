@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
 type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];
@@ -82,7 +82,7 @@ export async function GET(
       return NextResponse.json({ error: "id obrigatório" }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: customerRow, error: customerError } = await supabase
       .from("customers")

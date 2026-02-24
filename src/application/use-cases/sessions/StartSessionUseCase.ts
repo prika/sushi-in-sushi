@@ -68,7 +68,7 @@ export class StartSessionUseCase {
             currentSessionId: null,
           });
           // Atualizar referência local
-          table.currentSessionId = undefined;
+          table.currentSessionId = null;
           table.status = 'available';
         }
       }

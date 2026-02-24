@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
 import { SupabaseReservationSettingsRepository } from "@/infrastructure/repositories/SupabaseReservationSettingsRepository";
 import {
@@ -17,7 +17,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseReservationSettingsRepository(supabase);
     const getReservationSettings = new GetReservationSettingsUseCase(repository);
 
@@ -39,6 +39,7 @@ export async function GET() {
       same_day_reminder_hours: result.data.sameDayReminderHours,
       rodizio_waste_policy_enabled: result.data.rodizioWastePolicyEnabled,
       rodizio_waste_fee_per_piece: result.data.rodizioWasteFeePerPiece,
+      waiter_alert_minutes: result.data.waiterAlertMinutes,
       updated_at: result.data.updatedAt.toISOString(),
       updated_by: result.data.updatedBy,
     };
@@ -64,7 +65,7 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseReservationSettingsRepository(supabase);
     const updateReservationSettings = new UpdateReservationSettingsUseCase(repository);
 
@@ -89,6 +90,9 @@ export async function PATCH(request: NextRequest) {
     if (body.rodizioWasteFeePerPiece !== undefined || body.rodizio_waste_fee_per_piece !== undefined) {
       updateData.rodizioWasteFeePerPiece = body.rodizioWasteFeePerPiece ?? body.rodizio_waste_fee_per_piece;
     }
+    if (body.waiterAlertMinutes !== undefined || body.waiter_alert_minutes !== undefined) {
+      updateData.waiterAlertMinutes = body.waiterAlertMinutes ?? body.waiter_alert_minutes;
+    }
 
     const result = await updateReservationSettings.execute({
       data: updateData,
@@ -111,6 +115,7 @@ export async function PATCH(request: NextRequest) {
       same_day_reminder_hours: result.data.sameDayReminderHours,
       rodizio_waste_policy_enabled: result.data.rodizioWastePolicyEnabled,
       rodizio_waste_fee_per_piece: result.data.rodizioWasteFeePerPiece,
+      waiter_alert_minutes: result.data.waiterAlertMinutes,
       updated_at: result.data.updatedAt.toISOString(),
       updated_by: result.data.updatedBy,
     };

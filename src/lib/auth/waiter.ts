@@ -15,14 +15,10 @@ export async function assignTableToWaiter(
       table_id: tableId,
     });
 
-    if (error) {
-      console.error("Error assigning table:", error);
-      return false;
-    }
+    if (error) return false;
 
     return true;
-  } catch (error) {
-    console.error("Error assigning table:", error);
+  } catch {
     return false;
   }
 }
@@ -43,14 +39,10 @@ export async function removeTableFromWaiter(
       .eq("staff_id", waiterId)
       .eq("table_id", tableId);
 
-    if (error) {
-      console.error("Error removing table assignment:", error);
-      return false;
-    }
+    if (error) return false;
 
     return true;
-  } catch (error) {
-    console.error("Error removing table assignment:", error);
+  } catch {
     return false;
   }
 }
@@ -86,8 +78,7 @@ export async function getWaiterTables(
             location: string;
           },
       );
-  } catch (error) {
-    console.error("Error fetching waiter tables:", error);
+  } catch {
     return [];
   }
 }

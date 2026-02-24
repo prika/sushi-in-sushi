@@ -38,7 +38,6 @@ export default function StaffManagementPage() {
     update,
     remove,
     assignTables,
-    _refresh,
   } = useStaff({ loadTableAssignments: true });
 
   const { tables } = useTableManagement();

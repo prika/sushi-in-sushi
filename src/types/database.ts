@@ -117,6 +117,7 @@ export type Database = {
           is_available: boolean;
           is_rodizio: boolean;
           sort_order: number;
+          quantity: number;
           ingredients: Ingredient[] | null;
           vendus_id: string | null;
           vendus_ids: Record<string, string>;
@@ -141,6 +142,7 @@ export type Database = {
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;
+          quantity?: number;
           ingredients?: Ingredient[] | null;
           vendus_id?: string | null;
           vendus_ids?: Record<string, string>;
@@ -165,6 +167,7 @@ export type Database = {
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;
+          quantity?: number;
           ingredients?: Ingredient[] | null;
           vendus_id?: string | null;
           vendus_ids?: Record<string, string>;

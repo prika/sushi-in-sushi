@@ -16,7 +16,7 @@ vi.mock('@/lib/auth', () => ({
 // Mock Supabase
 const mockSupabaseFrom = vi.fn();
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(() => Promise.resolve({
+  createAdminClient: vi.fn(() => ({
     from: mockSupabaseFrom,
   })),
 }));

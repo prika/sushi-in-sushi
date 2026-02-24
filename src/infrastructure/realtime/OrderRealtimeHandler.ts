@@ -2,12 +2,10 @@
  * OrderRealtimeHandler - Handler especializado para eventos de pedidos em tempo real
  */
 
-import { _createClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   IRealtimeSubscription,
   RealtimeEvent,
-  _RealtimeCallback,
 } from '@/application/ports/IRealtimeSubscription';
 import { Order } from '@/domain/entities/Order';
 import { OrderStatus } from '@/domain/value-objects/OrderStatus';

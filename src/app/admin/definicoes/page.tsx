@@ -17,8 +17,6 @@ import {
   generateQRCodeToCanvas,
   buildTableOrderURLByNumber,
 } from "@/lib/qrcode";
-import { _TableMap } from "@/components/admin/TableMap";
-import { _TableDetailModal } from "@/components/admin/TableDetailModal";
 import {
   useTableManagement,
   useRestaurants,
@@ -86,6 +84,7 @@ function NotificationsTab() {
   const [sameDayHours, setSameDayHours] = useState(2);
   const [wasteEnabled, setWasteEnabled] = useState(true);
   const [wasteFee, setWasteFee] = useState(2.5);
+  const [waiterAlertMinutes, setWaiterAlertMinutes] = useState(60);
 
   useEffect(() => {
     fetchSettings();
@@ -95,7 +94,7 @@ function NotificationsTab() {
     try {
       const response = await fetch("/api/reservation-settings");
       if (response.ok) {
-        const data: ReservationSettings = await response.json();
+        const data = await response.json();
         setSettings(data);
         setDayBeforeEnabled(data.day_before_reminder_enabled);
         setDayBeforeHours(data.day_before_reminder_hours);
@@ -103,6 +102,7 @@ function NotificationsTab() {
         setSameDayHours(data.same_day_reminder_hours);
         setWasteEnabled(data.rodizio_waste_policy_enabled);
         setWasteFee(data.rodizio_waste_fee_per_piece);
+        setWaiterAlertMinutes(data.waiter_alert_minutes || 60);
       }
     } catch (error) {
       console.error("Error fetching settings:", error);
@@ -127,6 +127,7 @@ function NotificationsTab() {
           same_day_reminder_hours: sameDayHours,
           rodizio_waste_policy_enabled: wasteEnabled,
           rodizio_waste_fee_per_piece: wasteFee,
+          waiter_alert_minutes: waiterAlertMinutes,
         }),
       });
 
@@ -318,6 +319,40 @@ function NotificationsTab() {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Waiter Alert */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🔔</span>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Alerta para Empregados
+            </h3>
+          </div>
+          <p className="mt-2 text-gray-600 text-sm">
+            Tempo de antecedencia para alertar os empregados sobre reservas confirmadas para preparar mesas.
+          </p>
+        </div>
+        <div className="mt-6 pl-11">
+          <label className="block text-sm font-medium text-gray-700">
+            Minutos antes da reserva
+          </label>
+          <div className="mt-2 flex items-center gap-3">
+            <input
+              type="number"
+              min="15"
+              max="180"
+              value={waiterAlertMinutes}
+              onChange={(e) => setWaiterAlertMinutes(parseInt(e.target.value) || 60)}
+              className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
+            />
+            <span className="text-gray-600">minutos antes</span>
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Exemplo: 60 minutos = alerta enviado 1 hora antes da reserva
+          </p>
+        </div>
       </div>
 
       {/* Info Box */}
@@ -1124,13 +1159,6 @@ function TableManagementTab() {
 
   const {
     tables: mapTables,
-    isLoading: _mapIsLoading,
-    refresh: _refreshMap,
-    _startWalkInSession,
-    _markTableInactive,
-    _reactivateTable,
-    _requestBill,
-    _closeSession,
   } = useTableManagement({
     location: selectedLocation as "circunvalacao" | "boavista",
     refreshInterval: 15000,
@@ -3217,7 +3245,7 @@ function RestaurantManagementTab() {
 // =============================================
 
 function CategoriesTab() {
-  const { categories, isLoading, error, create, update, remove, reorder, _refresh } =
+  const { categories, isLoading, error, create, update, remove, reorder } =
     useCategories();
   const { activeZones } = useKitchenZones();
 
@@ -3595,7 +3623,7 @@ function CategoriesTab() {
 // =============================================
 
 function KitchenZonesTab() {
-  const { zones, isLoading, error, create, update, remove, _refresh } =
+  const { zones, isLoading, error, create, update, remove } =
     useKitchenZones();
 
   const [showModal, setShowModal] = useState(false);

@@ -17,8 +17,6 @@ import type { Database } from "@/types/database";
 import type {
   RateLimitCheckResult,
   AuthAuditLogEntry,
-  _AuthSessionConfigRow,
-  _StaffLockedInfo,
 } from "@/types/supabase-rpc";
 
 // =============================================

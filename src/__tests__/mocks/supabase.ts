@@ -8,34 +8,6 @@ export type MockResponse<T> = {
   error: { message: string } | null;
 };
 
-function createChain(
-  value: unknown,
-  resolve: () => Promise<unknown> = async () => value,
-) {
-  const chain: Record<string, unknown> = {
-    select: () => chain,
-    insert: () => chain,
-    update: () => chain,
-    eq: () => chain,
-    in: () => chain,
-    ilike: () => chain,
-    is: () => chain,
-    or: () => chain,
-    order: () => chain,
-    limit: () => chain,
-    single: () => ({
-      ...chain,
-      then: (fn: (v: unknown) => unknown) => resolve().then(fn),
-    }),
-    maybeSingle: () => ({
-      ...chain,
-      then: (fn: (v: unknown) => unknown) => resolve().then(fn),
-    }),
-    then: (fn: (v: unknown) => unknown) => resolve().then(fn),
-  };
-  return chain;
-}
-
 export function createMockSupabase(responses: {
   vendusSyncLogInsert?: MockResponse<{ id: string }>;
   vendusSyncLogUpdate?: MockResponse<unknown>;
@@ -51,12 +23,10 @@ export function createMockSupabase(responses: {
   productsUpdate?: MockResponse<unknown>;
   productsInsert?: MockResponse<unknown>;
 }) {
-  let fromCallCount = 0;
   const callLog: { table: string; operation: string }[] = [];
 
   const from = (table: string) => {
-    fromCallCount++;
-    const select = (cols?: string) => {
+    const select = () => {
       callLog.push({ table, operation: "select" });
       return {
         eq: (col: string, val: unknown) => {
@@ -73,7 +43,7 @@ export function createMockSupabase(responses: {
           return { single: () => Promise.resolve({ data: null, error: null }) };
         },
         ilike: (col: string, val: string) => ({
-          is: (col2: string) => {
+          is: () => {
             if (table === "products" && col === "name") {
               const resp = responses.productsSelectByName?.[val] ??
                 responses.productsSelectByName?.["*"] ?? {
@@ -87,8 +57,8 @@ export function createMockSupabase(responses: {
             };
           },
         }),
-        order: (col: string) => ({
-          limit: (n: number) => ({
+        order: () => ({
+          limit: () => ({
             single: () =>
               Promise.resolve(
                 responses.categoriesSelect ?? {
@@ -99,26 +69,26 @@ export function createMockSupabase(responses: {
           }),
         }),
         in: () => ({
-          then: (fn: (v: unknown) => unknown) =>
+          then: (fn: () => unknown) =>
             Promise.resolve({ data: [], error: null }).then(fn),
         }),
       };
     };
 
-    const insert = (data: unknown) => {
+    const insert = () => {
       callLog.push({ table, operation: "insert" });
       const resp = responses.vendusSyncLogInsert ?? {
         data: { id: "log-1" },
         error: null,
       };
       return {
-        select: (cols: string) => ({
+        select: () => ({
           single: () => Promise.resolve(resp),
         }),
       };
     };
 
-    const update = (data: unknown) => {
+    const update = () => {
       callLog.push({ table, operation: "update" });
       const resp = responses.productsUpdate ??
         responses.vendusSyncLogUpdate ?? { data: null, error: null };

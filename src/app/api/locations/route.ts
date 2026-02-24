@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export async function GET() {
       return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("locations")
       .select(

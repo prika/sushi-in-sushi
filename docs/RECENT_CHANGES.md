@@ -1,5 +1,135 @@
 # Alterações Recentes - Sushi in Sushi
 
+## 📅 Data: 2026-02-23
+
+### 🎯 Funcionalidades Implementadas
+
+#### 1. **Alerta de Reservas para Empregados + Atribuição de Mesas** ✅
+
+**Contexto:**
+Quando uma reserva confirmada se aproxima, o empregado de mesa é alertado para preparar mesas. O empregado seleciona uma mesa principal (numero da reserva) e mesas adicionais que ficam em modo "reservado" para junção física.
+
+**Arquivos criados:**
+- `/supabase/migrations/058_reservation_table_assignment.sql`
+
+**Arquivos modificados:**
+- `/src/domain/entities/ReservationSettings.ts` — campo `waiterAlertMinutes`
+- `/src/infrastructure/repositories/SupabaseReservationSettingsRepository.ts` — mapeamento DB `waiter_alert_minutes`
+- `/src/app/api/reservation-settings/route.ts` — GET/PATCH com novo campo
+- `/src/app/admin/definicoes/page.tsx` — card "Alerta para Empregados" no NotificationsTab
+- `/src/app/waiter/page.tsx` — secção "Reservas Proximas" + modal de atribuição de mesas
+
+**O que faz:**
+- Setting configurável no admin: minutos de antecedência para alertar (default: 60min, range: 15-180)
+- Waiter dashboard mostra reservas confirmadas de hoje que estão dentro da janela de alerta
+- Secção roxa "Reservas Proximas" entre "Prontos para Servir" e "Chamadas de Clientes"
+- Cada reserva mostra: nome, pessoas, hora, countdown, tipo (Rodízio/À Carta), notas especiais
+- Botão "Atribuir Mesa" abre modal com grelha de todas as mesas da localização
+- Modal de atribuição: 1º clique = mesa principal (dourado), cliques seguintes = mesas adicionais (azul)
+- Mesas ocupadas/inativas ficam desabilitadas
+- Ao confirmar: insere `reservation_tables`, marca mesas como "reserved", atualiza `tables_assigned = true`
+- Real-time subscription na tabela `reservations` para updates automáticos
+
+**Testes:** ❌ Não há testes automatizados (funcionalidade visual + DB)
+
+---
+
+#### 2. **Vendus Invoice — Suporte Multi-Modo** ✅
+
+**Arquivos modificados:**
+- `/src/lib/vendus/invoices.ts` (linhas 54-118)
+
+**O que faz:**
+- Faturas agora resolvem o `vendus_id` correto por modo de serviço (dine_in, delivery, takeaway)
+- Usa `vendus_ids` JSONB (migração 053) em vez do legado `vendus_id`
+- Cadeia de fallback: `vendus_ids[orderingMode]` → `vendus_id` → `product_id`
+- Campo `ordering_mode` lido da sessão (default: `dine_in`)
+
+---
+
+#### 3. **"Encerrar Mesa" vs "Pedir Conta"** ✅
+
+**Arquivos modificados:**
+- `/src/app/waiter/mesa/[id]/page.tsx`
+
+**O que faz:**
+- Se não há pedidos na mesa: botão "Encerrar Mesa" (fecho direto com `close_session_and_free_table`)
+- Se há pedidos: botão "Pedir Conta" (abre modal de faturação)
+- Diálogo de confirmação antes de encerrar mesa sem pedidos
+
+---
+
+#### 4. **Reestruturação do Dashboard do Waiter** ✅
+
+**Arquivos modificados:**
+- `/src/app/waiter/page.tsx`
+
+**O que faz:**
+- Nova ordem: Stats → Prontos para Servir → Reservas Proximas → Chamadas → Tabs (Ativas/Disponíveis) → Cozinha
+- Tabs "Mesas Ativas" / "Disponíveis" para melhor organização
+- Mesas ativas mostram badge "Conta" para `pending_payment`
+- Pedidos na cozinha movidos para o fundo da página
+
+---
+
+#### 5. **Notificações Desaparecem ao Concluir** ✅
+
+**Arquivos modificados:**
+- `/src/app/waiter/page.tsx`
+- `/src/app/waiter/mesa/[id]/page.tsx`
+
+**O que faz:**
+- `handleCompleteCall` remove a chamada do estado local imediatamente após sucesso no DB
+- `handleAcknowledgeCall` atualiza o estado local para "acknowledged" sem esperar refetch
+- Polling de 15s como fallback caso Realtime não esteja ativo
+
+---
+
+### 🗄️ Migrações de Base de Dados
+
+#### Migration 058: `reservation_table_assignment`
+**Arquivo:** `/supabase/migrations/058_reservation_table_assignment.sql`
+
+**Alterações:**
+1. **`reservation_settings.waiter_alert_minutes`** — INTEGER DEFAULT 60, minutos de antecedência para alerta
+2. **Tabela `reservation_tables`** — Junção reserva → múltiplas mesas
+   - `reservation_id` (FK → reservations)
+   - `table_id` (FK → tables)
+   - `is_primary` (BOOLEAN) — mesa principal da reserva
+   - `assigned_by` (FK → staff)
+   - `assigned_at` (TIMESTAMPTZ)
+   - UNIQUE(reservation_id, table_id)
+3. **`reservations.tables_assigned`** — BOOLEAN DEFAULT false, flag de filtragem rápida
+4. **Indexes:** `idx_reservation_tables_reservation`, `idx_reservation_tables_table`, `idx_reservations_unassigned` (partial)
+5. **RLS:** Políticas SELECT, INSERT, DELETE habilitadas
+6. **Grants:** anon + authenticated
+
+**Status:** ⚠️ Pendente aplicação via Supabase Dashboard SQL Editor
+
+---
+
+### ⚠️ Problemas Identificados e Resolvidos
+
+#### Problema: Chamadas de clientes não desaparecem ao concluir
+**Causa:** `handleCompleteCall` atualizava DB mas não o estado React local
+**Solução:** `setWaiterCalls(prev => prev.filter(c => c.id !== callId))` imediato ✅
+
+#### Problema: Vendus fatura com vendus_id errado para produtos multi-modo
+**Causa:** Código usava `vendus_id` singular, ignorando `vendus_ids` JSONB por modo
+**Solução:** Fallback chain `vendus_ids[orderingMode] || vendus_id || product_id` ✅
+
+---
+
+### 📈 Impacto
+- **UX Waiter:** Dashboard reestruturado, alertas de reservas proativos
+- **Operações:** Atribuição de mesas para reservas com junção de mesas
+- **Faturação:** Vendus IDs corretos por modo de serviço
+- **Performance:** Sem impacto negativo, real-time + polling fallback
+
+---
+
+---
+
 ## 📅 Data: 2026-02-13
 
 ### 🎯 Funcionalidades Implementadas

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
 import { SupabaseReservationRepository } from "@/infrastructure/repositories/SupabaseReservationRepository";
 import {
@@ -103,7 +103,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseReservationRepository(supabase);
     const getReservationById = new GetReservationByIdUseCase(repository);
 
@@ -147,7 +147,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseReservationRepository(supabase);
 
     // Handle status changes with specialized use-cases
@@ -238,7 +238,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseReservationRepository(supabase);
     const deleteReservation = new DeleteReservationUseCase(repository);
 

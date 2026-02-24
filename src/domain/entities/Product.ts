@@ -30,6 +30,8 @@ export interface Product {
   serviceModes: string[];
   /** Per-service-mode price overrides. Keys match serviceModes values. */
   servicePrices: Record<string, number>;
+  /** Number of pieces in this product */
+  quantity: number;
   /** Legacy product ingredients (JSONB) */
   ingredients: LegacyIngredient[];
   createdAt: Date;
@@ -49,6 +51,7 @@ export interface CreateProductData {
   isAvailable?: boolean;
   isRodizio?: boolean;
   sortOrder?: number;
+  quantity?: number;
   serviceModes?: string[];
   servicePrices?: Record<string, number>;
 }
@@ -66,6 +69,7 @@ export interface UpdateProductData {
   isAvailable?: boolean;
   isRodizio?: boolean;
   sortOrder?: number;
+  quantity?: number;
   serviceModes?: string[];
   servicePrices?: Record<string, number>;
 }

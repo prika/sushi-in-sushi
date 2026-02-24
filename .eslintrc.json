@@ -28,7 +28,8 @@
       "files": [
         "src/domain/repositories/I*.ts",
         "src/application/use-cases/**/*.ts",
-        "src/application/ports/**/*.ts"
+        "src/application/ports/**/*.ts",
+        "src/lib/vendus/client.ts"
       ],
       "rules": {
         "no-unused-vars": "off"

@@ -38,6 +38,7 @@ function createDbProduct(overrides: Partial<{
     is_available: true,
     is_rodizio: false,
     sort_order: 1,
+    quantity: 1,
     service_modes: ['dine_in'],
     service_prices: { dine_in: 4.50 },
     ingredients: [{ name: 'Salmon', quantity: '50', unit: 'g' }],
@@ -397,6 +398,7 @@ describe('SupabaseProductRepository', () => {
         is_available: true,
         is_rodizio: false,
         sort_order: 1,
+        quantity: 1,
         service_modes: ['dine_in'],
         service_prices: { dine_in: 4.50 },
       });
@@ -459,6 +461,7 @@ describe('SupabaseProductRepository', () => {
           is_available: true,
           is_rodizio: false,
           sort_order: 0,
+          quantity: 1,
           service_modes: [],
           service_prices: {},
         })

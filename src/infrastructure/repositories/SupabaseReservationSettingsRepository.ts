@@ -18,6 +18,7 @@ interface DatabaseReservationSettings {
   same_day_reminder_hours: number;
   rodizio_waste_policy_enabled: boolean;
   rodizio_waste_fee_per_piece: number;
+  waiter_alert_minutes: number;
   updated_at: string;
   updated_by: string | null;
 }
@@ -73,6 +74,9 @@ export class SupabaseReservationSettingsRepository implements IReservationSettin
     if (data.rodizioWasteFeePerPiece !== undefined) {
       updateData.rodizio_waste_fee_per_piece = data.rodizioWasteFeePerPiece;
     }
+    if (data.waiterAlertMinutes !== undefined) {
+      updateData.waiter_alert_minutes = data.waiterAlertMinutes;
+    }
 
     const { data: updated, error } = await this.supabase
       .from('reservation_settings')
@@ -95,6 +99,7 @@ export class SupabaseReservationSettingsRepository implements IReservationSettin
       sameDayReminderHours: row.same_day_reminder_hours,
       rodizioWastePolicyEnabled: row.rodizio_waste_policy_enabled,
       rodizioWasteFeePerPiece: row.rodizio_waste_fee_per_piece,
+      waiterAlertMinutes: row.waiter_alert_minutes ?? 60,
       updatedAt: new Date(row.updated_at),
       updatedBy: row.updated_by,
     };
@@ -109,6 +114,7 @@ export class SupabaseReservationSettingsRepository implements IReservationSettin
       sameDayReminderHours: 2,
       rodizioWastePolicyEnabled: true,
       rodizioWasteFeePerPiece: 2.5,
+      waiterAlertMinutes: 60,
       updatedAt: new Date(),
       updatedBy: null,
     };

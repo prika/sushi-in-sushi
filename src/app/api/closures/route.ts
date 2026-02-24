@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
 import { SupabaseRestaurantClosureRepository } from "@/infrastructure/repositories/SupabaseRestaurantClosureRepository";
 import {
@@ -13,7 +13,7 @@ import type { Location } from "@/types/database";
 // GET - List closures
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseRestaurantClosureRepository(supabase);
     const getAllClosures = new GetAllClosuresUseCase(repository);
 
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseRestaurantClosureRepository(supabase);
     const createClosure = new CreateClosureUseCase(repository);
 
@@ -190,7 +190,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseRestaurantClosureRepository(supabase);
     const deleteClosure = new DeleteClosureUseCase(repository);
 

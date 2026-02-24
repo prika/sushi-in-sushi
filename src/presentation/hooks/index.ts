@@ -21,6 +21,9 @@ export * from './useCustomers';
 export * from './useProductsOptimized';
 export * from './useKitchenOrdersOptimized';
 
+// Admin-specific hooks (API-based, bypass RLS)
+export * from './useAdminProducts';
+
 // Restaurant management hooks
 export * from './useRestaurants';
 export * from './useLocations';

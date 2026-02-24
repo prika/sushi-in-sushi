@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { TableDTO } from "@/application/use-cases/tables/GetAllTablesUseCase";
-import type { _TableStatus } from "@/domain/value-objects/TableStatus";
 
 interface TableDetailModalProps {
   table: TableDTO | null;

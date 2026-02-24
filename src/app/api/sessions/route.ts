@@ -7,6 +7,77 @@ import { SupabaseRestaurantRepository } from "@/infrastructure/repositories/Supa
 import { StartSessionUseCase } from "@/application/use-cases/sessions/StartSessionUseCase";
 import { AutoAssignWaiterUseCase } from "@/application/use-cases/sessions/AutoAssignWaiterUseCase";
 
+// GET - Check for active session on a table (public - used by customer mesa page)
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const tableNumber = searchParams.get("tableNumber");
+    const location = searchParams.get("location") || "circunvalacao";
+
+    if (!tableNumber) {
+      return NextResponse.json(
+        { error: "tableNumber é obrigatório" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createAdminClient();
+
+    // Find table by number and location
+    const { data: tableData } = await supabase
+      .from("tables")
+      .select("id")
+      .eq("number", parseInt(tableNumber))
+      .eq("location", location)
+      .maybeSingle();
+
+    if (!tableData) {
+      return NextResponse.json({ tableId: null, session: null });
+    }
+
+    // Fetch active session
+    const { data: activeSession } = await supabase
+      .from("sessions")
+      .select("*")
+      .eq("table_id", tableData.id)
+      .in("status", ["active", "pending_payment"])
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // Fetch waiter name
+    let waiterName: string | null = null;
+    const { data: waiterData } = await (supabase as ReturnType<typeof createAdminClient>)
+      .from("waiter_assignments" as any)
+      .select("staff_name")
+      .eq("table_id", tableData.id)
+      .maybeSingle();
+    if (waiterData) {
+      waiterName = (waiterData as any).staff_name;
+    }
+
+    // Fetch restaurant settings
+    const { data: restaurantData } = await supabase
+      .from("restaurants")
+      .select("id, order_cooldown_minutes, games_mode")
+      .eq("slug", location)
+      .maybeSingle();
+
+    return NextResponse.json({
+      tableId: tableData.id,
+      session: activeSession,
+      waiterName,
+      restaurant: restaurantData,
+    });
+  } catch (error) {
+    console.error("[API /sessions GET] Error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Erro ao verificar sessão" },
+      { status: 500 }
+    );
+  }
+}
+
 // POST - Start a new session (public - used by customer mesa page)
 export async function POST(request: NextRequest) {
   try {

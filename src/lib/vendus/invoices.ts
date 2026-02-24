@@ -56,7 +56,7 @@ export async function createInvoice(
         *,
         orders (
           *,
-          products:product_id (id, name, price, vendus_id, vendus_tax_id)
+          products:product_id (id, name, price, vendus_id, vendus_ids, vendus_tax_id)
         )
       `,
       )
@@ -81,19 +81,35 @@ export async function createInvoice(
       .eq("slug", locationSlug)
       .single();
 
+    // Resolve the correct vendus_id per product based on session ordering_mode
+    const orderingMode: string = session.ordering_mode || "dine_in";
+
     // Build invoice items from orders
     const items: VendusInvoiceItem[] = [];
     let subtotal = 0;
 
-    type OrderProduct = { id: string; name: string; price: number; vendus_id: string | null; vendus_tax_id: string | null };
+    type OrderProduct = {
+      id: string;
+      name: string;
+      price: number;
+      vendus_id: string | null;
+      vendus_ids: Record<string, string> | null;
+      vendus_tax_id: string | null;
+    };
     for (const order of session.orders || []) {
       const product = order.products as OrderProduct | null;
       const taxId = product?.vendus_tax_id || VENDUS_TAX_RATES.NORMAL;
       const lineTotal = order.quantity * order.unit_price;
       subtotal += lineTotal;
 
+      // Pick vendus_id for the session's ordering mode, fallback to legacy vendus_id
+      const vendusProductId =
+        product?.vendus_ids?.[orderingMode] ||
+        product?.vendus_id ||
+        order.product_id;
+
       items.push({
-        product_id: product?.vendus_id || order.product_id,
+        product_id: vendusProductId,
         quantity: order.quantity,
         unit_price: order.unit_price,
         tax_id: taxId,
