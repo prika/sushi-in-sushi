@@ -351,6 +351,17 @@
       "title": "Espere antes de pedir de nuevo",
       "description": "Para garantizar la calidad, hay un intervalo entre pedidos.",
       "waitMessage": "Espere {time}"
+    },
+    "leaveTable": {
+      "closeTitle": "¿Cerrar Mesa?",
+      "leaveTitle": "¿Salir de la Mesa?",
+      "preparingWarning": "Hay pedidos en preparación en la cocina. Para cerrar la mesa es necesario indicar el motivo.",
+      "pendingWarning": "Hay pedidos pendientes que serán cancelados. ¿Desea continuar?",
+      "noOrdersMessage": "Como no ha consumido nada, puede salir de la mesa sin pagar. La sesión será cerrada.",
+      "reasonLabel": "Motivo del cierre",
+      "reasonPlaceholder": "Ej.: El cliente cambió de opinión, error en el pedido...",
+      "confirmClose": "Sí, Cerrar",
+      "confirmLeave": "Sí, Salir"
     }
   },
   "reservation": {

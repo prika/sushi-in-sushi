@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const syncLogId = body.syncLogId as number | undefined;
-    if (!syncLogId) {
+    const syncLogId = body.syncLogId;
+    if (!syncLogId || typeof syncLogId !== "number" || !Number.isInteger(syncLogId) || syncLogId <= 0) {
       return NextResponse.json(
         { error: "syncLogId obrigatorio" },
         { status: 400 },
@@ -52,9 +52,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (logEntry.status === "reverted") {
+    // Atomically claim the revert to prevent concurrent executions
+    const { count } = await supabase
+      .from("vendus_sync_log")
+      .update({ status: "reverting" })
+      .eq("id", syncLogId)
+      .in("status", ["completed", "failed"])
+      .select("id", { count: "exact", head: true });
+
+    if (!count || count === 0) {
       return NextResponse.json(
-        { error: "Este sync ja foi revertido" },
+        { error: "Este sync nao pode ser revertido (ja revertido ou em progresso)" },
         { status: 409 },
       );
     }
@@ -77,27 +85,26 @@ export async function POST(request: NextRequest) {
       if (!productId) continue;
 
       // Only restore vendus-related and sync-affected fields
-      // Convert null → undefined for Supabase update compatibility
-      const n = (v: unknown) => (v === null ? undefined : v);
+      // Pass null directly so Supabase sends it to the DB (undefined is omitted)
       const updateData = {
-        name: product.name as string,
-        description: product.description as string | null,
-        price: product.price as number,
-        is_available: product.is_available as boolean,
-        vendus_id: n(product.vendus_id) as string | undefined,
-        vendus_ids: n(product.vendus_ids) as Record<string, string> | undefined,
-        vendus_sync_status: n(product.vendus_sync_status) as string | undefined,
-        vendus_synced_at: n(product.vendus_synced_at) as string | undefined,
-        vendus_reference: n(product.vendus_reference) as string | undefined,
-        vendus_tax_id: n(product.vendus_tax_id) as string | undefined,
-        service_modes: n(product.service_modes) as string[] | undefined,
-        service_prices: n(product.service_prices) as Record<string, number> | undefined,
-        category_id: n(product.category_id) as string | undefined,
+        name: product.name,
+        description: product.description ?? null,
+        price: product.price,
+        is_available: product.is_available,
+        vendus_id: product.vendus_id ?? null,
+        vendus_ids: product.vendus_ids ?? null,
+        vendus_sync_status: product.vendus_sync_status ?? null,
+        vendus_synced_at: product.vendus_synced_at ?? null,
+        vendus_reference: product.vendus_reference ?? null,
+        vendus_tax_id: product.vendus_tax_id ?? null,
+        service_modes: product.service_modes ?? null,
+        service_prices: product.service_prices ?? null,
+        ...(product.category_id !== null && product.category_id !== undefined ? { category_id: product.category_id } : {}),
       };
 
       const { error: updateError } = await supabase
         .from("products")
-        .update(updateData)
+        .update(updateData as any)
         .eq("id", productId);
 
       if (updateError) {

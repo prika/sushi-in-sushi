@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
     let countQuery = supabase.from("products").select("id", { count: "exact", head: true });
     if (productIds?.length) {
       countQuery = countQuery.in("id", productIds);
-    } else if (onlyErrors) {
+    }
+    if (onlyErrors) {
       countQuery = countQuery.eq("vendus_sync_status", "error");
     }
 
@@ -64,7 +65,8 @@ export async function POST(request: NextRequest) {
 
     if (productIds?.length) {
       updateQuery = updateQuery.in("id", productIds);
-    } else if (onlyErrors) {
+    }
+    if (onlyErrors) {
       updateQuery = updateQuery.eq("vendus_sync_status", "error");
     }
 

@@ -105,6 +105,7 @@ export default function VendusSyncPage() {
 
   const fetchProducts = useCallback(async () => {
     setFetchError(null);
+    setIsLoading(true);
     try {
       const [syncRes, locationsRes] = await Promise.all([
         fetch("/api/vendus/sync/products"),
@@ -201,6 +202,7 @@ export default function VendusSyncPage() {
   const [revertResult, setRevertResult] = useState<{ success: boolean; restored: number; message?: string } | null>(null);
   const [isResetting, setIsResetting] = useState(false);
   const [confirmRevert, setConfirmRevert] = useState(false);
+  const [confirmResetAll, setConfirmResetAll] = useState(false);
 
   const handleRevert = async () => {
     const logId = syncResult?.syncLogId;
@@ -378,6 +380,7 @@ export default function VendusSyncPage() {
           <button
             key={s.key}
             onClick={() => setStatusFilter(s.key === statusFilter ? "all" : s.key)}
+            aria-pressed={statusFilter === s.key}
             className={`bg-white p-4 rounded-xl shadow-sm border text-left transition-all ${
               statusFilter === s.key
                 ? `border-transparent ring-2 ${s.ring}`
@@ -470,13 +473,32 @@ export default function VendusSyncPage() {
           >
             {isResetting ? "A resetar..." : `Resetar com erro (${stats.error})`}
           </button>
-          <button
-            onClick={() => handleResetStatus(false)}
-            disabled={isResetting || isSyncing}
-            className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {isResetting ? "A resetar..." : "Resetar todos para pendente"}
-          </button>
+          {!confirmResetAll ? (
+            <button
+              onClick={() => setConfirmResetAll(true)}
+              disabled={isResetting || isSyncing}
+              className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Resetar todos para pendente
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-red-600">Resetar todos?</span>
+              <button
+                onClick={() => { handleResetStatus(false); setConfirmResetAll(false); }}
+                disabled={isResetting}
+                className="px-2 py-0.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+              >
+                {isResetting ? "A resetar..." : "Confirmar"}
+              </button>
+              <button
+                onClick={() => setConfirmResetAll(false)}
+                className="px-2 py-0.5 text-xs border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
         </div>
 
         {previewResult?.preview && (
@@ -576,8 +598,8 @@ export default function VendusSyncPage() {
                 {syncResult.recordsFailed > 0 && (
                   <div className="text-red-600 text-sm mt-1 space-y-0.5">
                     <p>Parou no erro do produto. {syncResult.recordsProcessed} processado(s) antes de parar.</p>
-                    {syncResult.errors.map((e, i) => (
-                      <p key={i} className="text-xs font-mono bg-red-100 px-2 py-1 rounded">{e.error}</p>
+                    {syncResult.errors.map((e) => (
+                      <p key={e.id} className="text-xs font-mono bg-red-100 px-2 py-1 rounded">{e.error}</p>
                     ))}
                   </div>
                 )}

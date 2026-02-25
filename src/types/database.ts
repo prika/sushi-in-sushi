@@ -265,6 +265,7 @@ export type Database = {
           table_id: string;
           started_at: string;
           closed_at: string | null;
+          close_reason: string | null;
           is_rodizio: boolean;
           num_people: number;
           status: SessionStatus;
@@ -279,6 +280,7 @@ export type Database = {
           table_id: string;
           started_at?: string;
           closed_at?: string | null;
+          close_reason?: string | null;
           is_rodizio?: boolean;
           num_people?: number;
           status?: SessionStatus;
@@ -293,6 +295,7 @@ export type Database = {
           table_id?: string;
           started_at?: string;
           closed_at?: string | null;
+          close_reason?: string | null;
           is_rodizio?: boolean;
           num_people?: number;
           status?: SessionStatus;
@@ -1697,6 +1700,21 @@ export type Database = {
           p_ingredients: unknown;
         };
         Returns: void;
+      };
+      close_session_transactional: {
+        Args: {
+          p_session_id: string;
+          p_cancel_orders?: boolean;
+          p_close_reason?: string | null;
+        };
+        Returns: {
+          success: boolean;
+          error?: string;
+          session_id?: string;
+          table_id?: string;
+          cancelled_orders?: number;
+          close_reason?: string | null;
+        };
       };
     };
     Enums: {

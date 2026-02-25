@@ -1212,7 +1212,10 @@ function MesaPageContent() {
       const response = await fetch(`/api/sessions/${session.id}/close`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cancelOrders: true }),
+        body: JSON.stringify({
+          cancelOrders: true,
+          closeReason: closeReason.trim() || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -1235,7 +1238,7 @@ function MesaPageContent() {
     } finally {
       setIsLeavingTable(false);
     }
-  }, [session]);
+  }, [session, closeReason]);
 
   // Call waiter function
   const callWaiter = useCallback(
@@ -3024,24 +3027,24 @@ function MesaPageContent() {
               return (
                 <>
                   <h3 className="text-xl font-semibold mb-2 text-center">
-                    {sessionOrders.length > 0 ? "Fechar Mesa?" : "Sair da Mesa?"}
+                    {sessionOrders.length > 0 ? t("mesa.leaveTable.closeTitle") : t("mesa.leaveTable.leaveTitle")}
                   </h3>
                   <p className="text-gray-400 mb-4 text-center">
                     {hasPreparingOrReady
-                      ? "Existem pedidos em preparação na cozinha. Para fechar a mesa é necessário indicar o motivo."
+                      ? t("mesa.leaveTable.preparingWarning")
                       : hasOnlyPending
-                        ? "Existem pedidos pendentes que serão cancelados. Deseja continuar?"
-                        : "Como não consumiu nada, pode sair da mesa sem pagar. A sessão será encerrada."
+                        ? t("mesa.leaveTable.pendingWarning")
+                        : t("mesa.leaveTable.noOrdersMessage")
                     }
                   </p>
 
                   {hasPreparingOrReady && (
                     <div className="mb-4">
-                      <label className="text-sm text-gray-300 mb-2 block">Motivo do encerramento</label>
+                      <label className="text-sm text-gray-300 mb-2 block">{t("mesa.leaveTable.reasonLabel")}</label>
                       <textarea
                         value={closeReason}
                         onChange={(e) => setCloseReason(e.target.value)}
-                        placeholder="Ex: Cliente desistiu, erro no pedido..."
+                        placeholder={t("mesa.leaveTable.reasonPlaceholder")}
                         className="w-full px-4 py-3 bg-gray-800 rounded-xl text-white placeholder-gray-500 text-sm border border-gray-700 focus:border-[#D4AF37] focus:outline-none resize-none"
                         rows={2}
                         autoFocus
@@ -3054,7 +3057,7 @@ function MesaPageContent() {
                       onClick={() => setShowLeaveTableModal(false)}
                       className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
                     >
-                      Cancelar
+                      {t("mesa.cancel")}
                     </button>
                     <button
                       onClick={leaveTable}
@@ -3079,7 +3082,7 @@ function MesaPageContent() {
                           />
                         </svg>
                       ) : (
-                        sessionOrders.length > 0 ? "Sim, Fechar" : "Sim, Sair"
+                        sessionOrders.length > 0 ? t("mesa.leaveTable.confirmClose") : t("mesa.leaveTable.confirmLeave")
                       )}
                     </button>
                   </div>

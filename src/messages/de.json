@@ -351,6 +351,17 @@
       "title": "Bitte warten Sie vor der nächsten Bestellung",
       "description": "Um die Qualität zu gewährleisten, gibt es ein Intervall zwischen den Bestellungen.",
       "waitMessage": "Bitte warten {time}"
+    },
+    "leaveTable": {
+      "closeTitle": "Tisch schließen?",
+      "leaveTitle": "Tisch verlassen?",
+      "preparingWarning": "Es gibt Bestellungen, die in der Küche zubereitet werden. Um den Tisch zu schließen, müssen Sie einen Grund angeben.",
+      "pendingWarning": "Es gibt ausstehende Bestellungen, die storniert werden. Möchten Sie fortfahren?",
+      "noOrdersMessage": "Da Sie nichts konsumiert haben, können Sie den Tisch ohne Bezahlung verlassen. Die Sitzung wird geschlossen.",
+      "reasonLabel": "Grund für die Schließung",
+      "reasonPlaceholder": "Z.B.: Kunde hat es sich anders überlegt, Bestellfehler...",
+      "confirmClose": "Ja, Schließen",
+      "confirmLeave": "Ja, Verlassen"
     }
   },
   "reservation": {

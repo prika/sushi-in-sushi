@@ -351,6 +351,17 @@
       "title": "Attendere prima di ordinare di nuovo",
       "description": "Per garantire la qualità, c'è un intervallo tra gli ordini.",
       "waitMessage": "Attendere {time}"
+    },
+    "leaveTable": {
+      "closeTitle": "Chiudere il Tavolo?",
+      "leaveTitle": "Lasciare il Tavolo?",
+      "preparingWarning": "Ci sono ordini in preparazione in cucina. Per chiudere il tavolo è necessario indicare un motivo.",
+      "pendingWarning": "Ci sono ordini in sospeso che verranno annullati. Vuoi continuare?",
+      "noOrdersMessage": "Non avendo consumato nulla, puoi lasciare il tavolo senza pagare. La sessione verrà chiusa.",
+      "reasonLabel": "Motivo della chiusura",
+      "reasonPlaceholder": "Es.: Il cliente ha cambiato idea, errore nell'ordine...",
+      "confirmClose": "Sì, Chiudi",
+      "confirmLeave": "Sì, Esci"
     }
   },
   "reservation": {

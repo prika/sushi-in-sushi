@@ -391,10 +391,13 @@ export default function WaiterMesaPage() {
       }
 
       // Close the session via server-side API (bypasses RLS)
+      const hasOpenKitchenOrders = orders.some((o) =>
+        ["pending", "preparing", "ready"].includes(o.status)
+      );
       const closeRes = await fetch(`/api/sessions/${sessionId}/close`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cancelOrders: false }),
+        body: JSON.stringify({ cancelOrders: hasOpenKitchenOrders }),
       });
 
       if (!closeRes.ok) {
@@ -430,7 +433,7 @@ export default function WaiterMesaPage() {
     } finally {
       setIsBillingSubmitting(false);
     }
-  }, [table, user, billingPaymentMethodId, billingWantsNif, billingNif, supabase, logActivity, showToast, router]);
+  }, [table, user, billingPaymentMethodId, billingWantsNif, billingNif, logActivity, showToast, router, orders]);
 
   // Close session directly without billing (via server-side API to bypass RLS)
   const handleCloseSessionDirect = useCallback(async () => {
@@ -561,7 +564,7 @@ export default function WaiterMesaPage() {
       console.error("[WaiterMesa] Exceção ao iniciar sessão:", err);
       showToast("error", "Erro inesperado ao iniciar sessão");
     }
-  }, [table, user, sessionForm, logActivity, fetchData, showToast]);
+  }, [table, user, sessionForm, logActivity, fetchData, showToast, supabase]);
 
   const handleToggleOrderingMode = useCallback(async () => {
     if (!table?.activeSession || !orderingMode) return;

@@ -351,6 +351,17 @@
       "title": "Veuillez patienter avant de commander",
       "description": "Pour garantir la qualité, il y a un intervalle entre les commandes.",
       "waitMessage": "Patientez {time}"
+    },
+    "leaveTable": {
+      "closeTitle": "Fermer la Table ?",
+      "leaveTitle": "Quitter la Table ?",
+      "preparingWarning": "Des commandes sont en préparation en cuisine. Pour fermer la table, vous devez indiquer un motif.",
+      "pendingWarning": "Il y a des commandes en attente qui seront annulées. Voulez-vous continuer ?",
+      "noOrdersMessage": "Comme vous n'avez rien consommé, vous pouvez quitter la table sans payer. La session sera fermée.",
+      "reasonLabel": "Motif de fermeture",
+      "reasonPlaceholder": "Ex : Le client a changé d'avis, erreur de commande...",
+      "confirmClose": "Oui, Fermer",
+      "confirmLeave": "Oui, Quitter"
     }
   },
   "reservation": {

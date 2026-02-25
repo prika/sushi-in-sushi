@@ -45,11 +45,11 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser();
-    if (!user || user.role !== "admin") {
-      return NextResponse.json(
-        { error: "Nao autorizado" },
-        { status: 403 },
-      );
+    if (!user) {
+      return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
+    }
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Nao autorizado" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -60,12 +60,17 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    const normalizedSlug = slug.trim().toLowerCase();
 
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("locations")
       .select("id")
-      .eq("slug", slug.trim())
+      .eq("slug", normalizedSlug)
       .maybeSingle();
+
+    if (existingError) {
+      return NextResponse.json({ error: existingError.message }, { status: 500 });
+    }
 
     if (existing) {
       return NextResponse.json({ error: "Slug ja existe" }, { status: 409 });
@@ -75,7 +80,7 @@ export async function POST(request: NextRequest) {
       .from("locations")
       .insert({
         name: name.trim(),
-        slug: slug.trim().toLowerCase(),
+        slug: normalizedSlug,
         is_active: true,
         vendus_enabled: vendus_enabled ?? false,
         vendus_store_id: vendus_store_id || null,
@@ -88,7 +93,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, { status: 201 });
   } catch (error) {
     console.error("Erro ao criar localizacao:", error);
     return NextResponse.json({ error: "Erro ao criar localizacao" }, { status: 500 });

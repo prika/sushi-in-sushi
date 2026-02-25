@@ -351,6 +351,17 @@
       "title": "Please wait before ordering again",
       "description": "To ensure quality, there is an interval between orders.",
       "waitMessage": "Please wait {time}"
+    },
+    "leaveTable": {
+      "closeTitle": "Close Table?",
+      "leaveTitle": "Leave Table?",
+      "preparingWarning": "There are orders being prepared in the kitchen. To close the table you must provide a reason.",
+      "pendingWarning": "There are pending orders that will be cancelled. Do you want to continue?",
+      "noOrdersMessage": "Since you haven't consumed anything, you can leave the table without paying. The session will be closed.",
+      "reasonLabel": "Reason for closing",
+      "reasonPlaceholder": "E.g.: Customer changed mind, order mistake...",
+      "confirmClose": "Yes, Close",
+      "confirmLeave": "Yes, Leave"
     }
   },
   "reservation": {

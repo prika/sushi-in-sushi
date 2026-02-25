@@ -350,6 +350,17 @@
       "title": "Aguarde para fazer novo pedido",
       "description": "Para garantir a qualidade, há um intervalo entre pedidos.",
       "waitMessage": "Aguarde {time}"
+    },
+    "leaveTable": {
+      "closeTitle": "Fechar Mesa?",
+      "leaveTitle": "Sair da Mesa?",
+      "preparingWarning": "Existem pedidos em preparação na cozinha. Para fechar a mesa é necessário indicar o motivo.",
+      "pendingWarning": "Existem pedidos pendentes que serão cancelados. Deseja continuar?",
+      "noOrdersMessage": "Como não consumiu nada, pode sair da mesa sem pagar. A sessão será encerrada.",
+      "reasonLabel": "Motivo do encerramento",
+      "reasonPlaceholder": "Ex: Cliente desistiu, erro no pedido...",
+      "confirmClose": "Sim, Fechar",
+      "confirmLeave": "Sim, Sair"
     }
   },
   "reservation": {

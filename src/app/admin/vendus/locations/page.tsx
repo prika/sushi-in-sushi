@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface Location {
   id: string;
@@ -31,6 +31,8 @@ export default function VendusLocationsPage() {
     vendus_register_id: "",
   });
   const [addError, setAddError] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchLocations = useCallback(async () => {
     setIsLoading(true);
@@ -57,7 +59,17 @@ export default function VendusLocationsPage() {
     fetchLocations();
   }, [fetchLocations]);
 
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+
   const handleEdit = (loc: Location) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
     setEditingSlug(loc.slug);
     setFormData({
       vendus_enabled: loc.vendus_enabled ?? false,
@@ -68,6 +80,10 @@ export default function VendusLocationsPage() {
   };
 
   const handleCancel = () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
     setEditingSlug(null);
     setSaveStatus(null);
   };
@@ -78,6 +94,7 @@ export default function VendusLocationsPage() {
       return;
     }
     setAddError(null);
+    setIsAdding(true);
     try {
       const res = await fetch("/api/locations", {
         method: "POST",
@@ -89,11 +106,13 @@ export default function VendusLocationsPage() {
         setNewLocation({ name: "", slug: "", vendus_enabled: false, vendus_store_id: "", vendus_register_id: "" });
         await fetchLocations();
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         setAddError(err.error || "Erro ao criar");
       }
     } catch {
       setAddError("Erro de ligacao");
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -111,11 +130,14 @@ export default function VendusLocationsPage() {
       });
       if (res.ok) {
         setSaveStatus("saved");
-        setEditingSlug(null);
         await fetchLocations();
-        setTimeout(() => setSaveStatus(null), 2000);
+        saveTimeoutRef.current = setTimeout(() => {
+          saveTimeoutRef.current = null;
+          setSaveStatus(null);
+          setEditingSlug(null);
+        }, 2000);
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         setSaveStatus(err.error || "Erro");
       }
     } catch {
@@ -172,7 +194,7 @@ export default function VendusLocationsPage() {
       )}
 
       {/* Locations list */}
-      {!fetchError && locations.length === 0 ? (
+      {fetchError ? null : locations.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
           <p className="text-gray-500 mb-2">Nenhuma localizacao encontrada.</p>
           <p className="text-gray-400 text-sm">
@@ -372,9 +394,10 @@ export default function VendusLocationsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={handleAddLocation}
-                  className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm"
+                  disabled={isAdding}
+                  className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Criar
+                  {isAdding ? "A criar..." : "Criar"}
                 </button>
                 <button
                   onClick={() => setShowAddForm(false)}
