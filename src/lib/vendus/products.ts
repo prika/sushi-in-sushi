@@ -128,6 +128,23 @@ export async function syncProducts(
     .select("id")
     .single();
 
+  // Snapshot: save current product state before sync (for revert)
+  if (!previewOnly && logEntry?.id) {
+    const { data: allProducts } = await supabase
+      .from("products")
+      .select(
+        "id, name, description, price, is_available, vendus_id, vendus_ids, vendus_sync_status, vendus_synced_at, vendus_reference, vendus_tax_id, service_modes, service_prices, category_id",
+      );
+    if (allProducts && allProducts.length > 0) {
+      await supabase
+        .from("vendus_sync_log")
+        .update({
+          request_data: { snapshot: allProducts } as unknown as import("@/types/database").Json,
+        })
+        .eq("id", logEntry.id);
+    }
+  }
+
   try {
     if (direction === "pull" || direction === "both") {
       await pullProductsFromVendus(client, supabase, result, {
@@ -153,6 +170,7 @@ export async function syncProducts(
   }
 
   result.duration = Date.now() - startTime;
+  result.syncLogId = logEntry?.id ?? undefined;
 
   // Update sync log
   if (logEntry?.id) {

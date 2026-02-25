@@ -1,0 +1,181 @@
+// ============================================================
+// SUSHI IN SUSHI — Staff, Kitchen & Waiter Flow
+// Auth → Roles → Table Assignment → Order Pipeline → Delivery
+// ============================================================
+
+// ========================
+// AUTH & ROLES
+// ========================
+
+Table roles {
+  id serial [pk]
+  name varchar(50) [unique, not null, note: 'admin, kitchen, waiter, customer']
+  description text
+  created_at timestamptz [default: `now()`]
+}
+
+Table staff {
+  id uuid [pk]
+  email varchar(255) [unique, not null]
+  name varchar(255) [not null]
+  password_hash varchar(255) [not null]
+  role_id integer [not null, ref: > roles.id]
+  location varchar(50) [note: 'circunvalacao, boavista']
+  phone varchar(20)
+  is_active boolean [default: true]
+  last_login timestamptz
+  created_at timestamptz [default: `now()`]
+  auth_user_id uuid [unique, note: 'FK -> auth.users(id) for Supabase Auth']
+}
+
+Table staff_time_off {
+  id serial [pk]
+  staff_id uuid [not null, ref: > staff.id]
+  start_date date [not null]
+  end_date date [not null]
+  type varchar(20) [not null, default: 'vacation', note: 'vacation, sick, personal, other']
+  reason text
+  status varchar(20) [not null, default: 'approved', note: 'pending, approved, rejected']
+  approved_by uuid [ref: > staff.id]
+  approved_at timestamptz
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table activity_log {
+  id serial [pk]
+  staff_id uuid [ref: > staff.id, note: 'Who performed the action']
+  action varchar(100) [not null]
+  entity_type varchar(50)
+  entity_id varchar(100)
+  details jsonb
+  ip_address inet
+  user_agent text
+  created_at timestamptz [default: `now()`]
+}
+
+// ========================
+// WAITER → TABLE ASSIGNMENT
+// ========================
+
+Table tables {
+  id uuid [pk]
+  number integer [not null]
+  name varchar(100) [not null]
+  location varchar(50) [not null]
+  status varchar(20) [default: 'available', note: 'available, reserved, occupied, inactive']
+  is_active boolean [default: true]
+  current_session_id uuid
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table waiter_tables {
+  id serial [pk]
+  staff_id uuid [not null, ref: > staff.id, note: 'Waiter assigned']
+  table_id uuid [not null, ref: > tables.id, note: 'Table assigned to']
+  assigned_at timestamptz [default: `now()`]
+
+  indexes {
+    (staff_id, table_id) [unique]
+  }
+}
+
+Table table_status_history {
+  id serial [pk]
+  table_id uuid [not null, ref: > tables.id]
+  old_status varchar(20)
+  new_status varchar(20)
+  changed_by uuid [ref: > staff.id]
+  reason text
+  reservation_id uuid
+  session_id uuid
+  created_at timestamptz [default: `now()`]
+}
+
+// ========================
+// ORDER PIPELINE (Kitchen Flow)
+// ========================
+
+Table sessions {
+  id uuid [pk]
+  table_id uuid [not null, ref: > tables.id]
+  status varchar(20) [default: 'active', note: 'active, pending_payment, paid, closed']
+  is_rodizio boolean [default: false]
+  num_people integer [default: 1]
+  total_amount decimal(10,2) [default: 0]
+  ordering_mode varchar(20) [default: 'client', note: 'client, waiter_only']
+  started_at timestamptz [default: `now()`]
+  closed_at timestamptz
+  bill_requested_at timestamptz
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table orders {
+  id uuid [pk]
+  session_id uuid [not null, ref: > sessions.id]
+  product_id uuid [not null, ref: > products.id]
+  quantity integer [default: 1]
+  unit_price decimal(10,2) [not null]
+  notes text
+  status varchar(20) [default: 'pending', note: 'pending → preparing → ready → delivered / cancelled']
+  // Kitchen tracking
+  prepared_by uuid [ref: > staff.id, note: 'Kitchen staff who prepared']
+  preparing_started_at timestamptz [note: 'When kitchen started']
+  ready_at timestamptz [note: 'When kitchen finished']
+  delivered_at timestamptz [note: 'When waiter delivered']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table products {
+  id uuid [pk]
+  name varchar(255) [not null]
+  price decimal(10,2) [not null]
+  category_id uuid [not null, ref: > categories.id]
+  is_available boolean [default: true]
+  is_rodizio boolean [default: false]
+  created_at timestamptz [default: `now()`]
+}
+
+Table categories {
+  id uuid [pk]
+  name varchar(100) [not null]
+  slug varchar(50) [unique, not null]
+  sort_order integer [default: 0]
+  zone_id uuid [ref: > kitchen_zones.id, note: 'Which kitchen zone prepares this category']
+  created_at timestamptz [default: `now()`]
+}
+
+Table kitchen_zones {
+  id uuid [pk]
+  name varchar(100) [not null, note: 'e.g. Sushi Bar, Hot Kitchen, Desserts']
+  slug varchar(50) [unique, not null]
+  color varchar(7) [default: '#6B7280']
+  sort_order integer [default: 0]
+  is_active boolean [default: true]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+// ========================
+// WAITER CALLS (from customers)
+// ========================
+
+Table waiter_calls {
+  id uuid [pk]
+  table_id uuid [not null, ref: > tables.id]
+  session_id uuid [ref: > sessions.id]
+  call_type varchar(50) [default: 'assistance', note: 'assistance, bill, order, other']
+  message text
+  status varchar(20) [default: 'pending', note: 'pending, acknowledged, completed, cancelled']
+  acknowledged_by uuid [ref: > staff.id, note: 'Waiter who responded']
+  acknowledged_at timestamptz
+  completed_at timestamptz
+  location varchar(50) [not null]
+  order_id uuid [ref: > orders.id]
+  session_customer_id uuid
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}

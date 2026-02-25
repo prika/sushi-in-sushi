@@ -70,6 +70,7 @@ interface SyncResult {
   recordsFailed: number;
   errors: Array<{ id: string; error: string }>;
   duration: number;
+  syncLogId?: number;
   warnings?: Array<{
     id: string;
     type: string;
@@ -94,27 +95,44 @@ export default function VendusSyncPage() {
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "synced" | "pending" | "error" | "no_vendus">("all");
   const [previewResult, setPreviewResult] = useState<SyncResult | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>(
     [],
   );
 
-  const fetchProducts = useCallback(async () => {
-    const [syncDataRes, locationsRes] = await Promise.all([
-      fetch("/api/vendus/sync/products").then((r) => r.json()),
-      fetch("/api/locations").then((r) => r.json()),
-    ]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-    if (syncDataRes.error) {
-      console.error("Error fetching sync data:", syncDataRes.error);
-    } else {
-      setProducts((syncDataRes.products || []) as ProductWithStatus[]);
-      setCategories(syncDataRes.categories || []);
+  const fetchProducts = useCallback(async () => {
+    setFetchError(null);
+    try {
+      const [syncRes, locationsRes] = await Promise.all([
+        fetch("/api/vendus/sync/products"),
+        fetch("/api/locations"),
+      ]);
+
+      const syncData = syncRes.ok
+        ? await syncRes.json()
+        : await syncRes.json().catch(() => ({ error: `Erro ${syncRes.status}` }));
+      const locationsData = locationsRes.ok
+        ? await locationsRes.json()
+        : [];
+
+      if (syncData.error) {
+        setFetchError(syncData.error);
+      } else {
+        setProducts((syncData.products || []) as ProductWithStatus[]);
+        setCategories(syncData.categories || []);
+      }
+      const locs = Array.isArray(locationsData) ? locationsData : [];
+      setLocations(locs);
+      setSelectedLocation((prev) => prev || locs[0]?.slug || "");
+    } catch (err) {
+      console.error("Error fetching sync data:", err);
+      setFetchError("Erro de ligacao ao servidor");
+    } finally {
+      setIsLoading(false);
     }
-    const locs = Array.isArray(locationsRes) ? locationsRes : [];
-    setLocations(locs);
-    setSelectedLocation((prev) => prev || locs[0]?.slug || "");
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -179,6 +197,59 @@ export default function VendusSyncPage() {
     });
   };
 
+  const [isReverting, setIsReverting] = useState(false);
+  const [revertResult, setRevertResult] = useState<{ success: boolean; restored: number; message?: string } | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+  const [confirmRevert, setConfirmRevert] = useState(false);
+
+  const handleRevert = async () => {
+    const logId = syncResult?.syncLogId;
+    if (!logId) return;
+    setIsReverting(true);
+    setRevertResult(null);
+    try {
+      const res = await fetch("/api/vendus/sync/revert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ syncLogId: logId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setRevertResult({ success: true, restored: data.restored });
+        setSyncResult(null);
+        setConfirmRevert(false);
+        await fetchProducts();
+      } else {
+        setRevertResult({ success: false, restored: 0, message: data.error || "Erro ao reverter" });
+      }
+    } catch {
+      setRevertResult({ success: false, restored: 0, message: "Erro de ligacao" });
+    } finally {
+      setIsReverting(false);
+    }
+  };
+
+  const handleResetStatus = async (onlyErrors: boolean) => {
+    setIsResetting(true);
+    try {
+      const res = await fetch("/api/vendus/sync/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resetAll: true, onlyErrors }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await fetchProducts();
+      } else {
+        console.error("Reset failed:", data.error);
+      }
+    } catch {
+      console.error("Reset connection error");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const getSyncBadge = (status: SyncStatus | null) => {
     const variants: Record<SyncStatus, { color: string; label: string }> = {
       synced: {
@@ -214,25 +285,56 @@ export default function VendusSyncPage() {
       )
     : products;
 
-  const filteredProducts = visibleProducts.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
   const stats = {
     total: visibleProducts.length,
-    synced: visibleProducts.filter((p) => p.vendus_sync_status === "synced")
-      .length,
+    synced: visibleProducts.filter((p) => p.vendus_sync_status === "synced").length,
     pending: visibleProducts.filter(
       (p) => p.vendus_sync_status === "pending" || !p.vendus_sync_status,
     ).length,
-    error: visibleProducts.filter((p) => p.vendus_sync_status === "error")
-      .length,
+    error: visibleProducts.filter((p) => p.vendus_sync_status === "error").length,
+    no_vendus: visibleProducts.filter((p) => !p.vendus_id && (!p.vendus_ids || Object.keys(p.vendus_ids).length === 0)).length,
   };
+
+  const statusFiltered = statusFilter === "all"
+    ? visibleProducts
+    : statusFilter === "synced"
+      ? visibleProducts.filter((p) => p.vendus_sync_status === "synced")
+      : statusFilter === "pending"
+        ? visibleProducts.filter((p) => p.vendus_sync_status === "pending" || !p.vendus_sync_status)
+        : statusFilter === "error"
+          ? visibleProducts.filter((p) => p.vendus_sync_status === "error")
+          : visibleProducts.filter((p) => !p.vendus_id && (!p.vendus_ids || Object.keys(p.vendus_ids).length === 0));
+
+  const filteredProducts = statusFiltered.filter((p) =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#D4AF37]"></div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Sincronizacao de Produtos
+          </h1>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+          <p className="text-red-700 font-medium mb-2">Erro ao carregar dados</p>
+          <p className="text-red-600 text-sm mb-4">{fetchError}</p>
+          <button
+            onClick={fetchProducts}
+            className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200"
+          >
+            Tentar novamente
+          </button>
+        </div>
       </div>
     );
   }
@@ -264,24 +366,28 @@ export default function VendusSyncPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-          <p className="text-sm text-gray-500">Total Produtos</p>
-          <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-          <p className="text-sm text-gray-500">Sincronizados</p>
-          <p className="text-2xl font-bold text-green-600">{stats.synced}</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-          <p className="text-sm text-gray-500">Pendentes</p>
-          <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-          <p className="text-sm text-gray-500">Com Erro</p>
-          <p className="text-2xl font-bold text-red-600">{stats.error}</p>
-        </div>
+      {/* Stats — clickable filters */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {([
+          { key: "all" as const, label: "Todos", value: stats.total, color: "text-gray-900", ring: "ring-gray-400" },
+          { key: "synced" as const, label: "Sincronizados", value: stats.synced, color: "text-green-600", ring: "ring-green-400" },
+          { key: "pending" as const, label: "Pendentes", value: stats.pending, color: "text-yellow-600", ring: "ring-yellow-400" },
+          { key: "error" as const, label: "Com Erro", value: stats.error, color: "text-red-600", ring: "ring-red-400" },
+          { key: "no_vendus" as const, label: "Sem Vendus", value: stats.no_vendus, color: "text-gray-500", ring: "ring-gray-400" },
+        ]).map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setStatusFilter(s.key === statusFilter ? "all" : s.key)}
+            className={`bg-white p-4 rounded-xl shadow-sm border text-left transition-all ${
+              statusFilter === s.key
+                ? `border-transparent ring-2 ${s.ring}`
+                : "border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <p className="text-sm text-gray-500">{s.label}</p>
+            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+          </button>
+        ))}
       </div>
 
       {/* Sync Actions */}
@@ -352,6 +458,25 @@ export default function VendusSyncPage() {
               {isSyncing ? "A sincronizar..." : "Sincronizacao completa"}
             </button>
           </div>
+        </div>
+
+        {/* Reset actions */}
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-3">
+          <span className="text-xs text-gray-400 uppercase tracking-wide">Reset:</span>
+          <button
+            onClick={() => handleResetStatus(true)}
+            disabled={isResetting || isSyncing || stats.error === 0}
+            className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isResetting ? "A resetar..." : `Resetar com erro (${stats.error})`}
+          </button>
+          <button
+            onClick={() => handleResetStatus(false)}
+            disabled={isResetting || isSyncing}
+            className="px-3 py-1 text-xs border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isResetting ? "A resetar..." : "Resetar todos para pendente"}
+          </button>
         </div>
 
         {previewResult?.preview && (
@@ -439,43 +564,109 @@ export default function VendusSyncPage() {
                 : "bg-red-50 border border-red-200"
             }`}
           >
-            <p
-              className={syncResult.success ? "text-green-700" : "text-red-700"}
-            >
-              {syncResult.success
-                ? `Sincronizacao concluida: ${syncResult.recordsUpdated} atualizados, ${syncResult.recordsCreated} criados (${syncResult.duration}ms)`
-                : `Sincronizacao parada: ${syncResult.errors?.[0]?.error || "Erro desconhecido"}`}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <p
+                  className={syncResult.success ? "text-green-700" : "text-red-700"}
+                >
+                  {syncResult.success
+                    ? `Sincronizacao concluida: ${syncResult.recordsUpdated} atualizados, ${syncResult.recordsCreated} criados (${syncResult.duration}ms)`
+                    : `Sincronizacao parada: ${syncResult.errors?.[0]?.error || "Erro desconhecido"}`}
+                </p>
+                {syncResult.recordsFailed > 0 && (
+                  <div className="text-red-600 text-sm mt-1 space-y-0.5">
+                    <p>Parou no erro do produto. {syncResult.recordsProcessed} processado(s) antes de parar.</p>
+                    {syncResult.errors.map((e, i) => (
+                      <p key={i} className="text-xs font-mono bg-red-100 px-2 py-1 rounded">{e.error}</p>
+                    ))}
+                  </div>
+                )}
+                {syncResult.warnings && syncResult.warnings.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-green-200">
+                    {syncResult.warnings.map((w) => (
+                      <p key={w.id} className="text-amber-700 text-sm">
+                        ⚠ {w.message}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {syncResult.syncLogId && (
+                <div className="shrink-0">
+                  {!confirmRevert ? (
+                    <button
+                      onClick={() => setConfirmRevert(true)}
+                      className="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+                    >
+                      Reverter
+                    </button>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-xs text-red-600">Reverter esta sincronizacao?</p>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={handleRevert}
+                          disabled={isReverting}
+                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {isReverting ? "A reverter..." : "Confirmar"}
+                        </button>
+                        <button
+                          onClick={() => setConfirmRevert(false)}
+                          className="px-3 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {revertResult && (
+          <div
+            className={`mt-4 p-4 rounded-lg ${
+              revertResult.success
+                ? "bg-blue-50 border border-blue-200"
+                : "bg-red-50 border border-red-200"
+            }`}
+          >
+            <p className={revertResult.success ? "text-blue-700" : "text-red-700"}>
+              {revertResult.success
+                ? `Sync revertido: ${revertResult.restored} produtos restaurados`
+                : revertResult.message || "Erro ao reverter"}
             </p>
-            {syncResult.recordsFailed > 0 && (
-              <div className="text-red-600 text-sm mt-1 space-y-0.5">
-                <p>Parou no erro do produto. {syncResult.recordsProcessed} processado(s) antes de parar.</p>
-                {syncResult.errors.map((e, i) => (
-                  <p key={i} className="text-xs font-mono bg-red-100 px-2 py-1 rounded">{e.error}</p>
-                ))}
-              </div>
-            )}
-            {syncResult.warnings && syncResult.warnings.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-green-200">
-                {syncResult.warnings.map((w) => (
-                  <p key={w.id} className="text-amber-700 text-sm">
-                    ⚠ {w.message}
-                  </p>
-                ))}
-              </div>
-            )}
           </div>
         )}
       </div>
 
-      {/* Search */}
+      {/* Search + filter info */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <input
-          type="text"
-          placeholder="Pesquisar produtos..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-        />
+        <div className="flex items-center gap-3">
+          <input
+            type="text"
+            placeholder="Pesquisar produtos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+          />
+          {statusFilter !== "all" && (
+            <button
+              onClick={() => setStatusFilter("all")}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            >
+              Filtro: {statusFilter === "synced" ? "Sincronizados" : statusFilter === "pending" ? "Pendentes" : statusFilter === "error" ? "Com Erro" : "Sem Vendus"}
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          )}
+        </div>
+        {(statusFilter !== "all" || searchTerm) && (
+          <p className="text-xs text-gray-400 mt-2">
+            A mostrar {filteredProducts.length} de {visibleProducts.length} produtos
+          </p>
+        )}
       </div>
 
       {/* Products Cards */}

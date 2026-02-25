@@ -1,0 +1,209 @@
+// ============================================================
+// SUSHI IN SUSHI — Products & Vendus POS Sync
+// Menu → Ingredients → Vendus Sync → Invoices → Payments
+// ============================================================
+
+// ========================
+// MENU CATALOG
+// ========================
+
+Table categories {
+  id uuid [pk]
+  name varchar(100) [not null]
+  slug varchar(50) [unique, not null]
+  sort_order integer [default: 0]
+  icon varchar(10)
+  zone_id uuid [ref: > kitchen_zones.id, note: 'Kitchen zone for routing orders']
+  // Vendus mapping
+  vendus_id varchar(50) [unique, note: 'Vendus category ID']
+  vendus_synced_at timestamptz
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table kitchen_zones {
+  id uuid [pk]
+  name varchar(100) [not null]
+  slug varchar(50) [unique, not null]
+  color varchar(7) [default: '#6B7280']
+  sort_order integer [default: 0]
+  is_active boolean [default: true]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table products {
+  id uuid [pk]
+  name varchar(255) [not null]
+  description text
+  price decimal(10,2) [not null]
+  category_id uuid [not null, ref: > categories.id]
+  image_url text
+  image_urls text[] [note: 'Multiple images']
+  is_available boolean [default: true]
+  is_rodizio boolean [default: false]
+  sort_order integer [default: 0]
+  quantity integer [not null, default: 1]
+  // Service modes (from Vendus categories)
+  service_modes text[] [default: '{}', note: 'dine_in, takeaway, delivery']
+  service_prices jsonb [default: '{}', note: '{"dine_in": 8.50, "takeaway": 7.00}']
+  // Vendus sync
+  vendus_id varchar(50) [note: 'Primary Vendus product ID']
+  vendus_ids jsonb [default: '{}', note: '{"dine_in": "123", "takeaway": "456"}']
+  vendus_reference varchar(100)
+  vendus_tax_id varchar(50)
+  vendus_synced_at timestamptz
+  vendus_sync_status varchar(20) [default: 'pending', note: 'pending, synced, error, not_applicable']
+  // Location
+  location_id uuid [ref: > locations.id]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+// ========================
+// INGREDIENTS
+// ========================
+
+Table ingredients {
+  id uuid [pk]
+  name text [not null, note: 'Unique on lower(name)']
+  unit text [not null, note: 'g, kg, ml, L, un']
+  sort_order integer [not null, default: 0]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table product_ingredients {
+  id uuid [pk]
+  product_id uuid [not null, ref: > products.id]
+  ingredient_id uuid [not null, ref: > ingredients.id]
+  quantity numeric(10,3) [not null, note: 'Amount in the ingredient unit']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (product_id, ingredient_id) [unique]
+  }
+}
+
+// ========================
+// VENDUS LOCATIONS
+// ========================
+
+Table locations {
+  id uuid [pk]
+  name varchar(100) [not null]
+  slug varchar(50) [unique, not null]
+  address text
+  phone varchar(20)
+  is_active boolean [default: true]
+  // Vendus POS per-location config
+  vendus_store_id varchar(50) [note: 'From Vendus Dashboard > Stores']
+  vendus_register_id varchar(50) [note: 'Cash register ID']
+  vendus_enabled boolean [default: false]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+// ========================
+// VENDUS SYNC LOG & RETRY
+// ========================
+
+Table vendus_sync_log {
+  id serial [pk]
+  operation varchar(50) [not null, note: 'product_push, product_pull, invoice_create, etc.']
+  direction varchar(10) [not null, note: 'push, pull, both']
+  entity_type varchar(50) [not null, note: 'product, category, invoice, table']
+  entity_id varchar(100)
+  vendus_id varchar(100)
+  location_id uuid
+  status varchar(20) [not null, note: 'started, success, error, partial, reverted']
+  records_processed integer [default: 0]
+  records_created integer [default: 0]
+  records_updated integer [default: 0]
+  records_failed integer [default: 0]
+  error_message text
+  error_details jsonb
+  request_data jsonb [note: 'Snapshot of products before sync (for revert)']
+  response_data jsonb [note: 'Affected product IDs + actions']
+  initiated_by uuid [note: 'FK -> staff(id)']
+  started_at timestamptz [default: `now()`]
+  completed_at timestamptz
+  duration_ms integer
+}
+
+Table vendus_retry_queue {
+  id serial [pk]
+  operation varchar(50) [not null]
+  entity_type varchar(50) [not null]
+  entity_id varchar(100) [not null]
+  location_id uuid
+  payload jsonb [not null, note: 'Full request payload to retry']
+  attempts integer [default: 0]
+  max_attempts integer [default: 5]
+  next_retry_at timestamptz [default: `now()`]
+  last_error text
+  status varchar(20) [default: 'pending', note: 'pending, processing, completed, failed, cancelled']
+  created_at timestamptz [default: `now()`]
+  processed_at timestamptz
+}
+
+// ========================
+// INVOICES & PAYMENTS
+// ========================
+
+Table payment_methods {
+  id serial [pk]
+  name varchar(100) [not null]
+  slug varchar(50) [unique, not null]
+  vendus_id varchar(50) [note: 'Mapped to Vendus payment method']
+  is_active boolean [default: true]
+  sort_order integer [default: 0]
+  created_at timestamptz [default: `now()`]
+}
+
+Table sessions {
+  id uuid [pk]
+  table_id uuid [not null]
+  status varchar(20) [default: 'active', note: 'active, pending_payment, paid, closed']
+  total_amount decimal(10,2) [default: 0]
+  customer_nif varchar(20)
+  created_at timestamptz [default: `now()`]
+}
+
+Table invoices {
+  id uuid [pk]
+  session_id uuid [ref: > sessions.id, note: 'Which meal session']
+  location_id uuid [ref: > locations.id, note: 'Which restaurant']
+  // Vendus document
+  vendus_id varchar(50) [unique]
+  vendus_document_number varchar(50)
+  vendus_document_type varchar(20) [default: 'FR', note: 'FR=Fatura-Recibo, FT=Fatura, FS=Simplificada']
+  vendus_series varchar(20)
+  vendus_hash varchar(255)
+  // Amounts
+  subtotal decimal(10,2) [not null]
+  tax_amount decimal(10,2) [not null, default: 0]
+  total decimal(10,2) [not null]
+  currency varchar(3) [default: 'EUR']
+  // Payment
+  payment_method_id integer [ref: > payment_methods.id]
+  paid_amount decimal(10,2)
+  change_amount decimal(10,2) [default: 0]
+  // Customer info (for fiscal)
+  customer_nif varchar(20)
+  customer_name varchar(255)
+  // Status
+  status varchar(20) [default: 'pending', note: 'pending, issued, voided, error']
+  voided_at timestamptz
+  voided_by uuid [note: 'FK -> staff(id)']
+  void_reason text
+  // PDF
+  pdf_url text
+  pdf_generated_at timestamptz
+  // Audit
+  issued_by uuid [note: 'FK -> staff(id)']
+  error_message text
+  raw_response jsonb [note: 'Full Vendus API response']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}

@@ -15,6 +15,16 @@ vi.mock('@/lib/auth/token', () => ({
   verifyToken: (...args: unknown[]) => mockVerifyToken(...args),
 }));
 
+const mockSupabaseAuth = {
+  auth: {
+    getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+  },
+  rpc: vi.fn().mockResolvedValue({ data: null, error: { message: 'not found' } }),
+};
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(() => Promise.resolve(mockSupabaseAuth)),
+}));
+
 import { getAuthUser, setAuthCookie, clearAuthCookie, getCookieName } from '@/lib/auth/cookie';
 
 describe('getCookieName', () => {
