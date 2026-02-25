@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/auth";
 import { SupabaseSessionRepository } from "@/infrastructure/repositories/SupabaseSessionRepository";
 import { SupabaseTableRepository } from "@/infrastructure/repositories/SupabaseTableRepository";
 import { SupabaseStaffRepository } from "@/infrastructure/repositories/SupabaseStaffRepository";
@@ -78,9 +79,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Start a new session (public - used by customer mesa page)
+// POST - Start a new session (staff-only - waiters and admins)
 export async function POST(request: NextRequest) {
   try {
+    // Only authenticated staff (waiter/admin) can create sessions
+    const user = await getAuthUser();
+    if (!user || !['admin', 'waiter'].includes(user.role)) {
+      return NextResponse.json(
+        { error: "Apenas empregados podem iniciar sessões" },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { tableId, isRodizio, numPeople, totalAmount, orderingMode } = body;
 

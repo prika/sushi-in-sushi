@@ -192,6 +192,8 @@
     "viewMenuLink": "Ver menu →",
     "sessionTotal": "Total da sessão",
     "callStaff": "Chamar Empregado",
+    "waitingForWaiter": "Peça ao empregado para abrir a sua mesa",
+    "waitingForWaiterDesc": "O empregado irá configurar a sua sessão. A página atualiza automaticamente.",
     "requestBill": "Pedir Conta",
     "confirmBill": "Confirma que pretende pedir a conta? Um funcionário virá até à sua mesa.",
     "totalToPay": "Total a pagar",

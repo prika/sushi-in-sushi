@@ -53,14 +53,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Atomically claim the revert to prevent concurrent executions
-    const { count } = await supabase
+    const { data: claimedRows } = await supabase
       .from("vendus_sync_log")
       .update({ status: "reverting" })
       .eq("id", syncLogId)
       .in("status", ["completed", "failed"])
-      .select("id", { count: "exact", head: true });
+      .select("id");
 
-    if (!count || count === 0) {
+    if (!claimedRows || claimedRows.length === 0) {
       return NextResponse.json(
         { error: "Este sync nao pode ser revertido (ja revertido ou em progresso)" },
         { status: 409 },
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
         vendus_tax_id: product.vendus_tax_id ?? null,
         service_modes: product.service_modes ?? null,
         service_prices: product.service_prices ?? null,
-        ...(product.category_id !== null && product.category_id !== undefined ? { category_id: product.category_id } : {}),
+        ...(product.category_id !== undefined ? { category_id: product.category_id ?? null } : {}),
       };
 
       const { error: updateError } = await supabase

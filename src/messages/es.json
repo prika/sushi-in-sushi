@@ -192,6 +192,8 @@
     "viewMenuLink": "Ver menú →",
     "sessionTotal": "Total de la sesión",
     "callStaff": "Llamar Personal",
+    "waitingForWaiter": "Pide al camarero que abra tu mesa",
+    "waitingForWaiterDesc": "El camarero configurará tu sesión. La página se actualiza automáticamente.",
     "requestBill": "Pedir Cuenta",
     "confirmBill": "¿Confirmas que quieres pedir la cuenta? Un empleado vendrá a tu mesa.",
     "totalToPay": "Total a pagar",

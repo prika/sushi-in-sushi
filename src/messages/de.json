@@ -192,6 +192,8 @@
     "viewMenuLink": "Speisekarte ansehen →",
     "sessionTotal": "Gesamtsumme der Sitzung",
     "callStaff": "Personal Rufen",
+    "waitingForWaiter": "Bitten Sie den Kellner, Ihren Tisch zu öffnen",
+    "waitingForWaiterDesc": "Der Kellner wird Ihre Sitzung einrichten. Die Seite aktualisiert sich automatisch.",
     "requestBill": "Rechnung Anfordern",
     "confirmBill": "Möchten Sie wirklich die Rechnung anfordern? Ein Mitarbeiter kommt zu Ihrem Tisch.",
     "totalToPay": "Zu zahlender Betrag",

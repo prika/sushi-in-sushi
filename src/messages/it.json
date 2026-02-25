@@ -192,6 +192,8 @@
     "viewMenuLink": "Vedi menu →",
     "sessionTotal": "Totale sessione",
     "callStaff": "Chiama Personale",
+    "waitingForWaiter": "Chiedi al cameriere di aprire il tuo tavolo",
+    "waitingForWaiterDesc": "Il cameriere configurerà la tua sessione. La pagina si aggiorna automaticamente.",
     "requestBill": "Chiedi il Conto",
     "confirmBill": "Sei sicuro di voler chiedere il conto? Un membro del personale verrà al tuo tavolo.",
     "totalToPay": "Totale da pagare",

@@ -157,7 +157,6 @@ function MesaPageContent() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isStartingSession, setIsStartingSession] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [showBillModal, setShowBillModal] = useState(false);
   const [isRequestingBill, setIsRequestingBill] = useState(false);
@@ -307,14 +306,25 @@ function MesaPageContent() {
     ).length;
   }, [orderItemsForRating, ratingsStats.userRatedOrderIds]);
 
-  // Fetch table info, waiter, and recover existing session on load
-  // Uses API route to bypass RLS - ensures session detection works even when waiter started it
+  // Track step in a ref to avoid stale closures in polling interval
+  const stepRef = useRef(step);
+  useEffect(() => { stepRef.current = step; }, [step]);
+
+  // Fetch table info, waiter, and poll for session (waiter must open it)
+  // Uses API route to bypass RLS - ensures session detection works
   useEffect(() => {
-    async function fetchTableAndSession() {
+    let pollTimer: NodeJS.Timeout | null = null;
+    let isMounted = true;
+
+    async function checkForSession() {
+      // Stop polling once session is active
+      if (stepRef.current === "active") return;
+
       try {
-        // Use API route (admin client) to reliably check for sessions
         const res = await fetch(`/api/sessions?tableNumber=${encodeURIComponent(mesaNumero)}&location=${encodeURIComponent(localizacao)}`);
         const data = await res.json();
+
+        if (!isMounted) return;
 
         if (!data.tableId) return;
 
@@ -330,21 +340,39 @@ function MesaPageContent() {
           if (data.restaurant.id) setRestaurantId(data.restaurant.id);
         }
 
-        // If an active session exists (e.g. waiter already started it), enter directly
+        // If an active session exists (waiter opened it), enter directly
         if (data.session) {
           setSession(data.session);
           setOrderType(data.session.is_rodizio ? "rodizio" : "carta");
           setNumPessoas(data.session.num_people || 2);
           setStep("active");
+          // Stop polling
+          if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+          }
         }
       } catch (err) {
         console.error("Error fetching table info", err);
       } finally {
-        setIsCheckingSession(false);
+        if (isMounted) {
+          setIsCheckingSession(false);
+        }
       }
     }
 
-    fetchTableAndSession();
+    // Initial fetch
+    checkForSession();
+
+    // Poll every 4 seconds while waiting for waiter to open session
+    pollTimer = setInterval(checkForSession, 4000);
+
+    return () => {
+      isMounted = false;
+      if (pollTimer) {
+        clearInterval(pollTimer);
+      }
+    };
   }, [mesaNumero, localizacao]);
 
   // Prompt customer identification when entering active session
@@ -571,91 +599,6 @@ function MesaPageContent() {
     }
   }, []);
 
-  // Start session function
-  const startSession = useCallback(async () => {
-    if (!orderType) return;
-
-    setIsStartingSession(true);
-    setError(null);
-
-    try {
-      // 1. Find table by number and location
-      let foundTableId: string | null = null;
-
-      const { data: tableData } = await supabase
-        .from("tables")
-        .select("id")
-        .eq("number", parseInt(mesaNumero))
-        .eq("location", localizacao)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (tableData) {
-        foundTableId = tableData.id;
-      } else {
-        // Fallback: search without location filter
-        const { data: tableDataFallback } =
-          await supabase
-            .from("tables")
-            .select("id")
-            .eq("number", parseInt(mesaNumero))
-            .eq("is_active", true)
-            .maybeSingle();
-
-        if (!tableDataFallback) {
-          throw new Error(t("mesa.errors.tableNotFound"));
-        }
-        foundTableId = tableDataFallback.id;
-      }
-
-      setTableId(foundTableId);
-
-      // 2. Create session via API (handles table status + auto waiter assignment)
-      const totalAmount =
-        orderType === "rodizio" ? rodizioPrice * numPessoas : 0;
-
-      const response = await fetch("/api/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tableId: foundTableId,
-          isRodizio: orderType === "rodizio",
-          numPeople: numPessoas,
-          totalAmount,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || t("mesa.errors.startSession"));
-      }
-
-      setSession(result.session);
-
-      // 3. Update waiter name if auto-assigned
-      if (result.waiterName) {
-        setWaiterName(result.waiterName);
-      }
-
-      setStep("active");
-    } catch (err) {
-      console.error("Error starting session:", err);
-      setError(
-        err instanceof Error ? err.message : t("mesa.errors.startSession"),
-      );
-    } finally {
-      setIsStartingSession(false);
-    }
-  }, [
-    orderType,
-    mesaNumero,
-    localizacao,
-    numPessoas,
-    rodizioPrice,
-    supabase,
-    t,
-  ]);
 
   // Fetch session customers
   const fetchSessionCustomers = useCallback(
@@ -1484,131 +1427,42 @@ function MesaPageContent() {
             </div>
           )}
 
-          <div className="w-full max-w-sm mb-8">
-            <p className="text-sm text-gray-400 text-center mb-4">
-              {t("mesa.chooseMode")}
+          {/* Waiting for waiter to open session */}
+          <div className="w-full max-w-sm text-center">
+            <div className="mb-6 flex justify-center">
+              <div className="w-16 h-16 rounded-full border-2 border-[#D4AF37]/30 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full border-2 border-[#D4AF37] border-t-transparent animate-spin" />
+              </div>
+            </div>
+
+            <h2 className="text-lg font-semibold text-white mb-2">
+              {t("mesa.waitingForWaiter")}
+            </h2>
+            <p className="text-sm text-gray-400 mb-8">
+              {t("mesa.waitingForWaiterDesc")}
             </p>
 
-            <div className="space-y-3">
+            {/* Call waiter button (only when no waiter card is shown above) */}
+            {!waiterName && (
               <button
-                onClick={() => setOrderType("rodizio")}
-                className={`w-full p-4 rounded-xl border-2 transition-all ${
-                  orderType === "rodizio"
-                    ? "border-[#D4AF37] bg-[#D4AF37]/10"
-                    : "border-gray-700 bg-gray-900/50 hover:border-gray-600"
+                onClick={() => callWaiter("assistance")}
+                disabled={isCallingWaiter || waiterCallStatus !== "idle"}
+                className={`w-full py-4 rounded-xl font-semibold text-lg transition-all ${
+                  waiterCallStatus === "pending"
+                    ? "bg-yellow-500/20 text-yellow-500 border-2 border-yellow-500/30"
+                    : waiterCallStatus === "acknowledged"
+                      ? "bg-green-500/20 text-green-500 border-2 border-green-500/30"
+                      : "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
                 }`}
               >
-                <div className="flex justify-between items-center">
-                  <div className="text-left">
-                    <p className="font-semibold text-lg">Rodízio</p>
-                    <p className="text-sm text-gray-400">
-                      {isLunch ? t("mesa.lunch") : t("mesa.dinner")} •{" "}
-                      {t("mesa.allYouCanEat")}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-[#D4AF37]">
-                      €{rodizioPrice}
-                    </p>
-                    <p className="text-xs text-gray-500">por pessoa</p>
-                  </div>
-                </div>
+                {waiterCallStatus === "pending"
+                  ? t("mesa.status.pending") + "..."
+                  : waiterCallStatus === "acknowledged"
+                    ? "A caminho!"
+                    : t("mesa.callStaff")}
               </button>
-
-              <button
-                onClick={() => setOrderType("carta")}
-                className={`w-full p-4 rounded-xl border-2 transition-all ${
-                  orderType === "carta"
-                    ? "border-[#D4AF37] bg-[#D4AF37]/10"
-                    : "border-gray-700 bg-gray-900/50 hover:border-gray-600"
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <div className="text-left">
-                    <p className="font-semibold text-lg">
-                      {t("mesa.alaCarte")}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      {t("mesa.alaCarteDesc")}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-400">
-                      {t("mesa.variedPrices")}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <div className="w-full max-w-sm mb-10">
-            <p className="text-sm text-gray-400 text-center mb-4">
-              {t("mesa.numPeople")}
-            </p>
-            <div className="flex items-center justify-center gap-4">
-              <button
-                onClick={() => setNumPessoas(Math.max(1, numPessoas - 1))}
-                className="w-14 h-14 rounded-full border-2 border-gray-700 flex items-center justify-center text-2xl hover:border-[#D4AF37] transition-colors disabled:opacity-50"
-                disabled={numPessoas <= 1}
-              >
-                −
-              </button>
-              <span className="text-4xl font-bold w-16 text-center text-[#D4AF37]">
-                {numPessoas}
-              </span>
-              <button
-                onClick={() => setNumPessoas(Math.min(8, numPessoas + 1))}
-                className="w-14 h-14 rounded-full border-2 border-gray-700 flex items-center justify-center text-2xl hover:border-[#D4AF37] transition-colors disabled:opacity-50"
-                disabled={numPessoas >= 8}
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          <button
-            onClick={startSession}
-            disabled={!orderType || isStartingSession}
-            className={`w-full max-w-sm py-4 rounded-xl font-semibold text-lg transition-all ${
-              orderType && !isStartingSession
-                ? "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
-                : "bg-gray-800 text-gray-500 cursor-not-allowed"
-            }`}
-          >
-            {isStartingSession ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                {t("mesa.starting")}
-              </span>
-            ) : (
-              t("mesa.startOrder")
             )}
-          </button>
-
-          {orderType === "rodizio" && (
-            <p className="mt-4 text-sm text-gray-400">
-              {t("mesa.estimatedTotal")}{" "}
-              <span className="text-[#D4AF37] font-semibold">
-                €{rodizioPrice * numPessoas}
-              </span>
-            </p>
-          )}
+          </div>
         </div>
       )}
 
