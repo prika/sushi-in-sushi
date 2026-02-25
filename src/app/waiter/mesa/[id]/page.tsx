@@ -46,8 +46,9 @@ export default function WaiterMesaPage() {
     numPeople: 2,
   });
 
-  // Close session (no orders) confirm
+  // Close session confirm
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [closeReason, setCloseReason] = useState("");
 
   // Billing modal state
   const [showBillingModal, setShowBillingModal] = useState(false);
@@ -389,17 +390,16 @@ export default function WaiterMesaPage() {
         console.warn("[Billing] Vendus not available:", vendusErr);
       }
 
-      // Close the session regardless of Vendus result
-      const { error: rpcError } = await supabase.rpc("close_session_and_free_table", {
-        session_id_param: sessionId,
+      // Close the session via server-side API (bypasses RLS)
+      const closeRes = await fetch(`/api/sessions/${sessionId}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cancelOrders: false }),
       });
 
-      if (rpcError) {
-        // Fallback: update session directly
-        await supabase
-          .from("sessions")
-          .update({ status: "closed", closed_at: new Date().toISOString() })
-          .eq("id", sessionId);
+      if (!closeRes.ok) {
+        const closeData = await closeRes.json();
+        throw new Error(closeData.error || "Erro ao encerrar sessão");
       }
 
       // Log activity
@@ -432,29 +432,35 @@ export default function WaiterMesaPage() {
     }
   }, [table, user, billingPaymentMethodId, billingWantsNif, billingNif, supabase, logActivity, showToast, router]);
 
-  // Close session directly without billing (when no orders were made)
+  // Close session directly without billing (via server-side API to bypass RLS)
   const handleCloseSessionDirect = useCallback(async () => {
     if (!table?.activeSession || !user) return;
 
     const sessionId = table.activeSession.id;
 
     try {
-      const { error: rpcError } = await supabase.rpc("close_session_and_free_table", {
-        session_id_param: sessionId,
+      const response = await fetch(`/api/sessions/${sessionId}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          closeReason: closeReason.trim() || undefined,
+          cancelOrders: true,
+        }),
       });
 
-      if (rpcError) {
-        await supabase
-          .from("sessions")
-          .update({ status: "closed", closed_at: new Date().toISOString() })
-          .eq("id", sessionId);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao encerrar sessão");
       }
 
       await logActivity("session_closed", "session", sessionId, {
         tableNumber: table.number,
         location: table.location,
         total: 0,
-        noOrders: true,
+        noOrders: orders.length === 0,
+        cancelledOrders: data.cancelledOrders || 0,
+        ...(closeReason.trim() ? { closeReason: closeReason.trim() } : {}),
       });
 
       showToast("success", "Mesa encerrada.");
@@ -464,7 +470,7 @@ export default function WaiterMesaPage() {
       console.error("[CloseSession] Error:", err);
       showToast("error", "Erro ao encerrar a mesa.");
     }
-  }, [table, user, supabase, logActivity, showToast, router]);
+  }, [table, user, logActivity, showToast, router, orders, closeReason]);
 
   const handleAcknowledgeCall = useCallback(async (callId: string) => {
     if (!user) return;
@@ -1033,10 +1039,10 @@ export default function WaiterMesaPage() {
                   </p>
                 </div>
 
-                {/* Encerrar/Pedir Conta - different action based on whether orders exist */}
+                {/* Encerrar/Pedir Conta - bill only available when orders have been delivered */}
                 <div className="bg-[#1a1a1a] rounded-xl p-4 border border-red-500/20">
                   <label className="text-sm text-gray-400 mb-3 block">Encerrar Sessão</label>
-                  {orders.length > 0 ? (
+                  {deliveredOrders.length > 0 ? (
                     <>
                       <button
                         onClick={openBillingModal}
@@ -1051,13 +1057,18 @@ export default function WaiterMesaPage() {
                   ) : (
                     <>
                       <button
-                        onClick={() => setShowCloseConfirm(true)}
+                        onClick={() => { setCloseReason(""); setShowCloseConfirm(true); }}
                         className="w-full py-4 bg-gray-700/50 text-gray-300 font-semibold rounded-xl hover:bg-gray-700 transition-colors border border-gray-600"
                       >
                         Encerrar Mesa
                       </button>
                       <p className="text-xs text-gray-500 mt-2 text-center">
-                        Nenhum pedido feito — encerra a sessão sem faturação
+                        {(preparingOrders.length > 0 || readyOrders.length > 0)
+                          ? "Pedidos em preparação — requer justificação"
+                          : pendingOrders.length > 0
+                            ? "Pedidos pendentes serão cancelados"
+                            : "Nenhum pedido feito — encerra a sessão sem faturação"
+                        }
                       </p>
                     </>
                   )}
@@ -1353,20 +1364,60 @@ export default function WaiterMesaPage() {
         onCancel={() => setShowOrderingModeModal(false)}
       />
 
-      {/* Close Session (no orders) Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={showCloseConfirm}
-        title="Encerrar Mesa?"
-        message="Nenhum pedido foi feito nesta sessão. A mesa será libertada sem faturação."
-        variant="warning"
-        confirmText="Encerrar"
-        cancelText="Cancelar"
-        onConfirm={() => {
-          setShowCloseConfirm(false);
-          handleCloseSessionDirect();
-        }}
-        onCancel={() => setShowCloseConfirm(false)}
-      />
+      {/* Close Session Confirmation Modal */}
+      {showCloseConfirm && (() => {
+        const hasPreparingOrReady = preparingOrders.length > 0 || readyOrders.length > 0;
+        const needsJustification = hasPreparingOrReady;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70" onClick={() => setShowCloseConfirm(false)} />
+            <div className="relative bg-[#1A1A1A] rounded-2xl p-6 max-w-sm w-full">
+              <h3 className="text-xl font-semibold text-white mb-2">Encerrar Mesa?</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                {hasPreparingOrReady
+                  ? "Existem pedidos em preparação na cozinha. Para encerrar é necessário indicar o motivo."
+                  : pendingOrders.length > 0
+                    ? "Existem pedidos pendentes que serão cancelados. A mesa será libertada sem faturação."
+                    : "Nenhum pedido foi feito nesta sessão. A mesa será libertada sem faturação."
+                }
+              </p>
+
+              {needsJustification && (
+                <div className="mb-4">
+                  <label className="text-sm text-gray-300 mb-2 block">Motivo do encerramento</label>
+                  <textarea
+                    value={closeReason}
+                    onChange={(e) => setCloseReason(e.target.value)}
+                    placeholder="Ex: Cliente desistiu, erro no pedido..."
+                    className="w-full px-4 py-3 bg-gray-800 rounded-xl text-white placeholder-gray-500 text-sm border border-gray-700 focus:border-[#D4AF37] focus:outline-none resize-none"
+                    rows={2}
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCloseConfirm(false)}
+                  className="flex-1 py-3 rounded-xl border border-gray-700 text-gray-400 font-medium hover:text-white transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCloseConfirm(false);
+                    handleCloseSessionDirect();
+                  }}
+                  disabled={needsJustification && closeReason.trim().length === 0}
+                  className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  Encerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Billing Modal */}
       {showBillingModal && (

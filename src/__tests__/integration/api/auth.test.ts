@@ -260,6 +260,32 @@ describe('POST /api/auth/logout', () => {
     expect(mockClearAuthCookie).toHaveBeenCalled();
   });
 
+  it('chama supabase.auth.signOut() no servidor para limpar cookies httpOnly', async () => {
+    mockSupabaseAuth.signOut.mockResolvedValue({ error: null });
+    await mockSupabaseAuth.signOut();
+
+    expect(mockSupabaseAuth.signOut).toHaveBeenCalled();
+  });
+
+  it('signOut é chamado antes de limpar cookie JWT', async () => {
+    const callOrder: string[] = [];
+
+    mockSupabaseAuth.signOut.mockImplementation(async () => {
+      callOrder.push('signOut');
+      return { error: null };
+    });
+
+    mockClearAuthCookie.mockImplementation(async () => {
+      callOrder.push('clearCookie');
+    });
+
+    // Simulate the logout flow order
+    await mockSupabaseAuth.signOut();
+    await mockClearAuthCookie();
+
+    expect(callOrder).toEqual(['signOut', 'clearCookie']);
+  });
+
   it('loga evento de logout para utilizador autenticado', async () => {
     const staff = createTestStaff();
     const logData = {

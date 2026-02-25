@@ -314,13 +314,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = useCallback(async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-      await supabase.auth.signOut();
-      setUser(null);
-      setMfaStatus(null);
-      router.push("/login");
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error("Logout API error:", error);
     }
+
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Supabase signOut error:", error);
+    }
+
+    // Always clear state and redirect, even if signOut failed
+    setUser(null);
+    setMfaStatus(null);
+    router.push("/login");
   }, [supabase, router]);
 
   // Role check helpers

@@ -163,6 +163,7 @@ function MesaPageContent() {
   const [isRequestingBill, setIsRequestingBill] = useState(false);
   const [billRequested, setBillRequested] = useState(false);
   const [showLeaveTableModal, setShowLeaveTableModal] = useState(false);
+  const [closeReason, setCloseReason] = useState("");
   const [wantsNif, setWantsNif] = useState(false);
   const [nifInput, setNifInput] = useState("");
   const [isLeavingTable, setIsLeavingTable] = useState(false);
@@ -1200,29 +1201,24 @@ function MesaPageContent() {
     }
   }, [session, supabase, t, wantsNif, nifInput]);
 
-  // Leave table (only if no orders/consumption)
+  // Close/leave table via server-side API (bypasses RLS)
   const leaveTable = useCallback(async () => {
     if (!session) return;
-
-    // Check if there are any orders or consumption
-    if ((session.total_amount || 0) > 0 || sessionOrders.length > 0) {
-      setError("Não pode sair da mesa com pedidos. Por favor, chame o empregado.");
-      setShowLeaveTableModal(false);
-      setTimeout(() => setError(null), 5000);
-      return;
-    }
 
     setIsLeavingTable(true);
     setError(null);
 
     try {
-      // Use RPC function to close session and free table atomically
-      const { error: rpcError } = await supabase.rpc(
-        "close_session_and_free_table",
-        { session_id_param: session.id }
-      );
+      const response = await fetch(`/api/sessions/${session.id}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cancelOrders: true }),
+      });
 
-      if (rpcError) throw rpcError;
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Erro ao encerrar sessão");
+      }
 
       setSession(null);
       setShowLeaveTableModal(false);
@@ -1239,7 +1235,7 @@ function MesaPageContent() {
     } finally {
       setIsLeavingTable(false);
     }
-  }, [session, sessionOrders, supabase]);
+  }, [session]);
 
   // Call waiter function
   const callWaiter = useCallback(
@@ -2625,58 +2621,58 @@ function MesaPageContent() {
                   </div>
                 )}
 
-                {/* Request Bill Button */}
-                <button
-                  onClick={() => setShowBillModal(true)}
-                  disabled={billRequested}
-                  className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-colors ${
-                    billRequested
-                      ? "bg-green-500/20 text-green-500 border-2 border-green-500/30"
-                      : "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
-                  }`}
-                >
-                  {billRequested ? (
-                    <>
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      {t("mesa.success.billRequested")}
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                        />
-                      </svg>
-                      {t("mesa.requestBill")}
-                    </>
-                  )}
-                </button>
-
-                {/* Leave Table Button - Only show if no consumption */}
-                {session && (session.total_amount || 0) === 0 && sessionOrders.length === 0 && !billRequested && (
+                {/* Request Bill Button - Only when at least one order is delivered */}
+                {sessionOrders.some(o => o.status === "delivered") ? (
                   <button
-                    onClick={() => setShowLeaveTableModal(true)}
-                    className="w-full py-3 mt-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 hover:bg-gray-900/50 transition-colors flex items-center justify-center gap-2"
+                    onClick={() => setShowBillModal(true)}
+                    disabled={billRequested}
+                    className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-colors ${
+                      billRequested
+                        ? "bg-green-500/20 text-green-500 border-2 border-green-500/30"
+                        : "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
+                    }`}
+                  >
+                    {billRequested ? (
+                      <>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        {t("mesa.success.billRequested")}
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
+                        </svg>
+                        {t("mesa.requestBill")}
+                      </>
+                    )}
+                  </button>
+                ) : !billRequested && (
+                  /* Close Table Button - When no orders delivered yet */
+                  <button
+                    onClick={() => { setCloseReason(""); setShowLeaveTableModal(true); }}
+                    className="w-full py-4 rounded-xl font-semibold text-lg border-2 border-gray-700 text-gray-300 hover:border-gray-600 hover:bg-gray-900/50 transition-colors flex items-center justify-center gap-2"
                   >
                     <svg
                       className="w-5 h-5"
@@ -2691,7 +2687,7 @@ function MesaPageContent() {
                         d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                       />
                     </svg>
-                    Sair da Mesa
+                    {sessionOrders.length > 0 ? "Fechar Mesa" : "Sair da Mesa"}
                   </button>
                 )}
               </div>
@@ -3022,47 +3018,74 @@ function MesaPageContent() {
               </div>
             </div>
 
-            <h3 className="text-xl font-semibold mb-2 text-center">
-              Sair da Mesa?
-            </h3>
-            <p className="text-gray-400 mb-6 text-center">
-              Como não consumiu nada, pode sair da mesa sem pagar. A sessão será encerrada.
-            </p>
+            {(() => {
+              const hasPreparingOrReady = sessionOrders.some(o => o.status === "preparing" || o.status === "ready");
+              const hasOnlyPending = sessionOrders.length > 0 && !hasPreparingOrReady;
+              return (
+                <>
+                  <h3 className="text-xl font-semibold mb-2 text-center">
+                    {sessionOrders.length > 0 ? "Fechar Mesa?" : "Sair da Mesa?"}
+                  </h3>
+                  <p className="text-gray-400 mb-4 text-center">
+                    {hasPreparingOrReady
+                      ? "Existem pedidos em preparação na cozinha. Para fechar a mesa é necessário indicar o motivo."
+                      : hasOnlyPending
+                        ? "Existem pedidos pendentes que serão cancelados. Deseja continuar?"
+                        : "Como não consumiu nada, pode sair da mesa sem pagar. A sessão será encerrada."
+                    }
+                  </p>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowLeaveTableModal(false)}
-                className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={leaveTable}
-                disabled={isLeavingTable}
-                className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isLeavingTable ? (
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                ) : (
-                  "Sim, Sair"
-                )}
-              </button>
-            </div>
+                  {hasPreparingOrReady && (
+                    <div className="mb-4">
+                      <label className="text-sm text-gray-300 mb-2 block">Motivo do encerramento</label>
+                      <textarea
+                        value={closeReason}
+                        onChange={(e) => setCloseReason(e.target.value)}
+                        placeholder="Ex: Cliente desistiu, erro no pedido..."
+                        className="w-full px-4 py-3 bg-gray-800 rounded-xl text-white placeholder-gray-500 text-sm border border-gray-700 focus:border-[#D4AF37] focus:outline-none resize-none"
+                        rows={2}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowLeaveTableModal(false)}
+                      className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={leaveTable}
+                      disabled={isLeavingTable || (hasPreparingOrReady && closeReason.trim().length === 0)}
+                      className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isLeavingTable ? (
+                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                      ) : (
+                        sessionOrders.length > 0 ? "Sim, Fechar" : "Sim, Sair"
+                      )}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

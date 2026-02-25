@@ -71,7 +71,9 @@ export type Database = {
           number: number;
           name: string;
           location: string;
+          status: "available" | "reserved" | "occupied" | "inactive";
           is_active: boolean;
+          current_session_id: string | null;
           vendus_table_id: string | null;
           vendus_room_id: string | null;
           vendus_synced_at: string | null;
@@ -83,7 +85,9 @@ export type Database = {
           number: number;
           name: string;
           location?: string;
+          status?: "available" | "reserved" | "occupied" | "inactive";
           is_active?: boolean;
+          current_session_id?: string | null;
           vendus_table_id?: string | null;
           vendus_room_id?: string | null;
           vendus_synced_at?: string | null;
@@ -95,7 +99,9 @@ export type Database = {
           number?: number;
           name?: string;
           location?: string;
+          status?: "available" | "reserved" | "occupied" | "inactive";
           is_active?: boolean;
+          current_session_id?: string | null;
           vendus_table_id?: string | null;
           vendus_room_id?: string | null;
           vendus_synced_at?: string | null;

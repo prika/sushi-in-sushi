@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,12 +29,13 @@ function LoginForm() {
     }
   };
 
-  // If already authenticated, redirect
-  if (isAuthenticated && user) {
-    const redirectTo = searchParams.get("redirect") || getRedirectForRole(user.role);
-    router.push(redirectTo);
-    return null;
-  }
+  // If already authenticated, redirect (in useEffect to avoid setState during render)
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const redirectTo = searchParams.get("redirect") || getRedirectForRole(user.role);
+      router.push(redirectTo);
+    }
+  }, [isAuthenticated, user, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

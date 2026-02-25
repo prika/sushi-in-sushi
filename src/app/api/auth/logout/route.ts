@@ -41,6 +41,9 @@ export async function POST() {
       });
     }
 
+    // Sign out of Supabase Auth (clears httpOnly auth cookies on server side)
+    await supabase.auth.signOut();
+
     // Clear app JWT cookie
     await clearAuthCookie();
 

@@ -1784,13 +1784,15 @@ describe("syncProducts - pull edge cases", () => {
     // as new Error(), so syncProducts outer catch always sees an Error from pull.
     // Push path doesn't have its own outer try-catch, so a non-Error throw
     // propagates directly to syncProducts outer catch.
+    // logEntry must be null so the pre-try snapshot section (which also calls
+    // from("products")) is skipped — otherwise the throw happens outside the catch.
     const from = (table: string) => {
       if (table === "vendus_sync_log") {
         return {
           insert: () => ({
             select: () => ({
               single: () =>
-                Promise.resolve({ data: { id: "log-1" }, error: null }),
+                Promise.resolve({ data: null, error: null }),
             }),
           }),
           update: () => ({
