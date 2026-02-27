@@ -169,17 +169,17 @@ export function Team() {
           {/* Navigation Arrows */}
           <button
             onClick={prev}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-background/80 border border-white/10 text-white hover:border-gold hover:text-gold transition-all duration-300 hidden sm:flex"
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-background/80 border border-white/10 text-white hover:border-gold hover:text-gold transition-all duration-300 hidden sm:flex"
             aria-label="Previous"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={20} aria-hidden="true" />
           </button>
           <button
             onClick={next}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-background/80 border border-white/10 text-white hover:border-gold hover:text-gold transition-all duration-300 hidden sm:flex"
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-5 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-background/80 border border-white/10 text-white hover:border-gold hover:text-gold transition-all duration-300 hidden sm:flex"
             aria-label="Next"
           >
-            <ChevronRight size={20} />
+            <ChevronRight size={20} aria-hidden="true" />
           </button>
 
           {/* Carousel */}
@@ -222,16 +222,16 @@ export function Team() {
           </div>
 
           {/* Dots Indicator */}
-          <div className="flex items-center justify-center gap-2 mt-6">
+          <div className="flex items-center justify-center gap-3 mt-6">
             {Array.from({ length: maxIndex + 1 }).map((_, index) => (
               <button
                 key={index}
                 onClick={() => setCurrentIndex(index)}
                 className={cn(
-                  "w-2 h-2 rounded-full transition-all duration-300",
+                  "h-3 rounded-full transition-all duration-300",
                   currentIndex === index
-                    ? "bg-gold w-6"
-                    : "bg-white/20 hover:bg-white/40"
+                    ? "bg-gold w-8"
+                    : "w-3 bg-white/40 hover:bg-white/60"
                 )}
                 aria-label={`Go to slide ${index + 1}`}
                 aria-current={currentIndex === index ? "step" : undefined}

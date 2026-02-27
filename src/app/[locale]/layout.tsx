@@ -86,15 +86,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: titles[locale] || titles.pt,
       description: ogDescriptions[locale] || ogDescriptions.pt,
-      url: APP_URL,
+      url: `${APP_URL}/${locale}`,
       siteName: "Sushi in Sushi",
       locale: localeMap[locale] || "pt_PT",
       type: "website",
-      images: [{ url: "/logo.png" }],
+      images: [
+        {
+          url: "/logo.png",
+          width: 512,
+          height: 512,
+          alt: "Sushi in Sushi",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary",
+      title: titles[locale] || titles.pt,
+      description: ogDescriptions[locale] || ogDescriptions.pt,
+      images: ["/logo.png"],
     },
     alternates: {
       canonical: `${APP_URL}/${locale}`,
       languages: {
+        "x-default": `${APP_URL}/pt`,
         pt: `${APP_URL}/pt`,
         en: `${APP_URL}/en`,
         fr: `${APP_URL}/fr`,

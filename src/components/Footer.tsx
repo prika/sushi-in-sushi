@@ -67,7 +67,7 @@ export function Footer() {
         </div>
 
         {/* Footer Navigation */}
-        <div className="flex flex-wrap items-center justify-center gap-8 mb-12">
+        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-8 mb-12">
           {footerLinks.map((link) => (
             <a
               key={link.href}
@@ -77,7 +77,7 @@ export function Footer() {
               {link.label}
             </a>
           ))}
-        </div>
+        </nav>
 
         {/* Copyright */}
         <p className="text-center text-gray-400 text-sm">

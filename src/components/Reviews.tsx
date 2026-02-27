@@ -4,9 +4,9 @@ import { Star, Quote } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BlurFade } from "./ui/blur-fade";
 
-function StarRating({ rating }: { rating: number }) {
+function StarRating({ rating, ariaLabel }: { rating: number; ariaLabel: string }) {
   return (
-    <div className="flex gap-0.5" role="img" aria-label={`${rating} de 5 estrelas`}>
+    <div className="flex gap-0.5" role="img" aria-label={ariaLabel}>
       {[...Array(5)].map((_, i) => (
         <Star
           key={i}
@@ -65,7 +65,7 @@ export function Reviews() {
               {t("title")}
             </h2>
             <div className="flex items-center justify-center gap-2 mt-4">
-              <div className="flex gap-0.5" role="img" aria-label="5 de 5 estrelas">
+              <div className="flex gap-0.5" role="img" aria-label={t("starRating", { rating: 5, max: 5 })}>
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} size={20} className="fill-gold text-gold" aria-hidden="true" />
                 ))}
@@ -92,7 +92,7 @@ export function Reviews() {
                   </div>
                   <div>
                     <p className="font-medium text-white">{review.name}</p>
-                    <StarRating rating={review.rating} />
+                    <StarRating rating={review.rating} ariaLabel={t("starRating", { rating: review.rating, max: 5 })} />
                   </div>
                 </div>
                 <p className="text-muted leading-relaxed mb-4">

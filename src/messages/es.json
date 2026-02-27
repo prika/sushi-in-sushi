@@ -51,6 +51,7 @@
     "sectionLabel": "Testimonios",
     "title": "Lo Que Dicen Nuestros Clientes",
     "rating": "4.6/5 basado en más de 375 reseñas",
+    "starRating": "{rating} de {max} estrellas",
     "viewAll": "Ver todas las reseñas en Google",
     "reviews": {
       "review1": {

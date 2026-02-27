@@ -98,7 +98,7 @@ export function Header() {
         {tA11y("skipToContent")}
       </a>
 
-      <nav className="max-w-7xl mx-auto px-6 py-4">
+      <nav aria-label="Main" className="max-w-7xl mx-auto px-6 py-4">
         {/* Desktop Navigation */}
         <div className="hidden md:grid grid-cols-[1fr_auto_1fr] items-center">
           {/* Left Links */}
@@ -115,7 +115,7 @@ export function Header() {
           </div>
 
           {/* Center Logo */}
-          <a href="#" className="relative h-24 w-64">
+          <a href="/" aria-label="Sushi in Sushi — Home" className="relative h-24 w-64">
             <Image
               src="/logo.png"
               alt="Sushi in Sushi"
@@ -150,7 +150,7 @@ export function Header() {
 
         {/* Mobile Navigation */}
         <div className="md:hidden flex items-center justify-between">
-          <a href="#" className="relative h-14 w-44">
+          <a href="/" aria-label="Sushi in Sushi — Home" className="relative h-14 w-44">
             <Image
               src="/logo.png"
               alt="Sushi in Sushi"

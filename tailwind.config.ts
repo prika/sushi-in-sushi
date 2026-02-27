@@ -14,8 +14,8 @@ const config: Config = {
           dark: "#B8962E",
         },
         muted: {
-          DEFAULT: "#888888",
-          foreground: "#666666",
+          DEFAULT: "#999999",
+          foreground: "#777777",
         },
         card: {
           DEFAULT: "#1A1A1A",

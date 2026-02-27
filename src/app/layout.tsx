@@ -7,8 +7,11 @@ import { getLocale } from "next-intl/server";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Sushi in Sushi",
-  description: "Sistema de pedidos do restaurante Sushi in Sushi",
+  title: {
+    default: "Sushi in Sushi",
+    template: "%s | Sushi in Sushi",
+  },
+  description: "Restaurante de sushi no Porto. Rodízio, à carta, delivery e takeaway.",
 };
 
 export const viewport: Viewport = {

@@ -141,6 +141,7 @@ export function ReservationForm({
             id="first_name"
             name="first_name"
             required
+            autoComplete="given-name"
             value={formData.first_name}
             onChange={(e) =>
               setFormData({ ...formData, first_name: e.target.value })
@@ -158,6 +159,7 @@ export function ReservationForm({
             id="last_name"
             name="last_name"
             required
+            autoComplete="family-name"
             value={formData.last_name}
             onChange={(e) =>
               setFormData({ ...formData, last_name: e.target.value })
@@ -179,6 +181,7 @@ export function ReservationForm({
             id="email"
             name="email"
             required
+            autoComplete="email"
             value={formData.email}
             onChange={(e) =>
               setFormData({ ...formData, email: e.target.value })
@@ -196,6 +199,7 @@ export function ReservationForm({
             id="phone"
             name="phone"
             required
+            autoComplete="tel"
             value={formData.phone}
             onChange={(e) =>
               setFormData({ ...formData, phone: e.target.value })
@@ -278,7 +282,7 @@ export function ReservationForm({
                   party_size: Math.max(1, formData.party_size - 1),
                 })
               }
-              className="w-10 h-10 flex items-center justify-center bg-card border border-white/10 rounded-lg hover:border-gold text-white text-xl font-bold transition-colors"
+              className="w-11 h-11 flex items-center justify-center bg-card border border-white/10 rounded-lg hover:border-gold text-white text-xl font-bold transition-colors"
             >
               -
             </button>
@@ -294,7 +298,7 @@ export function ReservationForm({
                   party_size: Math.min(20, formData.party_size + 1),
                 })
               }
-              className="w-10 h-10 flex items-center justify-center bg-card border border-white/10 rounded-lg hover:border-gold text-white text-xl font-bold transition-colors"
+              className="w-11 h-11 flex items-center justify-center bg-card border border-white/10 rounded-lg hover:border-gold text-white text-xl font-bold transition-colors"
             >
               +
             </button>
