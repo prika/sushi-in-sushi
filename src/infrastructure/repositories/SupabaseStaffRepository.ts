@@ -13,13 +13,12 @@ import {
   StaffFilter,
   Role,
 } from '@/domain/entities/Staff';
-import bcrypt from 'bcryptjs';
 
 interface DatabaseStaff {
   id: string;
   email: string;
   name: string;
-  password_hash: string;
+  auth_user_id: string | null;
   role_id: number;
   location: string | null;
   phone: string | null;
@@ -106,18 +105,16 @@ export class SupabaseStaffRepository implements IStaffRepository {
     return this.mapToEntity(data);
   }
 
-  async create(data: CreateStaffData): Promise<Staff> {
-    const passwordHash = await bcrypt.hash(data.password, 10);
-
+  async create(data: CreateStaffData & { authUserId?: string }): Promise<Staff> {
     const { data: created, error } = await this.supabase
       .from('staff')
       .insert({
         email: data.email,
         name: data.name,
-        password_hash: passwordHash,
         role_id: data.roleId,
         location: data.location || null,
         phone: data.phone || null,
+        auth_user_id: data.authUserId || null,
       })
       .select()
       .single();
@@ -132,9 +129,7 @@ export class SupabaseStaffRepository implements IStaffRepository {
 
     if (data.email !== undefined) updateData.email = data.email;
     if (data.name !== undefined) updateData.name = data.name;
-    if (data.password !== undefined) {
-      updateData.password_hash = await bcrypt.hash(data.password, 10);
-    }
+    // password is managed via Supabase Auth (API route handles auth.admin.updateUserById)
     if (data.roleId !== undefined) updateData.role_id = data.roleId;
     if (data.location !== undefined) updateData.location = data.location;
     if (data.phone !== undefined) updateData.phone = data.phone;
@@ -223,7 +218,7 @@ export class SupabaseStaffRepository implements IStaffRepository {
       id: row.id,
       email: row.email,
       name: row.name,
-      passwordHash: row.password_hash,
+      authUserId: row.auth_user_id,
       roleId: row.role_id,
       location: row.location as Staff['location'],
       phone: row.phone,
@@ -243,7 +238,7 @@ export class SupabaseStaffRepository implements IStaffRepository {
       id: row.id,
       email: row.email,
       name: row.name,
-      passwordHash: row.password_hash,
+      authUserId: row.auth_user_id,
       roleId: row.role_id,
       location: row.location as Staff['location'],
       phone: row.phone,

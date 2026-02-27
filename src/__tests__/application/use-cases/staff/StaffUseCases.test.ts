@@ -14,7 +14,7 @@ function createTestStaff(overrides: Partial<Staff> = {}): Staff {
     id: 'staff-1',
     email: 'joao@sushi.pt',
     name: 'João Silva',
-    passwordHash: 'hashed_password',
+    authUserId: null,
     roleId: 1,
     location: 'circunvalacao',
     phone: '912345678',

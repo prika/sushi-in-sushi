@@ -24,6 +24,7 @@ interface SessionWithCustomers extends Session {
 
 interface TableWithSession extends Table {
   activeSession?: SessionWithCustomers | null;
+  assignedWaiterName?: string | null;
 }
 
 interface OrderWithTableInfo extends OrderWithProduct {
@@ -47,6 +48,8 @@ export default function WaiterDashboard() {
   >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [assigningTableId, setAssigningTableId] = useState<string | null>(null);
+  const [openingTableId, setOpeningTableId] = useState<string | null>(null);
+  const [dismissingTableId, setDismissingTableId] = useState<string | null>(null);
   const [unassignedTables, setUnassignedTables] = useState<Table[]>([]);
   const [dashboardTab, setDashboardTab] = useState<"ativas" | "disponiveis">("ativas");
   // eslint-disable-next-line no-unused-vars
@@ -152,6 +155,28 @@ export default function WaiterDashboard() {
         }
       }
 
+      // Fetch waiter assignments for waiting tables (no active session but customer_waiting_since)
+      const waitingTableIds = tableList
+        .filter((t) => !sessions?.find((s) => s.table_id === t.id) && t.customer_waiting_since)
+        .map((t) => t.id);
+
+      const waiterAssignments: Map<string, string> = new Map();
+      if (waitingTableIds.length > 0) {
+        const { data: assignments } = await supabase
+          .from("waiter_tables")
+          .select("table_id, staff:staff!inner(name)")
+          .in("table_id", waitingTableIds);
+
+        if (assignments) {
+          for (const a of assignments) {
+            const staffName = (a.staff as any)?.name;
+            if (staffName) {
+              waiterAssignments.set(a.table_id, staffName);
+            }
+          }
+        }
+      }
+
       const tablesWithSessions = tableList.map((table) => {
         const session = sessions?.find((s) => s.table_id === table.id);
         return {
@@ -162,6 +187,7 @@ export default function WaiterDashboard() {
                 customers: sessionCustomersMap.get(session.id) || [],
               }
             : null,
+          assignedWaiterName: waiterAssignments.get(table.id) || null,
         };
       });
 
@@ -245,7 +271,7 @@ export default function WaiterDashboard() {
             .from("reservation_settings")
             .select("waiter_alert_minutes")
             .eq("id", 1)
-            .single();
+            .maybeSingle();
           const alertMinutes = (settingsData as Record<string, number> | null)?.waiter_alert_minutes || 60;
 
           const today = new Date().toISOString().split("T")[0];
@@ -480,6 +506,66 @@ export default function WaiterDashboard() {
     [user],
   );
 
+  const handleOpenWaitingTable = useCallback(
+    async (tableId: string, tableNumber: number, event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      setOpeningTableId(tableId);
+      try {
+        const response = await fetch("/api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            tableId,
+            isRodizio: false,
+            numPeople: 1,
+            orderingMode: "client",
+          }),
+        });
+
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          alert(`Erro: ${result.error || "Não foi possível abrir a mesa"}`);
+          return;
+        }
+
+        await fetchDataRef.current();
+        alert(`✅ Mesa #${tableNumber} aberta`);
+      } catch (error) {
+        console.error("Error opening waiting table:", error);
+        alert("Erro ao abrir mesa");
+      } finally {
+        setOpeningTableId(null);
+      }
+    },
+    [],
+  );
+
+  const handleDismissWaiting = useCallback(
+    async (tableId: string, event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      setDismissingTableId(tableId);
+      try {
+        await fetch(`/api/tables/${tableId}/request-open`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+
+        await fetchDataRef.current();
+      } catch (error) {
+        console.error("Error dismissing waiting request:", error);
+        alert("Erro ao dispensar pedido");
+      } finally {
+        setDismissingTableId(null);
+      }
+    },
+    [],
+  );
+
   const handleOpenTableAssign = useCallback((reservation: Record<string, unknown>) => {
     setSelectedReservation(reservation);
     setPrimaryTableId(null);
@@ -565,7 +651,8 @@ export default function WaiterDashboard() {
   }
 
   const activeTables = tables.filter((t) => t.activeSession);
-  const availableTables = tables.filter((t) => !t.activeSession);
+  const waitingTables = tables.filter((t) => !t.activeSession && t.customer_waiting_since);
+  const availableTables = tables.filter((t) => !t.activeSession && !t.customer_waiting_since);
 
   // Filter customer calls (excluding kitchen notifications)
   const customerCalls = waiterCalls.filter(
@@ -887,7 +974,7 @@ export default function WaiterDashboard() {
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                Mesas Ativas ({activeTables.length})
+                Mesas Ativas ({activeTables.length + waitingTables.length})
               </button>
               <button
                 onClick={() => setDashboardTab("disponiveis")}
@@ -904,12 +991,72 @@ export default function WaiterDashboard() {
             {/* Tab Content */}
             {dashboardTab === "ativas" ? (
               <section className="mb-8">
-                {activeTables.length === 0 ? (
+                {activeTables.length === 0 && waitingTables.length === 0 ? (
                   <div className="text-center py-12 bg-[#1a1a1a] rounded-xl border border-gray-800">
                     <div className="text-4xl mb-3">🍽️</div>
                     <p className="text-gray-400">Nenhuma mesa ativa de momento</p>
                   </div>
                 ) : (
+                  <div className="space-y-4">
+                  {/* Waiting Tables — orange, with Abrir Mesa button */}
+                  {waitingTables.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {waitingTables.map((table) => {
+                        const waitingSince = table.customer_waiting_since
+                          ? new Date(table.customer_waiting_since)
+                          : null;
+                        const waitingMinutes = waitingSince
+                          ? Math.floor((Date.now() - waitingSince.getTime()) / 60000)
+                          : 0;
+
+                        return (
+                          <div
+                            key={table.id}
+                            className="rounded-xl p-4 bg-orange-500/10 border-2 border-orange-500/50"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <span className="text-2xl font-bold text-orange-400">
+                                #{table.number}
+                              </span>
+                              <span className="px-2 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded-full animate-pulse">
+                                Cliente a esperar
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-400 mb-2 truncate">
+                              {table.name}
+                            </p>
+                            <p className="text-xs text-gray-500 mb-1">
+                              A esperar há {waitingMinutes}min
+                            </p>
+                            {table.assignedWaiterName && (
+                              <p className="text-xs text-orange-300 mb-2">
+                                👤 {table.assignedWaiterName}
+                              </p>
+                            )}
+                            <div className="flex flex-col gap-2">
+                              <button
+                                onClick={(e) => handleOpenWaitingTable(table.id, table.number, e)}
+                                disabled={openingTableId === table.id}
+                                className="w-full px-3 py-2 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {openingTableId === table.id ? "A abrir..." : "Abrir Mesa"}
+                              </button>
+                              <button
+                                onClick={(e) => handleDismissWaiting(table.id, e)}
+                                disabled={dismissingTableId === table.id}
+                                className="w-full px-3 py-1.5 text-xs text-gray-400 hover:text-gray-300 transition-colors disabled:opacity-50"
+                              >
+                                {dismissingTableId === table.id ? "A dispensar..." : "Dispensar"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Active Tables */}
+                  {activeTables.length > 0 && (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {activeTables.map((table) => {
                       const sessionStarted = table.activeSession?.started_at
@@ -1012,6 +1159,8 @@ export default function WaiterDashboard() {
                         </Link>
                       );
                     })}
+                  </div>
+                  )}
                   </div>
                 )}
               </section>

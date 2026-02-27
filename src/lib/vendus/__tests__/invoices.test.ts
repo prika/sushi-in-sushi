@@ -1383,7 +1383,7 @@ describe("processRetryQueue", () => {
                               sessionId: "sess-1",
                               locationSlug: "circunvalacao",
                               paymentMethodId: 1,
-                              paidAmount: 10,
+                              paidAmount: 12.30,
                               issuedBy: "user-1",
                             },
                             attempts: 1,
@@ -1925,7 +1925,7 @@ describe("processRetryQueue", () => {
       sessionId: "sess-noloc",
       locationSlug: "circunvalacao",
       paymentMethodId: 1,
-      paidAmount: 10,
+      paidAmount: 12.30,
       issuedBy: "user-1",
     });
 

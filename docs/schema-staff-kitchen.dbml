@@ -18,14 +18,13 @@ Table staff {
   id uuid [pk]
   email varchar(255) [unique, not null]
   name varchar(255) [not null]
-  password_hash varchar(255) [not null]
+  auth_user_id uuid [unique, note: 'FK -> auth.users(id) ON DELETE SET NULL']
   role_id integer [not null, ref: > roles.id]
   location varchar(50) [note: 'circunvalacao, boavista']
   phone varchar(20)
   is_active boolean [default: true]
   last_login timestamptz
   created_at timestamptz [default: `now()`]
-  auth_user_id uuid [unique, note: 'FK -> auth.users(id) for Supabase Auth']
 }
 
 Table staff_time_off {

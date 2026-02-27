@@ -20,14 +20,13 @@ CREATE TABLE staff (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
   name VARCHAR(255) NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
+  auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
   role_id INTEGER NOT NULL REFERENCES roles(id),
   location VARCHAR(50), -- CHECK IN ('circunvalacao','boavista')
   phone VARCHAR(20),
   is_active BOOLEAN DEFAULT true,
   last_login TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  auth_user_id UUID UNIQUE -- FK -> auth.users(id) ON DELETE SET NULL
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE kitchen_zones (

@@ -2576,7 +2576,6 @@ export type Database = {
           mfa_enrolled_at: string | null
           mfa_required: boolean
           name: string
-          password_hash: string
           phone: string | null
           role_id: number
           updated_at: string | null
@@ -2597,7 +2596,6 @@ export type Database = {
           mfa_enrolled_at?: string | null
           mfa_required?: boolean
           name: string
-          password_hash: string
           phone?: string | null
           role_id: number
           updated_at?: string | null
@@ -2618,7 +2616,6 @@ export type Database = {
           mfa_enrolled_at?: string | null
           mfa_required?: boolean
           name?: string
-          password_hash?: string
           phone?: string | null
           role_id?: number
           updated_at?: string | null
@@ -3682,7 +3679,6 @@ export type Database = {
           mfa_enrolled_at: string | null
           mfa_required: boolean | null
           name: string | null
-          password_hash: string | null
           phone: string | null
           role_id: number | null
           role_name: string | null
@@ -4026,7 +4022,6 @@ export type Database = {
           mfa_enrolled_at: string | null
           mfa_required: boolean
           name: string
-          password_hash: string
           phone: string | null
           role_id: number
           updated_at: string | null

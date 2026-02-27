@@ -2114,6 +2114,7 @@ function RestaurantManagementTab() {
   const [recreatingTablesFor, setRecreatingTablesFor] = useState<string | null>(
     null,
   );
+  const [closingAllFor, setClosingAllFor] = useState<string | null>(null);
 
   // Modal states for replacing system alerts/confirms
   const [alertModal, setAlertModal] = useState<{
@@ -2429,6 +2430,51 @@ function RestaurantManagementTab() {
     );
   };
 
+  const handleCloseAllTables = (restaurant: Restaurant) => {
+    showConfirm(
+      `Fechar todas as mesas de ${restaurant.name}?`,
+      "Todas as sessões ativas serão encerradas e as mesas ficarão disponíveis.\n\nEsta ação não pode ser revertida.",
+      async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        setClosingAllFor(restaurant.id);
+
+        try {
+          const res = await fetch("/api/tables/close-all", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ location: restaurant.slug }),
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            showAlert(
+              "Erro",
+              data.error || "Erro ao fechar mesas",
+              "error",
+            );
+          } else {
+            showAlert(
+              "Mesas fechadas",
+              data.closed > 0
+                ? `${data.closed} sessão(ões) encerrada(s). Todas as mesas estão disponíveis.`
+                : "Nenhuma sessão ativa encontrada. Mesas já estão disponíveis.",
+              "success",
+            );
+          }
+        } catch (err) {
+          showAlert(
+            "Erro",
+            err instanceof Error ? err.message : "Erro desconhecido",
+            "error",
+          );
+        } finally {
+          setClosingAllFor(null);
+        }
+      },
+      { variant: "danger", confirmText: "Fechar todas" },
+    );
+  };
+
   const handleDelete = (id: string) => {
     showConfirm(
       "Eliminar restaurante",
@@ -2646,6 +2692,35 @@ function RestaurantManagementTab() {
                       />
                     </svg>
                     Recriar Mesas
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => handleCloseAllTables(restaurant)}
+                disabled={closingAllFor === restaurant.id}
+                className="w-full px-3 py-2 border border-orange-300 text-orange-600 rounded-lg hover:bg-orange-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {closingAllFor === restaurant.id ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-orange-600 border-t-transparent rounded-full" />
+                    Fechando...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                      />
+                    </svg>
+                    Fechar Todas as Mesas
                   </>
                 )}
               </button>

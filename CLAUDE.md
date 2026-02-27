@@ -105,8 +105,7 @@ Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 ### 📈 Próximos Passos Recomendados
 
 1. **Performance Optimization** - React Query + cache + paginação
-2. **Security** - Implementar bcrypt para passwords
-3. **E2E Tests** - Playwright para fluxos críticos
+2. **E2E Tests** - Playwright para fluxos críticos
 
 ## Stack Tecnológica
 

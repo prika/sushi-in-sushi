@@ -13,10 +13,12 @@ import { NextRequest } from 'next/server';
 // ─── Hoisted mocks ──────────────────────────────────────────────────────────
 
 const mockRpc = vi.fn();
+const mockDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
 
 vi.mock('@/lib/supabase/server', () => ({
   createAdminClient: () => ({
     rpc: mockRpc,
+    from: () => ({ delete: mockDelete }),
   }),
 }));
 

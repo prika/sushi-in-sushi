@@ -1,10 +1,11 @@
+/* eslint-disable no-console */
 /**
  * Script to seed test users for E2E testing
  * Run with: npx tsx scripts/seed-test-users.ts
  *
- * Creates users in both:
- * 1. Supabase Auth (for NEXT_PUBLIC_USE_SUPABASE_AUTH=true mode)
- * 2. Staff table with password_hash (for legacy mode)
+ * Creates users in:
+ * 1. Supabase Auth (authentication)
+ * 2. Staff table (linked via auth_user_id)
  */
 
 import { config } from "dotenv";
@@ -133,8 +134,7 @@ async function seedStaffRecords(authUserIds: Record<string, string>) {
       const { error } = await supabase
         .from("staff")
         .update({
-          password_hash: user.password, // For legacy auth
-          auth_user_id: authUserId || null, // For Supabase Auth
+          auth_user_id: authUserId || null,
           is_active: true,
           name: user.name,
         })
@@ -153,8 +153,7 @@ async function seedStaffRecords(authUserIds: Record<string, string>) {
         id: user.staffId,
         email: user.email,
         name: user.name,
-        password_hash: user.password, // For legacy auth
-        auth_user_id: authUserId || null, // For Supabase Auth
+        auth_user_id: authUserId || null,
         role_id: user.role_id,
         location: user.location,
         is_active: true,

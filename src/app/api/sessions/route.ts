@@ -164,6 +164,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Clear customer_waiting_since flag (in case customer requested opening via QR scan)
+    await supabase
+      .from("tables")
+      .update({ customer_waiting_since: null })
+      .eq("id", tableId);
+
     // Update total_amount for rodizio sessions
     if (totalAmount && totalAmount > 0 && result.data) {
       await supabase

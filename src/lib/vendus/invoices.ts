@@ -127,6 +127,14 @@ export async function createInvoice(
     }
     const total = subtotal + taxAmount;
 
+    // Validate that paidAmount covers the total
+    if (paidAmount < total) {
+      return {
+        success: false,
+        error: `Valor pago (${paidAmount.toFixed(2)}€) e inferior ao total (${total.toFixed(2)}€)`,
+      };
+    }
+
     // Determine document type:
     // FR (Fatura-Recibo) when customer NIF is provided
     // FS (Fatura Simplificada) for anonymous sales

@@ -5,28 +5,18 @@ import { Result, Results } from '../Result';
 
 interface CreateTablesForRestaurantInput {
   restaurantSlug: string;
-  forceRecreate?: boolean; // Se true, remove mesas existentes e recria
-}
-
-interface TableDistribution {
-  capacity: number;
-  count: number;
+  forceRecreate?: boolean;
 }
 
 /**
- * Use Case: Criar mesas automaticamente para um restaurante
+ * Use Case: Sincronizar mesas de um restaurante com a capacidade configurada
  *
- * Algoritmo de Distribuição:
- * - Usa o defaultPeoplePerTable definido no restaurante
- * - Cria mesas uniformes com essa capacidade
- * - num_mesas = ceil(maxCapacity / defaultPeoplePerTable)
- *
- * Exemplos (defaultPeoplePerTable = 4):
- * - 50 pessoas → 13 mesas de 4 = 52 lugares
- * - 40 pessoas → 10 mesas de 4 = 40 lugares
- *
- * Exemplos (defaultPeoplePerTable = 2):
- * - 50 pessoas → 25 mesas de 2 = 50 lugares
+ * Princípios:
+ * - Mesas nunca são apagadas (QR codes físicos + sessões históricas)
+ * - Mais mesas necessárias → reativa inativas primeiro, depois cria novas
+ * - Menos mesas necessárias → desativa as livres de número mais alto
+ * - Mesas ocupadas/reservadas nunca são desativadas (erro se bloquear)
+ * - Nunca duplica mesas com o mesmo número+location
  */
 export class CreateTablesForRestaurantUseCase {
   constructor(
@@ -34,27 +24,8 @@ export class CreateTablesForRestaurantUseCase {
     private tableRepository: ITableRepository
   ) {}
 
-  /**
-   * Calcula a distribuição de mesas baseada no defaultPeoplePerTable
-   */
-  private calculateTableDistribution(maxCapacity: number, peoplePerTable: number): TableDistribution[] {
-    const numTables = Math.ceil(maxCapacity / peoplePerTable);
-
-    if (numTables === 0) return [];
-
-    return [{ capacity: peoplePerTable, count: numTables }];
-  }
-
-  /**
-   * Calcula o total de lugares criados baseado na distribuição
-   */
-  private calculateTotalCapacity(distribution: TableDistribution[]): number {
-    return distribution.reduce((total, d) => total + d.capacity * d.count, 0);
-  }
-
   async execute(input: CreateTablesForRestaurantInput): Promise<Result<Table[]>> {
     try {
-      // 1. Buscar restaurante
       const restaurant = await this.restaurantRepository.findBySlug(input.restaurantSlug);
 
       if (!restaurant) {
@@ -65,81 +36,113 @@ export class CreateTablesForRestaurantUseCase {
         return Results.error('Restaurante não está ativo', 'RESTAURANT_INACTIVE');
       }
 
-      // 2. Calcular distribuição de mesas baseada em defaultPeoplePerTable
-      const distribution = this.calculateTableDistribution(restaurant.maxCapacity, restaurant.defaultPeoplePerTable);
-      const totalCapacity = this.calculateTotalCapacity(distribution);
-      const totalTables = distribution.reduce((sum, d) => sum + d.count, 0);
+      const desiredCount = Math.ceil(restaurant.maxCapacity / restaurant.defaultPeoplePerTable);
 
-      if (totalTables === 0) {
-        return Results.error(
-          'Capacidade inválida para criar mesas',
-          'INVALID_CAPACITY'
-        );
+      if (desiredCount === 0) {
+        return Results.error('Capacidade inválida para criar mesas', 'INVALID_CAPACITY');
       }
 
-      // 3. Verificar se já existem mesas (opcional: forçar recriação)
-      const existingTables = await this.tableRepository.findAll({
-        location: input.restaurantSlug as any
+      // Buscar mesas ativas
+      const activeTables = await this.tableRepository.findAll({
+        location: input.restaurantSlug as any,
+        isActive: true,
       });
 
-      if (existingTables.length > 0 && !input.forceRecreate) {
-        return Results.error(
-          `Restaurante já tem ${existingTables.length} mesas. Use forceRecreate=true para recriar.`,
-          'TABLES_ALREADY_EXIST'
-        );
+      const currentCount = activeTables.length;
+
+      // Já tem o número exato → nada a fazer
+      if (currentCount === desiredCount) {
+        return Results.success(activeTables);
       }
 
-      // 4. Remover mesas existentes se forceRecreate
-      if (input.forceRecreate && existingTables.length > 0) {
-        // Verificar se alguma mesa tem sessão ativa
-        const tablesWithSessions = existingTables.filter(
-          table => table.status === 'occupied' || table.status === 'reserved'
-        );
+      // Demasiadas mesas ativas → desativar excedentes (livres, número mais alto)
+      if (currentCount > desiredCount) {
+        const sorted = [...activeTables].sort((a, b) => a.number - b.number);
+        const toKeep = sorted.slice(0, desiredCount);
+        const candidates = sorted.slice(desiredCount);
 
-        if (tablesWithSessions.length > 0) {
+        // Só desativar mesas livres (available/inactive)
+        const free = candidates.filter(t => t.status === 'available' || t.status === 'inactive');
+        const busy = candidates.filter(t => t.status === 'occupied' || t.status === 'reserved');
+
+        if (busy.length > 0) {
+          // Desativar as livres que puder, avisar sobre as ocupadas
+          for (const t of free) {
+            await this.tableRepository.update(t.id, { isActive: false });
+          }
+          const stillActive = desiredCount + busy.length;
           return Results.error(
-            `Não é possível recriar mesas. ${tablesWithSessions.length} mesa(s) têm sessões ativas.\n\n` +
-            `Por favor, feche todas as sessões antes de recriar as mesas.`,
+            `Desativadas ${free.length} mesas. ${busy.length} mesa(s) ocupadas/reservadas não podem ser desativadas ` +
+            `(mesas ${busy.map(t => t.number).join(', ')}). Ficam ${stillActive} mesas ativas até serem libertadas.`,
             'TABLES_HAVE_ACTIVE_SESSIONS'
           );
         }
 
-        // Deletar mesas (apenas se não tiverem sessões ativas)
-        for (const table of existingTables) {
-          try {
-            await this.tableRepository.delete(table.id);
-          } catch (error) {
-            // Se ainda assim der erro de FK, mostrar mensagem mais clara
-            if (error instanceof Error && error.message.includes('foreign key constraint')) {
-              return Results.error(
-                `Não é possível eliminar mesa ${table.number}. Ela tem sessões ou pedidos associados.\n\n` +
-                `Por favor, feche todas as sessões e tente novamente.`,
-                'TABLE_HAS_DEPENDENCIES'
-              );
-            }
-            throw error;
-          }
+        for (const t of free) {
+          await this.tableRepository.update(t.id, { isActive: false });
         }
+
+        return Results.success(toKeep);
       }
 
-      // 5. Criar mesas baseado na distribuição
-      const createdTables: Table[] = [];
-      let tableNumber = 1;
-
-      for (const dist of distribution) {
-        for (let i = 0; i < dist.count; i++) {
-          const table = await this.tableRepository.create({
-            number: tableNumber,
-            name: `Mesa ${tableNumber}`,
-            location: input.restaurantSlug as any, // Cast temporário até Location ser dinâmico
-          });
-
-          createdTables.push(table);
-          tableNumber++;
-        }
+      // Precisa de mais mesas — verificar se é primeira criação ou expansão
+      if (currentCount > 0 && !input.forceRecreate) {
+        return Results.error(
+          `Restaurante tem ${currentCount} mesas ativas, precisa de ${desiredCount}. ` +
+          `Use forceRecreate=true para adicionar as ${desiredCount - currentCount} mesas em falta.`,
+          'TABLES_ALREADY_EXIST'
+        );
       }
 
-      return Results.success(createdTables);
+      // --- Adicionar mesas em falta ---
+      const toAdd = desiredCount - currentCount;
+
+      // 1. Tentar reativar mesas inativas primeiro (preserva QR codes)
+      const inactiveTables = await this.tableRepository.findAll({
+        location: input.restaurantSlug as any,
+        isActive: false,
+      });
+
+      const activeNumbers = new Set(activeTables.map(t => t.number));
+      const reactivated: Table[] = [];
+
+      // Reativar por ordem de número (mesas mais baixas primeiro)
+      const inactiveSorted = [...inactiveTables]
+        .filter(t => !activeNumbers.has(t.number)) // Sem colisão de números
+        .sort((a, b) => a.number - b.number);
+
+      // Deduplicar: só reativar uma mesa por número
+      const seenNumbers = new Set<number>();
+      for (const t of inactiveSorted) {
+        if (reactivated.length >= toAdd) break;
+        if (seenNumbers.has(t.number)) continue;
+        seenNumbers.add(t.number);
+
+        await this.tableRepository.update(t.id, { isActive: true, status: 'available' });
+        reactivated.push({ ...t, isActive: true });
+      }
+
+      // 2. Criar as que ainda faltam
+      const stillNeeded = toAdd - reactivated.length;
+      const allUsedNumbers = new Set(
+        [...activeTables, ...reactivated].map(t => t.number)
+      );
+      const created: Table[] = [];
+      let nextNumber = 1;
+
+      for (let i = 0; i < stillNeeded; i++) {
+        while (allUsedNumbers.has(nextNumber)) nextNumber++;
+        const table = await this.tableRepository.create({
+          number: nextNumber,
+          name: `Mesa ${nextNumber}`,
+          location: input.restaurantSlug as any,
+        });
+        created.push(table);
+        allUsedNumbers.add(nextNumber);
+        nextNumber++;
+      }
+
+      return Results.success([...activeTables, ...reactivated, ...created]);
     } catch (error) {
       return Results.error(
         error instanceof Error ? error.message : 'Erro ao criar mesas'

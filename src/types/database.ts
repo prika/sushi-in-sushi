@@ -74,6 +74,7 @@ export type Database = {
           status: "available" | "reserved" | "occupied" | "inactive";
           is_active: boolean;
           current_session_id: string | null;
+          customer_waiting_since: string | null;
           vendus_table_id: string | null;
           vendus_room_id: string | null;
           vendus_synced_at: string | null;
@@ -88,6 +89,7 @@ export type Database = {
           status?: "available" | "reserved" | "occupied" | "inactive";
           is_active?: boolean;
           current_session_id?: string | null;
+          customer_waiting_since?: string | null;
           vendus_table_id?: string | null;
           vendus_room_id?: string | null;
           vendus_synced_at?: string | null;
@@ -102,6 +104,7 @@ export type Database = {
           status?: "available" | "reserved" | "occupied" | "inactive";
           is_active?: boolean;
           current_session_id?: string | null;
+          customer_waiting_since?: string | null;
           vendus_table_id?: string | null;
           vendus_room_id?: string | null;
           vendus_synced_at?: string | null;
@@ -487,7 +490,7 @@ export type Database = {
           id: string;
           email: string;
           name: string;
-          password_hash: string;
+          auth_user_id: string | null;
           role_id: number;
           location: string | null;
           phone: string | null;
@@ -499,7 +502,7 @@ export type Database = {
           id?: string;
           email: string;
           name: string;
-          password_hash: string;
+          auth_user_id?: string | null;
           role_id: number;
           location?: string | null;
           phone?: string | null;
@@ -511,7 +514,7 @@ export type Database = {
           id?: string;
           email?: string;
           name?: string;
-          password_hash?: string;
+          auth_user_id?: string | null;
           role_id?: number;
           location?: string | null;
           phone?: string | null;
@@ -1751,6 +1754,7 @@ export type Table = TableBase & {
   status_note?: string | null;
   current_session_id?: string | null;
   current_reservation_id?: string | null;
+  customer_waiting_since?: string | null;
 };
 
 // Table with full status from view
@@ -1828,7 +1832,7 @@ export type Staff = {
   id: string;
   email: string;
   name: string;
-  password_hash: string;
+  auth_user_id?: string | null;
   role_id: number;
   location: Location | null;
   phone: string | null;

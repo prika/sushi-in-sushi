@@ -207,17 +207,19 @@ function MesaPageContent() {
   > | null>(null);
 
   // Device ID for broadcast deduplication (prevent processing own broadcasts)
-  // Using useState with lazy initialization to ensure stable value across renders
-  const [deviceId] = useState<string>(() => {
-    if (typeof window === "undefined") return "server";
+  // Initialize empty to avoid SSR/client mismatch, then set from localStorage in useEffect
+  const [deviceId, setDeviceId] = useState<string>("");
 
+  useEffect(() => {
     const stored = localStorage.getItem("mesa-device-id");
-    if (stored) return stored;
-
+    if (stored) {
+      setDeviceId(stored);
+      return;
+    }
     const id = `device-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     localStorage.setItem("mesa-device-id", id);
-    return id;
-  });
+    setDeviceId(id);
+  }, []);
 
   // Verification state
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -310,6 +312,9 @@ function MesaPageContent() {
   const stepRef = useRef(step);
   useEffect(() => { stepRef.current = step; }, [step]);
 
+  // Track whether we've already sent the auto-open request
+  const hasRequestedOpen = useRef(false);
+
   // Fetch table info, waiter, and poll for session (waiter must open it)
   // Uses API route to bypass RLS - ensures session detection works
   useEffect(() => {
@@ -351,6 +356,14 @@ function MesaPageContent() {
             clearInterval(pollTimer);
             pollTimer = null;
           }
+        } else if (!hasRequestedOpen.current) {
+          // No session — automatically request table opening (once)
+          hasRequestedOpen.current = true;
+          fetch(`/api/tables/${data.tableId}/request-open`, {
+            method: "POST",
+          }).catch(() => {
+            // Non-critical: waiter can still be called manually
+          });
         }
       } catch (err) {
         console.error("Error fetching table info", err);
@@ -1017,7 +1030,7 @@ function MesaPageContent() {
     sendVerificationCode,
   ]);
 
-  // Submit order
+  // Submit order via API route (server-side price validation)
   const submitOrder = useCallback(async () => {
     // Prevent double-clicks and double submissions
     if (isSubmittingOrder || !session || cart.length === 0) return;
@@ -1032,27 +1045,30 @@ function MesaPageContent() {
     setError(null);
 
     try {
-      const ordersToInsert = CartService.buildOrderInserts(
-        cart,
-        session.id,
-        currentCustomer?.id || null,
+      const items = cart.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        notes: item.notes || undefined,
+        sessionCustomerId: currentCustomer?.id || undefined,
+      }));
+
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: session.id, items }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || t("mesa.errors.submitOrder"));
+      }
+
+      const data = await response.json();
+
+      // Update local session state with server-calculated total
+      setSession((prev) =>
+        prev ? { ...prev, total_amount: data.total_amount } : null,
       );
-
-      const { error: ordersError } = await supabase
-        .from("orders")
-        .insert(ordersToInsert);
-
-      if (ordersError) throw ordersError;
-
-      const newTotal = (session.total_amount || 0) + cartTotal;
-      const { error: updateError } = await supabase
-        .from("sessions")
-        .update({ total_amount: newTotal })
-        .eq("id", session.id);
-
-      if (updateError) throw updateError;
-
-      setSession((prev) => (prev ? { ...prev, total_amount: newTotal } : null));
 
       // Broadcast notification to other devices at this table
       const customerName = currentCustomer?.display_name;
@@ -1081,7 +1097,7 @@ function MesaPageContent() {
       setActiveTab("pedidos");
     } catch (err) {
       console.error("Error submitting order:", err);
-      setError(t("mesa.errors.submitOrder"));
+      setError(err instanceof Error ? err.message : t("mesa.errors.submitOrder"));
     } finally {
       setIsSubmittingOrder(false);
     }
@@ -1089,10 +1105,8 @@ function MesaPageContent() {
     isSubmittingOrder,
     session,
     cart,
-    cartTotal,
     cartItemsCount,
     clearCart,
-    supabase,
     currentCustomer?.id,
     currentCustomer?.display_name,
     deviceId,
@@ -1442,26 +1456,13 @@ function MesaPageContent() {
               {t("mesa.waitingForWaiterDesc")}
             </p>
 
-            {/* Call waiter button (only when no waiter card is shown above) */}
-            {!waiterName && (
-              <button
-                onClick={() => callWaiter("assistance")}
-                disabled={isCallingWaiter || waiterCallStatus !== "idle"}
-                className={`w-full py-4 rounded-xl font-semibold text-lg transition-all ${
-                  waiterCallStatus === "pending"
-                    ? "bg-yellow-500/20 text-yellow-500 border-2 border-yellow-500/30"
-                    : waiterCallStatus === "acknowledged"
-                      ? "bg-green-500/20 text-green-500 border-2 border-green-500/30"
-                      : "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
-                }`}
-              >
-                {waiterCallStatus === "pending"
-                  ? t("mesa.status.pending") + "..."
-                  : waiterCallStatus === "acknowledged"
-                    ? "A caminho!"
-                    : t("mesa.callStaff")}
-              </button>
-            )}
+            {/* Waiter notified indicator */}
+            <div className="flex items-center justify-center gap-2 text-sm text-green-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>{t("mesa.waiterNotified")}</span>
+            </div>
           </div>
         </div>
       )}

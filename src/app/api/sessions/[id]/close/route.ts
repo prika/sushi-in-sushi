@@ -55,6 +55,14 @@ export async function POST(
       return NextResponse.json({ error: result.error }, { status });
     }
 
+    // Remove waiter assignment from the closed table
+    if (result.table_id) {
+      await supabase
+        .from("waiter_tables")
+        .delete()
+        .eq("table_id", result.table_id);
+    }
+
     // eslint-disable-next-line no-console
     console.log("[API /sessions/close] Success:", {
       sessionId,
