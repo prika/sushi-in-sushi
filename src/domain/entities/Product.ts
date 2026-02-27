@@ -21,6 +21,18 @@ export interface Product {
   servicePrices: Record<string, number>;
   /** Number of pieces in this product */
   quantity: number;
+  /** Multi-language descriptions: {"pt": "...", "en": "...", ...} */
+  descriptions: Record<string, string>;
+  /** AI-generated SEO title (legacy single-lang) */
+  seoTitle: string | null;
+  /** AI-generated SEO description (legacy single-lang) */
+  seoDescription: string | null;
+  /** Multi-language SEO titles: {"pt": "...", "en": "...", ...} */
+  seoTitles: Record<string, string>;
+  /** Multi-language SEO descriptions: {"pt": "...", "en": "...", ...} */
+  seoDescriptions: Record<string, string>;
+  /** When the SEO content was last generated */
+  seoGeneratedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

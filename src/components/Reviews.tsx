@@ -98,7 +98,7 @@ export function Reviews() {
                 <p className="text-muted leading-relaxed mb-4">
                   &ldquo;{review.text}&rdquo;
                 </p>
-                <div className="flex items-center justify-between text-xs text-muted/60">
+                <div className="flex items-center justify-between text-xs text-muted">
                   <span>{review.date}</span>
                   <span>{review.source}</span>
                 </div>

@@ -32,6 +32,12 @@ interface DatabaseProduct {
   service_modes: string[] | null;
   service_prices: Record<string, number> | null;
   quantity: number | null;
+  descriptions: Record<string, string> | null;
+  seo_title: string | null;
+  seo_description: string | null;
+  seo_titles: Record<string, string> | null;
+  seo_descriptions: Record<string, string> | null;
+  seo_generated_at: string | null;
   created_at: string;
   updated_at?: string; // optional: products table may not have this column
 }
@@ -239,6 +245,12 @@ export class SupabaseProductRepository implements IProductRepository {
       isRodizio: data.is_rodizio,
       sortOrder: data.sort_order,
       quantity: data.quantity ?? 1,
+      descriptions: data.descriptions ?? {},
+      seoTitle: data.seo_title ?? null,
+      seoDescription: data.seo_description ?? null,
+      seoTitles: data.seo_titles ?? {},
+      seoDescriptions: data.seo_descriptions ?? {},
+      seoGeneratedAt: data.seo_generated_at ? new Date(data.seo_generated_at) : null,
       serviceModes: data.service_modes ?? [],
       servicePrices: data.service_prices ?? {},
       createdAt: new Date(data.created_at),

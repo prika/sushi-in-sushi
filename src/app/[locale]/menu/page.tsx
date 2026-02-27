@@ -9,6 +9,7 @@ import { menuCircunvalacao } from "@/data/menu-circunvalacao";
 import { menuBoavista } from "@/data/menu-boavista";
 import { cn } from "@/lib/utils";
 import { ReservationForm } from "@/components/ReservationForm";
+import { MenuSchema } from "@/components/seo/MenuSchema";
 import type { Location } from "@/types/database";
 
 // Map category names to images
@@ -81,6 +82,10 @@ export default function MenuPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <MenuSchema
+        categories={currentRestaurant.menu}
+        restaurantName={currentRestaurant.name}
+      />
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-white/5">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">

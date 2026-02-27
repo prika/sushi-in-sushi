@@ -51,6 +51,7 @@ export function useIngredients(
       setIngredients(
         data.map((d: Record<string, unknown>) => ({
           ...d,
+          allergens: (d.allergens as string[]) ?? [],
           createdAt: new Date(d.createdAt as string),
           updatedAt: new Date(d.updatedAt as string),
         })),

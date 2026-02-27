@@ -30,6 +30,7 @@ import type {
   SessionCustomerInsert,
 } from "@/types/database";
 import { useMesaLocale } from "@/contexts/MesaLocaleContext";
+import { getLocalized } from "@/lib/i18n/getLocalized";
 import { MesaLanguageSwitcher } from "@/components/mesa/MesaLanguageSwitcher";
 import { type TableLeaderInfo } from "@/components/mesa/SwipeRatingGame";
 import { GameHub } from "@/components/mesa/GameHub";
@@ -77,7 +78,7 @@ export default function MesaPage() {
 }
 
 function MesaPageContent() {
-  const { t } = useMesaLocale();
+  const { t, locale } = useMesaLocale();
   const params = useParams();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -115,6 +116,39 @@ function MesaPageContent() {
   const { times: preparationTimes } = useProductPreparationTimes(
     products.map((p) => p.id),
   );
+
+  // Product ingredients (for displaying on product cards)
+  const [productIngredientsMap, setProductIngredientsMap] = useState<
+    Record<string, Array<{ name: string; nameTranslations: Record<string, string> | null; allergens: string[] }>>
+  >({});
+
+  useEffect(() => {
+    if (products.length === 0) return;
+    const fetchIngredients = async () => {
+      try {
+        const { data } = await supabase
+          .from("product_ingredients")
+          .select("product_id, ingredients(name, name_translations)")
+          .in("product_id", products.map((p) => p.id));
+
+        if (data) {
+          const map: Record<string, Array<{ name: string; nameTranslations: Record<string, string> | null; allergens: string[] }>> = {};
+          for (const row of data) {
+            const pid = String(row.product_id);
+            if (!map[pid]) map[pid] = [];
+            const ing = row.ingredients as unknown as { name: string; name_translations: Record<string, string> | null; allergens: string[] | null } | null;
+            if (ing) {
+              map[pid].push({ name: ing.name, nameTranslations: ing.name_translations, allergens: ing.allergens ?? [] });
+            }
+          }
+          setProductIngredientsMap(map);
+        }
+      } catch {
+        // Ingredients are optional, don't block the page
+      }
+    };
+    fetchIngredients();
+  }, [products, supabase]);
 
   // Game config (for gamesMode: 'selection' | 'random')
   const [gamesMode, setGamesMode] = useState<GamesMode>("selection");
@@ -1654,6 +1688,47 @@ function MesaPageContent() {
                                   <h3 className="font-medium text-sm leading-tight mb-1 line-clamp-2">
                                     {product.name}
                                   </h3>
+
+                                  {(() => {
+                                    const desc = getLocalized(product.descriptions, product.description, locale);
+                                    return desc ? (
+                                      <p className="text-[11px] text-gray-400 line-clamp-2 mt-0.5">{desc}</p>
+                                    ) : null;
+                                  })()}
+
+                                  {productIngredientsMap[String(product.id)]?.length > 0 && (
+                                    <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">
+                                      {productIngredientsMap[String(product.id)]
+                                        .map((ing) => getLocalized(ing.nameTranslations, ing.name, locale))
+                                        .join(", ")}
+                                    </p>
+                                  )}
+
+                                  {/* Allergen badges */}
+                                  {(() => {
+                                    const ings = productIngredientsMap[String(product.id)];
+                                    if (!ings?.length) return null;
+                                    const allergenSet = new Set<string>();
+                                    for (const ing of ings) {
+                                      for (const a of ing.allergens) allergenSet.add(a);
+                                    }
+                                    if (allergenSet.size === 0) return null;
+                                    const allergenEmojis: Record<string, string> = {
+                                      gluten: "🌾", crustaceans: "🦐", eggs: "🥚", fish: "🐟",
+                                      peanuts: "🥜", soybeans: "🫘", milk: "🥛", nuts: "🌰",
+                                      celery: "🥬", mustard: "🟡", sesame: "⚪", sulphites: "🍷",
+                                      lupin: "🌱", molluscs: "🐚",
+                                    };
+                                    return (
+                                      <div className="flex gap-0.5 mt-0.5">
+                                        {Array.from(allergenSet).map((a) => (
+                                          <span key={a} className="text-[10px]" title={a}>
+                                            {allergenEmojis[a] || "⚠️"}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
 
                                   {preparationTimes[product.id] && (
                                     <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">

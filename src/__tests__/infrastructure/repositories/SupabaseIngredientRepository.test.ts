@@ -27,6 +27,7 @@ function createMockSupabase(builder: Record<string, ReturnType<typeof vi.fn>>) {
 const sampleDbIngredient = {
   id: 'ing-1',
   name: 'Salmão',
+  name_translations: { pt: 'Salmão', en: 'Salmon', fr: 'Saumon' },
   unit: 'g',
   sort_order: 0,
   created_at: '2024-01-01T00:00:00Z',
@@ -58,6 +59,25 @@ describe('SupabaseIngredientRepository', () => {
       expect(result?.unit).toBe('g');
       expect(result?.sortOrder).toBe(0);
       expect(result?.createdAt).toBeInstanceOf(Date);
+    });
+
+    it('deve mapear name_translations para nameTranslations', async () => {
+      builder.single = vi.fn().mockResolvedValue({ data: sampleDbIngredient, error: null });
+
+      const result = await repo.findById('ing-1');
+
+      expect(result?.nameTranslations).toEqual({ pt: 'Salmão', en: 'Salmon', fr: 'Saumon' });
+    });
+
+    it('deve retornar objeto vazio quando name_translations é null', async () => {
+      builder.single = vi.fn().mockResolvedValue({
+        data: { ...sampleDbIngredient, name_translations: null },
+        error: null,
+      });
+
+      const result = await repo.findById('ing-1');
+
+      expect(result?.nameTranslations).toEqual({});
     });
 
     it('deve retornar null se ingrediente não existir', async () => {

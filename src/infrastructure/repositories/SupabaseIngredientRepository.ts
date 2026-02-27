@@ -15,6 +15,8 @@ import {
 interface DatabaseIngredient {
   id: string;
   name: string;
+  name_translations: Record<string, string> | null;
+  allergens: string[] | null;
   unit: string;
   sort_order: number;
   created_at: string;
@@ -107,6 +109,7 @@ export class SupabaseIngredientRepository implements IIngredientRepository {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.unit !== undefined) updateData.unit = data.unit;
     if (data.sortOrder !== undefined) updateData.sort_order = data.sortOrder;
+    if (data.allergens !== undefined) updateData.allergens = data.allergens;
 
     const { data: ingredient, error } = await this.supabase
       .from('ingredients')
@@ -132,6 +135,8 @@ export class SupabaseIngredientRepository implements IIngredientRepository {
     return {
       id: data.id,
       name: data.name,
+      nameTranslations: data.name_translations ?? {},
+      allergens: data.allergens ?? [],
       unit: data.unit,
       sortOrder: data.sort_order,
       createdAt: new Date(data.created_at),

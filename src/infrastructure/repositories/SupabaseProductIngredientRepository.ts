@@ -16,7 +16,7 @@ interface DatabaseProductIngredient {
   ingredient_id: string;
   quantity: number;
   created_at: string;
-  ingredients: { name: string; unit: string } | null;
+  ingredients: { name: string; unit: string; name_translations: Record<string, string> | null } | null;
 }
 
 export class SupabaseProductIngredientRepository implements IProductIngredientRepository {
@@ -29,7 +29,7 @@ export class SupabaseProductIngredientRepository implements IProductIngredientRe
   async findByProductId(productId: string): Promise<ProductIngredient[]> {
     const { data, error } = await this.supabase
       .from('product_ingredients')
-      .select('*, ingredients(name, unit)')
+      .select('*, ingredients(name, unit, name_translations)')
       .eq('product_id', productId)
       .order('created_at', { ascending: true });
 
@@ -81,6 +81,7 @@ export class SupabaseProductIngredientRepository implements IProductIngredientRe
       ingredientId: data.ingredient_id,
       quantity: Number(data.quantity),
       ingredientName: data.ingredients?.name ?? '',
+      ingredientNameTranslations: data.ingredients?.name_translations ?? {},
       ingredientUnit: data.ingredients?.unit ?? '',
       createdAt: new Date(data.created_at),
     };

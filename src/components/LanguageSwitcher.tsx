@@ -23,6 +23,7 @@ export function LanguageSwitcher() {
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const currentLocale = locales.find((l) => l.code === locale) || locales[0];
 
@@ -84,6 +85,7 @@ export function LanguageSwitcher() {
       case "Escape":
         e.preventDefault();
         setIsOpen(false);
+        triggerRef.current?.focus();
         break;
       case "Enter":
       case " ":
@@ -111,6 +113,7 @@ export function LanguageSwitcher() {
   return (
     <div className="relative" ref={dropdownRef} onKeyDown={handleKeyDown}>
       <button
+        ref={triggerRef}
         onClick={() => isOpen ? setIsOpen(false) : openDropdown()}
         className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium tracking-wider uppercase text-muted hover:text-white transition-colors duration-200"
         aria-label="Select language"

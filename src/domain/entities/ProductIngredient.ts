@@ -10,6 +10,8 @@ export interface ProductIngredient {
   quantity: number;
   /** Desnormalizado do JOIN com ingredients */
   ingredientName: string;
+  /** Multi-language ingredient names from JOIN */
+  ingredientNameTranslations: Record<string, string>;
   /** Desnormalizado do JOIN com ingredients */
   ingredientUnit: string;
   createdAt: Date;

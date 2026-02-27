@@ -44,6 +44,19 @@ export default function ProdutosPage() {
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [modalTab, setModalTab] = useState<"geral" | "imagens" | "precos" | "ingredientes">("geral");
   const [pageTab, setPageTab] = useState<"produtos" | "ingredientes">("produtos");
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [generatedTranslations, setGeneratedTranslations] = useState<{
+    descriptions: Record<string, string>;
+    seoTitles: Record<string, string>;
+    seoDescriptions: Record<string, string>;
+  } | null>(null);
+  const [isBulkGenerating, setIsBulkGenerating] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{
+    generated: number;
+    failed: number;
+    total: number;
+    message: string;
+  } | null>(null);
 
   // Map productId -> ingredient list for table view
   const [allProductIngredients, setAllProductIngredients] = useState<
@@ -87,6 +100,7 @@ export default function ProdutosPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    descriptions: {} as Record<string, string>,
     price: 0,
     category_id: "",
     image_urls: [] as string[],
@@ -98,6 +112,7 @@ export default function ProdutosPage() {
     service_prices: {} as Record<string, number>,
     ingredients: [] as { ingredientId: string; quantity: number; ingredientName: string; ingredientUnit: string }[],
   });
+  const [descLang, setDescLang] = useState("pt");
   const [initialFormData, setInitialFormData] = useState<typeof formData | null>(null);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -109,6 +124,9 @@ export default function ProdutosPage() {
       const initial = {
         name: product.name,
         description: product.description || "",
+        descriptions: product.descriptions && Object.keys(product.descriptions).length > 0
+          ? { ...product.descriptions }
+          : (product.description ? { pt: product.description } : {}),
         price: product.price,
         category_id: product.categoryId,
         image_urls: product.imageUrls?.length ? [...product.imageUrls] : product.imageUrl ? [product.imageUrl] : [],
@@ -128,6 +146,7 @@ export default function ProdutosPage() {
       setFormData({
         name: "",
         description: "",
+        descriptions: {},
         price: 0,
         category_id: categories[0]?.id || "",
         image_urls: [],
@@ -142,6 +161,8 @@ export default function ProdutosPage() {
       setInitialFormData(null);
     }
     setNewImageUrl("");
+    setGeneratedTranslations(null);
+    setDescLang("pt");
     setModalTab(tab ?? "geral");
     setShowModal(true);
   };
@@ -165,6 +186,7 @@ export default function ProdutosPage() {
     return (
       formData.name !== initialFormData.name ||
       formData.description !== initialFormData.description ||
+      JSON.stringify(formData.descriptions) !== JSON.stringify(initialFormData.descriptions) ||
       formData.price !== initialFormData.price ||
       formData.category_id !== initialFormData.category_id ||
       formData.is_available !== initialFormData.is_available ||
@@ -227,7 +249,7 @@ export default function ProdutosPage() {
 
     const productData = {
       name: formData.name,
-      description: formData.description || null,
+      description: formData.descriptions.pt || formData.description || null,
       price: basePrice,
       categoryId: formData.category_id,
       imageUrls: formData.image_urls,
@@ -247,6 +269,15 @@ export default function ProdutosPage() {
     } else {
       const created = await createProduct(productData);
       savedProductId = created?.id ?? null;
+    }
+
+    // Save multi-lang descriptions if present
+    if (savedProductId && Object.keys(formData.descriptions).length > 0) {
+      await fetch("/api/products/descriptions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: savedProductId, descriptions: formData.descriptions }),
+      });
     }
 
     // Save product ingredients if we have a product ID
@@ -273,6 +304,126 @@ export default function ProdutosPage() {
       setInitialFormData({ ...formData });
     } else {
       setShowModal(false);
+    }
+  };
+
+  const handleGenerateAI = async () => {
+    if (!formData.name) return;
+    setIsGeneratingAI(true);
+    try {
+      const categoryName = categories.find((c) => c.id === formData.category_id)?.name;
+      const ingredientNames = formData.ingredients.map((i) => i.ingredientName).filter(Boolean);
+      const res = await fetch("/api/products/generate-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: editingProduct?.id || null,
+          name: formData.name,
+          description: formData.description || null,
+          categoryName,
+          ingredients: ingredientNames,
+          pieces: formData.quantity,
+          imageUrl: formData.image_urls[0] || null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const newDescriptions = data.descriptions || {};
+        setGeneratedTranslations({
+          descriptions: newDescriptions,
+          seoTitles: data.seoTitles || {},
+          seoDescriptions: data.seoDescriptions || {},
+        });
+        setFormData((prev) => ({
+          ...prev,
+          description: newDescriptions.pt || prev.description,
+          descriptions: { ...prev.descriptions, ...newDescriptions },
+        }));
+      } else {
+        const err = await res.json();
+        alert(err.error || "Erro ao gerar descrição");
+      }
+    } catch {
+      alert("Erro ao gerar descrição com AI");
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const handleSaveAndTranslate = async () => {
+    if (!editingProduct || !formData.name) return;
+
+    // First save the product (trigger handleSubmit logic)
+    const priceValues = Object.values(formData.service_prices).filter((v) => v > 0);
+    const basePrice = priceValues.length > 0 ? Math.min(...priceValues) : 0;
+
+    await updateProduct({
+      id: editingProduct.id,
+      data: {
+        name: formData.name,
+        description: formData.descriptions.pt || formData.description || null,
+        price: basePrice,
+        categoryId: formData.category_id,
+        imageUrls: formData.image_urls,
+        isAvailable: formData.is_available,
+        isRodizio: formData.is_rodizio,
+        sortOrder: formData.sort_order,
+        quantity: formData.quantity,
+        serviceModes: formData.service_modes,
+        servicePrices: formData.service_prices,
+      },
+    });
+
+    // Save descriptions JSONB
+    if (Object.keys(formData.descriptions).length > 0) {
+      await fetch("/api/products/descriptions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: editingProduct.id, descriptions: formData.descriptions }),
+      });
+    }
+
+    // Save ingredients
+    await saveProductIngredients({
+      productId: editingProduct.id,
+      ingredients: formData.ingredients.map((ing) => ({
+        ingredientId: ing.ingredientId,
+        quantity: ing.quantity,
+      })),
+    });
+
+    // Then generate AI translations
+    await handleGenerateAI();
+    setInitialFormData({ ...formData });
+  };
+
+  const handleBulkGenerate = async (onlyMissing: boolean) => {
+    setIsBulkGenerating(true);
+    setBulkProgress(null);
+    try {
+      const body: Record<string, unknown> = { onlyMissing };
+      if (selectedCategory) body.categoryId = selectedCategory;
+
+      const res = await fetch("/api/products/generate-description/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBulkProgress({
+          generated: data.generated,
+          failed: data.failed,
+          total: data.totalProducts ?? data.generated + data.failed,
+          message: data.message,
+        });
+      } else {
+        alert(data.error || "Erro na geração em lote");
+      }
+    } catch {
+      alert("Erro ao gerar descrições em lote");
+    } finally {
+      setIsBulkGenerating(false);
     }
   };
 
@@ -401,8 +552,46 @@ export default function ProdutosPage() {
             </svg>
             Novo Produto
           </button>
+          <div className="relative group">
+            <button
+              onClick={() => handleBulkGenerate(true)}
+              disabled={isBulkGenerating}
+              className="px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Gerar descrições AI para produtos sem tradução"
+            >
+              {isBulkGenerating ? (
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              )}
+              {isBulkGenerating ? "A gerar..." : "Traduzir Todos"}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Bulk generation progress */}
+      {bulkProgress && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-purple-900">{bulkProgress.message}</p>
+            <p className="text-xs text-purple-600 mt-1">
+              {bulkProgress.generated} geradas | {bulkProgress.failed} falhadas | {bulkProgress.total} total
+              {selectedCategory && " (categoria filtrada)"}
+            </p>
+          </div>
+          <button
+            onClick={() => setBulkProgress(null)}
+            className="text-purple-400 hover:text-purple-600"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Category filters */}
       <div className="flex gap-1.5 overflow-x-auto pb-2">
@@ -884,14 +1073,108 @@ export default function ProdutosPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Descricao
+                      Descrição
                     </label>
                     <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                      value={formData.descriptions[descLang] || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData((prev) => ({
+                          ...prev,
+                          descriptions: { ...prev.descriptions, [descLang]: val },
+                          ...(descLang === "pt" ? { description: val } : {}),
+                        }));
+                      }}
+                      placeholder={descLang === "pt" ? "Descrição em português..." : `Descrição em ${descLang.toUpperCase()}...`}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                       rows={3}
                     />
+
+                    {/* Language buttons */}
+                    <div className="flex items-center gap-1 mt-1.5">
+                      {["pt", "en", "fr", "de", "it", "es"].map((lang) => (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => setDescLang(lang)}
+                          className={`px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                            descLang === lang
+                              ? "bg-purple-600 text-white"
+                              : formData.descriptions[lang]
+                                ? "bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"
+                                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                          }`}
+                        >
+                          {lang.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* AI Buttons */}
+                    <div className="flex items-center gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={handleGenerateAI}
+                        disabled={isGeneratingAI || !formData.name}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isGeneratingAI ? (
+                          <>
+                            <span className="animate-spin inline-block w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full" />
+                            A gerar...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            Gerar com AI
+                          </>
+                        )}
+                      </button>
+
+                      {editingProduct && (
+                        <button
+                          type="button"
+                          onClick={handleSaveAndTranslate}
+                          disabled={isGeneratingAI || !formData.name}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-purple-600 border border-purple-700 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isGeneratingAI ? (
+                            <>
+                              <span className="animate-spin inline-block w-3 h-3 border-2 border-purple-300 border-t-white rounded-full" />
+                              A processar...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Guardar e Traduzir
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* SEO Preview after AI generation */}
+                    {generatedTranslations && (
+                      <div className="mt-2 border border-purple-200 rounded-lg bg-purple-50/50 p-3">
+                        <p className="text-xs font-medium text-purple-700 mb-1.5">SEO gerado — {descLang.toUpperCase()}</p>
+                        {generatedTranslations.seoTitles[descLang] && (
+                          <p className="text-xs text-gray-700 mb-1">
+                            <span className="font-medium">Título:</span>{" "}
+                            {generatedTranslations.seoTitles[descLang]}
+                          </p>
+                        )}
+                        {generatedTranslations.seoDescriptions[descLang] && (
+                          <p className="text-xs text-gray-500">
+                            <span className="font-medium">Descrição SEO:</span>{" "}
+                            {generatedTranslations.seoDescriptions[descLang]}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -1250,6 +1533,23 @@ export default function ProdutosPage() {
 // INGREDIENTS CATALOG TAB
 // =============================================
 
+const EU_ALLERGENS = [
+  { id: "gluten", label: "Glúten", emoji: "🌾" },
+  { id: "crustaceans", label: "Crustáceos", emoji: "🦐" },
+  { id: "eggs", label: "Ovos", emoji: "🥚" },
+  { id: "fish", label: "Peixe", emoji: "🐟" },
+  { id: "peanuts", label: "Amendoins", emoji: "🥜" },
+  { id: "soybeans", label: "Soja", emoji: "🫘" },
+  { id: "milk", label: "Leite", emoji: "🥛" },
+  { id: "nuts", label: "Frutos casca rija", emoji: "🌰" },
+  { id: "celery", label: "Aipo", emoji: "🥬" },
+  { id: "mustard", label: "Mostarda", emoji: "🟡" },
+  { id: "sesame", label: "Sésamo", emoji: "⚪" },
+  { id: "sulphites", label: "Sulfitos", emoji: "🍷" },
+  { id: "lupin", label: "Tremoço", emoji: "🌱" },
+  { id: "molluscs", label: "Moluscos", emoji: "🐚" },
+];
+
 const UNIT_OPTIONS = [
   { value: "g", label: "g (gramas)" },
   { value: "kg", label: "kg (quilogramas)" },
@@ -1262,17 +1562,74 @@ function IngredientsCatalogTab() {
   const { ingredients, isLoading, error, create, update, remove } = useIngredients();
   const [showModal, setShowModal] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<IngredientWithProductCount | null>(null);
-  const [formData, setFormData] = useState({ name: "", unit: "g" });
+  const [formData, setFormData] = useState({ name: "", unit: "g", allergens: [] as string[] });
   const [alertModal, setAlertModal] = useState<{ isOpen: boolean; title: string; message: string; variant: "success" | "error" } | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; ingredient: IngredientWithProductCount } | null>(null);
+  const [isTranslatingAll, setIsTranslatingAll] = useState(false);
+  const [isDetectingAllergens, setIsDetectingAllergens] = useState(false);
+
+  const handleTranslateAll = async () => {
+    const untranslated = ingredients.filter(
+      (i) => !i.nameTranslations || Object.keys(i.nameTranslations).length <= 1
+    );
+    if (untranslated.length === 0) {
+      setAlertModal({ isOpen: true, title: "Info", message: "Todos os ingredientes já estão traduzidos.", variant: "success" });
+      return;
+    }
+    setIsTranslatingAll(true);
+    try {
+      const res = await fetch("/api/ingredients/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ingredientIds: untranslated.map((i) => i.id) }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAlertModal({ isOpen: true, title: "Sucesso", message: `${data.translated} ingrediente(s) traduzido(s) com AI.`, variant: "success" });
+      } else {
+        const err = await res.json();
+        setAlertModal({ isOpen: true, title: "Erro", message: err.error || "Erro ao traduzir", variant: "error" });
+      }
+    } catch {
+      setAlertModal({ isOpen: true, title: "Erro", message: "Erro ao traduzir ingredientes", variant: "error" });
+    } finally {
+      setIsTranslatingAll(false);
+    }
+  };
+
+  const handleDetectAllergens = async () => {
+    setIsDetectingAllergens(true);
+    try {
+      const res = await fetch("/api/ingredients/detect-allergens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.detected === 0) {
+          setAlertModal({ isOpen: true, title: "Info", message: data.message || "Todos os ingredientes já têm alergénios detetados.", variant: "success" });
+        } else {
+          setAlertModal({ isOpen: true, title: "Sucesso", message: `Alergénios detetados para ${data.detected} ingrediente(s).`, variant: "success" });
+        }
+      } else {
+        const err = await res.json();
+        setAlertModal({ isOpen: true, title: "Erro", message: err.error || "Erro ao detetar alergénios", variant: "error" });
+      }
+    } catch {
+      setAlertModal({ isOpen: true, title: "Erro", message: "Erro ao detetar alergénios", variant: "error" });
+    } finally {
+      setIsDetectingAllergens(false);
+    }
+  };
 
   const handleOpenModal = (ingredient?: IngredientWithProductCount) => {
     if (ingredient) {
       setEditingIngredient(ingredient);
-      setFormData({ name: ingredient.name, unit: ingredient.unit });
+      setFormData({ name: ingredient.name, unit: ingredient.unit, allergens: ingredient.allergens ?? [] });
     } else {
       setEditingIngredient(null);
-      setFormData({ name: "", unit: "g" });
+      setFormData({ name: "", unit: "g", allergens: [] });
     }
     setShowModal(true);
   };
@@ -1280,7 +1637,7 @@ function IngredientsCatalogTab() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingIngredient) {
-      const result = await update(editingIngredient.id, formData);
+      const result = await update(editingIngredient.id, { ...formData, allergens: formData.allergens });
       if (result) {
         setAlertModal({ isOpen: true, title: "Sucesso", message: "Ingrediente atualizado", variant: "success" });
         setShowModal(false);
@@ -1315,13 +1672,53 @@ function IngredientsCatalogTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900">Catálogo de Ingredientes</h2>
-        <button
-          type="button"
-          onClick={() => handleOpenModal()}
-          className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm"
-        >
-          + Novo Ingrediente
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleTranslateAll}
+            disabled={isTranslatingAll || ingredients.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isTranslatingAll ? (
+              <>
+                <span className="animate-spin inline-block w-3 h-3 border-2 border-purple-300 border-t-purple-600 rounded-full" />
+                A traduzir...
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                </svg>
+                Traduzir Todos
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleDetectAllergens}
+            disabled={isDetectingAllergens || ingredients.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isDetectingAllergens ? (
+              <>
+                <span className="animate-spin inline-block w-3 h-3 border-2 border-orange-300 border-t-orange-600 rounded-full" />
+                A detetar...
+              </>
+            ) : (
+              <>
+                <span className="text-sm">⚠️</span>
+                Detetar Alergénios
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOpenModal()}
+            className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm"
+          >
+            + Novo Ingrediente
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -1334,6 +1731,8 @@ function IngredientsCatalogTab() {
             <tr>
               <th className="text-left px-4 py-3 font-medium">Nome</th>
               <th className="text-left px-4 py-3 font-medium">Unidade</th>
+              <th className="text-left px-4 py-3 font-medium">Alergénios</th>
+              <th className="text-center px-4 py-3 font-medium">Traduções</th>
               <th className="text-center px-4 py-3 font-medium">Produtos</th>
               <th className="text-right px-4 py-3 font-medium">Ações</th>
             </tr>
@@ -1341,7 +1740,7 @@ function IngredientsCatalogTab() {
           <tbody className="divide-y divide-gray-100">
             {ingredients.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center py-8 text-gray-400">
+                <td colSpan={6} className="text-center py-8 text-gray-400">
                   Nenhum ingrediente. Clique em &ldquo;+ Novo Ingrediente&rdquo; para começar.
                 </td>
               </tr>
@@ -1350,6 +1749,34 @@ function IngredientsCatalogTab() {
               <tr key={ing.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">{ing.name}</td>
                 <td className="px-4 py-3 text-gray-600">{ing.unit}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-0.5">
+                    {(ing.allergens ?? []).length > 0 ? (
+                      (ing.allergens ?? []).map((a) => {
+                        const allergen = EU_ALLERGENS.find((e) => e.id === a);
+                        return allergen ? (
+                          <span key={a} className="inline-block text-xs" title={allergen.label}>
+                            {allergen.emoji}
+                          </span>
+                        ) : null;
+                      })
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-center">
+                  {(() => {
+                    const count = ing.nameTranslations ? Object.keys(ing.nameTranslations).length : 0;
+                    return (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        count >= 6 ? "bg-green-100 text-green-700" : count > 0 ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"
+                      }`}>
+                        {count}/6
+                      </span>
+                    );
+                  })()}
+                </td>
                 <td className="px-4 py-3 text-center">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                     ing.productCount > 0 ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
@@ -1421,6 +1848,30 @@ function IngredientsCatalogTab() {
                     <option key={u.value} value={u.value}>{u.label}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Alergénios</label>
+                <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
+                  {EU_ALLERGENS.map((a) => (
+                    <label key={a.id} className="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 rounded px-1.5 py-1">
+                      <input
+                        type="checkbox"
+                        checked={formData.allergens.includes(a.id)}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            allergens: e.target.checked
+                              ? [...prev.allergens, a.id]
+                              : prev.allergens.filter((x) => x !== a.id),
+                          }));
+                        }}
+                        className="rounded border-gray-300 text-[#D4AF37] focus:ring-[#D4AF37]"
+                      />
+                      <span>{a.emoji}</span>
+                      <span>{a.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="flex gap-3 pt-2">
                 <button

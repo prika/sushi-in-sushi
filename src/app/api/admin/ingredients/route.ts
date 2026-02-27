@@ -38,6 +38,8 @@ export async function GET() {
     const ingredients = (ingRes.data ?? []).map((d) => ({
       id: d.id,
       name: d.name,
+      nameTranslations: (d as Record<string, unknown>).name_translations ?? {},
+      allergens: (d as Record<string, unknown>).allergens ?? [],
       unit: d.unit,
       sortOrder: d.sort_order,
       productCount: countMap[d.id] ?? 0,
@@ -64,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, unit, sortOrder } = body;
+    const { name, unit, sortOrder, allergens } = body;
 
     if (!name?.trim()) {
       return NextResponse.json({ error: "Nome obrigatorio" }, { status: 400 });
@@ -86,11 +88,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Ingrediente com este nome ja existe" }, { status: 409 });
     }
 
+    const insertData = {
+      name: name.trim(),
+      unit,
+      sort_order: sortOrder ?? 0,
+    };
+
     const { data, error } = await supabase
       .from("ingredients")
-      .insert({ name: name.trim(), unit, sort_order: sortOrder ?? 0 })
+      .insert(insertData)
       .select()
       .single();
+
+    // Save allergens if provided (column not in generated types)
+    if (allergens && data) {
+      await supabase
+        .from("ingredients")
+        .update({ allergens } as Record<string, unknown>)
+        .eq("id", data.id);
+    }
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -99,6 +115,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       id: data.id,
       name: data.name,
+      allergens: (data as Record<string, unknown>).allergens ?? [],
       unit: data.unit,
       sortOrder: data.sort_order,
       createdAt: data.created_at,
@@ -155,6 +172,7 @@ export async function PATCH(request: NextRequest) {
       updateData.unit = updates.unit;
     }
     if (updates.sortOrder !== undefined) updateData.sort_order = Number(updates.sortOrder) || 0;
+    if (updates.allergens !== undefined) updateData.allergens = updates.allergens;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: "Nenhum campo para atualizar" }, { status: 400 });
@@ -174,6 +192,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       id: data.id,
       name: data.name,
+      allergens: (data as Record<string, unknown>).allergens ?? [],
       unit: data.unit,
       sortOrder: data.sort_order,
       createdAt: data.created_at,
