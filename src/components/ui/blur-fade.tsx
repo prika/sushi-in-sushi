@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useInView, Variants } from "framer-motion";
+import { motion, useInView, useReducedMotion, Variants } from "framer-motion";
 import { useRef } from "react";
 
 interface BlurFadeProps {
@@ -27,6 +27,12 @@ export function BlurFade({
   const ref = useRef(null);
   const inViewResult = useInView(ref, { once: true, margin: inViewMargin as `${number}px` });
   const isInView = !inView || inViewResult;
+  const prefersReducedMotion = useReducedMotion();
+
+  // Skip animation if user prefers reduced motion
+  if (prefersReducedMotion) {
+    return <div className={className}>{children}</div>;
+  }
 
   const variants: Variants = {
     hidden: { y: yOffset, opacity: 0, filter: `blur(${blur})` },

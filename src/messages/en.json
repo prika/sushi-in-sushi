@@ -150,7 +150,11 @@
   },
   "video": {
     "sectionLabel": "See Us in Action",
-    "title": "The Art of Creating Sushi"
+    "title": "The Art of Creating Sushi",
+    "play": "Play video",
+    "pause": "Pause video",
+    "mute": "Mute",
+    "unmute": "Unmute"
   },
   "teamPage": {
     "title": "Our Team",
@@ -419,5 +423,12 @@
     "Camarão Joe": "Breaded shrimp wrapped in salmon",
     "Special Salmon": "Low-carb, no rice",
     "Sake 12pcs + Temaki": "New!"
+  },
+  "accessibility": {
+    "skipToContent": "Skip to content",
+    "closeModal": "Close",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "teamCarousel": "Team carousel"
   }
 }

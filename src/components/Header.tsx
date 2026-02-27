@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
@@ -11,9 +11,12 @@ import { ReservationForm } from "./ReservationForm";
 
 export function Header() {
   const t = useTranslations("navigation");
+  const tA11y = useTranslations("accessibility");
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showReservationModal, setShowReservationModal] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const leftLinks = [
     { href: "/menu", label: t("menu") },
@@ -33,6 +36,54 @@ export function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const openModal = useCallback((trigger: HTMLButtonElement | null) => {
+    triggerRef.current = trigger;
+    setShowReservationModal(true);
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setShowReservationModal(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  // Focus trap + ESC handler for modal
+  useEffect(() => {
+    if (!showReservationModal) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeModal();
+        return;
+      }
+      if (e.key === "Tab" && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    // Focus first focusable element inside modal
+    requestAnimationFrame(() => {
+      const first = modalRef.current?.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      first?.focus();
+    });
+
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showReservationModal, closeModal]);
+
   return (
     <header
       className={cn(
@@ -42,6 +93,11 @@ export function Header() {
           : "bg-transparent"
       )}
     >
+      {/* Skip navigation link */}
+      <a href="#main-content" className="skip-link">
+        {tA11y("skipToContent")}
+      </a>
+
       <nav className="max-w-7xl mx-auto px-6 py-4">
         {/* Desktop Navigation */}
         <div className="hidden md:grid grid-cols-[1fr_auto_1fr] items-center">
@@ -84,7 +140,7 @@ export function Header() {
               <LanguageSwitcher />
             </div>
             <button
-              onClick={() => setShowReservationModal(true)}
+              onClick={(e) => openModal(e.currentTarget)}
               className="px-6 py-2 border border-gold text-gold text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
             >
               {t("book")}
@@ -108,9 +164,10 @@ export function Header() {
             <button
               className="text-white p-2"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Toggle menu"
+              aria-expanded={isMobileMenuOpen}
+              aria-label={isMobileMenuOpen ? tA11y("closeMenu") : tA11y("openMenu")}
             >
-              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {isMobileMenuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
             </button>
           </div>
         </div>
@@ -137,9 +194,9 @@ export function Header() {
                 </a>
               ))}
               <button
-                onClick={() => {
+                onClick={(e) => {
                   setIsMobileMenuOpen(false);
-                  setShowReservationModal(true);
+                  openModal(e.currentTarget);
                 }}
                 className="mt-4 px-6 py-3 border border-gold text-gold text-center text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
               >
@@ -154,21 +211,26 @@ export function Header() {
       {showReservationModal && (
         <div
           className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => setShowReservationModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="header-reservation-title"
+          onClick={closeModal}
         >
           <div
+            ref={modalRef}
             className="bg-background border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto my-8"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-background flex items-center justify-between p-6 border-b border-white/10 z-10">
-              <h2 className="text-xl font-semibold text-white">
+              <h2 id="header-reservation-title" className="text-xl font-semibold text-white">
                 Reservar Mesa
               </h2>
               <button
-                onClick={() => setShowReservationModal(false)}
+                onClick={closeModal}
                 className="p-2 text-muted hover:text-white transition-colors"
+                aria-label={tA11y("closeModal")}
               >
-                <X size={24} />
+                <X size={24} aria-hidden="true" />
               </button>
             </div>
             <div className="p-6">

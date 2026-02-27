@@ -150,7 +150,11 @@
   },
   "video": {
     "sectionLabel": "Veja-nos em Ação",
-    "title": "A Arte de Criar Sushi"
+    "title": "A Arte de Criar Sushi",
+    "play": "Reproduzir vídeo",
+    "pause": "Pausar vídeo",
+    "mute": "Silenciar",
+    "unmute": "Ativar som"
   },
   "teamPage": {
     "title": "A Nossa Equipa",
@@ -418,5 +422,12 @@
     "Camarão Joe": "Camarão empanado envolto em salmão",
     "Special Salmon": "Low-carb, sem arroz",
     "Sake 12pcs + Temaki": "Novidade!"
+  },
+  "accessibility": {
+    "skipToContent": "Ir para o conteúdo",
+    "closeModal": "Fechar",
+    "openMenu": "Abrir menu",
+    "closeMenu": "Fechar menu",
+    "teamCarousel": "Carrossel da equipa"
   }
 }

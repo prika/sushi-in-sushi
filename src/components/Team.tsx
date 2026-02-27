@@ -101,8 +101,10 @@ const teamMembers = [
 
 export function Team() {
   const t = useTranslations("team");
+  const tA11y = useTranslations("accessibility");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [itemsPerView, setItemsPerView] = useState(4);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -130,11 +132,14 @@ export function Team() {
     setCurrentIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
   }, [maxIndex]);
 
-  // Auto-advance slideshow
+  // Auto-advance slideshow (respects reduced-motion and pause state)
   useEffect(() => {
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion || isPaused) return;
+
     const interval = setInterval(next, 4000);
     return () => clearInterval(interval);
-  }, [next]);
+  }, [next, isPaused]);
 
   return (
     <section id="equipa" className="py-24 px-6 bg-card/30">
@@ -154,7 +159,13 @@ export function Team() {
         </BlurFade>
 
         {/* Slideshow */}
-        <div className="relative">
+        <div
+          className="relative"
+          aria-roledescription="carousel"
+          aria-label={tA11y("teamCarousel")}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
           {/* Navigation Arrows */}
           <button
             onClick={prev}
@@ -223,6 +234,7 @@ export function Team() {
                     : "bg-white/20 hover:bg-white/40"
                 )}
                 aria-label={`Go to slide ${index + 1}`}
+                aria-current={currentIndex === index ? "step" : undefined}
               />
             ))}
           </div>

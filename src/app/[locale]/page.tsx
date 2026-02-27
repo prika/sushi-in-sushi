@@ -22,7 +22,7 @@ export default async function Home({ params }: Props) {
   return (
     <>
       <Header />
-      <main>
+      <main id="main-content">
         <Hero />
         <Menu />
         <About />

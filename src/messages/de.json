@@ -150,7 +150,11 @@
   },
   "video": {
     "sectionLabel": "Sehen Sie Uns in Aktion",
-    "title": "Die Kunst, Sushi zu Kreieren"
+    "title": "Die Kunst, Sushi zu Kreieren",
+    "play": "Video abspielen",
+    "pause": "Video pausieren",
+    "mute": "Stummschalten",
+    "unmute": "Ton aktivieren"
   },
   "teamPage": {
     "title": "Unser Team",
@@ -419,5 +423,12 @@
     "Camarão Joe": "Panierte Garnelen in Lachs gewickelt",
     "Special Salmon": "Low-Carb, ohne Reis",
     "Sake 12pcs + Temaki": "Neu!"
+  },
+  "accessibility": {
+    "skipToContent": "Zum Inhalt springen",
+    "closeModal": "Schließen",
+    "openMenu": "Menü öffnen",
+    "closeMenu": "Menü schließen",
+    "teamCarousel": "Team-Karussell"
   }
 }

@@ -282,7 +282,7 @@ export function ReservationForm({
             >
               -
             </button>
-            <span id="party_size" className="flex-1 text-center text-xl font-semibold text-white" aria-live="polite">
+            <span id="party_size" className="flex-1 text-center text-xl font-semibold text-white" aria-live="polite" aria-atomic="true">
               {formData.party_size}
             </span>
             <button

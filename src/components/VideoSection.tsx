@@ -81,21 +81,21 @@ export function VideoSection({
             <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent pointer-events-none" />
 
             {/* Controls */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-between opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300">
               <button
                 onClick={togglePlay}
                 className="w-12 h-12 flex items-center justify-center rounded-full bg-background/80 backdrop-blur-sm border border-white/10 text-white hover:border-gold hover:text-gold transition-all duration-300"
-                aria-label={isPlaying ? "Pause" : "Play"}
+                aria-label={isPlaying ? t("pause") : t("play")}
               >
-                {isPlaying ? <Pause size={20} /> : <Play size={20} className="ml-1" />}
+                {isPlaying ? <Pause size={20} aria-hidden="true" /> : <Play size={20} className="ml-1" aria-hidden="true" />}
               </button>
 
               <button
                 onClick={toggleMute}
                 className="w-12 h-12 flex items-center justify-center rounded-full bg-background/80 backdrop-blur-sm border border-white/10 text-white hover:border-gold hover:text-gold transition-all duration-300"
-                aria-label={isMuted ? "Unmute" : "Mute"}
+                aria-label={isMuted ? t("unmute") : t("mute")}
               >
-                {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                {isMuted ? <VolumeX size={20} aria-hidden="true" /> : <Volume2 size={20} aria-hidden="true" />}
               </button>
             </div>
 
@@ -104,7 +104,7 @@ export function VideoSection({
               <button
                 onClick={togglePlay}
                 className="absolute inset-0 flex items-center justify-center"
-                aria-label="Play video"
+                aria-label={t("play")}
               >
                 <div className="w-20 h-20 flex items-center justify-center rounded-full bg-gold/90 text-background hover:bg-gold transition-all duration-300 hover:scale-110">
                   <Play size={32} className="ml-1" />

@@ -21,8 +21,36 @@
   }
 }
 
+@layer components {
+  /* Skip navigation link — hidden until focused */
+  .skip-link {
+    @apply absolute -top-full left-1/2 -translate-x-1/2 z-[9999] px-6 py-3 bg-gold text-background font-semibold text-sm tracking-wider rounded-b-lg transition-[top] duration-200;
+  }
+  .skip-link:focus {
+    @apply top-0;
+  }
+}
+
 @layer utilities {
   .text-gradient {
     @apply bg-gradient-to-r from-gold to-gold-light bg-clip-text text-transparent;
+  }
+}
+
+/* Global focus-visible ring */
+:focus-visible {
+  outline: 2px solid #D4AF37;
+  outline-offset: 2px;
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

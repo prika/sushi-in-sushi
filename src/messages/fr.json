@@ -150,7 +150,11 @@
   },
   "video": {
     "sectionLabel": "Voyez-nous en Action",
-    "title": "L'Art de Créer des Sushis"
+    "title": "L'Art de Créer des Sushis",
+    "play": "Lire la vidéo",
+    "pause": "Mettre en pause",
+    "mute": "Couper le son",
+    "unmute": "Activer le son"
   },
   "teamPage": {
     "title": "Notre Équipe",
@@ -419,5 +423,12 @@
     "Camarão Joe": "Crevettes panées enveloppées de saumon",
     "Special Salmon": "Low-carb, sans riz",
     "Sake 12pcs + Temaki": "Nouveauté !"
+  },
+  "accessibility": {
+    "skipToContent": "Aller au contenu",
+    "closeModal": "Fermer",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu",
+    "teamCarousel": "Carrousel de l'équipe"
   }
 }

@@ -6,12 +6,13 @@ import { BlurFade } from "./ui/blur-fade";
 
 function StarRating({ rating }: { rating: number }) {
   return (
-    <div className="flex gap-0.5">
+    <div className="flex gap-0.5" role="img" aria-label={`${rating} de 5 estrelas`}>
       {[...Array(5)].map((_, i) => (
         <Star
           key={i}
           size={14}
           className={i < rating ? "fill-gold text-gold" : "text-white/20"}
+          aria-hidden="true"
         />
       ))}
     </div>
@@ -64,9 +65,9 @@ export function Reviews() {
               {t("title")}
             </h2>
             <div className="flex items-center justify-center gap-2 mt-4">
-              <div className="flex gap-0.5">
+              <div className="flex gap-0.5" role="img" aria-label="5 de 5 estrelas">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={20} className="fill-gold text-gold" />
+                  <Star key={i} size={20} className="fill-gold text-gold" aria-hidden="true" />
                 ))}
               </div>
               <span className="text-muted text-sm">{t("rating")}</span>
@@ -81,6 +82,7 @@ export function Reviews() {
                 <Quote
                   size={32}
                   className="absolute top-4 right-4 text-gold/10"
+                  aria-hidden="true"
                 />
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center">
@@ -119,6 +121,7 @@ export function Reviews() {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"

@@ -52,11 +52,11 @@ export function Locations() {
 
                 <div className="space-y-4 mb-8">
                   <div className="flex items-start gap-3">
-                    <MapPin className="text-gold shrink-0 mt-1" size={18} />
+                    <MapPin className="text-gold shrink-0 mt-1" size={18} aria-hidden="true" />
                     <p className="text-muted">{location.address}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Phone className="text-gold shrink-0" size={18} />
+                    <Phone className="text-gold shrink-0" size={18} aria-hidden="true" />
                     <a
                       href={`tel:+${location.whatsapp}`}
                       className="text-muted hover:text-white transition-colors"
@@ -65,7 +65,7 @@ export function Locations() {
                     </a>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Clock className="text-gold shrink-0" size={18} />
+                    <Clock className="text-gold shrink-0" size={18} aria-hidden="true" />
                     <p className="text-muted">{location.hours}</p>
                   </div>
                 </div>
@@ -77,7 +77,7 @@ export function Locations() {
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 px-4 py-2.5 border border-white/10 text-muted text-xs sm:text-sm font-medium tracking-wider uppercase hover:text-gold hover:border-gold/50 transition-all duration-300"
                   >
-                    <Navigation size={16} className="shrink-0" />
+                    <Navigation size={16} className="shrink-0" aria-hidden="true" />
                     <span className="whitespace-nowrap">{t("directions")}</span>
                   </a>
                   <a
@@ -86,7 +86,7 @@ export function Locations() {
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 px-4 py-2.5 border border-white/10 text-muted text-xs sm:text-sm font-medium tracking-wider uppercase hover:text-gold hover:border-gold/50 transition-all duration-300"
                   >
-                    <MessageCircle size={16} className="shrink-0" />
+                    <MessageCircle size={16} className="shrink-0" aria-hidden="true" />
                     <span className="whitespace-nowrap">{t("whatsapp")}</span>
                   </a>
                 </div>
