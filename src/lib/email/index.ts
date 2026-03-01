@@ -182,6 +182,46 @@ export async function sendReservationEmails(reservation: Reservation) {
   return results;
 }
 
+export async function sendRestaurantNotificationEmail(reservation: Reservation) {
+  if (!isEmailConfigured()) {
+    const restaurantEmail = getRestaurantNotificationEmail(reservation);
+    logEmail(
+      RESTAURANT_EMAILS[reservation.location],
+      restaurantEmail.subject,
+      "Restaurant Notification",
+    );
+    return { success: false, error: "Email not configured" };
+  }
+
+  try {
+    const restaurantEmail = getRestaurantNotificationEmail(reservation);
+    const toEmail =
+      RESTAURANT_EMAILS[reservation.location] ||
+      RESTAURANT_EMAILS.circunvalacao;
+
+    const { error } = await resend.emails.send({
+      from: `Reservas Online <${FROM_EMAIL}>`,
+      to: getRecipientEmail(toEmail),
+      subject: restaurantEmail.subject,
+      html: restaurantEmail.html,
+    });
+
+    if (error) {
+      console.error("Error sending restaurant email:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.info(`✅ Restaurant notification sent to ${toEmail}`);
+    return { success: true, error: null };
+  } catch (error) {
+    console.error("Error sending restaurant email:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
 export async function sendReservationConfirmedEmail(reservation: Reservation) {
   const emailTemplate = getReservationConfirmedEmail(reservation);
 

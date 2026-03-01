@@ -409,7 +409,7 @@ type Result<T> = SuccessResult<T> | ErrorResult;
 // Uso:
 const result = await useCase.execute(input);
 if (result.success) {
-  console.log(result.data);
+  console.info(result.data);
 } else {
   console.error(result.error, result.code);
 }

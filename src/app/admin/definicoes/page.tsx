@@ -2182,6 +2182,7 @@ function RestaurantManagementTab() {
     orderCooldownMinutes: 0,
     autoTableAssignment: false,
     autoReservations: false,
+    autoReservationMaxPartySize: 6,
     isActive: true,
     gamesEnabled: false,
     gamesMode: "selection" as "selection" | "random",
@@ -2217,6 +2218,7 @@ function RestaurantManagementTab() {
         orderCooldownMinutes: restaurant.orderCooldownMinutes,
         autoTableAssignment: restaurant.autoTableAssignment,
         autoReservations: restaurant.autoReservations,
+        autoReservationMaxPartySize: restaurant.autoReservationMaxPartySize ?? 6,
         isActive: restaurant.isActive,
         gamesEnabled: restaurant.gamesEnabled,
         gamesMode: restaurant.gamesMode,
@@ -2240,6 +2242,7 @@ function RestaurantManagementTab() {
         orderCooldownMinutes: 0,
         autoTableAssignment: false,
         autoReservations: false,
+        autoReservationMaxPartySize: 6,
         isActive: true,
         gamesEnabled: false,
         gamesMode: "selection",
@@ -2637,8 +2640,8 @@ function RestaurantManagementTab() {
                 </span>
               )}
               {restaurant.autoReservations && (
-                <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                  Reservas automáticas
+                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                  Reservas auto (max {restaurant.autoReservationMaxPartySize ?? 6}p)
                 </span>
               )}
               {!restaurant.autoTableAssignment &&
@@ -2993,10 +2996,68 @@ function RestaurantManagementTab() {
                 </p>
               </div>
 
-              {/* Automation Flags */}
+              {/* Auto Reservations */}
+              <div className="space-y-3 p-4 bg-green-50 rounded-lg">
+                <p className="text-sm font-medium text-green-900">
+                  Reservas Automáticas
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="autoReservations"
+                    checked={formData.autoReservations}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        autoReservations: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  />
+                  <label
+                    htmlFor="autoReservations"
+                    className="text-sm text-gray-700"
+                  >
+                    Ativar reservas automáticas
+                  </label>
+                </div>
+
+                {formData.autoReservations && (
+                  <div className="space-y-3 pl-6 border-l-2 border-green-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Máximo de pessoas para reserva automática
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={formData.autoReservationMaxPartySize}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            autoReservationMaxPartySize: parseInt(e.target.value) || 6,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Reservas com mais pessoas que este limite seguem o fluxo manual.
+                      </p>
+                    </div>
+                    <p className="text-xs text-green-700">
+                      Quando ativo, reservas dentro do limite são confirmadas automaticamente,
+                      uma mesa é atribuída e um empregado é alocado para preparar a sala.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Auto Table Assignment */}
               <div className="space-y-3 p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm font-medium text-blue-900">
-                  Configurações de Automação (Funcionalidades Futuras)
+                  Atribuição Automática de Mesas
                 </p>
 
                 <div className="flex items-center gap-2">
@@ -3010,40 +3071,19 @@ function RestaurantManagementTab() {
                         autoTableAssignment: e.target.checked,
                       })
                     }
-                    className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <label
                     htmlFor="autoTableAssignment"
                     className="text-sm text-gray-700"
                   >
-                    Automatizar atribuição de mesas aos funcionários
+                    Atribuir automaticamente mesas aos empregados
                   </label>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="autoReservations"
-                    checked={formData.autoReservations}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        autoReservations: e.target.checked,
-                      })
-                    }
-                    className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
-                  />
-                  <label
-                    htmlFor="autoReservations"
-                    className="text-sm text-gray-700"
-                  >
-                    Automatizar gestão de reservas
-                  </label>
-                </div>
-
-                <p className="text-xs text-blue-600 mt-2">
-                  Estas funcionalidades estarão disponíveis em futuras
-                  atualizações
+                <p className="text-xs text-blue-700 mt-2">
+                  Quando ativo, ao iniciar uma sessão numa mesa sem empregado atribuído,
+                  o sistema atribui automaticamente o empregado com menos mesas ocupadas.
                 </p>
               </div>
 

@@ -533,8 +533,8 @@ describe('UpdateSessionCustomerTierUseCase', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      // displayName + email + phone => tier 2
-      expect(result.data.tier).toBe(2);
+      // displayName + email + phone => tier 3 (email+phone = Cliente)
+      expect(result.data.tier).toBe(3);
     }
   });
 

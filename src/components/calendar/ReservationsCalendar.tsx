@@ -96,10 +96,10 @@ export default function ReservationsCalendar({
     setCurrentYear(today.getFullYear());
   };
 
-  // Get reservations for a specific day
+  // Get reservations for a specific day (excludes cancelled)
   const getReservationsForDay = (day: number): Reservation[] => {
     const dateStr = formatDate(new Date(currentYear, currentMonth, day));
-    return reservations.filter(r => r.reservation_date === dateStr);
+    return reservations.filter(r => r.reservation_date === dateStr && r.status !== 'cancelled');
   };
 
   // Check if day has pending reservations

@@ -18,8 +18,9 @@ export interface IReservationRepository {
   update(id: string, data: UpdateReservationData): Promise<Reservation>;
   delete(id: string): Promise<void>;
   confirm(id: string, confirmedBy: string): Promise<Reservation>;
-  cancel(id: string, reason?: string): Promise<Reservation>;
+  cancel(id: string, reason?: string, cancelledBy?: 'admin' | 'customer', cancellationSource?: 'site' | 'phone'): Promise<Reservation>;
   markAsSeated(id: string, sessionId: string): Promise<Reservation>;
   markAsNoShow(id: string): Promise<Reservation>;
   markAsCompleted(id: string): Promise<Reservation>;
+  findUpcomingByEmail(email: string): Promise<Reservation[]>;
 }

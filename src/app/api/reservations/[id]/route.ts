@@ -13,7 +13,7 @@ import {
 } from "@/application/use-cases/reservations";
 import type { UpdateReservationData, Reservation } from "@/domain/entities/Reservation";
 import type { Reservation as LegacyReservation } from "@/types/database";
-import { sendReservationConfirmedEmail } from "@/lib/email";
+import { sendReservationConfirmedEmail, sendCancellationEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -161,7 +161,8 @@ export async function PATCH(
     } else if (status === "cancelled") {
       const cancelReservation = new CancelReservationUseCase(repository);
       const reason = body.cancellation_reason || body.cancellationReason;
-      result = await cancelReservation.execute(id, reason);
+      const cancellationSource = body.cancellation_source || 'site';
+      result = await cancelReservation.execute(id, reason, 'admin', cancellationSource);
     } else if (status === "completed" && (body.session_id || body.sessionId)) {
       const markSeated = new MarkReservationSeatedUseCase(repository);
       result = await markSeated.execute(id, body.session_id || body.sessionId);
@@ -213,6 +214,15 @@ export async function PATCH(
       const legacyReservation = mapToLegacyReservation(reservation);
       sendReservationConfirmedEmail(legacyReservation).catch((emailError) => {
         console.error("Error sending confirmation email:", emailError);
+      });
+    }
+
+    // Send cancellation email if status changed to cancelled
+    if (status === "cancelled" && reservation) {
+      const legacyReservation = mapToLegacyReservation(reservation);
+      const reason = body.cancellation_reason || body.cancellationReason || "Cancelada pelo restaurante";
+      sendCancellationEmail(legacyReservation, reason).catch((emailError) => {
+        console.error("Error sending cancellation email:", emailError);
       });
     }
 

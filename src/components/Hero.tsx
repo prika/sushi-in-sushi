@@ -1,65 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BlurFade } from "./ui/blur-fade";
-import { ShimmerButton } from "./ui/shimmer-button";
-import { ReservationForm } from "./ReservationForm";
+import { ShimmerLink } from "./ui/shimmer-button";
 
 export function Hero() {
   const t = useTranslations("hero");
-  const tA11y = useTranslations("accessibility");
-  const [showReservationModal, setShowReservationModal] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-
-  const openModal = useCallback((trigger: HTMLButtonElement | null) => {
-    triggerRef.current = trigger;
-    setShowReservationModal(true);
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setShowReservationModal(false);
-    triggerRef.current?.focus();
-  }, []);
-
-  // Focus trap + ESC handler
-  useEffect(() => {
-    if (!showReservationModal) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        closeModal();
-        return;
-      }
-      if (e.key === "Tab" && modalRef.current) {
-        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last?.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first?.focus();
-        }
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    requestAnimationFrame(() => {
-      modalRef.current?.querySelector<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      )?.focus();
-    });
-
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [showReservationModal, closeModal]);
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -105,9 +54,9 @@ export function Hero() {
 
         <BlurFade delay={0.4}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <ShimmerButton onClick={(e) => openModal(e.currentTarget)}>
+            <ShimmerLink href="/reservar">
               {t("bookTable")}
-            </ShimmerButton>
+            </ShimmerLink>
             <a
               href="#menu"
               className="px-8 py-4 text-sm font-medium tracking-wider uppercase text-muted hover:text-white transition-colors duration-300"
@@ -127,39 +76,6 @@ export function Hero() {
       >
         <ChevronDown className="text-gold/50" size={32} />
       </motion.div>
-
-      {/* Reservation Modal */}
-      {showReservationModal && (
-        <div
-          className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 overflow-y-auto"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="hero-reservation-title"
-          onClick={closeModal}
-        >
-          <div
-            ref={modalRef}
-            className="bg-background border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto my-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-background flex items-center justify-between p-6 border-b border-white/10 z-10">
-              <h2 id="hero-reservation-title" className="text-xl font-semibold text-white">
-                Reservar Mesa
-              </h2>
-              <button
-                onClick={closeModal}
-                className="p-2 text-muted hover:text-white transition-colors"
-                aria-label={tA11y("closeModal")}
-              >
-                <X size={24} aria-hidden="true" />
-              </button>
-            </div>
-            <div className="p-6">
-              <ReservationForm />
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

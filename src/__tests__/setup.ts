@@ -15,10 +15,10 @@ vi.mock('next/navigation', () => ({
   useParams: () => ({}),
 }));
 
-// Mock next-intl
+// Mock next-intl (useTranslations is a vi.fn so tests can override with mockImplementation)
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => 'pt',
+  useTranslations: vi.fn(() => (key: string) => key),
+  useLocale: vi.fn(() => 'pt'),
 }));
 
 // Mock environment variables

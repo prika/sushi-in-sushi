@@ -6,24 +6,18 @@ import { useCustomers } from "@/presentation/hooks/useCustomers";
 import { useLocations } from "@/presentation/hooks";
 import type { Customer, CustomerWithHistory } from "@/domain/entities/Customer";
 import { CustomerTierService } from "@/domain/services/CustomerTierService";
-import type { CustomerTier } from "@/domain/value-objects/CustomerTier";
+import { type CustomerTier, CUSTOMER_TIER_LABELS, CUSTOMER_TIER_COLORS, getProfileCompleteness } from "@/domain/value-objects/CustomerTier";
 
-// Labels de patamar em português para o painel admin (sem "Contacto")
-const TIER_LABELS_PT: Record<CustomerTier, string> = {
-  1: "Sessão",
-  2: "Básico",
-  3: "Completo",
-  4: "Perfil Entrega",
+const PROFILE_FIELD_LABELS: Record<string, string> = {
+  email: "Email",
+  phone: "Telefone",
+  birthDate: "Nascimento",
+  preferredLocation: "Local",
+  marketingConsent: "Marketing",
 };
 
 function getCustomerTier(customer: Customer): CustomerTier {
-  return CustomerTierService.computeTier({
-    displayName: customer.name,
-    email: customer.email,
-    phone: customer.phone,
-    fullName: customer.name,
-    birthDate: customer.birthDate,
-  });
+  return CustomerTierService.computeTierFromCustomer(customer);
 }
 
 export default function ClientesPage() {
@@ -257,17 +251,18 @@ export default function ClientesPage() {
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
         <p className="text-sm text-gray-500 mb-3">Clientes por patamar</p>
         <div className="flex flex-wrap gap-3">
-          {([1, 2, 3, 4] as CustomerTier[]).map((tier) => {
+          {([1, 2, 3, 4, 5] as CustomerTier[]).map((tier) => {
             const count = customers.filter(
               (c) => getCustomerTier(c) === tier,
             ).length;
+            const colors = CUSTOMER_TIER_COLORS[tier];
             return (
               <span
                 key={tier}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-800"
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${colors.bg} ${colors.text}`}
               >
-                <span className="text-[#D4AF37] font-semibold">{count}</span>
-                <span>{TIER_LABELS_PT[tier]}</span>
+                <span className="font-bold">{count}</span>
+                <span>{CUSTOMER_TIER_LABELS[tier]}</span>
               </span>
             );
           })}
@@ -353,17 +348,31 @@ export default function ClientesPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            getCustomerTier(customer) === 3
-                              ? "bg-emerald-100 text-emerald-800"
-                              : getCustomerTier(customer) === 2
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          {TIER_LABELS_PT[getCustomerTier(customer)]}
-                        </span>
+                        {(() => {
+                          const tier = getCustomerTier(customer);
+                          const colors = CUSTOMER_TIER_COLORS[tier];
+                          const profile = getProfileCompleteness(customer);
+                          return (
+                            <div className="space-y-1">
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${colors.bg} ${colors.text}`}
+                              >
+                                {CUSTOMER_TIER_LABELS[tier]}
+                              </span>
+                              <div className="flex gap-0.5">
+                                {["email", "phone", "birthDate", "preferredLocation", "marketingConsent"].map((field) => (
+                                  <span
+                                    key={field}
+                                    title={`${PROFILE_FIELD_LABELS[field]}: ${profile.filled.includes(field) ? "sim" : "não"}`}
+                                    className={`w-1.5 h-1.5 rounded-full ${
+                                      profile.filled.includes(field) ? "bg-emerald-400" : "bg-gray-300"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-0.5 text-xs font-medium bg-[#D4AF37]/20 text-[#D4AF37] rounded-full">
@@ -501,17 +510,17 @@ export default function ClientesPage() {
                   <p className="text-sm text-gray-500">
                     {selectedCustomer.email}
                   </p>
-                  <span
-                    className={`inline-flex mt-2 px-2.5 py-1 text-xs font-medium rounded-full ${
-                      getCustomerTier(selectedCustomer) === 3
-                        ? "bg-emerald-100 text-emerald-800"
-                        : getCustomerTier(selectedCustomer) === 2
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {TIER_LABELS_PT[getCustomerTier(selectedCustomer)]}
-                  </span>
+                  {(() => {
+                    const tier = getCustomerTier(selectedCustomer);
+                    const colors = CUSTOMER_TIER_COLORS[tier];
+                    return (
+                      <span
+                        className={`inline-flex mt-2 px-2.5 py-1 text-xs font-medium rounded-full ${colors.bg} ${colors.text}`}
+                      >
+                        {CUSTOMER_TIER_LABELS[tier]}
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-center py-4 border-b border-gray-200">
@@ -628,6 +637,36 @@ export default function ClientesPage() {
                       </div>
                     )}
                 </div>
+
+                {/* Dados recolhidos */}
+                {(() => {
+                  const profile = getProfileCompleteness(selectedCustomer);
+                  const allFields = ["email", "phone", "birthDate", "preferredLocation", "marketingConsent"];
+                  return (
+                    <div className="pt-3 border-t border-gray-200">
+                      <p className="text-xs font-medium text-gray-500 mb-2">
+                        Dados recolhidos ({profile.filled.length}/{allFields.length})
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {allFields.map((field) => {
+                          const isFilled = profile.filled.includes(field);
+                          return (
+                            <span
+                              key={field}
+                              className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${
+                                isFilled
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : "bg-gray-50 text-gray-400 border border-gray-200"
+                              }`}
+                            >
+                              {isFilled ? "✓" : "○"} {PROFILE_FIELD_LABELS[field]}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <Link
                   href={`/admin/clientes/${selectedCustomer.id}`}

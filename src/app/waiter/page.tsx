@@ -54,6 +54,7 @@ export default function WaiterDashboard() {
   const [dashboardTab, setDashboardTab] = useState<"ativas" | "disponiveis">("ativas");
   // eslint-disable-next-line no-unused-vars
   const [upcomingReservations, setUpcomingReservations] = useState<any[]>([]);
+  const [autoAssignedReservations, setAutoAssignedReservations] = useState<any[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<any | null>(null);
   const [showTableAssignModal, setShowTableAssignModal] = useState(false);
   const [primaryTableId, setPrimaryTableId] = useState<string | null>(null);
@@ -303,6 +304,51 @@ export default function WaiterDashboard() {
               .eq("is_active", true)
               .order("number");
             setAllLocationTables(allTablesData || []);
+          }
+
+          // Fetch auto-assigned reservations where this waiter was assigned
+          // Get all reservation_tables rows for this waiter (primary + additional)
+          const { data: autoReservationsData } = await (supabase as any)
+            .from("reservation_tables")
+            .select("reservation_id, table_id, is_primary, reservations(*), tables(number)")
+            .eq("assigned_by", user.id);
+
+          if (autoReservationsData && autoReservationsData.length > 0) {
+            // Group by reservation_id to combine all tables per reservation
+            const resMap = new Map<string, { reservation: any; tables: { number: number; isPrimary: boolean }[] }>();
+            for (const rt of autoReservationsData) {
+              const res = rt.reservations;
+              if (!res || res.status !== "confirmed" || !res.tables_assigned || res.reservation_date !== today) continue;
+              if (!resMap.has(res.id)) {
+                resMap.set(res.id, { reservation: res, tables: [] });
+              }
+              resMap.get(res.id)!.tables.push({
+                number: rt.tables?.number,
+                isPrimary: rt.is_primary,
+              });
+            }
+
+            const autoRes = Array.from(resMap.values())
+              .map(({ reservation, tables }) => {
+                // Sort: primary first, then by number
+                tables.sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0) || a.number - b.number);
+                return {
+                  ...reservation,
+                  assigned_table_number: tables[0]?.number,
+                  assigned_tables: tables,
+                  _autoAssigned: true,
+                };
+              })
+              .filter((res: any) => {
+                const [h, m] = (res.reservation_time || "00:00").split(":").map(Number);
+                const resTime = new Date(now);
+                resTime.setHours(h, m, 0, 0);
+                const diffMin = (resTime.getTime() - now.getTime()) / 60000;
+                return diffMin > -30 && diffMin <= alertMinutes;
+              });
+            setAutoAssignedReservations(autoRes);
+          } else {
+            setAutoAssignedReservations([]);
           }
         } catch (err) {
           console.error("Error fetching reservations:", err);
@@ -811,14 +857,80 @@ export default function WaiterDashboard() {
             )}
 
             {/* Reservation Alerts */}
-            {upcomingReservations.length > 0 && (
+            {(upcomingReservations.length > 0 || autoAssignedReservations.length > 0) && (
               <section className="mb-6">
                 <div className="bg-purple-500/10 rounded-xl border-2 border-purple-500/50 p-4">
                   <h2 className="text-base font-semibold text-purple-400 mb-3 flex items-center gap-2">
                     <span className="w-3 h-3 bg-purple-500 rounded-full animate-pulse" />
-                    Reservas Proximas ({upcomingReservations.length})
+                    Reservas Proximas ({upcomingReservations.length + autoAssignedReservations.length})
                   </h2>
                   <div className="grid gap-2">
+                    {/* Auto-assigned reservations - Prepare table alerts */}
+                    {autoAssignedReservations.map((res) => {
+                      const [h, m] = (res.reservation_time || "00:00").split(":").map(Number);
+                      const resTime = new Date();
+                      resTime.setHours(h, m, 0, 0);
+                      const diffMin = Math.round((resTime.getTime() - Date.now()) / 60000);
+                      const timeLabel = diffMin > 0 ? `em ${diffMin}min` : diffMin === 0 ? "agora" : `${Math.abs(diffMin)}min atrasada`;
+
+                      return (
+                        <div
+                          key={`auto-${res.id}`}
+                          className="bg-green-500/10 rounded-lg p-3 border border-green-500/30"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded-full font-medium">
+                                  Auto
+                                </span>
+                                <span className="font-semibold text-white">
+                                  {res.first_name} {res.last_name}
+                                </span>
+                                <span className="text-sm text-green-300">
+                                  {res.party_size} pessoas
+                                </span>
+                                <span className="text-sm text-gray-400">
+                                  {res.reservation_time}
+                                </span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                  diffMin > 0 ? "bg-green-500/20 text-green-300" : "bg-red-500/20 text-red-400"
+                                }`}>
+                                  {timeLabel}
+                                </span>
+                                {res.assigned_tables && res.assigned_tables.length > 0 && (
+                                  <span className="px-2 py-0.5 text-xs bg-[#D4AF37]/20 text-[#D4AF37] rounded-full">
+                                    {res.assigned_tables.length === 1
+                                      ? `Mesa ${res.assigned_tables[0].number}`
+                                      : `Mesas ${res.assigned_tables.map((t: any) => t.number).join(" + ")}`
+                                    }
+                                  </span>
+                                )}
+                                {res.is_rodizio ? (
+                                  <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">
+                                    Rodizio
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded-full">
+                                    A Carta
+                                  </span>
+                                )}
+                              </div>
+                              {res.special_requests && (
+                                <p className="text-sm text-gray-400 mt-1 truncate">
+                                  Nota: {res.special_requests}
+                                </p>
+                              )}
+                            </div>
+                            <span className="px-4 py-2 bg-green-500/20 text-green-400 font-semibold rounded-lg text-sm ml-3 flex-shrink-0 border border-green-500/30">
+                              Preparar Mesa
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Manual reservations - Assign table */}
                     {upcomingReservations.map((res) => {
                       const [h, m] = (res.reservation_time || "00:00").split(":").map(Number);
                       const resTime = new Date();

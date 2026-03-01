@@ -9,7 +9,7 @@ import { Result, Results } from '../Result';
 export class CancelReservationUseCase {
   constructor(private reservationRepository: IReservationRepository) {}
 
-  async execute(id: string, reason?: string): Promise<Result<Reservation>> {
+  async execute(id: string, reason?: string, cancelledBy?: 'admin' | 'customer', cancellationSource?: 'site' | 'phone'): Promise<Result<Reservation>> {
     try {
       const existing = await this.reservationRepository.findById(id);
       if (!existing) {
@@ -24,7 +24,7 @@ export class CancelReservationUseCase {
         return Results.error('Não é possível cancelar reserva concluída', 'INVALID_STATUS');
       }
 
-      const reservation = await this.reservationRepository.cancel(id, reason);
+      const reservation = await this.reservationRepository.cancel(id, reason, cancelledBy, cancellationSource);
       return Results.success(reservation);
     } catch (error) {
       return Results.error(

@@ -11,7 +11,7 @@ describe('CustomerTierService', () => {
       expect(tier).toBe(1);
     });
 
-    it('deve retornar tier 2 quando displayName e email estão preenchidos', () => {
+    it('deve retornar tier 2 quando tem email', () => {
       const tier = CustomerTierService.computeTier({
         displayName: 'Maria',
         email: 'maria@example.com',
@@ -19,7 +19,7 @@ describe('CustomerTierService', () => {
       expect(tier).toBe(2);
     });
 
-    it('deve retornar tier 2 quando displayName e phone estão preenchidos', () => {
+    it('deve retornar tier 2 quando tem phone', () => {
       const tier = CustomerTierService.computeTier({
         displayName: 'Pedro',
         phone: '+351 912 345 678',
@@ -27,14 +27,52 @@ describe('CustomerTierService', () => {
       expect(tier).toBe(2);
     });
 
-    it('deve retornar tier 3 quando todos os campos de contacto estão preenchidos', () => {
+    it('deve retornar tier 3 quando tem email e phone', () => {
       const tier = CustomerTierService.computeTier({
-        displayName: 'Ana',
         email: 'ana@example.com',
         phone: '+351 912 345 678',
-        fullName: 'Ana Silva',
-        birthDate: '1990-01-15',
       });
+      expect(tier).toBe(3);
+    });
+
+    it('deve retornar tier 3 quando tem 1+ visita mesmo sem contacto completo', () => {
+      const tier = CustomerTierService.computeTier({
+        email: 'x@y.com',
+        visitCount: 1,
+      });
+      expect(tier).toBe(3);
+    });
+
+    it('deve retornar tier 4 quando tem perfil completo e 3+ visitas', () => {
+      const tier = CustomerTierService.computeTier({
+        email: 'ana@example.com',
+        phone: '+351 912 345 678',
+        birthDate: '1990-01-15',
+        visitCount: 5,
+        totalSpent: 100,
+      });
+      expect(tier).toBe(4);
+    });
+
+    it('deve retornar tier 5 quando tem perfil completo, 10+ visitas e 500€+ gasto', () => {
+      const tier = CustomerTierService.computeTier({
+        email: 'vip@example.com',
+        phone: '+351 912 345 678',
+        birthDate: '1985-06-20',
+        visitCount: 15,
+        totalSpent: 800,
+      });
+      expect(tier).toBe(5);
+    });
+
+    it('não deve ser VIP sem birthDate mesmo com muitas visitas', () => {
+      const tier = CustomerTierService.computeTier({
+        email: 'x@y.com',
+        phone: '123',
+        visitCount: 20,
+        totalSpent: 1000,
+      });
+      // email + phone → tier 3, but not full profile, so can't reach 4/5
       expect(tier).toBe(3);
     });
 
@@ -49,49 +87,168 @@ describe('CustomerTierService', () => {
     });
   });
 
+  describe('computeTierFromCustomer', () => {
+    it('deve computar tier a partir de um Customer', () => {
+      const tier = CustomerTierService.computeTierFromCustomer({
+        email: 'test@email.com',
+        phone: '912345678',
+        birthDate: '1990-01-01',
+        visitCount: 5,
+        totalSpent: 200,
+      });
+      expect(tier).toBe(4);
+    });
+  });
+
   describe('getMissingFieldsForNextTier', () => {
-    it('deve retornar array vazio quando tier é 3', () => {
-      const missing = CustomerTierService.getMissingFieldsForNextTier(3 as CustomerTier, {
+    it('deve retornar array vazio quando tier é 5', () => {
+      const missing = CustomerTierService.getMissingFieldsForNextTier(5 as CustomerTier, {
         email: 'a@b.com',
         phone: '123',
-        fullName: 'X',
         birthDate: '1990-01-01',
+        visitCount: 15,
+        totalSpent: 800,
       });
       expect(missing).toEqual([]);
     });
 
     it('deve retornar email_or_phone quando tier 1 e sem email nem phone', () => {
-      const missing = CustomerTierService.getMissingFieldsForNextTier(1 as CustomerTier, {});
+      const missing = CustomerTierService.getMissingFieldsForNextTier(1 as CustomerTier, {
+        visitCount: 0,
+        totalSpent: 0,
+      });
       expect(missing).toContain('email_or_phone');
     });
 
     it('não deve incluir email_or_phone quando tier 1 tem email', () => {
       const missing = CustomerTierService.getMissingFieldsForNextTier(1 as CustomerTier, {
         email: 'a@b.com',
+        visitCount: 0,
+        totalSpent: 0,
       });
       expect(missing).not.toContain('email_or_phone');
     });
 
-    it('deve retornar email, phone, full_name, birth_date quando tier 2 e campos em falta', () => {
+    it('deve retornar phone e birth_date quando tier 2 e campos em falta', () => {
       const missing = CustomerTierService.getMissingFieldsForNextTier(2 as CustomerTier, {
         email: 'a@b.com',
+        visitCount: 0,
+        totalSpent: 0,
       });
       expect(missing).toContain('phone');
-      expect(missing).toContain('full_name');
       expect(missing).toContain('birth_date');
       expect(missing).not.toContain('email');
     });
 
-    it('deve considerar strings vazias como em falta', () => {
-      const missing = CustomerTierService.getMissingFieldsForNextTier(2 as CustomerTier, {
+    it('deve indicar more_visits para tier 3', () => {
+      const missing = CustomerTierService.getMissingFieldsForNextTier(3 as CustomerTier, {
         email: 'a@b.com',
-        phone: '  ',
-        fullName: '',
-        birthDate: null,
+        phone: '123',
+        visitCount: 1,
+        totalSpent: 0,
       });
-      expect(missing).toContain('phone');
-      expect(missing).toContain('full_name');
       expect(missing).toContain('birth_date');
+      expect(missing).toContain('more_visits');
+    });
+
+    it('deve indicar more_visits e more_spending para tier 4', () => {
+      const missing = CustomerTierService.getMissingFieldsForNextTier(4 as CustomerTier, {
+        email: 'a@b.com',
+        phone: '123',
+        birthDate: '1990-01-01',
+        visitCount: 5,
+        totalSpent: 200,
+      });
+      expect(missing).toContain('more_visits');
+      expect(missing).toContain('more_spending');
+    });
+  });
+
+  describe('computeInsights', () => {
+    it('deve retornar insights de reserva frequente', () => {
+      const insights = CustomerTierService.computeInsights({
+        reservationCount: 12,
+        completedReservations: 10,
+        cancelledReservations: 1,
+        noShowCount: 1,
+        avgPartySize: 3,
+        visitCount: 8,
+        totalSpent: 400,
+        totalFromOrders: 350,
+      });
+      expect(insights.find(i => i.key === 'frequent_booker')).toBeDefined();
+    });
+
+    it('deve retornar insight negativo para alta taxa de no-show', () => {
+      const insights = CustomerTierService.computeInsights({
+        reservationCount: 10,
+        completedReservations: 5,
+        cancelledReservations: 0,
+        noShowCount: 4,
+        avgPartySize: 2,
+        visitCount: 5,
+        totalSpent: 100,
+        totalFromOrders: 80,
+      });
+      const noShowInsight = insights.find(i => i.key === 'high_no_show');
+      expect(noShowInsight).toBeDefined();
+      expect(noShowInsight?.severity).toBe('negative');
+    });
+
+    it('deve retornar insight de grupos grandes', () => {
+      const insights = CustomerTierService.computeInsights({
+        reservationCount: 5,
+        completedReservations: 4,
+        cancelledReservations: 0,
+        noShowCount: 0,
+        avgPartySize: 8,
+        visitCount: 4,
+        totalSpent: 500,
+        totalFromOrders: 450,
+      });
+      expect(insights.find(i => i.key === 'large_groups')).toBeDefined();
+    });
+
+    it('deve retornar insight de alto valor', () => {
+      const insights = CustomerTierService.computeInsights({
+        reservationCount: 15,
+        completedReservations: 14,
+        cancelledReservations: 0,
+        noShowCount: 0,
+        avgPartySize: 2,
+        visitCount: 14,
+        totalSpent: 1200,
+        totalFromOrders: 1100,
+      });
+      expect(insights.find(i => i.key === 'high_spender')).toBeDefined();
+    });
+
+    it('deve retornar insight de cliente fiável', () => {
+      const insights = CustomerTierService.computeInsights({
+        reservationCount: 8,
+        completedReservations: 7,
+        cancelledReservations: 1,
+        noShowCount: 0,
+        avgPartySize: 3,
+        visitCount: 7,
+        totalSpent: 300,
+        totalFromOrders: 280,
+      });
+      expect(insights.find(i => i.key === 'reliable')).toBeDefined();
+    });
+
+    it('deve retornar array vazio sem dados suficientes', () => {
+      const insights = CustomerTierService.computeInsights({
+        reservationCount: 0,
+        completedReservations: 0,
+        cancelledReservations: 0,
+        noShowCount: 0,
+        avgPartySize: 0,
+        visitCount: 0,
+        totalSpent: 0,
+        totalFromOrders: 0,
+      });
+      expect(insights).toEqual([]);
     });
   });
 
@@ -101,10 +258,10 @@ describe('CustomerTierService', () => {
       showUpgradeAtBill: true,
     };
 
-    it('deve retornar false quando tier >= 3', () => {
+    it('deve retornar false quando tier >= 5', () => {
       expect(
         CustomerTierService.shouldShowUpgradePrompt({
-          currentTier: 3 as CustomerTier,
+          currentTier: 5 as CustomerTier,
           promptType: 'after_order',
           restaurantConfig: config,
           alreadyDismissedInSession: false,
