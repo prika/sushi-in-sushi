@@ -23,10 +23,10 @@ vi.mock("../client", () => ({
   getVendusClient: vi.fn(),
   VendusApiError: class extends Error {
     constructor(
-      public code: string,
+      public _code: string,
       message: string,
-      public details?: Record<string, unknown>,
-      public statusCode?: number,
+      public _details?: Record<string, unknown>,
+      public _statusCode?: number,
     ) {
       super(message);
       this.name = "VendusApiError";
@@ -101,7 +101,7 @@ function createKitchenSupabaseMock(config: {
 
       if (table === "vendus_sync_log") {
         return {
-          insert: (data: unknown) => {
+          insert: (_data: unknown) => {
             config.onSyncLogInsert?.();
             return Promise.resolve({ data: null, error: null });
           },

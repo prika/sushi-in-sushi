@@ -49,8 +49,8 @@ function createMockSupabaseClient() {
     });
 
     // Make the builder a promise-like object (thenable)
-    builder.then = (onFulfilled: (value: any) => any) => Promise.resolve(result).then(onFulfilled);
-    builder.catch = (onRejected: (reason: any) => any) => Promise.resolve(result).catch(onRejected);
+    builder.then = (onFulfilled: (_value: any) => any) => Promise.resolve(result).then(onFulfilled);
+    builder.catch = (onRejected: (_reason: any) => any) => Promise.resolve(result).catch(onRejected);
 
     // Helper to set what the query will resolve to
     builder.mockResolvedValue = (value: any) => {

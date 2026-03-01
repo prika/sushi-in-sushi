@@ -29,10 +29,10 @@ vi.mock("../client", () => ({
   getVendusClient: vi.fn(),
   VendusApiError: class extends Error {
     constructor(
-      public code: string,
+      public _code: string,
       message: string,
-      public details?: Record<string, unknown>,
-      public statusCode?: number,
+      public _details?: Record<string, unknown>,
+      public _statusCode?: number,
     ) {
       super(message);
       this.name = "VendusApiError";
@@ -41,7 +41,7 @@ vi.mock("../client", () => ({
       return `Erro Vendus: ${this.message}`;
     }
     isRetryable() {
-      return this.statusCode ? this.statusCode >= 500 : false;
+      return this._statusCode ? this._statusCode >= 500 : false;
     }
   },
 }));
@@ -75,7 +75,7 @@ function createSupabaseMock(config: {
   localCategories?: Array<{ id: string; name: string }>;
   allProducts?: Array<Record<string, unknown>>;
   onUpdate?: () => void;
-  onInsert?: (data: unknown) => void;
+  onInsert?: (_data: unknown) => void;
 }) {
   // Resolve local categories: explicit list, from firstCategory, or empty
   const resolvedLocalCats: Array<{ id: string; name: string }> =
@@ -101,7 +101,7 @@ function createSupabaseMock(config: {
         }
 
         return {
-          eq: (col: string, val: unknown) => {
+          eq: (col: string, _val: unknown) => {
             if (table === "products" && col === "is_available") {
               return {
                 in: () => Promise.resolve({ data: [], error: null }),
@@ -113,7 +113,7 @@ function createSupabaseMock(config: {
                 Promise.resolve({ data: null, error: null }),
             };
           },
-          order: (orderCol: string) => {
+          order: (_orderCol: string) => {
             if (table === "categories") {
               // New pattern: select("id, name").order("sort_order") -> array
               return Promise.resolve({
@@ -141,8 +141,8 @@ function createSupabaseMock(config: {
           }),
         };
       },
-      update: (data: unknown) => ({
-        eq: (col: string, val: unknown) => {
+      update: (_data: unknown) => ({
+        eq: (_col: string, _val: unknown) => {
           config.onUpdate?.();
           return Promise.resolve({ data: null, error: null });
         },
@@ -435,7 +435,7 @@ import { getVendusConfig } from "../config";
 function createPushSupabaseMock(config: {
   pushProducts?: Array<Record<string, unknown>>;
   categories?: Array<{ id: string; vendus_id: string | null }>;
-  onProductUpdate?: (data: unknown) => void;
+  onProductUpdate?: (_data: unknown) => void;
   syncLogInsert?: { id: string };
 }) {
   return {
@@ -449,7 +449,7 @@ function createPushSupabaseMock(config: {
             }
             // Push product fetch: cols include "category_id"
             return {
-              eq: (col: string, val: unknown) => ({
+              eq: (_col: string, _val: unknown) => ({
                 in: () =>
                   Promise.resolve({
                     data: config.pushProducts ?? [],
@@ -464,9 +464,9 @@ function createPushSupabaseMock(config: {
             };
           },
           insert: () => Promise.resolve({ data: null, error: null }),
-          update: (data: unknown) => ({
-            eq: (col: string, val: unknown) => {
-              config.onProductUpdate?.(data);
+          update: (_data: unknown) => ({
+            eq: (_col: string, _val: unknown) => {
+              config.onProductUpdate?.(_data);
               return Promise.resolve({ data: null, error: null });
             },
           }),
@@ -1334,7 +1334,7 @@ describe("syncProducts - pull edge cases", () => {
       ],
     };
 
-    const updateData: unknown = null;
+    const _updateData: unknown = null;
     const supabase = createSupabaseMock({
       firstCategory: { id: "cat-1" },
       allProducts: [
@@ -1749,7 +1749,7 @@ describe("syncProducts - pull edge cases", () => {
             in: () => Promise.resolve({ data: [], error: null }),
           };
         },
-        insert: (data: unknown) => {
+        insert: (_data: unknown) => {
           if (table === "products") {
             return Promise.resolve({ data: null, error: null });
           }

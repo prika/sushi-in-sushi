@@ -298,7 +298,7 @@ describe("StartSessionUseCase", () => {
 
       // Even though autoAssign throws, the session result catches it in the outer try/catch
       // and returns UNKNOWN_ERROR - but the session was already created
-      const result = await useCaseWithAutoAssign.execute({
+      const _result = await useCaseWithAutoAssign.execute({
         tableId: "table-1",
         isRodizio: false,
         numPeople: 2,

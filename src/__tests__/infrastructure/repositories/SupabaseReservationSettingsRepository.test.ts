@@ -17,8 +17,8 @@ function createMockSupabaseClient() {
       builder[method] = vi.fn(() => builder);
     });
 
-    builder.then = (onFulfilled: (value: any) => any) => Promise.resolve(sharedResult).then(onFulfilled);
-    builder.catch = (onRejected: (reason: any) => any) => Promise.resolve(sharedResult).catch(onRejected);
+    builder.then = (onFulfilled: (_value: any) => any) => Promise.resolve(sharedResult).then(onFulfilled);
+    builder.catch = (onRejected: (_reason: any) => any) => Promise.resolve(sharedResult).catch(onRejected);
 
     builder.setMockResult = (value: any) => {
       sharedResult = value;
@@ -29,7 +29,7 @@ function createMockSupabaseClient() {
   };
 
   const mockClient = {
-    from: vi.fn((table: string) => createQueryBuilder()),
+    from: vi.fn((_table: string) => createQueryBuilder()),
     _resetBuilder: () => {
       sharedBuilder = null;
       sharedResult = { data: [], error: null };
@@ -42,13 +42,13 @@ function createMockSupabaseClient() {
 describe('SupabaseReservationSettingsRepository', () => {
   let repository: SupabaseReservationSettingsRepository;
   let mockSupabase: any;
-  let builder: any;
+  let _builder: any;
 
   beforeEach(() => {
     mockSupabase = createMockSupabaseClient();
     repository = new SupabaseReservationSettingsRepository(mockSupabase);
     mockSupabase._resetBuilder();
-    builder = mockSupabase.from('reservation_settings');
+    _builder = mockSupabase.from('reservation_settings');
   });
 
   describe('get', () => {

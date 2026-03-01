@@ -13,12 +13,12 @@ import { NextRequest } from "next/server";
 
 // ─── Hoisted mocks ──────────────────────────────────────────────────────────
 
-const { mockUpdate, mockEq, mockCreate, mockFrom } = vi.hoisted(() => {
-  const mockEq = vi.fn().mockResolvedValue({ error: null });
-  const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
+const { _mockUpdate, _mockEq, mockCreate, mockFrom } = vi.hoisted(() => {
+  const _mockEq = vi.fn().mockResolvedValue({ error: null });
+  const _mockUpdate = vi.fn().mockReturnValue({ eq: _mockEq });
   const mockCreate = vi.fn();
   const mockFrom = vi.fn();
-  return { mockUpdate, mockEq, mockCreate, mockFrom };
+  return { _mockUpdate, _mockEq, mockCreate, mockFrom };
 });
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -62,7 +62,7 @@ function chainBuilder(data: unknown[] | null, error: unknown = null) {
   for (const m of methods) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
-  chain.then = (resolve: (v: unknown) => void) => {
+  chain.then = (resolve: (_v: unknown) => void) => {
     resolve(result);
     return chain;
   };

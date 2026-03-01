@@ -76,7 +76,7 @@ import {
 
 // ─── Test data ───────────────────────────────────────────────────────────────
 
-const adminUser = {
+const _adminUser = {
   id: 'admin-1',
   email: 'admin@test.com',
   name: 'Admin',

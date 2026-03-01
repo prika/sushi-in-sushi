@@ -64,7 +64,7 @@ describe('GET /api/mesa/ratings', () => {
     });
 
     it('retorna null se nenhum rating', () => {
-      const ratings: unknown[] = [];
+      const _ratings: unknown[] = [];
       const byProduct: Record<number, { sum: number }> = {};
 
       const leaderEntry = Object.entries(byProduct)[0];

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createTestReservation, getFutureDate, getPastDate, getTodayDate } from '../../helpers/factories';
+import { createTestReservation, getFutureDate, getPastDate } from '../../helpers/factories';
 
 // Mock Supabase
 const mockSupabaseFrom = vi.fn();
@@ -213,7 +213,7 @@ describe('GET /api/reservations/[id]', () => {
     });
 
     it('retorna 404 se não encontrada', () => {
-      const result = { success: false, error: 'Reserva não encontrada' };
+      const _result = { success: false, error: 'Reserva não encontrada' };
       const status = 404;
 
       expect(status).toBe(404);

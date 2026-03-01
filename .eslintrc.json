@@ -44,7 +44,7 @@
         "src/infrastructure/**/*.ts"
       ],
       "rules": {
-        "no-console": ["warn", { "allow": ["error", "warn"] }]
+        "no-console": "off"
       }
     }
   ]

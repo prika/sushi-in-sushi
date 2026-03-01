@@ -1,5 +1,93 @@
 # Alterações Recentes - Sushi in Sushi
 
+## 📅 Data: 2026-03-01
+
+### 🎯 Funcionalidades Implementadas
+
+#### 1. **Sistema de Tiers de Clientes (Comportamental)** ✅
+
+**Arquivos criados/modificados:**
+- `/src/domain/value-objects/CustomerTier.ts` — 5 tiers com critérios comportamentais
+- `/src/domain/services/CustomerTierService.ts` — Insights comportamentais + computação de tier
+- `/src/app/admin/clientes/page.tsx` — Badges de tier, dots de completude de perfil
+- `/src/app/admin/clientes/[id]/page.tsx` — Secções "Dados recolhidos" e "Perfil comportamental"
+- `/src/app/api/customers/[id]/history/route.ts` — Stats comportamentais na API
+- `/src/__tests__/domain/services/CustomerTierService.test.ts` — 25 testes
+
+**O que faz:**
+- Tier 1 (Novo): só nome, sem contacto
+- Tier 2 (Identificado): email ou telefone
+- Tier 3 (Cliente): email+phone OU 1+ visita
+- Tier 4 (Regular): perfil completo + 3+ visitas
+- Tier 5 (VIP): perfil completo + 10+ visitas + 500€+ gasto
+- Insights: reserva frequente, no-show, grupos grandes, alto valor, cliente fiável
+- Cores por tier (cinza, azul, âmbar, esmeralda, roxo)
+
+---
+
+#### 2. **Emails de Reserva — Auto-confirmação + Lembretes na UI** ✅
+
+**Arquivos modificados:**
+- `/src/lib/email/index.ts` — Nova `sendRestaurantNotificationEmail()` separada
+- `/src/app/api/reservations/route.ts` — Auto-reserva envia "Reserva Confirmada" (não "recebemos o pedido")
+- `/src/app/admin/reservas/page.tsx` — Secção de emails redesenhada com 4 tipos
+
+**O que faz:**
+- **Auto-confirmação:** quando `auto_reservations` está ativo, envia email "Reserva Confirmada" diretamente
+- **Fluxo manual:** envia "Recebemos o seu pedido" → admin confirma → "Reserva Confirmada"
+- **UI admin mostra 4 emails:** Receção do pedido, Confirmação (auto/manual), Lembrete 24h, Lembrete 2h
+- Badge "Auto" verde distingue confirmação automática de manual
+- Cada email mostra estado: Enviado/Entregue/Lido/Rejeitado com timestamps
+
+---
+
+#### 3. **Cron de Lembretes — Horários Atualizados** ✅
+
+**Arquivos modificados:**
+- `/vercel.json` — Cron alterado de `0 8-21 * * *` para `0 8,16 * * *`
+
+**O que faz:**
+- Lembretes enviados às 8h (manhã, para reservas do dia) e 16h (tarde, para jantares)
+- Anteriormente: corria a cada hora das 8h às 21h
+
+---
+
+#### 4. **Segurança — RLS de Cancel Tokens** ✅
+
+**Arquivos criados:**
+- `/supabase/migrations/072_lock_cancel_tokens_rls.sql`
+
+**O que faz:**
+- Removeu política RLS permissiva (`FOR ALL USING (true)`) da tabela `reservation_cancel_tokens`
+- Revogou privilégios de `anon` e `authenticated`
+- API routes usam `createAdminClient()` (service role) que bypassa RLS
+
+---
+
+#### 5. **Correções de Email Templates** ✅
+
+**Arquivos modificados:**
+- `/src/lib/email/templates.ts` — Texto do lembrete 2h corrigido, link de cancelamento removido do farewell
+- `/src/app/[locale]/cancelar-reserva/page.tsx` — Fix memory leak no timer de cooldown (useEffect)
+
+---
+
+#### 6. **E2E Tests — Melhorias** ✅
+
+**Arquivos modificados:**
+- `/e2e/reservation-flow.spec.ts` — Email de teste (`example.com`), assertion corrigida
+
+---
+
+### 🗄️ Migrações de Base de Dados
+
+#### Migration 072: `lock_cancel_tokens_rls`
+- Drop policy `cancel_tokens_all` (acesso irrestrito)
+- Revoke ALL de anon e authenticated
+- Status: Pendente aplicação via SQL Editor
+
+---
+
 ## 📅 Data: 2026-02-23
 
 ### 🎯 Funcionalidades Implementadas

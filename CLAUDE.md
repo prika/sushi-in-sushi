@@ -14,7 +14,7 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 
 ## 🎉 Estado Atual do Projeto
 
-### Última Atualização: 2026-02-23
+### Última Atualização: 2026-03-01
 
 **Alterações Recentes:**
 - ✅ **Alerta de Reservas para Empregados** - Waiter alertado X min antes de reservas confirmadas (configurável no admin, default 60min)
@@ -41,7 +41,7 @@ Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 
 ### 📊 Cobertura de Testes - Exemplar
 
-**598 testes passando** (+61 novos testes desde última revisão):
+**3004 testes passando**:
 - ✅ **Use Cases:** 100% testados (55+ use cases)
 - ✅ **Domain Services:** 100% testados (118 tests)
   - OrderService (44 tests)
@@ -574,7 +574,7 @@ src/__tests__/
         └── useStaffTimeOff.test.ts (12 tests)
 ```
 
-**Cobertura:** 537 testes passando
+**Cobertura:** 3004 testes passando
 - Use Cases: 100% testados (50+ use cases)
 - Domain Services: 100% testados (OrderService, SessionService, TableService)
 - Repositories: Padrão estabelecido com infraestrutura testada
@@ -684,6 +684,41 @@ O projeto usa Supabase Realtime para:
 - Notificações de chamadas de empregados
 - Tracking de participantes na sessão
 
+## Sistema de Emails de Reserva
+
+### Tipos de Email
+
+| Email | Template | Trigger | Tracking DB |
+|---|---|---|---|
+| Receção do pedido | `getCustomerConfirmationEmail()` | Criação (fluxo manual) | `customer_email_*` |
+| Reserva Confirmada | `getReservationConfirmedEmail()` | Admin confirma OU auto-reserva | `confirmation_email_*` |
+| Notificação Restaurante | `getRestaurantNotificationEmail()` | Criação (sempre) | — |
+| Lembrete 24h | `getDayBeforeReminderEmail()` | Cron 8h | `day_before_reminder_*` |
+| Lembrete 2h | `getSameDayReminderEmail()` | Cron 16h | `same_day_reminder_*` |
+| Cancelamento | `getCancellationEmail()` | Admin/cliente cancela | — |
+| Despedida | `getFarewellEmail()` | Não implementado | — |
+
+### Fluxo Auto vs Manual
+- **Auto-reserva** (`auto_reservations = true` no restaurante): reserva vai direto para `confirmed`, envia `sendReservationConfirmedEmail()` + `sendRestaurantNotificationEmail()` separado
+- **Manual**: envia `sendReservationEmails()` (cliente + restaurante), admin confirma depois → `sendReservationConfirmedEmail()`
+
+### Cron de Lembretes
+- **Vercel cron:** `0 8,16 * * *` (8h manhã + 16h tarde, UTC)
+- **Rota:** `GET /api/cron/reservation-reminders`
+- **Auth:** `CRON_SECRET` header (Bearer token)
+- **Settings:** `reservation_settings` (singleton id=1) — `day_before_reminder_enabled/hours`, `same_day_reminder_enabled/hours`
+
+### Tracking via Webhooks
+- Resend webhook: `/api/webhooks/resend`
+- Eventos: sent, delivered, opened, clicked, bounced, complained
+- Atualiza `*_status` e `*_at` na reserva + `email_events` audit table
+
+### Ficheiros Chave
+- `/src/lib/email/index.ts` — Funções de envio (sendReservationEmails, sendReservationConfirmedEmail, sendRestaurantNotificationEmail, sendDayBeforeReminderEmail, sendSameDayReminderEmail)
+- `/src/lib/email/templates.ts` — Templates HTML
+- `/src/app/api/cron/reservation-reminders/route.ts` — Cron job
+- `/src/app/api/webhooks/resend/route.ts` — Webhook tracking
+
 ## Variáveis de Ambiente
 
 Ficheiro `.env.local` requer:
@@ -692,6 +727,9 @@ Ficheiro `.env.local` requer:
 - `ADMIN_PASSWORD`, `COZINHA_PASSWORD`
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `RESEND_API_KEY`, `FROM_EMAIL`, `RESEND_WEBHOOK_SECRET`
+- `CRON_SECRET` — Autenticação do cron de lembretes
+- `TEST_EMAIL_OVERRIDE` — Redireciona todos os emails para este endereço (dev)
+- `RESTAURANT_EMAIL_1`, `RESTAURANT_EMAIL_2` — Emails por localização
 
 ## Gestão de Restaurantes (Multi-Localização)
 

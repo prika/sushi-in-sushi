@@ -47,13 +47,14 @@ export default function CancelarReservaPage() {
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Cooldown timer with proper cleanup on unmount
+  const cooldownActive = cooldown > 0;
   useEffect(() => {
-    if (cooldown <= 0) return;
+    if (!cooldownActive) return;
     const interval = setInterval(() => {
       setCooldown((c) => (c <= 1 ? 0 : c - 1));
     }, 1000);
     return () => clearInterval(interval);
-  }, [cooldown > 0]);
+  }, [cooldownActive]);
 
   // Check if reservation is within 2h deadline
   const isWithinDeadline = (r: ReservationItem): boolean => {

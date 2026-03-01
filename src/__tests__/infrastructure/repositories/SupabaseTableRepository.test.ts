@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { SupabaseTableRepository } from '@/infrastructure/repositories/SupabaseTableRepository';
 import { createMockSupabaseClient, type MockSupabaseClient } from '@/__tests__/helpers/mock-supabase';
 

@@ -28,17 +28,17 @@ vi.mock("../client", () => ({
   getVendusClient: vi.fn(),
   VendusApiError: class extends Error {
     constructor(
-      public code: string,
+      public _code: string,
       message: string,
-      public details?: Record<string, unknown>,
-      public statusCode?: number,
+      public _details?: Record<string, unknown>,
+      public _statusCode?: number,
     ) {
       super(message);
       this.name = "VendusApiError";
     }
     isRetryable() {
-      if (this.statusCode === 429) return true;
-      if (this.statusCode && this.statusCode >= 500) return true;
+      if (this._statusCode === 429) return true;
+      if (this._statusCode && this._statusCode >= 500) return true;
       return false;
     }
     getUserMessage() {
@@ -61,7 +61,7 @@ vi.mock("../config", () => ({
 }));
 
 import { createAdminClient } from "@/lib/supabase/server";
-import { getVendusClient, VendusApiError } from "../client";
+import { getVendusClient } from "../client";
 import { getVendusConfig } from "../config";
 
 // Suppress console output in tests
@@ -112,15 +112,15 @@ function createInvoiceSupabaseMock(config: {
   existingRetry?: boolean;
   // For void
   invoice?: Record<string, unknown> | null;
-  onInvoiceUpdate?: (data: unknown) => void;
+  onInvoiceUpdate?: (_data: unknown) => void;
   // For PDF
-  onInvoicePdfUpdate?: (data: unknown) => void;
+  onInvoicePdfUpdate?: (_data: unknown) => void;
   // For getInvoices
   invoicesList?: unknown[];
   invoicesError?: boolean;
   // For retry queue
   retryItems?: Array<Record<string, unknown>>;
-  onRetryUpdate?: (data: unknown) => void;
+  onRetryUpdate?: (_data: unknown) => void;
 }) {
   const from = (table: string) => {
     if (table === "sessions") {
@@ -201,9 +201,9 @@ function createInvoiceSupabaseMock(config: {
 
     if (table === "invoices_with_details") {
       let query = {
-        eq: (col: string, val: unknown) => query,
-        order: (col: string, opts?: unknown) => query,
-        range: (from: number, to: number) => query,
+        eq: (_col: string, _val: unknown) => query,
+        order: (_col: string, _opts?: unknown) => query,
+        range: (_from: number, _to: number) => query,
         then: undefined as unknown,
       };
       // Make it thenable to resolve with data
@@ -224,7 +224,7 @@ function createInvoiceSupabaseMock(config: {
 
     if (table === "vendus_sync_log") {
       return {
-        insert: (data: unknown) => {
+        insert: (_data: unknown) => {
           config.onSyncLogInsert?.();
           return {
             select: () => ({
@@ -242,8 +242,8 @@ function createInvoiceSupabaseMock(config: {
     if (table === "vendus_retry_queue") {
       return {
         select: () => ({
-          eq: (col: string, val: unknown) => ({
-            eq: (col2: string, val2: unknown) => ({
+          eq: (_col: string, _val: unknown) => ({
+            eq: (_col2: string, _val2: unknown) => ({
               in: () => ({
                 limit: () =>
                   Promise.resolve({
@@ -252,8 +252,8 @@ function createInvoiceSupabaseMock(config: {
                   }),
               }),
             }),
-            lt: (col2: string, val2: unknown) => ({
-              lt: (col3: string, val3: unknown) => ({
+            lt: (_col2: string, _val2: unknown) => ({
+              lt: (_col3: string, _val3: unknown) => ({
                 limit: () =>
                   Promise.resolve({
                     data: config.retryItems ?? [],
@@ -263,13 +263,13 @@ function createInvoiceSupabaseMock(config: {
             }),
           }),
         }),
-        insert: (data: unknown) => {
+        insert: (_data: unknown) => {
           config.onRetryQueueInsert?.();
           return Promise.resolve({ data: null, error: null });
         },
-        update: (data: unknown) => ({
+        update: (_data: unknown) => ({
           eq: () => {
-            config.onRetryUpdate?.(data);
+            config.onRetryUpdate?.(_data);
             return Promise.resolve({ data: null, error: null });
           },
         }),
@@ -1323,7 +1323,7 @@ describe("getInvoiceBySession", () => {
 
     // We need a more specific mock for invoices_with_details.eq.single
     const supabase = {
-      from: (table: string) => ({
+      from: (_table: string) => ({
         select: () => ({
           eq: () => ({
             single: () => Promise.resolve({ data: mockInvoice, error: null }),
@@ -1369,7 +1369,7 @@ describe("processRetryQueue", () => {
         if (table === "vendus_retry_queue") {
           return {
             select: () => ({
-              eq: (col: string, val: unknown) => ({
+              eq: (_col: string, _val: unknown) => ({
                 lt: () => ({
                   lt: () => ({
                     limit: () =>

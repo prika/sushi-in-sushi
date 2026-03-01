@@ -45,7 +45,7 @@ export function useAdminProducts(options: UseAdminProductsOptions = {}) {
     gcTime: 10 * 60 * 1000,
   });
 
-  const allProducts = data?.products ?? [];
+  const allProducts = useMemo(() => data?.products ?? [], [data?.products]);
   const categories = data?.categories ?? [];
 
   // Client-side filtering

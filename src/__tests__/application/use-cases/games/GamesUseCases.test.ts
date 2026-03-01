@@ -11,7 +11,7 @@ import { IGameSessionRepository } from "@/domain/repositories/IGameSessionReposi
 import { IGameAnswerRepository } from "@/domain/repositories/IGameAnswerRepository";
 import { IGamePrizeRepository } from "@/domain/repositories/IGamePrizeRepository";
 import { IRestaurantRepository } from "@/domain/repositories/IRestaurantRepository";
-import { GameQuestion, GameType } from "@/domain/entities/GameQuestion";
+import { GameQuestion } from "@/domain/entities/GameQuestion";
 import { GameSession } from "@/domain/entities/GameSession";
 import { GameAnswer } from "@/domain/entities/GameAnswer";
 import { GamePrize } from "@/domain/entities/GamePrize";

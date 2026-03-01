@@ -27,10 +27,10 @@ vi.mock("../client", () => ({
   getVendusClient: vi.fn(),
   VendusApiError: class extends Error {
     constructor(
-      public code: string,
+      public _code: string,
       message: string,
-      public details?: Record<string, unknown>,
-      public statusCode?: number,
+      public _details?: Record<string, unknown>,
+      public _statusCode?: number,
     ) {
       super(message);
       this.name = "VendusApiError";
@@ -90,8 +90,8 @@ function createVendusClientMock(config: {
 function createTablesSupabaseMock(config: {
   existingByVendusId?: Record<string, { id: string }>;
   existingByNumber?: Record<string, { id: string }>;
-  onInsert?: (data: unknown) => void;
-  onUpdate?: (data: unknown) => void;
+  onInsert?: (_data: unknown) => void;
+  onUpdate?: (_data: unknown) => void;
   insertError?: boolean;
   // For getTableMapping
   tables?: unknown[];
@@ -103,7 +103,7 @@ function createTablesSupabaseMock(config: {
     from: (table: string) => {
       if (table === "tables") {
         return {
-          select: (cols?: string) => ({
+          select: (_cols?: string) => ({
             eq: (col: string, val: unknown) => {
               // Match by vendus_table_id
               if (col === "vendus_table_id") {
@@ -161,7 +161,7 @@ function createTablesSupabaseMock(config: {
             return Promise.resolve({ data: null, error: null });
           },
           update: (data: unknown) => ({
-            eq: (col: string, val: unknown) => {
+            eq: (_col: string, _val: unknown) => {
               config.onUpdate?.(data);
               if (config.updateError) {
                 return Promise.resolve({

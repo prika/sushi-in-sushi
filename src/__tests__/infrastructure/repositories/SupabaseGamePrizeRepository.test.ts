@@ -49,8 +49,8 @@ function createMockSupabaseClient() {
       builder[method] = vi.fn(() => builder);
     });
 
-    builder.then = (onFulfilled: (value: any) => any) => Promise.resolve(result).then(onFulfilled);
-    builder.catch = (onRejected: (reason: any) => any) => Promise.resolve(result).catch(onRejected);
+    builder.then = (onFulfilled: (_value: any) => any) => Promise.resolve(result).then(onFulfilled);
+    builder.catch = (onRejected: (_reason: any) => any) => Promise.resolve(result).catch(onRejected);
 
     builder.mockResolvedValue = (value: any) => {
       result = value;

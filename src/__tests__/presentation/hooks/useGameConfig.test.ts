@@ -140,7 +140,7 @@ describe('useGameConfig', () => {
   // Loading states
   // =====================================================
   it('deve definir isLoading durante fetch', async () => {
-    let resolvePromise: (value: any) => void;
+    let resolvePromise: (_value: any) => void;
     mockGetGameConfig.execute.mockReturnValue(
       new Promise((resolve) => { resolvePromise = resolve; })
     );

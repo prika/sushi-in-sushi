@@ -42,11 +42,11 @@ function createMockClosureChain(mockData: Record<string, unknown>[]) {
   const thenable = {
     ...chain,
     then(
-      resolve: (value: {
+      resolve: (_value: {
         data: Record<string, unknown>[];
         error: null;
       }) => unknown,
-      reject?: (reason: unknown) => unknown,
+      reject?: (_reason: unknown) => unknown,
     ) {
       return Promise.resolve({ data: mockData, error: null }).then(
         resolve,

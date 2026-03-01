@@ -13,17 +13,17 @@ import { NextRequest } from "next/server";
 
 // ─── Hoisted mocks ──────────────────────────────────────────────────────────
 
-const { mockUpdate, mockEq, mockSelect, mockCreate, mockFrom } = vi.hoisted(
+const { _mockUpdate, _mockEq, _mockSelect, mockCreate, mockFrom } = vi.hoisted(
   () => {
-    const mockEq = vi.fn().mockResolvedValue({ error: null });
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
-    const mockSelect = vi.fn();
+    const _mockEq = vi.fn().mockResolvedValue({ error: null });
+    const _mockUpdate = vi.fn().mockReturnValue({ eq: _mockEq });
+    const _mockSelect = vi.fn();
     const mockCreate = vi.fn();
 
     // Chainable query builder
     const mockFrom = vi.fn();
 
-    return { mockUpdate, mockEq, mockSelect, mockCreate, mockFrom };
+    return { _mockUpdate, _mockEq, _mockSelect, mockCreate, mockFrom };
   }
 );
 
@@ -141,7 +141,7 @@ function chainBuilder(data: unknown[] | null, error: unknown = null) {
     chain[m] = vi.fn().mockReturnValue(chain);
   }
   // Make chain thenable (resolves to result)
-  chain.then = (resolve: (v: unknown) => void) => {
+  chain.then = (resolve: (_v: unknown) => void) => {
     resolve(result);
     return chain;
   };

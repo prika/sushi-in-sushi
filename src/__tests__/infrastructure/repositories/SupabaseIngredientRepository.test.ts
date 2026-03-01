@@ -21,7 +21,7 @@ function createQueryBuilder(data: unknown = null, error: unknown = null) {
 function createMockSupabase(builder: Record<string, ReturnType<typeof vi.fn>>) {
   return {
     from: vi.fn().mockReturnValue(builder),
-  } as unknown as Parameters<typeof SupabaseIngredientRepository extends { new(client?: infer C): unknown } ? (client: C) => void : never>[0];
+  } as unknown as Parameters<typeof SupabaseIngredientRepository extends { new(_client?: infer C): unknown } ? (_client: C) => void : never>[0];
 }
 
 const sampleDbIngredient = {
