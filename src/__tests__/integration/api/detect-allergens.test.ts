@@ -33,6 +33,10 @@ vi.mock("@anthropic-ai/sdk", () => ({
   },
 }));
 
+vi.mock("@/lib/auth", () => ({
+  getAuthUser: vi.fn().mockResolvedValue({ id: "admin-1", role: "admin" }),
+}));
+
 // ─── Route handler import ───────────────────────────────────────────────────
 
 import { POST } from "@/app/api/ingredients/detect-allergens/route";

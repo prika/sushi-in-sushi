@@ -100,16 +100,16 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
     // Save allergens if provided (column not in generated types)
-    if (allergens && data) {
+    if (allergens) {
       await supabase
         .from("ingredients")
         .update({ allergens } as Record<string, unknown>)
         .eq("id", data.id);
-    }
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({

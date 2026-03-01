@@ -23,6 +23,10 @@ vi.mock('@/lib/supabase/server', () => ({
 
 mockUpdate.mockReturnValue({ eq: mockEq });
 
+vi.mock('@/lib/auth', () => ({
+  getAuthUser: vi.fn().mockResolvedValue({ id: 'admin-1', role: 'admin' }),
+}));
+
 // ─── Route handler import ───────────────────────────────────────────────────
 
 import { PUT } from '@/app/api/products/descriptions/route';

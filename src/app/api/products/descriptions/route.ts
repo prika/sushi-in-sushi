@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
 
 /**
@@ -7,6 +8,11 @@ import { createAdminClient } from "@/lib/supabase/server";
  */
 export async function PUT(request: NextRequest) {
   try {
+    const user = await getAuthUser();
+    if (!user || user.role !== "admin") {
+      return NextResponse.json({ error: "Acesso nao autorizado" }, { status: 403 });
+    }
+
     const { productId, descriptions } = await request.json();
 
     if (!productId) {
@@ -19,7 +25,7 @@ export async function PUT(request: NextRequest) {
       .from("products")
       .update({
         descriptions: descriptions || {},
-        description: descriptions?.pt || null,
+        description: descriptions?.pt ?? null,
       } as Record<string, unknown>)
       .eq("id", productId);
 

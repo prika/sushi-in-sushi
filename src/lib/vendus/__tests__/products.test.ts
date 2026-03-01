@@ -56,6 +56,7 @@ vi.mock("../config", () => ({
     retryAttempts: 2,
   }),
   VENDUS_TAX_RATES: { NORMAL: "1" },
+  isVendusReadOnly: vi.fn().mockReturnValue(false),
 }));
 
 import { createAdminClient } from "@/lib/supabase/server";
@@ -871,7 +872,7 @@ describe("syncProducts - service modes and category matching", () => {
     expect(inserted.service_modes).toEqual(["takeaway"]);
   });
 
-  it("defaults to dine_in when no Vendus category", async () => {
+  it("defaults to empty service_modes when no Vendus category", async () => {
     const vendusProducts = {
       products: [
         {
@@ -907,7 +908,7 @@ describe("syncProducts - service modes and category matching", () => {
     });
 
     const inserted = inserts[0] as Record<string, unknown>;
-    expect(inserted.service_modes).toEqual(["dine_in"]);
+    expect(inserted.service_modes).toEqual([]);
   });
 
   it("auto-matches product to local category by name", async () => {
@@ -1278,8 +1279,8 @@ describe("syncProducts - pull edge cases", () => {
     };
 
     const vendusCategories = [
-      { id: "10", name: "Dine In" },
-      { id: "20", name: "Delivery" },
+      { id: "10", title: "Take Away" },
+      { id: "20", title: "Delivery" },
     ];
 
     const inserts: unknown[] = [];
@@ -1304,7 +1305,7 @@ describe("syncProducts - pull edge cases", () => {
     expect(result.recordsProcessed).toBe(1);
     expect(result.recordsCreated).toBe(1);
     const inserted = inserts[0] as Record<string, unknown>;
-    expect(inserted.service_modes).toContain("dine_in");
+    expect(inserted.service_modes).toContain("takeaway");
     expect(inserted.service_modes).toContain("delivery");
     // Base price should be the minimum
     expect(inserted.price).toBe(15);
@@ -1312,7 +1313,7 @@ describe("syncProducts - pull edge cases", () => {
     expect(inserted.description).toBe("Variedade de sushi com 12 pecas");
     // Should have vendus_ids map for both modes
     expect(inserted.vendus_ids).toEqual({
-      dine_in: "4001",
+      takeaway: "4001",
       delivery: "4002",
     });
   });
@@ -1556,7 +1557,7 @@ describe("syncProducts - pull edge cases", () => {
       ],
     };
 
-    const vendusCategories = [{ id: "10", name: "Sala" }];
+    const vendusCategories = [{ id: "10", title: "Sala" }];
 
     const inserts: unknown[] = [];
     const supabase = createSupabaseMock({
@@ -1576,9 +1577,9 @@ describe("syncProducts - pull edge cases", () => {
       defaultCategoryId: "cat-1",
     });
 
-    // Should default to dine_in since category not found
+    // Category "Sala" is unrecognized → no service mode
     const inserted = inserts[0] as Record<string, unknown>;
-    expect(inserted.service_modes).toEqual(["dine_in"]);
+    expect(inserted.service_modes).toEqual([]);
   });
 
   it("handles same-name products with duplicate service mode, older timestamp, and inactive status", async () => {
@@ -1623,7 +1624,7 @@ describe("syncProducts - pull edge cases", () => {
       ],
     };
 
-    const vendusCategories = [{ id: "10", name: "Dine In" }];
+    const vendusCategories = [{ id: "10", title: "Dine In" }];
 
     const inserts: unknown[] = [];
     const supabase = createSupabaseMock({
@@ -1651,8 +1652,8 @@ describe("syncProducts - pull edge cases", () => {
     expect(inserted.is_available).toBe(true);
     // Description from first product
     expect(inserted.description).toBe("First desc");
-    // Only one service mode (all same category = dine_in)
-    expect(inserted.service_modes).toEqual(["dine_in"]);
+    // "Dine In" is unrecognized → no service mode
+    expect(inserted.service_modes).toEqual([]);
   });
 
   it("handles vendus_ids with falsy value in map", async () => {
@@ -1984,7 +1985,7 @@ describe("syncProducts - pull edge cases", () => {
     expect(result.errors[0].error).toContain("Unexpected DB crash");
   });
 
-  it("handles vendusCategoryToServiceMode dine_in fallback", async () => {
+  it("handles vendusCategoryToServiceMode null fallback for unrecognized category", async () => {
     const vendusProducts = {
       products: [
         {
@@ -2002,7 +2003,7 @@ describe("syncProducts - pull edge cases", () => {
     };
 
     // Category name that does NOT match delivery or takeaway
-    const vendusCategories = [{ id: "30", name: "Normal" }];
+    const vendusCategories = [{ id: "30", title: "Normal" }];
 
     const inserts: unknown[] = [];
     const supabase = createSupabaseMock({
@@ -2023,7 +2024,7 @@ describe("syncProducts - pull edge cases", () => {
     });
 
     const inserted = inserts[0] as Record<string, unknown>;
-    expect(inserted.service_modes).toEqual(["dine_in"]);
+    expect(inserted.service_modes).toEqual([]);
   });
 
   it("handles pull error from Vendus API", async () => {
@@ -2290,14 +2291,14 @@ describe("syncProducts - push edge cases", () => {
       get: vi.fn().mockImplementation((url: string) => {
         if (url.startsWith("/products/categories")) {
           return Promise.resolve([
-            { id: "vcat-dine", name: "Sala" },
-            { id: "vcat-del", name: "Delivery" },
+            { id: "vcat-ta", title: "Take Away" },
+            { id: "vcat-del", title: "Delivery" },
           ]);
         }
         return Promise.resolve({ products: [] });
       }),
       post: vi.fn()
-        .mockResolvedValueOnce({ id: "vendus-dine-1" })
+        .mockResolvedValueOnce({ id: "vendus-ta-1" })
         .mockResolvedValueOnce({ id: "vendus-del-1" }),
     });
 
@@ -2312,8 +2313,8 @@ describe("syncProducts - push edge cases", () => {
           is_available: true,
           vendus_id: null,
           vendus_ids: null,
-          service_modes: ["dine_in", "delivery"],
-          service_prices: { dine_in: 15, delivery: 18 },
+          service_modes: ["takeaway", "delivery"],
+          service_prices: { takeaway: 15, delivery: 18 },
           category_id: "cat-1",
         },
       ],
@@ -2334,9 +2335,9 @@ describe("syncProducts - push edge cases", () => {
     expect(result.recordsCreated).toBe(2);
     expect(vendusClient.post).toHaveBeenCalledTimes(2);
 
-    // First call = dine_in with price 15
+    // First call = takeaway with price 15
     expect(vendusClient.post.mock.calls[0][1]).toEqual(
-      expect.objectContaining({ gross_price: "15", category_id: "vcat-dine" }),
+      expect.objectContaining({ gross_price: "15", category_id: "vcat-ta" }),
     );
     // Second call = delivery with price 18
     expect(vendusClient.post.mock.calls[1][1]).toEqual(
@@ -2349,7 +2350,7 @@ describe("syncProducts - push edge cases", () => {
     );
     expect(syncUpdate).toBeDefined();
     expect((syncUpdate as Record<string, unknown>).vendus_ids).toEqual({
-      dine_in: "vendus-dine-1",
+      takeaway: "vendus-ta-1",
       delivery: "vendus-del-1",
     });
   });
@@ -2465,7 +2466,7 @@ describe("syncProducts - remaining branch coverage", () => {
       get: vi.fn().mockImplementation((url: string) => {
         if (url.startsWith("/products/categories")) {
           return Promise.resolve({
-            categories: [{ id: "10", name: "Dine In" }],
+            categories: [{ id: "10", title: "Dine In" }],
           });
         }
         return Promise.resolve({ products: [] });
@@ -2497,7 +2498,7 @@ describe("syncProducts - remaining branch coverage", () => {
       get: vi.fn().mockImplementation((url: string) => {
         if (url.startsWith("/products/categories")) {
           return Promise.resolve({
-            data: [{ id: "20", name: "Delivery" }],
+            data: [{ id: "20", title: "Delivery" }],
           });
         }
         return Promise.resolve({ products: [] });
@@ -2890,7 +2891,7 @@ describe("syncProducts - remaining branch coverage", () => {
       get: vi.fn().mockImplementation((url: string) => {
         if (url.startsWith("/products/categories")) {
           return Promise.resolve({
-            categories: [{ id: "vcat-sala", name: "Sala" }],
+            categories: [{ id: "vcat-sala", title: "Sala" }],
           });
         }
         return Promise.resolve({ products: [] });
@@ -2932,7 +2933,7 @@ describe("syncProducts - remaining branch coverage", () => {
       get: vi.fn().mockImplementation((url: string) => {
         if (url.startsWith("/products/categories")) {
           return Promise.resolve({
-            data: [{ id: "vcat-data", name: "Delivery" }],
+            data: [{ id: "vcat-data", title: "Delivery" }],
           });
         }
         return Promise.resolve({ products: [] });
@@ -3015,8 +3016,8 @@ describe("syncProducts - remaining branch coverage", () => {
       get: vi.fn().mockImplementation((url: string) => {
         if (url.startsWith("/products/categories")) {
           return Promise.resolve([
-            { id: "vcat-1", name: "Sala" },      // maps to dine_in
-            { id: "vcat-2", name: "Dine In" },    // also maps to dine_in (duplicate)
+            { id: "vcat-1", title: "Delivery" },   // maps to delivery
+            { id: "vcat-2", title: "Entrega" },     // also maps to delivery (duplicate)
           ]);
         }
         return Promise.resolve({ products: [] });
@@ -3033,7 +3034,7 @@ describe("syncProducts - remaining branch coverage", () => {
           is_available: true,
           vendus_id: null,
           vendus_ids: null,
-          service_modes: ["dine_in"],
+          service_modes: ["delivery"],
           service_prices: null,
           category_id: "cat-1",
         },
@@ -3050,7 +3051,7 @@ describe("syncProducts - remaining branch coverage", () => {
 
     });
 
-    // Should use the first category ID for dine_in, skip the second
+    // Should use the first category ID for delivery, skip the second
     expect(result.recordsCreated).toBe(1);
     const postCall = vendusClient.post.mock.calls[0][1] as Record<string, unknown>;
     expect(postCall.category_id).toBe("vcat-1"); // First one wins

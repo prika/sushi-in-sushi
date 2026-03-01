@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { getAuthUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
-
-const anthropic = new Anthropic();
 
 const EU_ALLERGENS = [
   "gluten", "crustaceans", "eggs", "fish", "peanuts", "soybeans",
@@ -49,6 +48,11 @@ Respond in valid JSON:
  */
 export async function POST(request: NextRequest) {
   try {
+    const user = await getAuthUser();
+    if (!user || user.role !== "admin") {
+      return NextResponse.json({ error: "Acesso nao autorizado" }, { status: 403 });
+    }
+
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
@@ -56,6 +60,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    const anthropic = new Anthropic({ apiKey });
 
     const body = await request.json();
     const { ingredientIds } = body;
@@ -87,7 +93,7 @@ export async function POST(request: NextRequest) {
       // Fetch allergens data (column not in generated types)
       const { data: allergenData } = await supabase
         .from("ingredients")
-        .select("id")
+        .select("id, allergens")
         .in("id", ingredients.map((i) => i.id)) as unknown as {
           data: Array<{ id: string; allergens?: string[] | null }> | null;
         };
@@ -131,37 +137,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const parsed = JSON.parse(jsonMatch[0]) as Record<string, string[]>;
+    let parsed: Record<string, string[]>;
+    try {
+      parsed = JSON.parse(jsonMatch[0]) as Record<string, string[]>;
+    } catch {
+      return NextResponse.json(
+        { error: "Failed to parse AI response" },
+        { status: 500 }
+      );
+    }
 
     // Validate and save results
     const results: Array<{ id: string; name: string; allergens: string[] }> = [];
+    const errors: Array<{ id: string; name: string; error: string }> = [];
+
+    // Build case-insensitive lookup for AI response keys
+    const parsedLower: Record<string, string[]> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      parsedLower[key.toLowerCase().trim()] = value;
+    }
 
     for (const ing of toProcess) {
-      const detected = parsed[ing.name];
-      if (detected) {
-        // Filter to only valid EU allergen IDs
-        const validAllergens = detected.filter((a) => EU_ALLERGENS.includes(a));
+      const detected = parsed[ing.name] ?? parsedLower[ing.name.toLowerCase().trim()];
+      const allergens = detected
+        ? detected.filter((a) => EU_ALLERGENS.includes(a))
+        : [];
 
-        await supabase
-          .from("ingredients")
-          .update({ allergens: validAllergens } as Record<string, unknown>)
-          .eq("id", ing.id);
+      const { error: updateError } = await supabase
+        .from("ingredients")
+        .update({ allergens } as Record<string, unknown>)
+        .eq("id", ing.id);
 
-        results.push({ id: ing.id, name: ing.name, allergens: validAllergens });
+      if (updateError) {
+        errors.push({ id: ing.id, name: ing.name, error: updateError.message });
       } else {
-        // AI returned no entry for this ingredient — mark as empty (no allergens)
-        await supabase
-          .from("ingredients")
-          .update({ allergens: [] } as Record<string, unknown>)
-          .eq("id", ing.id);
-
-        results.push({ id: ing.id, name: ing.name, allergens: [] });
+        results.push({ id: ing.id, name: ing.name, allergens });
       }
     }
 
     return NextResponse.json({
       detected: results.length,
       results,
+      ...(errors.length > 0 && { errors }),
     });
   } catch (error) {
     console.error("Error detecting allergens:", error);

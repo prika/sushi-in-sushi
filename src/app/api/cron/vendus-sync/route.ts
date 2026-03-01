@@ -3,6 +3,7 @@ import {
   syncProducts,
   processRetryQueue,
   isVendusEnabled,
+  isVendusReadOnly,
   getConfiguredLocations,
 } from "@/lib/vendus";
 
@@ -70,6 +71,11 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const readOnly = isVendusReadOnly();
+  if (readOnly) {
+    console.info("[Cron] VENDUS_READONLY=true - modo pull apenas");
+  }
+
   // Sync products for each location
   for (const locationSlug of locations) {
     try {
@@ -77,7 +83,7 @@ export async function GET(request: NextRequest) {
 
       const result = await syncProducts({
         locationSlug,
-        direction: "both",
+        direction: readOnly ? "pull" : "both",
       });
 
       results.push({

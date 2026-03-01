@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createAdminClient } from "@/lib/supabase/server";
 
-const anthropic = new Anthropic();
-
 const BATCH_SIZE = 15; // products per AI call (safe for token limits)
 
 interface ProductInfo {
@@ -74,6 +72,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    const anthropic = new Anthropic({ apiKey });
 
     const body = await request.json();
     const {
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
       const batch = batches[batchIdx];
 
       try {
-        const batchResults = await processBatch(batch);
+        const batchResults = await processBatch(anthropic, batch);
 
         // Save results to DB
         for (const product of batch) {
@@ -276,6 +276,7 @@ export async function POST(request: NextRequest) {
  * Returns a map of product name → result.
  */
 async function processBatch(
+  anthropic: Anthropic,
   products: ProductInfo[]
 ): Promise<Record<string, ProductResult>> {
   // Build a numbered list of products for the prompt

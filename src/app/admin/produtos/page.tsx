@@ -40,7 +40,8 @@ export default function ProdutosPage() {
   const [filterAvailability, setFilterAvailability] = useState<"all" | "available" | "unavailable">("all");
   const [filterServiceModes, setFilterServiceModes] = useState<string[]>([]);
   const [filterRodizio, setFilterRodizio] = useState(false);
-  const [sortBy, setSortBy] = useState<"default" | "orders_asc" | "orders_desc" | "rating_asc" | "rating_desc">("default");
+  const [sortBy, setSortBy] = useState<"default" | "orders_asc" | "orders_desc" | "rating_asc" | "rating_desc" | "price_asc" | "price_desc">("default");
+  const [filterPriceRange, setFilterPriceRange] = useState<[number, number] | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [modalTab, setModalTab] = useState<"geral" | "imagens" | "precos" | "ingredientes">("geral");
   const [pageTab, setPageTab] = useState<"produtos" | "ingredientes">("produtos");
@@ -273,11 +274,14 @@ export default function ProdutosPage() {
 
     // Save multi-lang descriptions if present
     if (savedProductId && Object.keys(formData.descriptions).length > 0) {
-      await fetch("/api/products/descriptions", {
+      const descRes = await fetch("/api/products/descriptions", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productId: savedProductId, descriptions: formData.descriptions }),
       });
+      if (!descRes.ok) {
+        console.error("Failed to save descriptions:", await descRes.text());
+      }
     }
 
     // Save product ingredients if we have a product ID
@@ -376,11 +380,14 @@ export default function ProdutosPage() {
 
     // Save descriptions JSONB
     if (Object.keys(formData.descriptions).length > 0) {
-      await fetch("/api/products/descriptions", {
+      const descRes = await fetch("/api/products/descriptions", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productId: editingProduct.id, descriptions: formData.descriptions }),
       });
+      if (!descRes.ok) {
+        console.error("Failed to save descriptions:", await descRes.text());
+      }
     }
 
     // Save ingredients
@@ -449,6 +456,14 @@ export default function ProdutosPage() {
   const orderCount = (productId: string) =>
     stats?.orderCountByProductId?.[productId] ?? 0;
 
+  const maxProductPrice = useMemo(() => {
+    if (products.length === 0) return 100;
+    return Math.ceil(Math.max(...products.map(p => p.price)));
+  }, [products]);
+
+  const effectivePriceRange: [number, number] = filterPriceRange ?? [0, maxProductPrice];
+  const priceRangeActive = effectivePriceRange[0] > 0 || effectivePriceRange[1] < maxProductPrice;
+
   const filteredProducts = products.filter(product => {
     const matchesCategory = !selectedCategory || product.categoryId === selectedCategory;
     const matchesSearch = !searchTerm ||
@@ -460,12 +475,15 @@ export default function ProdutosPage() {
     const matchesServiceMode = filterServiceModes.length === 0 ||
       filterServiceModes.some((m) => product.serviceModes?.includes(m));
     const matchesRodizio = !filterRodizio || product.isRodizio;
-    return matchesCategory && matchesSearch && matchesAvailability && matchesServiceMode && matchesRodizio;
+    const matchesPrice = !priceRangeActive || (product.price >= effectivePriceRange[0] && product.price <= effectivePriceRange[1]);
+    return matchesCategory && matchesSearch && matchesAvailability && matchesServiceMode && matchesRodizio && matchesPrice;
   }).sort((a, b) => {
     if (sortBy === "orders_desc") return orderCount(b.id) - orderCount(a.id);
     if (sortBy === "orders_asc") return orderCount(a.id) - orderCount(b.id);
     if (sortBy === "rating_desc") return (productRatings[String(b.id)]?.avgRating ?? 0) - (productRatings[String(a.id)]?.avgRating ?? 0);
     if (sortBy === "rating_asc") return (productRatings[String(a.id)]?.avgRating ?? 0) - (productRatings[String(b.id)]?.avgRating ?? 0);
+    if (sortBy === "price_asc") return a.price - b.price;
+    if (sortBy === "price_desc") return b.price - a.price;
     return 0;
   });
 
@@ -622,7 +640,7 @@ export default function ProdutosPage() {
 
       {/* Filters toggle + count */}
       {(() => {
-        const activeCount = (filterAvailability !== "all" ? 1 : 0) + filterServiceModes.length + (filterRodizio ? 1 : 0) + (sortBy !== "default" ? 1 : 0);
+        const activeCount = (filterAvailability !== "all" ? 1 : 0) + filterServiceModes.length + (filterRodizio ? 1 : 0) + (priceRangeActive ? 1 : 0) + (sortBy !== "default" ? 1 : 0);
         return (
           <>
           <div className="flex items-center gap-3">
@@ -708,6 +726,45 @@ export default function ProdutosPage() {
 
               <span className="hidden sm:block w-px h-5 bg-gray-200" />
 
+              {/* Price range filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 whitespace-nowrap">Preco:</span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min={0}
+                    max={effectivePriceRange[1]}
+                    step={0.5}
+                    value={effectivePriceRange[0]}
+                    onChange={(e) => setFilterPriceRange([Math.max(0, Number(e.target.value)), effectivePriceRange[1]])}
+                    className={`w-16 px-2 py-1 text-sm text-right tabular-nums border rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent ${effectivePriceRange[0] === 0 && effectivePriceRange[1] === 0 ? "border-red-300 bg-red-50" : "border-gray-300"}`}
+                  />
+                  <span className="text-gray-400 text-xs">—</span>
+                  <input
+                    type="number"
+                    min={effectivePriceRange[0]}
+                    max={maxProductPrice}
+                    step={0.5}
+                    value={effectivePriceRange[1]}
+                    onChange={(e) => setFilterPriceRange([effectivePriceRange[0], Math.max(effectivePriceRange[0], Number(e.target.value))])}
+                    className="w-16 px-2 py-1 text-sm text-right tabular-nums border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  />
+                  <span className="text-xs text-gray-400">€</span>
+                  {priceRangeActive && (
+                    <button
+                      type="button"
+                      onClick={() => setFilterPriceRange(null)}
+                      className="text-xs text-gray-400 hover:text-gray-600 ml-0.5"
+                      title="Limpar filtro de preco"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <span className="hidden sm:block w-px h-5 bg-gray-200" />
+
               {/* Sort */}
               <select
                 value={sortBy}
@@ -715,6 +772,8 @@ export default function ProdutosPage() {
                 className="w-full sm:w-auto px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 bg-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
               >
                 <option value="default">Ordenar: Predefinido</option>
+                <option value="price_asc">Preco (menor primeiro)</option>
+                <option value="price_desc">Preco (maior primeiro)</option>
                 <option value="orders_desc">Pedidos (mais primeiro)</option>
                 <option value="orders_asc">Pedidos (menos primeiro)</option>
                 <option value="rating_desc">Avaliacao (melhor primeiro)</option>
@@ -724,7 +783,7 @@ export default function ProdutosPage() {
               {activeCount > 0 && (
                 <button
                   type="button"
-                  onClick={() => { setFilterAvailability("all"); setFilterServiceModes([]); setFilterRodizio(false); setSortBy("default"); }}
+                  onClick={() => { setFilterAvailability("all"); setFilterServiceModes([]); setFilterRodizio(false); setFilterPriceRange(null); setSortBy("default"); }}
                   className="w-full sm:w-auto px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-center"
                 >
                   Limpar filtros
@@ -764,7 +823,7 @@ export default function ProdutosPage() {
               {filteredProducts.map((product) => (
                 <tr
                   key={product.id}
-                  className={`border-b border-gray-100 hover:bg-gray-50/50 ${!product.isAvailable ? "opacity-60" : ""}`}
+                  className={`border-b border-gray-100 hover:bg-gray-50/50 ${!product.isAvailable ? "opacity-60" : ""} ${editingProduct?.id === product.id ? "bg-amber-50/60 ring-1 ring-inset ring-[#D4AF37]/40" : ""}`}
                 >
                   <td className="px-4 py-2">
                     {(product.imageUrl || (product.imageUrls?.length ?? 0) > 0) ? (
@@ -884,7 +943,7 @@ export default function ProdutosPage() {
           {filteredProducts.map((product) => (
             <div
               key={product.id}
-              className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col"
+              className={`bg-white rounded-xl border overflow-hidden flex flex-col ${editingProduct?.id === product.id ? "border-[#D4AF37]/50 ring-2 ring-[#D4AF37]/20 shadow-[0_0_12px_rgba(212,175,55,0.15)]" : "border-gray-200"}`}
             >
               {(product.imageUrl || (product.imageUrls?.length ?? 0) > 0) ? (
                 <div className="h-32 bg-gray-100 relative cursor-pointer" onClick={() => handleOpenModal(product, "imagens")}>
@@ -1012,8 +1071,8 @@ export default function ProdutosPage() {
         <div className="w-96 shrink-0">
           <div className="sticky top-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50">
-              <h2 className="text-base font-semibold text-gray-900">
-                {editingProduct ? "Editar Produto" : "Novo Produto"}
+              <h2 className="text-base font-semibold text-gray-900 truncate max-w-[260px]">
+                {editingProduct ? <>Editar <span className="text-[#D4AF37]">{editingProduct.name}</span></> : "Novo Produto"}
               </h2>
               <button
                 onClick={() => setShowModal(false)}

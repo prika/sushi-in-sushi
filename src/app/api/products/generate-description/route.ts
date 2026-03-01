@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createAdminClient } from "@/lib/supabase/server";
 
-const anthropic = new Anthropic();
-
 interface GenerateRequest {
   productId: string;
   name: string;
@@ -50,6 +48,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    const anthropic = new Anthropic({ apiKey });
 
     const body: GenerateRequest = await request.json();
     const { productId, name, description, ingredients, categoryName, price, pieces, imageUrl } = body;

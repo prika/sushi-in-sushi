@@ -148,6 +148,15 @@ export function isVendusEnabled(): boolean {
 }
 
 /**
+ * Verifica se o Vendus esta em modo de somente-leitura.
+ * Quando true, operacoes de escrita (push/export) sao bloqueadas.
+ * Util durante desenvolvimento/testes para proteger dados no Vendus.
+ */
+export function isVendusReadOnly(): boolean {
+  return process.env.VENDUS_READONLY === "true";
+}
+
+/**
  * Obtém slugs das localizações com Vendus configurado (da tabela locations).
  */
 export async function getConfiguredLocations(): Promise<string[]> {

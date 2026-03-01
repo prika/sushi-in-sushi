@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createAdminClient } from "@/lib/supabase/server";
 
-const anthropic = new Anthropic();
-
 interface TranslateRequest {
   /** Single ingredient ID */
   ingredientId?: string;
@@ -37,6 +35,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    const anthropic = new Anthropic({ apiKey });
 
     const body: TranslateRequest = await request.json();
     const ids = body.ingredientIds || (body.ingredientId ? [body.ingredientId] : []);

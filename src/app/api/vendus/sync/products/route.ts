@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { syncProducts, getProductSyncStats } from "@/lib/vendus";
+import { syncProducts, getProductSyncStats, isVendusReadOnly } from "@/lib/vendus";
 import { logActivity } from "@/lib/auth/activity";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -39,6 +39,7 @@ export async function GET() {
       products: productsRes.data || [],
       categories: categoriesRes.data || [],
       stats: await getProductSyncStats(),
+      isReadOnly: isVendusReadOnly(),
     });
   } catch (error) {
     console.error("Erro ao obter dados de sync:", error);
@@ -97,6 +98,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Direcao invalida. Use: push, pull ou both" },
         { status: 400 },
+      );
+    }
+
+    if (isVendusReadOnly() && (direction === "push" || direction === "both")) {
+      return NextResponse.json(
+        {
+          error: "Vendus esta em modo de somente-leitura (VENDUS_READONLY=true). Operacoes de escrita estao desativadas.",
+          readOnly: true,
+        },
+        { status: 403 },
       );
     }
 

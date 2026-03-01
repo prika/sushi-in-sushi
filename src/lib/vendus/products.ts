@@ -10,11 +10,12 @@
 
 import { createAdminClient } from "@/lib/supabase/server";
 import { VendusClient, getVendusClient, VendusApiError } from "./client";
-import { getVendusConfig, VENDUS_TAX_RATES } from "./config";
+import { getVendusConfig, VENDUS_TAX_RATES, isVendusReadOnly } from "./config";
 // Types for reading Vendus categories (used in pull/push for category mapping)
 interface VendusCategory {
   id: string;
-  name: string;
+  title?: string;
+  name?: string;
 }
 
 interface VendusCategoriesResponse {
@@ -36,12 +37,13 @@ import type {
 // =============================================
 
 /** Maps a Vendus category name to a service_mode value */
-function vendusCategoryToServiceMode(categoryName: string): string {
+function vendusCategoryToServiceMode(categoryName: string | undefined | null): string | null {
+  if (!categoryName) return null;
   const n = categoryName.toLowerCase().trim();
   if (n.includes("delivery") || n.includes("entrega")) return "delivery";
   if (n.includes("take away") || n.includes("takeaway") || n.includes("levar"))
     return "takeaway";
-  return "dine_in";
+  return null;
 }
 
 /** Tries to match a product to a local category by name (longest match wins) */
@@ -330,12 +332,28 @@ async function pullProductsFromVendus(
       const rawCats = await client.get<
         VendusCategory[] | VendusCategoriesResponse
       >("/products/categories?per_page=500");
-      const cats = Array.isArray(rawCats)
-        ? rawCats
-        : rawCats.categories || rawCats.data || [];
-      for (const vc of cats) vendusCategoryMap.set(Number(vc.id), vc.name);
-    } catch {
-      /* default to dine_in if categories unavailable */
+      let cats: VendusCategory[] = [];
+      if (Array.isArray(rawCats)) {
+        cats = rawCats;
+      } else if (rawCats && typeof rawCats === "object") {
+        const obj = rawCats as Record<string, unknown>;
+        cats = (obj.categories || obj.product_categories || obj.data || []) as VendusCategory[];
+        if (!Array.isArray(cats) || cats.length === 0) {
+          for (const val of Object.values(obj)) {
+            if (Array.isArray(val) && val.length > 0 && val[0]?.id !== undefined) {
+              cats = val as VendusCategory[];
+              break;
+            }
+          }
+        }
+      }
+      for (const vc of cats) {
+        const catName = vc.title || vc.name;
+        if (catName) vendusCategoryMap.set(Number(vc.id), catName);
+      }
+      console.info(`[Vendus] Loaded ${vendusCategoryMap.size} categories for sync`);
+    } catch (catErr) {
+      console.error("[Vendus] Failed to fetch categories for sync:", catErr);
     }
 
     // Fetch local categories for name matching and default fallback
@@ -414,19 +432,19 @@ async function pullProductsFromVendus(
       const vendusCatName = vProduct.category_id
         ? (vendusCategoryMap.get(vProduct.category_id) ?? null)
         : null;
-      const serviceMode = vendusCatName
-        ? vendusCategoryToServiceMode(vendusCatName)
-        : "dine_in";
+      const serviceMode = vendusCategoryToServiceMode(vendusCatName);
 
       const key = productName.trim().toLowerCase();
       const existing = groupedByName.get(key);
 
       if (existing) {
-        if (!existing.serviceModes.includes(serviceMode)) {
-          existing.serviceModes.push(serviceMode);
+        if (serviceMode) {
+          if (!existing.serviceModes.includes(serviceMode)) {
+            existing.serviceModes.push(serviceMode);
+          }
+          existing.servicePrices[serviceMode] = price;
+          existing.vendusIdsByMode[serviceMode] = vid;
         }
-        existing.servicePrices[serviceMode] = price;
-        existing.vendusIdsByMode[serviceMode] = vid;
         existing.basePrice = Math.min(existing.basePrice, price);
         if (isActive) existing.isActive = true;
         if (!existing.description && vProduct.description) {
@@ -447,9 +465,9 @@ async function pullProductsFromVendus(
           title: productName.trim(),
           description: vProduct.description ?? null,
           isActive: isActive,
-          serviceModes: [serviceMode],
-          servicePrices: { [serviceMode]: price },
-          vendusIdsByMode: { [serviceMode]: vid },
+          serviceModes: serviceMode ? [serviceMode] : [],
+          servicePrices: serviceMode ? { [serviceMode]: price } : {},
+          vendusIdsByMode: serviceMode ? { [serviceMode]: vid } : {},
           basePrice: price,
           primaryVendusId: vid,
           reference: vProduct.reference,
@@ -503,6 +521,10 @@ async function pullProductsFromVendus(
         for (let i = 0; i < mergedVids.length; i++) {
           existingById = byVendusId.get(mergedVids[i]);
           if (existingById) break;
+        }
+        // Fallback: check primary vendus_id (covers products with no service mode)
+        if (!existingById) {
+          existingById = byVendusId.get(vid);
         }
 
         if (existingById) {
@@ -685,6 +707,17 @@ async function pushProductsToVendus(
   result: SyncResult,
   options: PushProductsOptions = {},
 ): Promise<void> {
+  if (isVendusReadOnly()) {
+    console.warn("[Vendus] VENDUS_READONLY=true - push bloqueado ao nivel de servico");
+    result.warnings = result.warnings ?? [];
+    result.warnings.push({
+      id: "readonly_blocked",
+      type: "conflict_resolved",
+      message: "Push bloqueado: VENDUS_READONLY=true. Remova a variavel para permitir exportacao.",
+    });
+    return;
+  }
+
   const { productIds, pushAll = false } = options;
 
   console.info("[Vendus] Pushing products to Vendus...");
@@ -739,12 +772,26 @@ async function pushProductsToVendus(
     const rawCats = await client.get<
       VendusCategory[] | VendusCategoriesResponse
     >("/products/categories?per_page=500");
-    const cats = Array.isArray(rawCats)
-      ? rawCats
-      : rawCats.categories || rawCats.data || [];
+    let cats: VendusCategory[] = [];
+    if (Array.isArray(rawCats)) {
+      cats = rawCats;
+    } else if (rawCats && typeof rawCats === "object") {
+      const obj = rawCats as Record<string, unknown>;
+      cats = (obj.categories || obj.product_categories || obj.data || []) as VendusCategory[];
+      if (!Array.isArray(cats) || cats.length === 0) {
+        for (const val of Object.values(obj)) {
+          if (Array.isArray(val) && val.length > 0 && val[0]?.id !== undefined) {
+            cats = val as VendusCategory[];
+            break;
+          }
+        }
+      }
+    }
     for (const vc of cats) {
-      const mode = vendusCategoryToServiceMode(vc.name);
-      if (!serviceModeToVendusCategoryId.has(mode)) {
+      const catName = vc.title || vc.name;
+      if (!catName) continue;
+      const mode = vendusCategoryToServiceMode(catName);
+      if (mode && !serviceModeToVendusCategoryId.has(mode)) {
         serviceModeToVendusCategoryId.set(mode, vc.id);
       }
     }

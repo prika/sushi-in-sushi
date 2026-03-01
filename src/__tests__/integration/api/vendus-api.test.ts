@@ -70,6 +70,7 @@ vi.mock('@/lib/vendus', () => ({
   getInvoices: (...args: unknown[]) => mockGetInvoices(...args),
   voidInvoice: (...args: unknown[]) => mockVoidInvoice(...args),
   getInvoicePdf: (...args: unknown[]) => mockGetInvoicePdf(...args),
+  isVendusReadOnly: () => false,
 }));
 
 // ─── Route handler imports ───────────────────────────────────────────────────
