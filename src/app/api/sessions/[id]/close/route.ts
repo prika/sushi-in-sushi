@@ -139,7 +139,7 @@ export async function POST(
             }
           }
         }
-        const allCustomerIds = [...resolvedCustomerIds.values()];
+        const allCustomerIds = Array.from(resolvedCustomerIds.values());
 
         // Transfer data for each session_customer
         for (const sc of sessionCustomers) {
