@@ -1,0 +1,213 @@
+// ============================================================
+// SUSHI IN SUSHI — Admin & Configuration
+// Restaurants → Locations → Closures → Settings → Metrics
+// ============================================================
+
+// ========================
+// MULTI-RESTAURANT CONFIG
+// ========================
+
+Table restaurants {
+  id uuid [pk]
+  name varchar(100) [not null]
+  slug varchar(50) [unique, not null]
+  address text [not null]
+  latitude decimal(10,8)
+  longitude decimal(11,8)
+  max_capacity integer [not null]
+  default_people_per_table integer [not null, default: 4]
+  // Automation flags
+  auto_table_assignment boolean [not null, default: false]
+  auto_reservations boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+  // Order cooldown
+  order_cooldown_minutes integer [not null, default: 0]
+  // Progressive registration prompts
+  show_upgrade_after_order boolean [not null, default: false]
+  show_upgrade_at_bill boolean [not null, default: false]
+  // Games config
+  games_enabled boolean [not null, default: false]
+  games_mode varchar(20) [default: 'selection', note: 'selection, random']
+  games_prize_type varchar(30) [default: 'none', note: 'none, discount_percentage, free_product, free_dinner']
+  games_prize_value text
+  games_prize_product_id uuid [note: 'FK -> products(id)']
+  games_min_rounds_for_prize integer [not null, default: 1]
+  games_questions_per_round integer [not null, default: 6]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+}
+
+Table locations {
+  id uuid [pk]
+  name varchar(100) [not null]
+  slug varchar(50) [unique, not null]
+  address text
+  phone varchar(20)
+  is_active boolean [default: true]
+  // Vendus POS config per location
+  vendus_store_id varchar(50)
+  vendus_register_id varchar(50)
+  vendus_enabled boolean [default: false]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+// ========================
+// CLOSURES & TIME OFF
+// ========================
+
+Table restaurant_closures {
+  id serial [pk]
+  closure_date date [not null]
+  location varchar(50) [note: 'circunvalacao, boavista, null=all locations']
+  reason text
+  is_recurring boolean [default: false]
+  recurring_day_of_week integer [note: '0=Sun, 6=Sat']
+  created_by uuid [note: 'FK -> staff(id)']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  indexes {
+    (closure_date, location) [unique]
+  }
+}
+
+// ========================
+// RESERVATION SETTINGS (Singleton)
+// ========================
+
+Table reservation_settings {
+  id integer [pk, default: 1, note: 'Singleton — always id=1']
+  day_before_reminder_enabled boolean [default: true]
+  day_before_reminder_hours integer [default: 24]
+  same_day_reminder_enabled boolean [default: true]
+  same_day_reminder_hours integer [default: 2]
+  rodizio_waste_policy_enabled boolean [default: true]
+  rodizio_waste_fee_per_piece decimal(10,2) [default: 2.50]
+  waiter_alert_minutes integer [default: 60]
+  updated_at timestamptz [default: `now()`]
+  updated_by uuid [note: 'FK -> staff(id)']
+}
+
+// ========================
+// RESERVATIONS
+// ========================
+
+Table tables {
+  id uuid [pk]
+  number integer [not null]
+  name varchar(100) [not null]
+  location varchar(50) [not null]
+  status varchar(20) [default: 'available']
+  is_active boolean [default: true]
+  created_at timestamptz [default: `now()`]
+}
+
+Table reservations {
+  id uuid [pk]
+  first_name varchar(100) [not null]
+  last_name varchar(100) [not null]
+  email varchar(255) [not null]
+  phone varchar(20) [not null]
+  reservation_date date [not null]
+  reservation_time time [not null]
+  party_size integer [not null]
+  location varchar(50) [not null]
+  table_id uuid [ref: > tables.id]
+  is_rodizio boolean [default: true]
+  special_requests text
+  occasion varchar(50)
+  status varchar(20) [default: 'pending', note: 'pending, confirmed, cancelled, completed, no_show']
+  confirmed_by uuid [note: 'FK -> staff(id)']
+  confirmed_at timestamptz
+  cancelled_at timestamptz
+  cancellation_reason text
+  session_id uuid [note: 'FK -> sessions(id) when seated']
+  seated_at timestamptz
+  marketing_consent boolean [default: false]
+  tables_assigned boolean [default: false]
+  // Email tracking
+  customer_email_id varchar(255)
+  customer_email_status varchar(50)
+  confirmation_email_id varchar(255)
+  confirmation_email_status varchar(50)
+  day_before_reminder_status varchar(50)
+  same_day_reminder_status varchar(50)
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table reservation_tables {
+  id uuid [pk]
+  reservation_id uuid [not null, ref: > reservations.id, note: 'Multi-table assignment']
+  table_id uuid [not null, ref: > tables.id]
+  is_primary boolean [not null, default: false]
+  assigned_by uuid [note: 'FK -> staff(id)']
+  assigned_at timestamptz [default: `now()`]
+
+  indexes {
+    (reservation_id, table_id) [unique]
+  }
+}
+
+Table email_events {
+  id uuid [pk]
+  reservation_id uuid [ref: > reservations.id]
+  email_id varchar(255) [not null]
+  event_type varchar(50) [not null, note: 'sent, delivered, opened, bounced, etc.']
+  email_type varchar(50) [note: 'confirmation, reminder, etc.']
+  recipient_email varchar(255)
+  raw_data jsonb
+  event_timestamp timestamptz
+  created_at timestamptz [default: `now()`]
+}
+
+// ========================
+// DAILY METRICS
+// ========================
+
+Table daily_metrics {
+  id serial [pk]
+  date date [not null]
+  location varchar(20) [not null]
+  total_sessions integer [default: 0]
+  rodizio_sessions integer [default: 0]
+  carta_sessions integer [default: 0]
+  total_covers integer [default: 0]
+  avg_time_to_first_order integer [note: 'seconds']
+  avg_session_duration integer [note: 'seconds']
+  total_revenue decimal(10,2) [default: 0]
+  avg_ticket decimal(10,2) [default: 0]
+  total_reservations integer [default: 0]
+  confirmed_reservations integer [default: 0]
+  cancelled_reservations integer [default: 0]
+  no_shows integer [default: 0]
+  walk_ins integer [default: 0]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  indexes {
+    (date, location) [unique]
+  }
+}
+
+// ========================
+// GAMES CONFIG
+// ========================
+
+Table game_questions {
+  id uuid [pk]
+  game_type varchar(20) [not null, note: 'tinder, quiz, preference']
+  question_text text [not null]
+  options jsonb
+  correct_answer_index smallint
+  option_a jsonb [note: 'For preference/tinder games']
+  option_b jsonb [note: 'For preference/tinder games']
+  category varchar(50)
+  difficulty smallint [default: 1, note: '1-3']
+  points integer [default: 10]
+  is_active boolean [default: true]
+  restaurant_id uuid [note: 'FK -> restaurants(id), null = global']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}

@@ -32,5 +32,5 @@
 
 | Local | Conteudo |
 |-------|----------|
-| `/supabase/migrations/` | Migracoes oficiais (001-053) |
+| `/supabase/migrations/` | Migracoes oficiais (001-058) |
 | `/supabase/scripts/` | Scripts de diagnostico, cleanup e utilidades ([README](../supabase/scripts/README.md)) |

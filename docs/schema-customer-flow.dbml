@@ -1,0 +1,216 @@
+// ============================================================
+// SUSHI IN SUSHI — Customer Flow Schema
+// Device → Session → Identification → Metrics
+// ============================================================
+
+// ========================
+// DEVICE RECOGNITION
+// ========================
+
+Table device_profiles {
+  device_id uuid [pk, note: 'Generated on first visit, stored in localStorage']
+  last_display_name varchar(100)
+  last_full_name varchar(200)
+  last_email varchar(255)
+  last_phone varchar(50)
+  last_birth_date date
+  last_preferred_contact varchar(20) [default: 'email', note: 'email, phone, none']
+  highest_tier smallint [not null, default: 1, note: '1=Session, 2=Basic, 3=Full, 4=Delivery']
+  linked_customer_id uuid [ref: > customers.id, note: 'Linked after full registration']
+  visit_count integer [not null, default: 1]
+  first_seen_at timestamptz [default: `now()`]
+  last_seen_at timestamptz [default: `now()`]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+// ========================
+// TABLE & SESSION START
+// ========================
+
+Table tables {
+  id uuid [pk]
+  number integer [not null]
+  name varchar(100) [not null]
+  location varchar(50) [not null, note: 'circunvalacao, boavista']
+  status varchar(20) [default: 'available', note: 'available, reserved, occupied, inactive']
+  is_active boolean [default: true]
+  current_session_id uuid
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table sessions {
+  id uuid [pk]
+  table_id uuid [not null, ref: > tables.id]
+  started_at timestamptz [default: `now()`]
+  closed_at timestamptz
+  is_rodizio boolean [default: false]
+  num_people integer [default: 1]
+  status varchar(20) [default: 'active', note: 'active, pending_payment, paid, closed']
+  total_amount decimal(10,2) [default: 0]
+  ordering_mode varchar(20) [default: 'client', note: 'client, waiter_only']
+  customer_nif varchar(20)
+  // Timing metrics
+  first_order_at timestamptz
+  last_order_at timestamptz
+  bill_requested_at timestamptz
+  time_to_first_order integer [note: 'seconds']
+  total_duration integer [note: 'seconds']
+  time_ordering integer [note: 'seconds']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+// ========================
+// CUSTOMER IDENTIFICATION (Progressive)
+// ========================
+
+Table session_customers {
+  id uuid [pk]
+  session_id uuid [not null, ref: > sessions.id, note: 'Which session this person joined']
+  display_name varchar(100) [not null, note: 'Tier 1: just a name']
+  full_name varchar(200) [note: 'Tier 2+']
+  email varchar(255) [note: 'Tier 2+']
+  phone varchar(50) [note: 'Tier 3+']
+  birth_date date [note: 'Tier 3+']
+  marketing_consent boolean [default: false]
+  preferred_contact varchar(20) [default: 'email', note: 'email, phone, none']
+  customer_id uuid [ref: > customers.id, note: 'Linked to loyalty program']
+  is_session_host boolean [default: false]
+  device_id uuid [note: 'Links to device_profiles for returning users']
+  tier smallint [not null, default: 1, note: '1=Session Only, 2=Basic, 3=Full, 4=Delivery']
+  // Verification
+  email_verified boolean [not null, default: false]
+  phone_verified boolean [not null, default: false]
+  verification_token text
+  verification_expires_at timestamptz
+  verification_type varchar(20) [note: 'email, phone']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table verification_logs {
+  id uuid [pk]
+  session_customer_id uuid [ref: > session_customers.id, note: 'Who requested verification']
+  customer_id uuid [ref: > customers.id]
+  verification_type varchar(20) [not null, note: 'email, phone']
+  contact_value text [not null, note: 'The email or phone being verified']
+  token text [not null]
+  expires_at timestamptz [not null]
+  status varchar(20) [not null, default: 'sent', note: 'sent, verified, expired, failed']
+  verified_at timestamptz
+  ip_address inet
+  user_agent text
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+// ========================
+// LOYALTY PROGRAM (Full Customers)
+// ========================
+
+Table customers {
+  id uuid [pk]
+  email varchar(255) [unique, not null]
+  name varchar(255) [not null]
+  phone varchar(20)
+  birth_date date
+  preferred_location varchar(50) [note: 'circunvalacao, boavista']
+  marketing_consent boolean [default: false]
+  // Metrics
+  points integer [default: 0]
+  total_spent decimal(10,2) [default: 0]
+  visit_count integer [default: 0]
+  // Status
+  is_active boolean [default: true]
+  email_verified boolean [not null, default: false]
+  phone_verified boolean [not null, default: false]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+// ========================
+// CUSTOMER ACTIONS IN SESSION
+// ========================
+
+Table orders {
+  id uuid [pk]
+  session_id uuid [not null, ref: > sessions.id]
+  product_id uuid [not null]
+  session_customer_id uuid [ref: > session_customers.id, note: 'Who placed this order']
+  quantity integer [default: 1]
+  unit_price decimal(10,2) [not null]
+  notes text
+  status varchar(20) [default: 'pending', note: 'pending, preparing, ready, delivered, cancelled']
+  created_at timestamptz [default: `now()`]
+  delivered_at timestamptz
+}
+
+Table product_ratings {
+  id uuid [pk]
+  session_id uuid [not null, ref: > sessions.id]
+  session_customer_id uuid [ref: > session_customers.id, note: 'Who rated']
+  product_id uuid [not null]
+  order_id uuid [ref: > orders.id]
+  rating smallint [not null, note: '1-5']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (session_id, session_customer_id, product_id) [unique]
+  }
+}
+
+Table waiter_calls {
+  id uuid [pk]
+  table_id uuid [not null, ref: > tables.id]
+  session_id uuid [ref: > sessions.id]
+  session_customer_id uuid [note: 'Who called']
+  call_type varchar(50) [default: 'assistance', note: 'assistance, bill, order, other']
+  message text
+  status varchar(20) [default: 'pending', note: 'pending, acknowledged, completed, cancelled']
+  location varchar(50) [not null]
+  created_at timestamptz [default: `now()`]
+}
+
+// ========================
+// GAMES (Customer Engagement)
+// ========================
+
+Table game_sessions {
+  id uuid [pk]
+  session_id uuid [not null, ref: > sessions.id]
+  game_type varchar(20) [note: 'tinder, quiz, preference']
+  status varchar(20) [default: 'active', note: 'active, completed, abandoned']
+  round_number integer [default: 1]
+  total_questions integer [default: 6]
+  started_at timestamptz [default: `now()`]
+  completed_at timestamptz
+  created_at timestamptz [default: `now()`]
+}
+
+Table game_answers {
+  id uuid [pk]
+  game_session_id uuid [not null, ref: > game_sessions.id]
+  session_customer_id uuid [ref: > session_customers.id, note: 'Who answered']
+  question_id uuid
+  game_type varchar(20) [not null]
+  answer jsonb [not null]
+  score_earned integer [default: 0]
+  answered_at timestamptz [default: `now()`]
+  product_id uuid
+}
+
+Table game_prizes {
+  id uuid [pk]
+  session_id uuid [not null, ref: > sessions.id]
+  game_session_id uuid [ref: > game_sessions.id]
+  session_customer_id uuid [ref: > session_customers.id, note: 'Who won']
+  display_name varchar(100) [not null]
+  prize_type varchar(30) [not null, note: 'discount_percentage, free_product, free_dinner']
+  prize_value text [not null]
+  total_score integer [default: 0]
+  redeemed boolean [default: false]
+  redeemed_at timestamptz
+  created_at timestamptz [default: `now()`]
+}

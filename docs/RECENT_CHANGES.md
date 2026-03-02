@@ -1,5 +1,300 @@
 # Alterações Recentes - Sushi in Sushi
 
+## 📅 Data: 2026-03-01 (Atualização 2)
+
+### 🎯 Funcionalidades Implementadas
+
+#### 1. **Reserva → Cliente Automático (Visit Tracking)** ✅
+
+**Arquivos criados:**
+- `/supabase/migrations/075_reservation_customer_id.sql` — FK `customer_id` em reservations
+
+**Arquivos modificados:**
+- `/src/domain/entities/Reservation.ts` — campo `customerId: string | null`
+- `/src/infrastructure/repositories/SupabaseReservationRepository.ts` — mapeamento `customer_id` ↔ `customerId`
+- `/src/app/api/reservations/route.ts` — POST: após upsert customer, guarda `customer_id` na reserva
+- `/src/app/api/reservations/[id]/route.ts` — PATCH: ao completar reserva, chama `RecordCustomerVisitUseCase`
+- `/src/app/api/reservation-cancel/[id]/route.ts` — mapeamento legacy atualizado
+- `/src/types/database.ts` — `customer_id` em Row/Insert/Update
+- `/src/types/supabase.ts` — `customer_id` em Row/Insert/Update
+
+**O que faz:**
+- Quando o cliente faz uma reserva, é criado/atualizado na tabela `customers` e o `customer_id` é guardado na reserva
+- Quando a reserva é marcada como "completed" (cliente sentou-se), `RecordCustomerVisitUseCase` incrementa `visit_count`
+- Isto provoca a progressão automática de tier: Tier 2 (Identificado) → Tier 3 (Cliente)
+- `spent=0` no momento de sentar — o `totalSpent` será atualizado quando a sessão fechar (futuro)
+- Fallback: se `customer_id` não existir na reserva, procura cliente por email
+
+**Fluxo:**
+```
+POST /api/reservations  → upsert customer + customer_id na reserva → Tier 2
+PATCH status=completed  → RecordCustomerVisitUseCase → visitCount++ → Tier 3
+```
+
+---
+
+#### 2. **Session Customers no Admin Clientes** ✅
+
+**Arquivos criados:**
+- `/src/app/api/admin/session-customers/route.ts` — Lista com stats de jogos, paginação e pesquisa
+- `/src/app/api/admin/session-customers/[id]/route.ts` — Detalhe com game answers, prizes e orders
+
+**Arquivos modificados:**
+- `/src/app/admin/clientes/page.tsx` — Tabs "Fidelizados" + "Sessão", painel lateral com detalhes
+
+**O que faz:**
+- Tab "Sessão" mostra todos os `session_customers` (utilizadores de mesa via QR code)
+- Tabela: Nome | Patamar | Mesa | Jogos | Score | Prémios | Data
+- Stats: Total, Com Email, Com Jogos, Prémios
+- Painel lateral com histórico de jogos, prémios e pedidos
+- Tier computado dinamicamente via `computeCustomerTier()` (não usa valor guardado)
+- Paginação para > 200 registos
+
+---
+
+#### 3. **Revisão de Lógica de Tiers** ✅
+
+**Arquivos modificados:**
+- `/src/domain/value-objects/CustomerTier.ts` — Tier 3 agora requer contacto **e** visitas
+- `/src/domain/services/CustomerTierService.ts` — `getMissingFieldsForNextTier` atualizado
+- `/src/__tests__/domain/services/CustomerTierService.test.ts` — 30 testes
+- `/src/__tests__/application/use-cases/session-customers/SessionCustomersUseCases.test.ts` — corrigido para novo tier
+- `/src/__tests__/application/use-cases/device-profiles/DeviceProfilesUseCases.test.ts` — corrigido para novo tier
+
+**Alteração principal:**
+- **Antes:** Tier 3 = (email **e** phone) **ou** visitas
+- **Depois:** Tier 3 = (email **ou** phone) **e** >= 1 visita concluída
+- Ter email+phone sem visitas agora resulta em Tier 2, não Tier 3
+
+---
+
+### 🗄️ Migrações de Base de Dados
+
+#### Migration 075: `reservation_customer_id`
+- `ALTER TABLE reservations ADD COLUMN customer_id UUID REFERENCES customers(id)`
+- `CREATE INDEX idx_reservations_customer_id ON reservations(customer_id)`
+- Status: Pendente aplicação via SQL Editor
+
+---
+
+## 📅 Data: 2026-03-01
+
+### 🎯 Funcionalidades Implementadas
+
+#### 1. **Sistema de Tiers de Clientes (Comportamental)** ✅
+
+**Arquivos criados/modificados:**
+- `/src/domain/value-objects/CustomerTier.ts` — 5 tiers com critérios comportamentais
+- `/src/domain/services/CustomerTierService.ts` — Insights comportamentais + computação de tier
+- `/src/app/admin/clientes/page.tsx` — Badges de tier, dots de completude de perfil
+- `/src/app/admin/clientes/[id]/page.tsx` — Secções "Dados recolhidos" e "Perfil comportamental"
+- `/src/app/api/customers/[id]/history/route.ts` — Stats comportamentais na API
+- `/src/__tests__/domain/services/CustomerTierService.test.ts` — 25 testes
+
+**O que faz:**
+- Tier 1 (Novo): sem email nem phone (só dados estatísticos)
+- Tier 2 (Identificado): tem email **ou** phone
+- Tier 3 (Cliente): tem email ou phone **e** >= 1 visita concluída
+- Tier 4 (Regular): perfil completo (email+phone+birthDate) **e** >= 3 visitas
+- Tier 5 (VIP): perfil completo **e** >= 10 visitas **e** >= 500€ gasto
+- Insights: reserva frequente, no-show, grupos grandes, alto valor, cliente fiável
+- Cores por tier (cinza, azul, âmbar, esmeralda, roxo)
+
+---
+
+#### 2. **Emails de Reserva — Auto-confirmação + Lembretes na UI** ✅
+
+**Arquivos modificados:**
+- `/src/lib/email/index.ts` — Nova `sendRestaurantNotificationEmail()` separada
+- `/src/app/api/reservations/route.ts` — Auto-reserva envia "Reserva Confirmada" (não "recebemos o pedido")
+- `/src/app/admin/reservas/page.tsx` — Secção de emails redesenhada com 4 tipos
+
+**O que faz:**
+- **Auto-confirmação:** quando `auto_reservations` está ativo, envia email "Reserva Confirmada" diretamente
+- **Fluxo manual:** envia "Recebemos o seu pedido" → admin confirma → "Reserva Confirmada"
+- **UI admin mostra 4 emails:** Receção do pedido, Confirmação (auto/manual), Lembrete 24h, Lembrete 2h
+- Badge "Auto" verde distingue confirmação automática de manual
+- Cada email mostra estado: Enviado/Entregue/Lido/Rejeitado com timestamps
+
+---
+
+#### 3. **Cron de Lembretes — Horários Atualizados** ✅
+
+**Arquivos modificados:**
+- `/vercel.json` — Cron alterado de `0 8-21 * * *` para `0 8,16 * * *`
+
+**O que faz:**
+- Lembretes enviados às 8h (manhã, para reservas do dia) e 16h (tarde, para jantares)
+- Anteriormente: corria a cada hora das 8h às 21h
+
+---
+
+#### 4. **Segurança — RLS de Cancel Tokens** ✅
+
+**Arquivos criados:**
+- `/supabase/migrations/072_lock_cancel_tokens_rls.sql`
+
+**O que faz:**
+- Removeu política RLS permissiva (`FOR ALL USING (true)`) da tabela `reservation_cancel_tokens`
+- Revogou privilégios de `anon` e `authenticated`
+- API routes usam `createAdminClient()` (service role) que bypassa RLS
+
+---
+
+#### 5. **Correções de Email Templates** ✅
+
+**Arquivos modificados:**
+- `/src/lib/email/templates.ts` — Texto do lembrete 2h corrigido, link de cancelamento removido do farewell
+- `/src/app/[locale]/cancelar-reserva/page.tsx` — Fix memory leak no timer de cooldown (useEffect)
+
+---
+
+#### 6. **E2E Tests — Melhorias** ✅
+
+**Arquivos modificados:**
+- `/e2e/reservation-flow.spec.ts` — Email de teste (`example.com`), assertion corrigida
+
+---
+
+### 🗄️ Migrações de Base de Dados
+
+#### Migration 072: `lock_cancel_tokens_rls`
+- Drop policy `cancel_tokens_all` (acesso irrestrito)
+- Revoke ALL de anon e authenticated
+- Status: Pendente aplicação via SQL Editor
+
+---
+
+## 📅 Data: 2026-02-23
+
+### 🎯 Funcionalidades Implementadas
+
+#### 1. **Alerta de Reservas para Empregados + Atribuição de Mesas** ✅
+
+**Contexto:**
+Quando uma reserva confirmada se aproxima, o empregado de mesa é alertado para preparar mesas. O empregado seleciona uma mesa principal (numero da reserva) e mesas adicionais que ficam em modo "reservado" para junção física.
+
+**Arquivos criados:**
+- `/supabase/migrations/058_reservation_table_assignment.sql`
+
+**Arquivos modificados:**
+- `/src/domain/entities/ReservationSettings.ts` — campo `waiterAlertMinutes`
+- `/src/infrastructure/repositories/SupabaseReservationSettingsRepository.ts` — mapeamento DB `waiter_alert_minutes`
+- `/src/app/api/reservation-settings/route.ts` — GET/PATCH com novo campo
+- `/src/app/admin/definicoes/page.tsx` — card "Alerta para Empregados" no NotificationsTab
+- `/src/app/waiter/page.tsx` — secção "Reservas Proximas" + modal de atribuição de mesas
+
+**O que faz:**
+- Setting configurável no admin: minutos de antecedência para alertar (default: 60min, range: 15-180)
+- Waiter dashboard mostra reservas confirmadas de hoje que estão dentro da janela de alerta
+- Secção roxa "Reservas Proximas" entre "Prontos para Servir" e "Chamadas de Clientes"
+- Cada reserva mostra: nome, pessoas, hora, countdown, tipo (Rodízio/À Carta), notas especiais
+- Botão "Atribuir Mesa" abre modal com grelha de todas as mesas da localização
+- Modal de atribuição: 1º clique = mesa principal (dourado), cliques seguintes = mesas adicionais (azul)
+- Mesas ocupadas/inativas ficam desabilitadas
+- Ao confirmar: insere `reservation_tables`, marca mesas como "reserved", atualiza `tables_assigned = true`
+- Real-time subscription na tabela `reservations` para updates automáticos
+
+**Testes:** ❌ Não há testes automatizados (funcionalidade visual + DB)
+
+---
+
+#### 2. **Vendus Invoice — Suporte Multi-Modo** ✅
+
+**Arquivos modificados:**
+- `/src/lib/vendus/invoices.ts` (linhas 54-118)
+
+**O que faz:**
+- Faturas agora resolvem o `vendus_id` correto por modo de serviço (dine_in, delivery, takeaway)
+- Usa `vendus_ids` JSONB (migração 053) em vez do legado `vendus_id`
+- Cadeia de fallback: `vendus_ids[orderingMode]` → `vendus_id` → `product_id`
+- Campo `ordering_mode` lido da sessão (default: `dine_in`)
+
+---
+
+#### 3. **"Encerrar Mesa" vs "Pedir Conta"** ✅
+
+**Arquivos modificados:**
+- `/src/app/waiter/mesa/[id]/page.tsx`
+
+**O que faz:**
+- Se não há pedidos na mesa: botão "Encerrar Mesa" (fecho direto com `close_session_and_free_table`)
+- Se há pedidos: botão "Pedir Conta" (abre modal de faturação)
+- Diálogo de confirmação antes de encerrar mesa sem pedidos
+
+---
+
+#### 4. **Reestruturação do Dashboard do Waiter** ✅
+
+**Arquivos modificados:**
+- `/src/app/waiter/page.tsx`
+
+**O que faz:**
+- Nova ordem: Stats → Prontos para Servir → Reservas Proximas → Chamadas → Tabs (Ativas/Disponíveis) → Cozinha
+- Tabs "Mesas Ativas" / "Disponíveis" para melhor organização
+- Mesas ativas mostram badge "Conta" para `pending_payment`
+- Pedidos na cozinha movidos para o fundo da página
+
+---
+
+#### 5. **Notificações Desaparecem ao Concluir** ✅
+
+**Arquivos modificados:**
+- `/src/app/waiter/page.tsx`
+- `/src/app/waiter/mesa/[id]/page.tsx`
+
+**O que faz:**
+- `handleCompleteCall` remove a chamada do estado local imediatamente após sucesso no DB
+- `handleAcknowledgeCall` atualiza o estado local para "acknowledged" sem esperar refetch
+- Polling de 15s como fallback caso Realtime não esteja ativo
+
+---
+
+### 🗄️ Migrações de Base de Dados
+
+#### Migration 058: `reservation_table_assignment`
+**Arquivo:** `/supabase/migrations/058_reservation_table_assignment.sql`
+
+**Alterações:**
+1. **`reservation_settings.waiter_alert_minutes`** — INTEGER DEFAULT 60, minutos de antecedência para alerta
+2. **Tabela `reservation_tables`** — Junção reserva → múltiplas mesas
+   - `reservation_id` (FK → reservations)
+   - `table_id` (FK → tables)
+   - `is_primary` (BOOLEAN) — mesa principal da reserva
+   - `assigned_by` (FK → staff)
+   - `assigned_at` (TIMESTAMPTZ)
+   - UNIQUE(reservation_id, table_id)
+3. **`reservations.tables_assigned`** — BOOLEAN DEFAULT false, flag de filtragem rápida
+4. **Indexes:** `idx_reservation_tables_reservation`, `idx_reservation_tables_table`, `idx_reservations_unassigned` (partial)
+5. **RLS:** Políticas SELECT, INSERT, DELETE habilitadas
+6. **Grants:** anon + authenticated
+
+**Status:** ⚠️ Pendente aplicação via Supabase Dashboard SQL Editor
+
+---
+
+### ⚠️ Problemas Identificados e Resolvidos
+
+#### Problema: Chamadas de clientes não desaparecem ao concluir
+**Causa:** `handleCompleteCall` atualizava DB mas não o estado React local
+**Solução:** `setWaiterCalls(prev => prev.filter(c => c.id !== callId))` imediato ✅
+
+#### Problema: Vendus fatura com vendus_id errado para produtos multi-modo
+**Causa:** Código usava `vendus_id` singular, ignorando `vendus_ids` JSONB por modo
+**Solução:** Fallback chain `vendus_ids[orderingMode] || vendus_id || product_id` ✅
+
+---
+
+### 📈 Impacto
+- **UX Waiter:** Dashboard reestruturado, alertas de reservas proativos
+- **Operações:** Atribuição de mesas para reservas com junção de mesas
+- **Faturação:** Vendus IDs corretos por modo de serviço
+- **Performance:** Sem impacto negativo, real-time + polling fallback
+
+---
+
+---
+
 ## 📅 Data: 2026-02-13
 
 ### 🎯 Funcionalidades Implementadas

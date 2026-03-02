@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useActivityLog - Hook para logging de atividades
@@ -7,8 +7,8 @@
  * de logging de atividades.
  */
 
-import { useCallback } from 'react';
-import { useDependencies } from '../contexts/DependencyContext';
+import { useCallback } from "react";
+import { useDependencies } from "../contexts/DependencyContext";
 
 /**
  * Resultado do hook
@@ -18,10 +18,10 @@ export interface UseActivityLogResult {
    * Regista uma atividade
    */
   logActivity: (
-    action: string,
-    entityType?: string,
-    entityId?: string,
-    details?: Record<string, unknown>
+    _action: string,
+    _entityType?: string,
+    _entityId?: string,
+    _details?: Record<string, unknown>,
   ) => Promise<void>;
 }
 
@@ -36,16 +36,16 @@ export function useActivityLog(): UseActivityLogResult {
       action: string,
       entityType?: string,
       entityId?: string,
-      details?: Record<string, unknown>
+      details?: Record<string, unknown>,
     ) => {
       await activityLogger.log({
         action,
-        entityType: entityType || 'unknown',
+        entityType: entityType || "unknown",
         entityId,
         details,
       });
     },
-    [activityLogger]
+    [activityLogger],
   );
 
   return { logActivity };

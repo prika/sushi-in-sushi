@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { SupabaseRestaurantRepository } from '@/infrastructure/repositories/SupabaseRestaurantRepository';
-import { Restaurant } from '@/domain/entities/Restaurant';
-import { GetActiveRestaurantsUseCase } from '@/application/use-cases/restaurants';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { SupabaseRestaurantRepository } from "@/infrastructure/repositories/SupabaseRestaurantRepository";
+import { Restaurant } from "@/domain/entities/Restaurant";
+import { GetActiveRestaurantsUseCase } from "@/application/use-cases/restaurants";
 
 export interface UseLocationsResult {
   locations: Restaurant[];
@@ -37,7 +37,9 @@ export function useLocations(): UseLocationsResult {
         setError(result.error);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar localizações');
+      setError(
+        err instanceof Error ? err.message : "Erro ao carregar localizações",
+      );
     } finally {
       setIsLoading(false);
     }

@@ -357,7 +357,7 @@ describe('SessionService', () => {
         createTestOrder({ sessionId: 'session-1', quantity: 2, unitPrice: 10.0, status: 'delivered' }), // 20
         createTestOrder({ sessionId: 'session-1', quantity: 1, unitPrice: 15.0, status: 'pending' }), // 15
       ];
-      const now = new Date('2024-01-01T12:30:00Z');
+      const _now = new Date('2024-01-01T12:30:00Z');
 
       const stats = SessionService.getStats(session, orders);
 

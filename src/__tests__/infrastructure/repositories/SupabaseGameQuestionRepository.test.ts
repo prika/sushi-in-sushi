@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SupabaseGameQuestionRepository } from '@/infrastructure/repositories/SupabaseGameQuestionRepository';
-import type { CreateGameQuestionData, UpdateGameQuestionData } from '@/domain/entities/GameQuestion';
+import type { CreateGameQuestionData } from '@/domain/entities/GameQuestion';
 
 /**
  * Tests for SupabaseGameQuestionRepository
@@ -53,8 +53,8 @@ function createMockSupabaseClient() {
       builder[method] = vi.fn(() => builder);
     });
 
-    builder.then = (onFulfilled: (value: any) => any) => Promise.resolve(result).then(onFulfilled);
-    builder.catch = (onRejected: (reason: any) => any) => Promise.resolve(result).catch(onRejected);
+    builder.then = (onFulfilled: (_value: any) => any) => Promise.resolve(result).then(onFulfilled);
+    builder.catch = (onRejected: (_reason: any) => any) => Promise.resolve(result).catch(onRejected);
 
     builder.mockResolvedValue = (value: any) => {
       result = value;

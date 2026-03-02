@@ -14,7 +14,16 @@ export function createClient() {
   if (!browserClient) {
     browserClient = createBrowserClient<Database>(
       getSupabaseUrl(),
-      getSupabaseAnonKey()
+      getSupabaseAnonKey(),
+      {
+        auth: {
+          flowType: "pkce",
+          lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => {
+            // Skip Navigator LockManager to avoid timeout issues
+            return fn();
+          },
+        } as any,
+      }
     );
   }
   return browserClient;

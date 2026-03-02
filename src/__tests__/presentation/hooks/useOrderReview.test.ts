@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useOrderReview, UseOrderReviewOptions } from '@/presentation/hooks/useOrderReview';
+import { useOrderReview } from '@/presentation/hooks/useOrderReview';
 import { CartItem } from '@/domain/entities/CartItem';
 import type { Product } from '@/domain/entities/Product';
 

@@ -29,7 +29,7 @@ interface SwipeRatingGameProps {
   totalRatingsAtTable: number;
   onClose: () => void;
   onRated: () => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: (_key: string, _params?: Record<string, string | number>) => string;
 }
 
 export function SwipeRatingGame({
@@ -37,10 +37,8 @@ export function SwipeRatingGame({
   sessionCustomerId,
   gameSessionId,
   orderItems,
-  tableLeader,
   leaderProductName,
   userRatingCount,
-  totalRatingsAtTable,
   onClose,
   onRated,
   t,
@@ -65,7 +63,7 @@ export function SwipeRatingGame({
 
   useEffect(() => {
     return () => {
-      if (lastScoreTimeoutRef.current != null) {
+      if (lastScoreTimeoutRef.current !== null) {
         clearTimeout(lastScoreTimeoutRef.current);
         lastScoreTimeoutRef.current = null;
       }
@@ -98,7 +96,7 @@ export function SwipeRatingGame({
           setLastScore(earned);
           setTotalScore((prev) => prev + earned);
           // Clear score display after 1s; cancel any previous timer and avoid setState on unmount
-          if (lastScoreTimeoutRef.current != null) {
+          if (lastScoreTimeoutRef.current !== null) {
             clearTimeout(lastScoreTimeoutRef.current);
           }
           lastScoreTimeoutRef.current = setTimeout(() => {
@@ -269,7 +267,7 @@ export function SwipeRatingGame({
 
         {/* Floating score indicator */}
         <AnimatePresence>
-          {lastScore != null && (
+          {lastScore !== null && (
             <motion.div
               key={`score-${currentIndex}`}
               initial={{ opacity: 0, y: 20, scale: 0.8 }}

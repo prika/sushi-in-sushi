@@ -161,7 +161,7 @@ describe('POST /api/tables/[id]/assign-waiter', () => {
 
     it('permite admin sem verificação de localização', () => {
       const staff = createTestStaff({ role: 'admin', location: 'circunvalacao' });
-      const table = createTestTable({ location: 'boavista' });
+      const _table = createTestTable({ location: 'boavista' });
       const isAdmin = staff.role === 'admin';
 
       // Admin can assign any table regardless of location
@@ -226,7 +226,7 @@ describe('POST /api/tables/[id]/assign-waiter', () => {
 
     it('não permite waiter substituir atribuição de outro waiter', () => {
       const staff = createTestStaff({ role: 'waiter' });
-      const otherAssignment = { id: 'assignment-2', staff: { name: 'Maria' } };
+      const _otherAssignment = { id: 'assignment-2', staff: { name: 'Maria' } };
       const canOverride = staff.role === 'admin';
 
       expect(canOverride).toBe(false);
@@ -255,7 +255,7 @@ describe('POST /api/tables/[id]/assign-waiter', () => {
 
     it('retorna mensagem de sucesso personalizada', () => {
       const table = createTestTable({ number: 5 });
-      const staff = createTestStaff({ name: 'João Silva' });
+      const _staff = createTestStaff({ name: 'João Silva' });
       const message = `Mesa #${table.number} comandada com sucesso!`;
 
       expect(message).toContain('Mesa #5');

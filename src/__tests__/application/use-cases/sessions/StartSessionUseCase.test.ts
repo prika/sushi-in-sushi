@@ -149,6 +149,10 @@ describe("StartSessionUseCase", () => {
         currentSessionId: "existing-session",
       });
       vi.mocked(mockTableRepository.findById).mockResolvedValue(table);
+      // Sessão ativa existe — não é stale
+      vi.mocked(mockSessionRepository.findById).mockResolvedValue(
+        createTestSession({ id: "existing-session", status: "active" })
+      );
 
       const result = await useCase.execute({
         tableId: "table-1",
@@ -294,7 +298,7 @@ describe("StartSessionUseCase", () => {
 
       // Even though autoAssign throws, the session result catches it in the outer try/catch
       // and returns UNKNOWN_ERROR - but the session was already created
-      const result = await useCaseWithAutoAssign.execute({
+      const _result = await useCaseWithAutoAssign.execute({
         tableId: "table-1",
         isRodizio: false,
         numPeople: 2,

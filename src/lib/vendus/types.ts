@@ -227,6 +227,8 @@ export interface SyncResult {
   warnings?: SyncWarning[];
   /** Preview of planned changes when previewOnly=true */
   preview?: SyncPreview;
+  /** ID of the sync log entry (for revert) */
+  syncLogId?: number;
 }
 
 /** Aviso não fatal (ex: conflito resolvido automaticamente) */

@@ -14,18 +14,17 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 
 ## 🎉 Estado Atual do Projeto
 
-### Última Atualização: 2026-02-13
+### Última Atualização: 2026-03-01
 
 **Alterações Recentes:**
-- ✅ **Nomes de Waiter no Admin** - Exibição de waiter atribuído em mapas de mesa
-- ✅ **Funcionalidade "Sair da Mesa"** - Clientes podem sair quando não consumiram nada
-- ✅ **Status Uniformizado** - Status calculado dinamicamente baseado em sessões
-- ✅ **Correções no Painel do Waiter**:
-  - Busca sessões `pending_payment` (conta pedida)
-  - Filtra mesas de outros waiters corretamente
-  - Fix autenticação API (legada vs Supabase Auth)
-- ✅ **Migration 043** - Função `close_session_and_free_table` para atomicidade
-- ✅ **Scripts SQL consolidados** - Diagnóstico e correção de inconsistências
+- ✅ **Sistema de Customer Tiers** - 5 tiers progressivos (Novo→Identificado→Cliente→Regular→VIP) com critérios comportamentais
+- ✅ **Reserva → Cliente Automático** - Reserva cria customer (Tier 2), visita concluída incrementa visitCount (→ Tier 3)
+- ✅ **Migration 075** - `reservations.customer_id` FK para `customers`, ligação bidirecional reserva↔cliente
+- ✅ **Session Customers no Admin** - Tab "Sessão" em `/admin/clientes` com dados de jogos, scores e prémios
+- ✅ **Alerta de Reservas para Empregados** - Waiter alertado X min antes de reservas confirmadas (configurável no admin, default 60min)
+- ✅ **Atribuição de Mesas para Reservas** - Modal com grelha de mesas: principal (dourado) + adicionais (azul, modo reservado)
+- ✅ **Vendus Invoice Multi-Modo** - Faturas usam `vendus_ids[orderingMode]` correto por modo de serviço
+- ✅ **Dashboard Waiter Reestruturado** - Tabs Ativas/Disponíveis, reservas próximas, chamadas desaparecem ao concluir
 
 Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 
@@ -37,18 +36,19 @@ Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 - ✅ **12 entidades** de domínio completas (incluindo Restaurant)
 - ✅ **13 repositórios** (interfaces + implementações Supabase)
 - ✅ **55+ use cases** totalmente testados
-- ✅ **3 domain services** com lógica de negócio isolada
+- ✅ **4 domain services** com lógica de negócio isolada
 - ✅ **Dependency Injection** via DependencyContext
 - ✅ **Result Pattern** para tratamento de erros tipado
 
 ### 📊 Cobertura de Testes - Exemplar
 
-**598 testes passando** (+61 novos testes desde última revisão):
+**3006 testes passando**:
 - ✅ **Use Cases:** 100% testados (55+ use cases)
-- ✅ **Domain Services:** 100% testados (118 tests)
+- ✅ **Domain Services:** 100% testados (148 tests)
   - OrderService (44 tests)
   - SessionService (34 tests)
   - TableService (40 tests)
+  - CustomerTierService (30 tests)
 - ✅ **Infrastructure:** Padrão estabelecido (61 tests)
   - SupabaseRestaurantClosureRepository
   - SupabaseStaffTimeOffRepository
@@ -107,8 +107,7 @@ Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 ### 📈 Próximos Passos Recomendados
 
 1. **Performance Optimization** - React Query + cache + paginação
-2. **Security** - Implementar bcrypt para passwords
-3. **E2E Tests** - Playwright para fluxos críticos
+2. **E2E Tests** - Playwright para fluxos críticos
 
 ## Stack Tecnológica
 
@@ -203,12 +202,14 @@ npx supabase db reset
 - `products` - Items do menu
 - `sessions` - Sessões de mesa (refeições)
 - `orders` - Pedidos individuais
-- `reservations` - Reservas
-- `customers` - Programa de fidelização
+- `reservations` - Reservas (`customer_id` FK → customers para tracking de visitas)
+- `customers` - Programa de fidelização (tier calculado dinamicamente via `computeCustomerTier`)
 - `waiter_tables` - Atribuições empregado-mesa (**UUID types:** staff_id é UUID, não integer)
 - `waiter_calls` - Chamadas de assistência
 - `restaurant_closures` - Dias de fecho do restaurante
 - `staff_time_off` - Férias e folgas dos funcionários
+- `reservation_tables` - Junção reserva→mesas (principal + adicionais para junção física)
+- `reservation_settings` - Configurações de reservas (lembretes, desperdício, alerta waiter)
 
 ### SQL Scripts de Utilidade
 Scripts em `supabase/scripts/`:
@@ -339,11 +340,13 @@ O projeto segue **Clean Architecture** com separação rigorosa de responsabilid
 **Value Objects** (`/domain/value-objects/`):
 - `OrderStatus`, `SessionStatus`, `TableStatus`, `ReservationStatus`
 - `Location` (circunvalacao | boavista)
+- `CustomerTier` - Tiers 1-5 com labels, cores e lógica de computação
 
 **Domain Services** (`/domain/services/`):
 - `OrderService` - Cálculo de urgência, validação de status
 - `SessionService` - Regras de transição de estados
 - `TableService` - Validação de disponibilidade
+- `CustomerTierService` - Computação de tier, insights comportamentais, upgrade prompts
 
 ---
 
@@ -410,7 +413,7 @@ type Result<T> = SuccessResult<T> | ErrorResult;
 // Uso:
 const result = await useCase.execute(input);
 if (result.success) {
-  console.log(result.data);
+  console.info(result.data);
 } else {
   console.error(result.error, result.code);
 }
@@ -562,7 +565,8 @@ src/__tests__/
 │   └── services/
 │       ├── OrderService.test.ts (44 tests)
 │       ├── SessionService.test.ts (34 tests)
-│       └── TableService.test.ts (40 tests)
+│       ├── TableService.test.ts (40 tests)
+│       └── CustomerTierService.test.ts (30 tests)
 ├── infrastructure/
 │   └── repositories/
 │       ├── SupabaseRestaurantClosureRepository.test.ts (19 tests)
@@ -575,9 +579,9 @@ src/__tests__/
         └── useStaffTimeOff.test.ts (12 tests)
 ```
 
-**Cobertura:** 537 testes passando
-- Use Cases: 100% testados (50+ use cases)
-- Domain Services: 100% testados (OrderService, SessionService, TableService)
+**Cobertura:** 3006 testes passando
+- Use Cases: 100% testados (55+ use cases)
+- Domain Services: 100% testados (OrderService, SessionService, TableService, CustomerTierService)
 - Repositories: Padrão estabelecido com infraestrutura testada
 - React Hooks: Padrão estabelecido (useActivityLog, useProducts, useStaffTimeOff)
 
@@ -685,6 +689,41 @@ O projeto usa Supabase Realtime para:
 - Notificações de chamadas de empregados
 - Tracking de participantes na sessão
 
+## Sistema de Emails de Reserva
+
+### Tipos de Email
+
+| Email | Template | Trigger | Tracking DB |
+|---|---|---|---|
+| Receção do pedido | `getCustomerConfirmationEmail()` | Criação (fluxo manual) | `customer_email_*` |
+| Reserva Confirmada | `getReservationConfirmedEmail()` | Admin confirma OU auto-reserva | `confirmation_email_*` |
+| Notificação Restaurante | `getRestaurantNotificationEmail()` | Criação (sempre) | — |
+| Lembrete 24h | `getDayBeforeReminderEmail()` | Cron 8h | `day_before_reminder_*` |
+| Lembrete 2h | `getSameDayReminderEmail()` | Cron 16h | `same_day_reminder_*` |
+| Cancelamento | `getCancellationEmail()` | Admin/cliente cancela | — |
+| Despedida | `getFarewellEmail()` | Não implementado | — |
+
+### Fluxo Auto vs Manual
+- **Auto-reserva** (`auto_reservations = true` no restaurante): reserva vai direto para `confirmed`, envia `sendReservationConfirmedEmail()` + `sendRestaurantNotificationEmail()` separado
+- **Manual**: envia `sendReservationEmails()` (cliente + restaurante), admin confirma depois → `sendReservationConfirmedEmail()`
+
+### Cron de Lembretes
+- **Vercel cron:** `0 8,16 * * *` (8h manhã + 16h tarde, UTC)
+- **Rota:** `GET /api/cron/reservation-reminders`
+- **Auth:** `CRON_SECRET` header (Bearer token)
+- **Settings:** `reservation_settings` (singleton id=1) — `day_before_reminder_enabled/hours`, `same_day_reminder_enabled/hours`
+
+### Tracking via Webhooks
+- Resend webhook: `/api/webhooks/resend`
+- Eventos: sent, delivered, opened, clicked, bounced, complained
+- Atualiza `*_status` e `*_at` na reserva + `email_events` audit table
+
+### Ficheiros Chave
+- `/src/lib/email/index.ts` — Funções de envio (sendReservationEmails, sendReservationConfirmedEmail, sendRestaurantNotificationEmail, sendDayBeforeReminderEmail, sendSameDayReminderEmail)
+- `/src/lib/email/templates.ts` — Templates HTML
+- `/src/app/api/cron/reservation-reminders/route.ts` — Cron job
+- `/src/app/api/webhooks/resend/route.ts` — Webhook tracking
+
 ## Variáveis de Ambiente
 
 Ficheiro `.env.local` requer:
@@ -693,6 +732,9 @@ Ficheiro `.env.local` requer:
 - `ADMIN_PASSWORD`, `COZINHA_PASSWORD`
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `RESEND_API_KEY`, `FROM_EMAIL`, `RESEND_WEBHOOK_SECRET`
+- `CRON_SECRET` — Autenticação do cron de lembretes
+- `TEST_EMAIL_OVERRIDE` — Redireciona todos os emails para este endereço (dev)
+- `RESTAURANT_EMAIL_1`, `RESTAURANT_EMAIL_2` — Emails por localização
 
 ## Gestão de Restaurantes (Multi-Localização)
 
@@ -738,6 +780,13 @@ As migrações estão em `/supabase/migrations/`:
 - `007_waiter_calls.sql` - Chamadas de empregados
 - `008_session_customers.sql` - Participantes na sessão
 - `009_waiter_calls_order_id.sql` - Relação chamadas-pedidos
+- `043_close_session_update_table.sql` - Função atómica `close_session_and_free_table`
+- `046-049` - Vendus POS integration (sync, products, invoices, retry queue)
+- `053_products_vendus_ids.sql` - `vendus_ids` JSONB multi-modo (dine_in, delivery, takeaway)
+- `055_ingredients_catalog.sql` - Catálogo de ingredientes e product-ingredients
+- `058_reservation_table_assignment.sql` - Atribuição de mesas a reservas, alerta waiter
+- `073_piece_limiter.sql` - Limitador de peças por sessão
+- `075_reservation_customer_id.sql` - FK `customer_id` em reservations → customers (visit tracking)
 
 ## Notas Importantes
 
@@ -754,3 +803,76 @@ As migrações estão em `/supabase/migrations/`:
 - DependencyContext deve usar `SupabaseOrderRepositoryOptimized`
 - Painel do waiter tem título "Painel da Mesa #{number}"
 - Uma única seção "Prontos para Servir" (não duplicar)
+
+### Waiter Dashboard Layout
+Ordem das secções no painel do waiter (`/waiter`):
+1. **Stats Bar** — mesas ativas / total, pessoas
+2. **Prontos para Servir** — green, pedidos prontos da cozinha
+3. **Reservas Proximas** — purple, reservas confirmadas dentro da janela de alerta
+4. **Chamadas de Clientes** — red/yellow, chamadas pendentes/acknowledged
+5. **Tabs: Mesas Ativas / Disponíveis** — gold tabs com grelha de mesas
+6. **Na Cozinha / Aguardam Cozinha** — bottom, menos proeminente
+
+### Reservation Table Assignment
+- **Setting:** `reservation_settings.waiter_alert_minutes` (default: 60, min: 15, max: 180)
+- **Admin:** `/admin/definicoes` → Notificações → card "Alerta para Empregados"
+- **Tabela:** `reservation_tables` (reservation_id, table_id, is_primary, assigned_by, assigned_at)
+- **Flag:** `reservations.tables_assigned` (false até waiter atribuir mesas)
+- **Fluxo waiter:** Vê alerta → clica "Atribuir Mesa" → seleciona principal (dourado) + adicionais (azul) → confirmar
+- **Resultado:** Mesas ficam com status "reserved", `reservation_tables` preenchida, alerta desaparece
+- **Sem pedidos na mesa:** Botão "Encerrar Mesa" (fecho direto) em vez de "Pedir Conta"
+
+### Vendus Invoice Multi-Mode
+- Produtos com preços diferentes por modo têm `vendus_ids` JSONB: `{"dine_in": "123", "delivery": "456"}`
+- Faturas resolvem: `vendus_ids[session.ordering_mode]` → `vendus_id` → `product_id`
+- Migration 053 adicionou a coluna e migrou dados existentes
+
+### Customer Tiers (Progressive Profiling)
+
+**5 tiers baseados em perfil + comportamento:**
+
+| Tier | Label | Critério |
+|------|-------|----------|
+| 1 | Novo | Sem email nem phone (só dados estatísticos) |
+| 2 | Identificado | Tem email **ou** phone |
+| 3 | Cliente | Tem email ou phone **e** >= 1 visita concluída |
+| 4 | Regular | Perfil completo (email+phone+birthDate) **e** >= 3 visitas |
+| 5 | VIP | Perfil completo **e** >= 10 visitas **e** >= 500€ gasto |
+
+**Ficheiros chave:**
+- `/src/domain/value-objects/CustomerTier.ts` — `computeCustomerTier()`, labels, cores
+- `/src/domain/services/CustomerTierService.ts` — `computeTier()`, `getMissingFieldsForNextTier()`, `computeInsights()`, `shouldShowUpgradePrompt()`
+- `/src/__tests__/domain/services/CustomerTierService.test.ts` — 30 testes
+
+**Cores por tier:** cinza (1), azul (2), âmbar (3), esmeralda (4), roxo (5)
+
+### Reservation → Customer Visit Tracking
+
+**Fluxo completo:**
+```
+1. Cliente faz reserva (POST /api/reservations)
+   → Customer upsert (email+phone) → Tier 2 (Identificado)
+   → reservations.customer_id = customer.id
+
+2. Admin confirma (PATCH status=confirmed)
+   → Email confirmação
+
+3. Cliente chega (PATCH status=completed + session_id)
+   → MarkReservationSeatedUseCase: status→completed, seated_at, session_id
+   → RecordCustomerVisitUseCase: visitCount++ → Tier 3 (Cliente)
+```
+
+**Ficheiros chave:**
+- `/src/app/api/reservations/route.ts` — POST: upsert customer + guarda `customer_id` na reserva
+- `/src/app/api/reservations/[id]/route.ts` — PATCH: ao completar, chama `RecordCustomerVisitUseCase`
+- `/src/application/use-cases/customers/RecordCustomerVisitUseCase.ts` — incrementa `visit_count` e `total_spent`
+- `/supabase/migrations/075_reservation_customer_id.sql` — `customer_id UUID REFERENCES customers(id)`
+
+### Admin Clientes — Tabs
+
+A página `/admin/clientes` tem duas tabs:
+- **Fidelizados** — Clientes da tabela `customers` (programa de fidelização, tiers, pontos)
+- **Sessão** — Clientes da tabela `session_customers` (utilizadores de mesa via QR code)
+  - Mostra dados de jogos: respostas, scores, prémios
+  - Tier computado dinamicamente via `computeCustomerTier()` (não usa tier guardado)
+  - APIs: `GET /api/admin/session-customers` (lista) e `GET /api/admin/session-customers/[id]` (detalhe)

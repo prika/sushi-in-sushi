@@ -11,3 +11,5 @@ export * from './CancelReservationUseCase';
 export * from './MarkReservationSeatedUseCase';
 export * from './MarkReservationNoShowUseCase';
 export * from './DeleteReservationUseCase';
+export * from './CustomerCancelReservationUseCase';
+export * from './GetUpcomingReservationsByEmailUseCase';

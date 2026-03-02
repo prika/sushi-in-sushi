@@ -4,16 +4,16 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { ReservationForm } from "./ReservationForm";
 
 export function Header() {
   const t = useTranslations("navigation");
+  const tA11y = useTranslations("accessibility");
+  const locale = useLocale();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showReservationModal, setShowReservationModal] = useState(false);
 
   const leftLinks = [
     { href: "/menu", label: t("menu") },
@@ -42,7 +42,12 @@ export function Header() {
           : "bg-transparent"
       )}
     >
-      <nav className="max-w-7xl mx-auto px-6 py-4">
+      {/* Skip navigation link */}
+      <a href="#main-content" className="skip-link">
+        {tA11y("skipToContent")}
+      </a>
+
+      <nav aria-label="Main" className="max-w-7xl mx-auto px-6 py-4">
         {/* Desktop Navigation */}
         <div className="hidden md:grid grid-cols-[1fr_auto_1fr] items-center">
           {/* Left Links */}
@@ -59,7 +64,7 @@ export function Header() {
           </div>
 
           {/* Center Logo */}
-          <a href="#" className="relative h-24 w-64">
+          <a href="/" aria-label="Sushi in Sushi — Home" className="relative h-24 w-64">
             <Image
               src="/logo.png"
               alt="Sushi in Sushi"
@@ -83,18 +88,18 @@ export function Header() {
               ))}
               <LanguageSwitcher />
             </div>
-            <button
-              onClick={() => setShowReservationModal(true)}
+            <a
+              href={`/${locale}/reservar`}
               className="px-6 py-2 border border-gold text-gold text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
             >
               {t("book")}
-            </button>
+            </a>
           </div>
         </div>
 
         {/* Mobile Navigation */}
         <div className="md:hidden flex items-center justify-between">
-          <a href="#" className="relative h-14 w-44">
+          <a href="/" aria-label="Sushi in Sushi — Home" className="relative h-14 w-44">
             <Image
               src="/logo.png"
               alt="Sushi in Sushi"
@@ -108,9 +113,10 @@ export function Header() {
             <button
               className="text-white p-2"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Toggle menu"
+              aria-expanded={isMobileMenuOpen}
+              aria-label={isMobileMenuOpen ? tA11y("closeMenu") : tA11y("openMenu")}
             >
-              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {isMobileMenuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
             </button>
           </div>
         </div>
@@ -136,47 +142,16 @@ export function Header() {
                   {link.label}
                 </a>
               ))}
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  setShowReservationModal(true);
-                }}
+              <a
+                href={`/${locale}/reservar`}
                 className="mt-4 px-6 py-3 border border-gold text-gold text-center text-sm font-medium tracking-wider uppercase hover:bg-gold hover:text-background transition-all duration-300"
               >
                 {t("book")}
-              </button>
+              </a>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Reservation Modal */}
-      {showReservationModal && (
-        <div
-          className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => setShowReservationModal(false)}
-        >
-          <div
-            className="bg-background border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto my-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-background flex items-center justify-between p-6 border-b border-white/10 z-10">
-              <h2 className="text-xl font-semibold text-white">
-                Reservar Mesa
-              </h2>
-              <button
-                onClick={() => setShowReservationModal(false)}
-                className="p-2 text-muted hover:text-white transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            <div className="p-6">
-              <ReservationForm />
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { SupabaseOrderRepository } from '@/infrastructure/repositories/SupabaseOrderRepository';
 import { createMockSupabaseClient, type MockSupabaseClient } from '@/__tests__/helpers/mock-supabase';
 
@@ -262,7 +262,7 @@ describe('SupabaseOrderRepository', () => {
       };
 
       // Main kitchen query returns orders
-      const builder = mockClient._newBuilder({ data: [kitchenRow], error: null });
+      const _builder = mockClient._newBuilder({ data: [kitchenRow], error: null });
 
       const result = await repository.findForKitchen();
 

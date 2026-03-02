@@ -10,11 +10,12 @@
 
 import { createAdminClient } from "@/lib/supabase/server";
 import { VendusClient, getVendusClient, VendusApiError } from "./client";
-import { getVendusConfig, VENDUS_TAX_RATES } from "./config";
+import { getVendusConfig, VENDUS_TAX_RATES, isVendusReadOnly } from "./config";
 // Types for reading Vendus categories (used in pull/push for category mapping)
 interface VendusCategory {
   id: string;
-  name: string;
+  title?: string;
+  name?: string;
 }
 
 interface VendusCategoriesResponse {
@@ -28,8 +29,6 @@ import type {
   ProductSyncOptions,
   SyncResult,
   SyncPreview,
-  SyncPreviewItem,
-  SyncPreviewConflict,
   SyncWarning,
 } from "./types";
 
@@ -38,12 +37,13 @@ import type {
 // =============================================
 
 /** Maps a Vendus category name to a service_mode value */
-function vendusCategoryToServiceMode(categoryName: string): string {
+function vendusCategoryToServiceMode(categoryName: string | undefined | null): string | null {
+  if (!categoryName) return null;
   const n = categoryName.toLowerCase().trim();
   if (n.includes("delivery") || n.includes("entrega")) return "delivery";
   if (n.includes("take away") || n.includes("takeaway") || n.includes("levar"))
     return "takeaway";
-  return "dine_in";
+  return null;
 }
 
 /** Tries to match a product to a local category by name (longest match wins) */
@@ -130,6 +130,23 @@ export async function syncProducts(
     .select("id")
     .single();
 
+  // Snapshot: save current product state before sync (for revert)
+  if (!previewOnly && logEntry?.id) {
+    const { data: allProducts } = await supabase
+      .from("products")
+      .select(
+        "id, name, description, price, is_available, vendus_id, vendus_ids, vendus_sync_status, vendus_synced_at, vendus_reference, vendus_tax_id, service_modes, service_prices, category_id",
+      );
+    if (allProducts && allProducts.length > 0) {
+      await supabase
+        .from("vendus_sync_log")
+        .update({
+          request_data: { snapshot: allProducts } as unknown as import("@/types/database").Json,
+        })
+        .eq("id", logEntry.id);
+    }
+  }
+
   try {
     if (direction === "pull" || direction === "both") {
       await pullProductsFromVendus(client, supabase, result, {
@@ -155,6 +172,7 @@ export async function syncProducts(
   }
 
   result.duration = Date.now() - startTime;
+  result.syncLogId = logEntry?.id ?? undefined;
 
   // Update sync log
   if (logEntry?.id) {
@@ -300,7 +318,7 @@ async function pullProductsFromVendus(
       const raw = await client.get<VendusProduct[] | VendusProductsResponse>(
         `/products?per_page=${perPage}&page=${page}`,
       );
-      const pageProducts = Array.isArray(raw) ? raw : (raw.products || []);
+      const pageProducts = Array.isArray(raw) ? raw : raw.products || [];
       vendusProducts = vendusProducts.concat(pageProducts);
       hasMore = pageProducts.length === perPage;
       page++;
@@ -314,12 +332,28 @@ async function pullProductsFromVendus(
       const rawCats = await client.get<
         VendusCategory[] | VendusCategoriesResponse
       >("/products/categories?per_page=500");
-      const cats = Array.isArray(rawCats)
-        ? rawCats
-        : (rawCats.categories || rawCats.data || []);
-      for (const vc of cats) vendusCategoryMap.set(Number(vc.id), vc.name);
-    } catch {
-      /* default to dine_in if categories unavailable */
+      let cats: VendusCategory[] = [];
+      if (Array.isArray(rawCats)) {
+        cats = rawCats;
+      } else if (rawCats && typeof rawCats === "object") {
+        const obj = rawCats as Record<string, unknown>;
+        cats = (obj.categories || obj.product_categories || obj.data || []) as VendusCategory[];
+        if (!Array.isArray(cats) || cats.length === 0) {
+          for (const val of Object.values(obj)) {
+            if (Array.isArray(val) && val.length > 0 && val[0]?.id !== undefined) {
+              cats = val as VendusCategory[];
+              break;
+            }
+          }
+        }
+      }
+      for (const vc of cats) {
+        const catName = vc.title || vc.name;
+        if (catName) vendusCategoryMap.set(Number(vc.id), catName);
+      }
+      console.info(`[Vendus] Loaded ${vendusCategoryMap.size} categories for sync`);
+    } catch (catErr) {
+      console.error("[Vendus] Failed to fetch categories for sync:", catErr);
     }
 
     // Fetch local categories for name matching and default fallback
@@ -398,19 +432,19 @@ async function pullProductsFromVendus(
       const vendusCatName = vProduct.category_id
         ? (vendusCategoryMap.get(vProduct.category_id) ?? null)
         : null;
-      const serviceMode = vendusCatName
-        ? vendusCategoryToServiceMode(vendusCatName)
-        : "dine_in";
+      const serviceMode = vendusCategoryToServiceMode(vendusCatName);
 
       const key = productName.trim().toLowerCase();
       const existing = groupedByName.get(key);
 
       if (existing) {
-        if (!existing.serviceModes.includes(serviceMode)) {
-          existing.serviceModes.push(serviceMode);
+        if (serviceMode) {
+          if (!existing.serviceModes.includes(serviceMode)) {
+            existing.serviceModes.push(serviceMode);
+          }
+          existing.servicePrices[serviceMode] = price;
+          existing.vendusIdsByMode[serviceMode] = vid;
         }
-        existing.servicePrices[serviceMode] = price;
-        existing.vendusIdsByMode[serviceMode] = vid;
         existing.basePrice = Math.min(existing.basePrice, price);
         if (isActive) existing.isActive = true;
         if (!existing.description && vProduct.description) {
@@ -419,7 +453,9 @@ async function pullProductsFromVendus(
         if (vendusCatName && !existing.vendusCatNames.includes(vendusCatName)) {
           existing.vendusCatNames.push(vendusCatName);
         }
-        const ts = vProduct.updated_at ? new Date(vProduct.updated_at).getTime() : 0;
+        const ts = vProduct.updated_at
+          ? new Date(vProduct.updated_at).getTime()
+          : 0;
         if (ts > existing.vendusUpdatedAt) {
           existing.vendusUpdatedAt = ts;
           existing.vendusUpdatedAtStr = vProduct.updated_at;
@@ -429,22 +465,29 @@ async function pullProductsFromVendus(
           title: productName.trim(),
           description: vProduct.description ?? null,
           isActive: isActive,
-          serviceModes: [serviceMode],
-          servicePrices: { [serviceMode]: price },
-          vendusIdsByMode: { [serviceMode]: vid },
+          serviceModes: serviceMode ? [serviceMode] : [],
+          servicePrices: serviceMode ? { [serviceMode]: price } : {},
+          vendusIdsByMode: serviceMode ? { [serviceMode]: vid } : {},
           basePrice: price,
           primaryVendusId: vid,
           reference: vProduct.reference,
           taxId: vProduct.tax_id,
-          vendusUpdatedAt: vProduct.updated_at ? new Date(vProduct.updated_at).getTime() : 0,
+          vendusUpdatedAt: vProduct.updated_at
+            ? new Date(vProduct.updated_at).getTime()
+            : 0,
           vendusUpdatedAtStr: vProduct.updated_at,
-          matchedCategoryId: matchProductToCategory(productName, localCategories),
+          matchedCategoryId: matchProductToCategory(
+            productName,
+            localCategories,
+          ),
           vendusCatNames: vendusCatName ? [vendusCatName] : [],
         });
       }
     }
 
-    console.info(`[Vendus] Merged ${vendusProducts.length} Vendus products into ${groupedByName.size} unique products`);
+    console.info(
+      `[Vendus] Merged ${vendusProducts.length} Vendus products into ${groupedByName.size} unique products`,
+    );
 
     // ── Process each merged product ──────────────────────────────────
     for (const [, merged] of Array.from(groupedByName.entries())) {
@@ -479,12 +522,25 @@ async function pullProductsFromVendus(
           existingById = byVendusId.get(mergedVids[i]);
           if (existingById) break;
         }
+        // Fallback: check primary vendus_id (covers products with no service mode)
+        if (!existingById) {
+          existingById = byVendusId.get(vid);
+        }
 
         if (existingById) {
           const dataToApply = resolveConflict(
             existingById,
-            { id: vid, title: merged.title, updated_at: merged.vendusUpdatedAtStr },
-            merged.vendusUpdatedAt, vendusLinkData, fullUpdateData, result, preview, "vendus_id",
+            {
+              id: vid,
+              title: merged.title,
+              updated_at: merged.vendusUpdatedAtStr,
+            },
+            merged.vendusUpdatedAt,
+            vendusLinkData,
+            fullUpdateData,
+            result,
+            preview,
+            "vendus_id",
           );
 
           if (previewOnly) {
@@ -513,8 +569,17 @@ async function pullProductsFromVendus(
           if (nameMatch) {
             const dataToApply = resolveConflict(
               nameMatch,
-              { id: vid, title: merged.title, updated_at: merged.vendusUpdatedAtStr },
-              merged.vendusUpdatedAt, vendusLinkData, fullUpdateData, result, preview, "name",
+              {
+                id: vid,
+                title: merged.title,
+                updated_at: merged.vendusUpdatedAtStr,
+              },
+              merged.vendusUpdatedAt,
+              vendusLinkData,
+              fullUpdateData,
+              result,
+              preview,
+              "name",
             );
 
             if (previewOnly) {
@@ -569,7 +634,8 @@ async function pullProductsFromVendus(
                   name: merged.title,
                   description: merged.description,
                   price: merged.basePrice,
-                  category_id: merged.matchedCategoryId || resolvedDefaultCategoryId,
+                  category_id:
+                    merged.matchedCategoryId || resolvedDefaultCategoryId,
                   is_available: merged.isActive,
                   is_rodizio: false,
                   sort_order: 999,
@@ -584,7 +650,9 @@ async function pullProductsFromVendus(
                 break;
               } else {
                 result.recordsCreated++;
-                console.info(`[Vendus] Created product from Vendus: ${merged.title}`);
+                console.info(
+                  `[Vendus] Created product from Vendus: ${merged.title}`,
+                );
               }
             }
           }
@@ -639,6 +707,17 @@ async function pushProductsToVendus(
   result: SyncResult,
   options: PushProductsOptions = {},
 ): Promise<void> {
+  if (isVendusReadOnly()) {
+    console.warn("[Vendus] VENDUS_READONLY=true - push bloqueado ao nivel de servico");
+    result.warnings = result.warnings ?? [];
+    result.warnings.push({
+      id: "readonly_blocked",
+      type: "conflict_resolved",
+      message: "Push bloqueado: VENDUS_READONLY=true. Remova a variavel para permitir exportacao.",
+    });
+    return;
+  }
+
   const { productIds, pushAll = false } = options;
 
   console.info("[Vendus] Pushing products to Vendus...");
@@ -690,13 +769,29 @@ async function pushProductsToVendus(
   // Build service_mode -> vendus_category_id map from Vendus categories
   const serviceModeToVendusCategoryId = new Map<string, string>();
   try {
-    const rawCats = await client.get<VendusCategory[] | VendusCategoriesResponse>(
-      "/products/categories?per_page=500",
-    );
-    const cats = Array.isArray(rawCats) ? rawCats : (rawCats.categories || rawCats.data || []);
+    const rawCats = await client.get<
+      VendusCategory[] | VendusCategoriesResponse
+    >("/products/categories?per_page=500");
+    let cats: VendusCategory[] = [];
+    if (Array.isArray(rawCats)) {
+      cats = rawCats;
+    } else if (rawCats && typeof rawCats === "object") {
+      const obj = rawCats as Record<string, unknown>;
+      cats = (obj.categories || obj.product_categories || obj.data || []) as VendusCategory[];
+      if (!Array.isArray(cats) || cats.length === 0) {
+        for (const val of Object.values(obj)) {
+          if (Array.isArray(val) && val.length > 0 && val[0]?.id !== undefined) {
+            cats = val as VendusCategory[];
+            break;
+          }
+        }
+      }
+    }
     for (const vc of cats) {
-      const mode = vendusCategoryToServiceMode(vc.name);
-      if (!serviceModeToVendusCategoryId.has(mode)) {
+      const catName = vc.title || vc.name;
+      if (!catName) continue;
+      const mode = vendusCategoryToServiceMode(catName);
+      if (mode && !serviceModeToVendusCategoryId.has(mode)) {
         serviceModeToVendusCategoryId.set(mode, vc.id);
       }
     }
@@ -773,7 +868,9 @@ async function pushProductsToVendus(
           );
           vendusId = response.id;
           result.recordsCreated++;
-          console.info(`[Vendus] Created product: ${product.name} [${mode}] (${vendusId})`);
+          console.info(
+            `[Vendus] Created product: ${product.name} [${mode}] (${vendusId})`,
+          );
         }
 
         updatedVendusIds[mode] = vendusId;

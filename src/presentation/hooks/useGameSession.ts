@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useGameSession - Hook para gestão de sessões de jogo
@@ -11,14 +11,14 @@
  * - Prémios
  */
 
-import { useState, useCallback } from 'react';
-import { useDependencies } from '../contexts/DependencyContext';
-import { GameSession } from '@/domain/entities/GameSession';
-import { GameQuestion, GameType } from '@/domain/entities/GameQuestion';
-import { GameAnswer } from '@/domain/entities/GameAnswer';
-import { GamePrize } from '@/domain/entities/GamePrize';
-import { GameConfig } from '@/domain/value-objects/GameConfig';
-import { LeaderboardEntry } from '@/domain/repositories/IGameAnswerRepository';
+import { useState, useCallback } from "react";
+import { useDependencies } from "../contexts/DependencyContext";
+import { GameSession } from "@/domain/entities/GameSession";
+import { GameQuestion, GameType } from "@/domain/entities/GameQuestion";
+import { GameAnswer } from "@/domain/entities/GameAnswer";
+import { GamePrize } from "@/domain/entities/GamePrize";
+import { GameConfig } from "@/domain/value-objects/GameConfig";
+import { LeaderboardEntry } from "@/domain/repositories/IGameAnswerRepository";
 
 export interface UseGameSessionOptions {
   sessionId: string;
@@ -41,13 +41,16 @@ export interface UseGameSessionResult {
   error: string | null;
 
   /** Iniciar uma nova sessão de jogo */
-  startGame: (config?: { questionsPerRound?: number; restaurantId?: string | null }) => Promise<void>;
+  startGame: (_config?: {
+    questionsPerRound?: number;
+    restaurantId?: string | null;
+  }) => Promise<void>;
   /** Submeter resposta a uma pergunta */
-  submitAnswer: (input: SubmitAnswerInput) => Promise<GameAnswer | null>;
+  submitAnswer: (_input: SubmitAnswerInput) => Promise<GameAnswer | null>;
   /** Completar a sessão de jogo */
-  completeGame: (config: GameConfig) => Promise<void>;
+  completeGame: (_config: GameConfig) => Promise<void>;
   /** Resgatar um prémio */
-  redeemPrize: (prizeId: string) => Promise<void>;
+  redeemPrize: (_prizeId: string) => Promise<void>;
   /** Carregar leaderboard */
   refreshLeaderboard: () => Promise<void>;
   /** Reset do estado (para nova ronda) */
@@ -63,7 +66,9 @@ export interface SubmitAnswerInput {
   correctAnswerIndex?: number | null;
 }
 
-export function useGameSession(options: UseGameSessionOptions): UseGameSessionResult {
+export function useGameSession(
+  options: UseGameSessionOptions,
+): UseGameSessionResult {
   const { sessionId } = options;
   const {
     startGameSession,
@@ -81,109 +86,130 @@ export function useGameSession(options: UseGameSessionOptions): UseGameSessionRe
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const startGame = useCallback(async (config?: { questionsPerRound?: number; restaurantId?: string | null }) => {
-    setIsLoading(true);
-    setError(null);
-    setAnswers([]);
-    setCurrentPrize(null);
+  const startGame = useCallback(
+    async (config?: {
+      questionsPerRound?: number;
+      restaurantId?: string | null;
+    }) => {
+      setIsLoading(true);
+      setError(null);
+      setAnswers([]);
+      setCurrentPrize(null);
 
-    try {
-      const result = await startGameSession.execute({
-        sessionId,
-        questionsPerRound: config?.questionsPerRound,
-        restaurantId: config?.restaurantId,
-      });
+      try {
+        const result = await startGameSession.execute({
+          sessionId,
+          questionsPerRound: config?.questionsPerRound,
+          restaurantId: config?.restaurantId,
+        });
 
-      if (result.success) {
-        setGameSession(result.data.gameSession);
-        setQuestions(result.data.questions);
-      } else {
-        setError(result.error);
+        if (result.success) {
+          setGameSession(result.data.gameSession);
+          setQuestions(result.data.questions);
+        } else {
+          setError(result.error);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao iniciar jogo");
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao iniciar jogo');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [startGameSession, sessionId]);
+    },
+    [startGameSession, sessionId],
+  );
 
-  const submitAnswer = useCallback(async (input: SubmitAnswerInput): Promise<GameAnswer | null> => {
-    if (!gameSession) {
-      setError('Nenhuma sessão de jogo ativa');
-      return null;
-    }
-
-    setError(null);
-
-    try {
-      const result = await submitGameAnswer.execute({
-        gameSessionId: gameSession.id,
-        sessionCustomerId: input.sessionCustomerId,
-        questionId: input.questionId,
-        gameType: input.gameType,
-        answer: input.answer,
-        questionPoints: input.questionPoints,
-        correctAnswerIndex: input.correctAnswerIndex,
-      });
-
-      if (result.success) {
-        setAnswers(prev => [...prev, result.data]);
-        return result.data;
-      } else {
-        setError(result.error);
+  const submitAnswer = useCallback(
+    async (input: SubmitAnswerInput): Promise<GameAnswer | null> => {
+      if (!gameSession) {
+        setError("Nenhuma sessão de jogo ativa");
         return null;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao submeter resposta');
-      return null;
-    }
-  }, [submitGameAnswer, gameSession]);
 
-  const completeGame = useCallback(async (config: GameConfig) => {
-    if (!gameSession) {
-      setError('Nenhuma sessão de jogo ativa');
-      return;
-    }
+      setError(null);
 
-    setIsLoading(true);
-    setError(null);
+      try {
+        const result = await submitGameAnswer.execute({
+          gameSessionId: gameSession.id,
+          sessionCustomerId: input.sessionCustomerId,
+          questionId: input.questionId,
+          gameType: input.gameType,
+          answer: input.answer,
+          questionPoints: input.questionPoints,
+          correctAnswerIndex: input.correctAnswerIndex,
+        });
 
-    try {
-      const result = await completeGameSession.execute({
-        gameSessionId: gameSession.id,
-        sessionId,
-        config,
-      });
-
-      if (result.success) {
-        setLeaderboard(result.data.leaderboard);
-        setCurrentPrize(result.data.prize);
-        setGameSession(prev => prev ? { ...prev, status: 'completed' as const } : null);
-      } else {
-        setError(result.error);
+        if (result.success) {
+          setAnswers((prev) => [...prev, result.data]);
+          return result.data;
+        } else {
+          setError(result.error);
+          return null;
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Erro ao submeter resposta",
+        );
+        return null;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao completar jogo');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [completeGameSession, gameSession, sessionId]);
+    },
+    [submitGameAnswer, gameSession],
+  );
 
-  const redeemPrize = useCallback(async (prizeId: string) => {
-    setError(null);
-
-    try {
-      const result = await redeemGamePrize.execute({ prizeId });
-
-      if (result.success) {
-        setCurrentPrize(result.data);
-      } else {
-        setError(result.error);
+  const completeGame = useCallback(
+    async (config: GameConfig) => {
+      if (!gameSession) {
+        setError("Nenhuma sessão de jogo ativa");
+        return;
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao resgatar prémio');
-    }
-  }, [redeemGamePrize]);
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const result = await completeGameSession.execute({
+          gameSessionId: gameSession.id,
+          sessionId,
+          config,
+        });
+
+        if (result.success) {
+          setLeaderboard(result.data.leaderboard);
+          setCurrentPrize(result.data.prize);
+          setGameSession((prev) =>
+            prev ? { ...prev, status: "completed" as const } : null,
+          );
+        } else {
+          setError(result.error);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao completar jogo");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [completeGameSession, gameSession, sessionId],
+  );
+
+  const redeemPrize = useCallback(
+    async (prizeId: string) => {
+      setError(null);
+
+      try {
+        const result = await redeemGamePrize.execute({ prizeId });
+
+        if (result.success) {
+          setCurrentPrize(result.data);
+        } else {
+          setError(result.error);
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Erro ao resgatar prémio",
+        );
+      }
+    },
+    [redeemGamePrize],
+  );
 
   const refreshLeaderboard = useCallback(async () => {
     setError(null);
@@ -197,7 +223,9 @@ export function useGameSession(options: UseGameSessionOptions): UseGameSessionRe
         setError(result.error);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar leaderboard');
+      setError(
+        err instanceof Error ? err.message : "Erro ao carregar leaderboard",
+      );
     }
   }, [getGameLeaderboard, sessionId]);
 

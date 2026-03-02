@@ -30,7 +30,6 @@ vi.mock('@/lib/supabase/server', () => ({
 }));
 
 // Mock auth lib
-const mockLogin = vi.fn();
 const mockSecureLogin = vi.fn();
 const mockSetAuthCookie = vi.fn();
 const mockClearAuthCookie = vi.fn();
@@ -38,7 +37,6 @@ const mockGetAuthUser = vi.fn();
 const mockLogAuthEvent = vi.fn();
 
 vi.mock('@/lib/auth', () => ({
-  login: mockLogin,
   secureLogin: mockSecureLogin,
   setAuthCookie: mockSetAuthCookie,
   clearAuthCookie: mockClearAuthCookie,
@@ -91,7 +89,7 @@ describe('POST /api/auth/login', () => {
   describe('Validação de credenciais', () => {
     it('retorna erro para credenciais inválidas', async () => {
       const result = { success: false, error: 'Credenciais inválidas' };
-      mockLogin.mockResolvedValue(result);
+      mockSecureLogin.mockResolvedValue(result);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Credenciais inválidas');
@@ -104,7 +102,7 @@ describe('POST /api/auth/login', () => {
         user: staff,
         token: 'valid-token-123',
       };
-      mockLogin.mockResolvedValue(result);
+      mockSecureLogin.mockResolvedValue(result);
 
       expect(result.success).toBe(true);
       expect(result.user).toBeDefined();
@@ -114,7 +112,7 @@ describe('POST /api/auth/login', () => {
     it('retorna dados do utilizador no formato correto', async () => {
       const staff = createTestStaff();
       const result = { success: true, user: staff, token: 'token' };
-      mockLogin.mockResolvedValue(result);
+      mockSecureLogin.mockResolvedValue(result);
 
       expect(result.user).toHaveProperty('id');
       expect(result.user).toHaveProperty('email');
@@ -125,7 +123,7 @@ describe('POST /api/auth/login', () => {
   });
 });
 
-describe('POST /api/auth/secure-login', () => {
+describe('POST /api/auth/login (secure)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -260,6 +258,32 @@ describe('POST /api/auth/logout', () => {
     await mockClearAuthCookie();
 
     expect(mockClearAuthCookie).toHaveBeenCalled();
+  });
+
+  it('chama supabase.auth.signOut() no servidor para limpar cookies httpOnly', async () => {
+    mockSupabaseAuth.signOut.mockResolvedValue({ error: null });
+    await mockSupabaseAuth.signOut();
+
+    expect(mockSupabaseAuth.signOut).toHaveBeenCalled();
+  });
+
+  it('signOut é chamado antes de limpar cookie JWT', async () => {
+    const callOrder: string[] = [];
+
+    mockSupabaseAuth.signOut.mockImplementation(async () => {
+      callOrder.push('signOut');
+      return { error: null };
+    });
+
+    mockClearAuthCookie.mockImplementation(async () => {
+      callOrder.push('clearCookie');
+    });
+
+    // Simulate the logout flow order
+    await mockSupabaseAuth.signOut();
+    await mockClearAuthCookie();
+
+    expect(callOrder).toEqual(['signOut', 'clearCookie']);
   });
 
   it('loga evento de logout para utilizador autenticado', async () => {

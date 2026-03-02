@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Load .env.local so Supabase URL + service role key are available to E2E helpers
+dotenv.config({ path: path.resolve(__dirname, '.env.local') });
 
 /**
  * Playwright E2E Test Configuration

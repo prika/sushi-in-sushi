@@ -760,6 +760,14 @@ export type Database = {
           total_spent: number | null
           updated_at: string | null
           visit_count: number | null
+          games_played: number | null
+          total_score: number | null
+          prizes_won: number | null
+          prizes_redeemed: number | null
+          ratings_given: number | null
+          ratings_sum: number | null
+          avg_rating_given: number | null
+          allergens: string[] | null
         }
         Insert: {
           birth_date?: string | null
@@ -777,6 +785,14 @@ export type Database = {
           total_spent?: number | null
           updated_at?: string | null
           visit_count?: number | null
+          games_played?: number | null
+          total_score?: number | null
+          prizes_won?: number | null
+          prizes_redeemed?: number | null
+          ratings_given?: number | null
+          ratings_sum?: number | null
+          avg_rating_given?: number | null
+          allergens?: string[] | null
         }
         Update: {
           birth_date?: string | null
@@ -794,6 +810,14 @@ export type Database = {
           total_spent?: number | null
           updated_at?: string | null
           visit_count?: number | null
+          games_played?: number | null
+          total_score?: number | null
+          prizes_won?: number | null
+          prizes_redeemed?: number | null
+          ratings_given?: number | null
+          ratings_sum?: number | null
+          avg_rating_given?: number | null
+          allergens?: string[] | null
         }
         Relationships: []
       }
@@ -1898,6 +1922,7 @@ export type Database = {
           confirmed_at: string | null
           confirmed_by: string | null
           created_at: string | null
+          customer_id: string | null
           customer_email_delivered_at: string | null
           customer_email_id: string | null
           customer_email_opened_at: string | null
@@ -1943,6 +1968,7 @@ export type Database = {
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string | null
+          customer_id?: string | null
           customer_email_delivered_at?: string | null
           customer_email_id?: string | null
           customer_email_opened_at?: string | null
@@ -1988,6 +2014,7 @@ export type Database = {
           confirmed_at?: string | null
           confirmed_by?: string | null
           created_at?: string | null
+          customer_id?: string | null
           customer_email_delivered_at?: string | null
           customer_email_id?: string | null
           customer_email_opened_at?: string | null
@@ -2311,6 +2338,7 @@ export type Database = {
       }
       session_customers: {
         Row: {
+          allergens: string[]
           birth_date: string | null
           created_at: string | null
           customer_id: string | null
@@ -2333,6 +2361,7 @@ export type Database = {
           verification_type: string | null
         }
         Insert: {
+          allergens?: string[]
           birth_date?: string | null
           created_at?: string | null
           customer_id?: string | null
@@ -2355,6 +2384,7 @@ export type Database = {
           verification_type?: string | null
         }
         Update: {
+          allergens?: string[]
           birth_date?: string | null
           created_at?: string | null
           customer_id?: string | null
@@ -2576,7 +2606,6 @@ export type Database = {
           mfa_enrolled_at: string | null
           mfa_required: boolean
           name: string
-          password_hash: string
           phone: string | null
           role_id: number
           updated_at: string | null
@@ -2597,7 +2626,6 @@ export type Database = {
           mfa_enrolled_at?: string | null
           mfa_required?: boolean
           name: string
-          password_hash: string
           phone?: string | null
           role_id: number
           updated_at?: string | null
@@ -2618,7 +2646,6 @@ export type Database = {
           mfa_enrolled_at?: string | null
           mfa_required?: boolean
           name?: string
-          password_hash?: string
           phone?: string | null
           role_id?: number
           updated_at?: string | null
@@ -3682,7 +3709,6 @@ export type Database = {
           mfa_enrolled_at: string | null
           mfa_required: boolean | null
           name: string | null
-          password_hash: string | null
           phone: string | null
           role_id: number | null
           role_name: string | null
@@ -4026,7 +4052,6 @@ export type Database = {
           mfa_enrolled_at: string | null
           mfa_required: boolean
           name: string
-          password_hash: string
           phone: string | null
           role_id: number
           updated_at: string | null

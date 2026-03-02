@@ -117,7 +117,7 @@ describe('getAccessibleTables', () => {
     const mockQuery = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: tables, error: null }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: tables, error: null }).then(fn),
     };
     mockFrom.mockReturnValue(mockQuery);
 
@@ -132,7 +132,7 @@ describe('getAccessibleTables', () => {
     const mockQuery = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: waiterTables, error: null }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: waiterTables, error: null }).then(fn),
     };
     mockFrom.mockReturnValue(mockQuery);
 
@@ -174,7 +174,7 @@ describe('canAccessTable', () => {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       single: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: { id: 'wt1' }, error: null }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: { id: 'wt1' }, error: null }).then(fn),
     };
     mockFrom.mockReturnValue(mockQuery);
 

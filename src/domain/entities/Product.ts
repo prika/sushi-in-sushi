@@ -2,16 +2,6 @@
  * Product Entity
  * Representa um produto/item do menu no domínio
  */
-
-/**
- * Entidade Product - Representa um item do menu
- */
-export interface Ingredient {
-  name: string;
-  quantity: string;
-  unit: string;
-}
-
 export interface Product {
   id: string;
   name: string;
@@ -29,8 +19,20 @@ export interface Product {
   serviceModes: string[];
   /** Per-service-mode price overrides. Keys match serviceModes values. */
   servicePrices: Record<string, number>;
-  /** Product ingredients list */
-  ingredients: Ingredient[];
+  /** Number of pieces in this product */
+  quantity: number;
+  /** Multi-language descriptions: {"pt": "...", "en": "...", ...} */
+  descriptions: Record<string, string>;
+  /** AI-generated SEO title (legacy single-lang) */
+  seoTitle: string | null;
+  /** AI-generated SEO description (legacy single-lang) */
+  seoDescription: string | null;
+  /** Multi-language SEO titles: {"pt": "...", "en": "...", ...} */
+  seoTitles: Record<string, string>;
+  /** Multi-language SEO descriptions: {"pt": "...", "en": "...", ...} */
+  seoDescriptions: Record<string, string>;
+  /** When the SEO content was last generated */
+  seoGeneratedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,9 +50,9 @@ export interface CreateProductData {
   isAvailable?: boolean;
   isRodizio?: boolean;
   sortOrder?: number;
+  quantity?: number;
   serviceModes?: string[];
   servicePrices?: Record<string, number>;
-  ingredients?: Ingredient[];
 }
 
 /**
@@ -66,9 +68,9 @@ export interface UpdateProductData {
   isAvailable?: boolean;
   isRodizio?: boolean;
   sortOrder?: number;
+  quantity?: number;
   serviceModes?: string[];
   servicePrices?: Record<string, number>;
-  ingredients?: Ingredient[];
 }
 
 /**

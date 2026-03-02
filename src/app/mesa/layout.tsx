@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Sushi in Sushi - Pedido na Mesa",
   description: "Faça o seu pedido diretamente da mesa",
   manifest: "/manifest.json",
+  robots: { index: false, follow: false },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

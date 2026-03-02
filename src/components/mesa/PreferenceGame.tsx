@@ -9,12 +9,12 @@ import type { GameAnswer } from "@/domain/entities/GameAnswer";
 interface PreferenceGameProps {
   questions: GameQuestion[];
   onAnswer: (
-    questionId: string,
-    choice: "a" | "b",
+    _questionId: string,
+    _choice: "a" | "b",
   ) => Promise<GameAnswer | null>;
   onComplete: () => void;
   onClose: () => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: (_key: string, _params?: Record<string, string | number>) => string;
 }
 
 type ChoiceState = "idle" | "chosen";

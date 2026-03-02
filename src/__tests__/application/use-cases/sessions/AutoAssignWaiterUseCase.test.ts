@@ -87,7 +87,7 @@ function createTestWaiter(id: string, name: string): StaffWithRole {
     id,
     email: `${name.toLowerCase()}@test.com`,
     name,
-    passwordHash: 'hash',
+    authUserId: null,
     roleId: 3,
     location: 'circunvalacao',
     phone: null,

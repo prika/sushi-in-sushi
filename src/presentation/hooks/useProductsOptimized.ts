@@ -1,10 +1,14 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useDependencies } from '../contexts/DependencyContext';
-import { Product, CreateProductData, UpdateProductData } from '@/domain/entities/Product';
-import { Category } from '@/domain/entities';
-import { useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDependencies } from "../contexts/DependencyContext";
+import {
+  Product,
+  CreateProductData,
+  UpdateProductData,
+} from "@/domain/entities/Product";
+import { Category } from "@/domain/entities";
+import { useMemo } from "react";
 
 /**
  * OPTIMIZED: useProducts with React Query
@@ -34,6 +38,8 @@ interface UseProductsOptions {
   availableOnly?: boolean;
   rodizioOnly?: boolean;
   categoryId?: string;
+  /** Filter products that include at least one of these service modes */
+  serviceModes?: string[];
 }
 
 export function useProductsOptimized(options: UseProductsOptions = {}) {
@@ -47,7 +53,7 @@ export function useProductsOptimized(options: UseProductsOptions = {}) {
     error: productsError,
     refetch: refetchProducts,
   } = useQuery({
-    queryKey: ['products', options],
+    queryKey: ["products", options],
     queryFn: async () => {
       const result = await productRepository.findAll();
       return result;
@@ -63,7 +69,7 @@ export function useProductsOptimized(options: UseProductsOptions = {}) {
     error: categoriesError,
     refetch: refetchCategories,
   } = useQuery({
-    queryKey: ['categories'],
+    queryKey: ["categories"],
     queryFn: async () => {
       const result = await categoryRepository.findAllWithCount();
       return result;
@@ -77,8 +83,8 @@ export function useProductsOptimized(options: UseProductsOptions = {}) {
     mutationFn: (data: CreateProductData) => productRepository.create(data),
     onSuccess: () => {
       // Invalidate and refetch
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
 
@@ -88,18 +94,20 @@ export function useProductsOptimized(options: UseProductsOptions = {}) {
       productRepository.update(id, data),
     onMutate: async ({ id, data }) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['products'] });
+      await queryClient.cancelQueries({ queryKey: ["products"] });
 
       // Snapshot previous value
-      const previousProducts = queryClient.getQueryData<Product[]>(['products']);
+      const previousProducts = queryClient.getQueryData<Product[]>([
+        "products",
+      ]);
 
       // Optimistically update
       if (previousProducts) {
         queryClient.setQueryData<Product[]>(
-          ['products'],
+          ["products"],
           previousProducts.map((p) =>
-            p.id === id ? { ...p, ...data, updatedAt: new Date() } : p
-          )
+            p.id === id ? { ...p, ...data, updatedAt: new Date() } : p,
+          ),
         );
       }
 
@@ -108,13 +116,13 @@ export function useProductsOptimized(options: UseProductsOptions = {}) {
     onError: (_err, _variables, context) => {
       // Rollback on error
       if (context?.previousProducts) {
-        queryClient.setQueryData(['products'], context.previousProducts);
+        queryClient.setQueryData(["products"], context.previousProducts);
       }
     },
     onSettled: () => {
       // Refetch after mutation
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
 
@@ -122,8 +130,8 @@ export function useProductsOptimized(options: UseProductsOptions = {}) {
   const deleteProductMutation = useMutation({
     mutationFn: (id: string) => productRepository.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
 
@@ -143,8 +151,22 @@ export function useProductsOptimized(options: UseProductsOptions = {}) {
       filtered = filtered.filter((p) => p.categoryId === options.categoryId);
     }
 
+    if (options.serviceModes?.length) {
+      filtered = filtered.filter((p) =>
+        // Products with no service modes set are available in all modes (backwards compat)
+        p.serviceModes.length === 0 ||
+        p.serviceModes.some((m) => options.serviceModes!.includes(m)),
+      );
+    }
+
     return filtered;
-  }, [products, options.availableOnly, options.rodizioOnly, options.categoryId]);
+  }, [
+    products,
+    options.availableOnly,
+    options.rodizioOnly,
+    options.categoryId,
+    options.serviceModes,
+  ]);
 
   // Group products by category
   const productsByCategory = useMemo(() => {

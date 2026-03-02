@@ -32,6 +32,9 @@ interface DatabaseReservation {
   confirmed_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+  cancelled_by: string | null;
+  cancellation_source: string | null;
+  customer_id: string | null;
   session_id: string | null;
   seated_at: string | null;
   marketing_consent: boolean;
@@ -142,6 +145,9 @@ export class SupabaseReservationRepository implements IReservationRepository {
     if (data.tableId !== undefined) updateData.table_id = data.tableId;
     if (data.confirmedBy !== undefined) updateData.confirmed_by = data.confirmedBy;
     if (data.cancellationReason !== undefined) updateData.cancellation_reason = data.cancellationReason;
+    if (data.cancelledBy !== undefined) updateData.cancelled_by = data.cancelledBy;
+    if (data.cancellationSource !== undefined) updateData.cancellation_source = data.cancellationSource;
+    if (data.customerId !== undefined) updateData.customer_id = data.customerId;
     if (data.sessionId !== undefined) updateData.session_id = data.sessionId;
 
     const { data: updated, error } = await this.supabase
@@ -182,14 +188,18 @@ export class SupabaseReservationRepository implements IReservationRepository {
     return this.mapToEntity(data);
   }
 
-  async cancel(id: string, reason?: string): Promise<Reservation> {
-    const { data, error } = await this.supabase
+  async cancel(id: string, reason?: string, cancelledBy?: 'admin' | 'customer', cancellationSource?: 'site' | 'phone'): Promise<Reservation> {
+    const updateData: Record<string, unknown> = {
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+      cancellation_reason: reason || null,
+    };
+    if (cancelledBy) updateData.cancelled_by = cancelledBy;
+    if (cancellationSource) updateData.cancellation_source = cancellationSource;
+
+    const { data, error } = await (this.supabase as any)
       .from('reservations')
-      .update({
-        status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-        cancellation_reason: reason || null,
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -242,6 +252,21 @@ export class SupabaseReservationRepository implements IReservationRepository {
     return this.mapToEntity(data);
   }
 
+  async findUpcomingByEmail(email: string): Promise<Reservation[]> {
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await this.supabase
+      .from('reservations')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .in('status', ['pending', 'confirmed'])
+      .gte('reservation_date', today)
+      .order('reservation_date', { ascending: true })
+      .order('reservation_time', { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return (data || []).map((row: DatabaseReservation) => this.mapToEntity(row));
+  }
+
   private mapToEntity(row: DatabaseReservation): Reservation {
     return {
       id: row.id,
@@ -262,6 +287,9 @@ export class SupabaseReservationRepository implements IReservationRepository {
       confirmedAt: row.confirmed_at ? new Date(row.confirmed_at) : null,
       cancelledAt: row.cancelled_at ? new Date(row.cancelled_at) : null,
       cancellationReason: row.cancellation_reason,
+      cancelledBy: (row.cancelled_by as Reservation['cancelledBy']) || null,
+      cancellationSource: (row.cancellation_source as Reservation['cancellationSource']) || null,
+      customerId: row.customer_id,
       sessionId: row.session_id,
       seatedAt: row.seated_at ? new Date(row.seated_at) : null,
       marketingConsent: row.marketing_consent,

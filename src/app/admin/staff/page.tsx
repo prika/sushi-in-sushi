@@ -38,7 +38,6 @@ export default function StaffManagementPage() {
     update,
     remove,
     assignTables,
-    refresh,
   } = useStaff({ loadTableAssignments: true });
 
   const { tables } = useTableManagement();
@@ -276,7 +275,6 @@ export default function StaffManagementPage() {
     id: s.id,
     email: s.email,
     name: s.name,
-    password_hash: s.passwordHash,
     role_id: s.roleId,
     location: s.location,
     phone: s.phone,

@@ -11,8 +11,7 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "./database";
-import type { RoleName, Location } from "./database";
+import type { Database, RoleName, Location } from "./database";
 
 // =============================================================================
 // RPC FUNCTION ARGUMENT TYPES

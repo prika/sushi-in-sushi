@@ -31,12 +31,15 @@ export default function VendusMappingPage() {
   const [importResult, setImportResult] = useState<SyncResult | null>(null);
 
   const fetchTables = useCallback(async () => {
-    if (!selectedLocation) return;
+    if (!selectedLocation) {
+      setIsLoading(false);
+      return;
+    }
     try {
       const response = await fetch(
         `/api/vendus/sync/tables?location=${selectedLocation}`,
       );
-      const data = await response.json();
+      const data = response.ok ? await response.json() : [];
       setTables(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching tables:", error);
@@ -47,11 +50,14 @@ export default function VendusMappingPage() {
 
   useEffect(() => {
     fetch("/api/locations")
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : []))
       .then((locs) => {
         const arr = Array.isArray(locs) ? locs : [];
         setLocations(arr);
         setSelectedLocation((prev) => prev || arr[0]?.slug || "");
+      })
+      .catch(() => {
+        setIsLoading(false);
       });
   }, []);
 

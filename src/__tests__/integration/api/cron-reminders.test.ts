@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createTestReservation, createTestReservationSettings, getFutureDate, getTodayDate } from '../../helpers/factories';
+import { createTestReservation, createTestReservationSettings } from '../../helpers/factories';
 
 describe('Cron: Reservation Reminders', () => {
   beforeEach(() => {
@@ -128,9 +128,9 @@ describe('Cron: Reservation Reminders', () => {
         rodizio_waste_policy_enabled: true,
         rodizio_waste_fee_per_piece: 2.5,
       });
-      const reservation = createTestReservation({ is_rodizio: true });
+      const _reservation = createTestReservation({ is_rodizio: true });
 
-      const wasteFee = settings.rodizio_waste_policy_enabled && reservation.is_rodizio
+      const wasteFee = settings.rodizio_waste_policy_enabled && _reservation.is_rodizio
         ? settings.rodizio_waste_fee_per_piece
         : 0;
 
@@ -142,9 +142,9 @@ describe('Cron: Reservation Reminders', () => {
         rodizio_waste_policy_enabled: true,
         rodizio_waste_fee_per_piece: 2.5,
       });
-      const reservation = createTestReservation({ is_rodizio: false });
+      const _reservation = createTestReservation({ is_rodizio: false });
 
-      const wasteFee = settings.rodizio_waste_policy_enabled && reservation.is_rodizio
+      const wasteFee = settings.rodizio_waste_policy_enabled && _reservation.is_rodizio
         ? settings.rodizio_waste_fee_per_piece
         : 0;
 
@@ -156,7 +156,7 @@ describe('Cron: Reservation Reminders', () => {
         rodizio_waste_policy_enabled: false,
         rodizio_waste_fee_per_piece: 2.5,
       });
-      const reservation = createTestReservation({ is_rodizio: true });
+      const _reservation = createTestReservation({ is_rodizio: true });
 
       const wasteFee = settings.rodizio_waste_policy_enabled
         ? settings.rodizio_waste_fee_per_piece

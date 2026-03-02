@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getMfaFactors, isMfaRequired, getSessionConfig } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +17,9 @@ export async function GET() {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // Get staff record - select columns that may or may not exist yet
-    // The mfa columns are added in migration 013
-    const { data: staff, error } = await supabase
+    // Get staff record using admin client to bypass RLS
+    const adminClient = createAdminClient();
+    const { data: staff, error } = await adminClient
       .from("staff")
       .select("id, roles!inner(name)")
       .eq("auth_user_id", user.id)
@@ -38,7 +38,7 @@ export async function GET() {
     let mfaEnrolledAt: string | null = null;
 
     try {
-      const { data: mfaData } = await supabase
+      const { data: mfaData } = await adminClient
         .from("staff")
         .select("mfa_required, mfa_enrolled_at")
         .eq("id", staff.id)

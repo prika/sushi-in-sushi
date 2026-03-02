@@ -4,7 +4,6 @@
 import type { SessionStatus as DomainSessionStatus } from "@/domain/value-objects/SessionStatus";
 import type { OrderStatus as DomainOrderStatus } from "@/domain/value-objects/OrderStatus";
 import type { TableStatus as DomainTableStatus } from "@/domain/value-objects/TableStatus";
-import type { Ingredient } from "@/domain/entities/Product";
 
 // Re-export domain types for backwards compatibility
 export type SessionStatus = DomainSessionStatus;
@@ -72,7 +71,10 @@ export type Database = {
           number: number;
           name: string;
           location: string;
+          status: "available" | "reserved" | "occupied" | "inactive";
           is_active: boolean;
+          current_session_id: string | null;
+          customer_waiting_since: string | null;
           vendus_table_id: string | null;
           vendus_room_id: string | null;
           vendus_synced_at: string | null;
@@ -84,7 +86,10 @@ export type Database = {
           number: number;
           name: string;
           location?: string;
+          status?: "available" | "reserved" | "occupied" | "inactive";
           is_active?: boolean;
+          current_session_id?: string | null;
+          customer_waiting_since?: string | null;
           vendus_table_id?: string | null;
           vendus_room_id?: string | null;
           vendus_synced_at?: string | null;
@@ -96,7 +101,10 @@ export type Database = {
           number?: number;
           name?: string;
           location?: string;
+          status?: "available" | "reserved" | "occupied" | "inactive";
           is_active?: boolean;
+          current_session_id?: string | null;
+          customer_waiting_since?: string | null;
           vendus_table_id?: string | null;
           vendus_room_id?: string | null;
           vendus_synced_at?: string | null;
@@ -117,7 +125,7 @@ export type Database = {
           is_available: boolean;
           is_rodizio: boolean;
           sort_order: number;
-          ingredients: Ingredient[] | null;
+          quantity: number;
           vendus_id: string | null;
           vendus_ids: Record<string, string>;
           vendus_reference: string | null;
@@ -141,7 +149,7 @@ export type Database = {
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;
-          ingredients?: Ingredient[] | null;
+          quantity?: number;
           vendus_id?: string | null;
           vendus_ids?: Record<string, string>;
           vendus_reference?: string | null;
@@ -165,7 +173,7 @@ export type Database = {
           is_available?: boolean;
           is_rodizio?: boolean;
           sort_order?: number;
-          ingredients?: Ingredient[] | null;
+          quantity?: number;
           vendus_id?: string | null;
           vendus_ids?: Record<string, string>;
           vendus_reference?: string | null;
@@ -188,12 +196,79 @@ export type Database = {
           },
         ];
       };
+      ingredients: {
+        Row: {
+          id: string;
+          name: string;
+          unit: string;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          unit: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          unit?: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      product_ingredients: {
+        Row: {
+          id: string;
+          product_id: string;
+          ingredient_id: string;
+          quantity: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          ingredient_id: string;
+          quantity: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          ingredient_id?: string;
+          quantity?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_ingredients_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_ingredients_ingredient_id_fkey";
+            columns: ["ingredient_id"];
+            isOneToOne: false;
+            referencedRelation: "ingredients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sessions: {
         Row: {
           id: string;
           table_id: string;
           started_at: string;
           closed_at: string | null;
+          close_reason: string | null;
           is_rodizio: boolean;
           num_people: number;
           status: SessionStatus;
@@ -208,6 +283,7 @@ export type Database = {
           table_id: string;
           started_at?: string;
           closed_at?: string | null;
+          close_reason?: string | null;
           is_rodizio?: boolean;
           num_people?: number;
           status?: SessionStatus;
@@ -222,6 +298,7 @@ export type Database = {
           table_id?: string;
           started_at?: string;
           closed_at?: string | null;
+          close_reason?: string | null;
           is_rodizio?: boolean;
           num_people?: number;
           status?: SessionStatus;
@@ -256,6 +333,7 @@ export type Database = {
           is_session_host: boolean;
           device_id: string | null;
           tier: number;
+          allergens: string[];
           email_verified: boolean;
           phone_verified: boolean;
           verification_token: string | null;
@@ -278,6 +356,7 @@ export type Database = {
           is_session_host?: boolean;
           device_id?: string | null;
           tier?: number;
+          allergens?: string[];
           email_verified?: boolean;
           phone_verified?: boolean;
           verification_token?: string | null;
@@ -298,6 +377,7 @@ export type Database = {
           is_session_host?: boolean;
           device_id?: string | null;
           tier?: number;
+          allergens?: string[];
           email_verified?: boolean;
           phone_verified?: boolean;
           verification_token?: string | null;
@@ -413,7 +493,7 @@ export type Database = {
           id: string;
           email: string;
           name: string;
-          password_hash: string;
+          auth_user_id: string | null;
           role_id: number;
           location: string | null;
           phone: string | null;
@@ -425,7 +505,7 @@ export type Database = {
           id?: string;
           email: string;
           name: string;
-          password_hash: string;
+          auth_user_id?: string | null;
           role_id: number;
           location?: string | null;
           phone?: string | null;
@@ -437,7 +517,7 @@ export type Database = {
           id?: string;
           email?: string;
           name?: string;
-          password_hash?: string;
+          auth_user_id?: string | null;
           role_id?: number;
           location?: string | null;
           phone?: string | null;
@@ -506,6 +586,14 @@ export type Database = {
           is_active: boolean;
           email_verified: boolean;
           phone_verified: boolean;
+          games_played: number;
+          total_score: number;
+          prizes_won: number;
+          prizes_redeemed: number;
+          ratings_given: number;
+          ratings_sum: number;
+          avg_rating_given: number;
+          allergens: string[];
           created_at: string;
           updated_at: string;
         };
@@ -523,6 +611,14 @@ export type Database = {
           is_active?: boolean;
           email_verified?: boolean;
           phone_verified?: boolean;
+          games_played?: number;
+          total_score?: number;
+          prizes_won?: number;
+          prizes_redeemed?: number;
+          ratings_given?: number;
+          ratings_sum?: number;
+          avg_rating_given?: number;
+          allergens?: string[];
           created_at?: string;
           updated_at?: string;
         };
@@ -540,6 +636,14 @@ export type Database = {
           is_active?: boolean;
           email_verified?: boolean;
           phone_verified?: boolean;
+          games_played?: number;
+          total_score?: number;
+          prizes_won?: number;
+          prizes_redeemed?: number;
+          ratings_given?: number;
+          ratings_sum?: number;
+          avg_rating_given?: number;
+          allergens?: string[];
           created_at?: string;
           updated_at?: string;
         };
@@ -1249,6 +1353,7 @@ export type Database = {
           confirmed_at: string | null;
           cancelled_at: string | null;
           cancellation_reason: string | null;
+          customer_id: string | null;
           session_id: string | null;
           seated_at: string | null;
           marketing_consent: boolean;
@@ -1290,6 +1395,7 @@ export type Database = {
           special_requests?: string | null;
           occasion?: string | null;
           status?: string;
+          customer_id?: string | null;
           marketing_consent?: boolean;
         };
         Update: {
@@ -1311,6 +1417,7 @@ export type Database = {
           confirmed_at?: string | null;
           cancelled_at?: string | null;
           cancellation_reason?: string | null;
+          customer_id?: string | null;
           session_id?: string | null;
           seated_at?: string | null;
           marketing_consent?: boolean;
@@ -1620,6 +1727,28 @@ export type Database = {
         };
         Returns: void;
       };
+      set_product_ingredients: {
+        Args: {
+          p_product_id: string;
+          p_ingredients: unknown;
+        };
+        Returns: void;
+      };
+      close_session_transactional: {
+        Args: {
+          p_session_id: string;
+          p_cancel_orders?: boolean;
+          p_close_reason?: string | null;
+        };
+        Returns: {
+          success: boolean;
+          error?: string;
+          session_id?: string;
+          table_id?: string;
+          cancelled_orders?: number;
+          close_reason?: string | null;
+        };
+      };
     };
     Enums: {
       session_status: SessionStatus;
@@ -1655,6 +1784,7 @@ export type Table = TableBase & {
   status_note?: string | null;
   current_session_id?: string | null;
   current_reservation_id?: string | null;
+  customer_waiting_since?: string | null;
 };
 
 // Table with full status from view
@@ -1732,7 +1862,7 @@ export type Staff = {
   id: string;
   email: string;
   name: string;
-  password_hash: string;
+  auth_user_id?: string | null;
   role_id: number;
   location: Location | null;
   phone: string | null;
@@ -1944,6 +2074,7 @@ export type Reservation = {
   confirmed_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+  customer_id: string | null;
   session_id: string | null;
   seated_at: string | null;
   marketing_consent: boolean;
@@ -2273,6 +2404,7 @@ export type SessionCustomer = {
   is_session_host: boolean;
   device_id: string | null;
   tier: number;
+  allergens: string[];
   created_at: string;
   updated_at: string;
 };
@@ -2290,6 +2422,7 @@ export type SessionCustomerInsert = {
   is_session_host?: boolean;
   device_id?: string | null;
   tier?: number;
+  allergens?: string[];
 };
 
 export type SessionCustomerUpdate = Partial<

@@ -10,7 +10,8 @@ export interface Restaurant {
   maxCapacity: number; // Total restaurant capacity
   defaultPeoplePerTable: number; // Default for new tables
   autoTableAssignment: boolean; // Enable auto-assignment (future)
-  autoReservations: boolean; // Enable auto-reservations (future)
+  autoReservations: boolean; // Enable auto-reservations
+  autoReservationMaxPartySize: number; // Max party size for auto-reservations (1-20)
   orderCooldownMinutes: number; // Minutes between orders per session (0 = disabled)
   showUpgradeAfterOrder: boolean; // Show tier upgrade prompt after order
   showUpgradeAtBill: boolean; // Show tier upgrade prompt at bill time
@@ -36,6 +37,7 @@ export interface CreateRestaurantData {
   defaultPeoplePerTable: number;
   autoTableAssignment?: boolean;
   autoReservations?: boolean;
+  autoReservationMaxPartySize?: number;
   orderCooldownMinutes?: number;
   showUpgradeAfterOrder?: boolean;
   showUpgradeAtBill?: boolean;
@@ -59,6 +61,7 @@ export interface UpdateRestaurantData {
   defaultPeoplePerTable?: number;
   autoTableAssignment?: boolean;
   autoReservations?: boolean;
+  autoReservationMaxPartySize?: number;
   orderCooldownMinutes?: number;
   showUpgradeAfterOrder?: boolean;
   showUpgradeAtBill?: boolean;

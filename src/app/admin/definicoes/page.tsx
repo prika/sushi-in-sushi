@@ -17,8 +17,6 @@ import {
   generateQRCodeToCanvas,
   buildTableOrderURLByNumber,
 } from "@/lib/qrcode";
-import { TableMap } from "@/components/admin/TableMap";
-import { TableDetailModal } from "@/components/admin/TableDetailModal";
 import {
   useTableManagement,
   useRestaurants,
@@ -86,6 +84,10 @@ function NotificationsTab() {
   const [sameDayHours, setSameDayHours] = useState(2);
   const [wasteEnabled, setWasteEnabled] = useState(true);
   const [wasteFee, setWasteFee] = useState(2.5);
+  const [waiterAlertMinutes, setWaiterAlertMinutes] = useState(60);
+  const [pieceLimiterEnabled, setPieceLimiterEnabled] = useState(false);
+  const [pieceLimiterMode, setPieceLimiterMode] = useState<'block' | 'warning'>('warning');
+  const [pieceLimiterMaxPerPerson, setPieceLimiterMaxPerPerson] = useState(15);
 
   useEffect(() => {
     fetchSettings();
@@ -95,7 +97,7 @@ function NotificationsTab() {
     try {
       const response = await fetch("/api/reservation-settings");
       if (response.ok) {
-        const data: ReservationSettings = await response.json();
+        const data = await response.json();
         setSettings(data);
         setDayBeforeEnabled(data.day_before_reminder_enabled);
         setDayBeforeHours(data.day_before_reminder_hours);
@@ -103,6 +105,10 @@ function NotificationsTab() {
         setSameDayHours(data.same_day_reminder_hours);
         setWasteEnabled(data.rodizio_waste_policy_enabled);
         setWasteFee(data.rodizio_waste_fee_per_piece);
+        setWaiterAlertMinutes(data.waiter_alert_minutes || 60);
+        setPieceLimiterEnabled(data.piece_limiter_enabled ?? false);
+        setPieceLimiterMode(data.piece_limiter_mode ?? 'warning');
+        setPieceLimiterMaxPerPerson(data.piece_limiter_max_per_person ?? 15);
       }
     } catch (error) {
       console.error("Error fetching settings:", error);
@@ -127,6 +133,10 @@ function NotificationsTab() {
           same_day_reminder_hours: sameDayHours,
           rodizio_waste_policy_enabled: wasteEnabled,
           rodizio_waste_fee_per_piece: wasteFee,
+          waiter_alert_minutes: waiterAlertMinutes,
+          piece_limiter_enabled: pieceLimiterEnabled,
+          piece_limiter_mode: pieceLimiterMode,
+          piece_limiter_max_per_person: pieceLimiterMaxPerPerson,
         }),
       });
 
@@ -318,6 +328,127 @@ function NotificationsTab() {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Piece Limiter per Order (Rodizio) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📏</span>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Limitador de Pecas por Pedido (Rodizio)
+              </h3>
+            </div>
+            <p className="mt-2 text-gray-600 text-sm">
+              Limita o numero maximo de pecas que cada pessoa pode pedir por encomenda em modo rodizio.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={pieceLimiterEnabled}
+              onChange={(e) => setPieceLimiterEnabled(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
+          </label>
+        </div>
+
+        {pieceLimiterEnabled && (
+          <div className="mt-6 pl-11 space-y-4">
+            {/* Mode selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Modo de funcionamento
+              </label>
+              <div className="mt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPieceLimiterMode('warning')}
+                  className={`flex-1 py-2 px-3 text-sm rounded-lg border transition-colors ${
+                    pieceLimiterMode === 'warning'
+                      ? 'border-amber-400 bg-amber-50 text-amber-800 font-medium'
+                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  Aviso (permite enviar)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPieceLimiterMode('block')}
+                  className={`flex-1 py-2 px-3 text-sm rounded-lg border transition-colors ${
+                    pieceLimiterMode === 'block'
+                      ? 'border-red-400 bg-red-50 text-red-800 font-medium'
+                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  Bloquear (impede envio)
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                {pieceLimiterMode === 'warning'
+                  ? 'O cliente ve um aviso sobre o limite e a taxa de desperdicio, mas pode enviar o pedido.'
+                  : 'O cliente nao consegue enviar o pedido se ultrapassar o limite de pecas.'}
+              </p>
+            </div>
+
+            {/* Max pieces per person */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Limite de pecas por pessoa
+              </label>
+              <div className="mt-2 flex items-center gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={pieceLimiterMaxPerPerson}
+                  onChange={(e) => setPieceLimiterMaxPerPerson(parseInt(e.target.value) || 15)}
+                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
+                />
+                <span className="text-gray-600">pecas por pessoa</span>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Exemplo: {pieceLimiterMaxPerPerson} pecas/pessoa x mesa de 4 = maximo {pieceLimiterMaxPerPerson * 4} pecas por pedido
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Waiter Alert */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🔔</span>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Alerta para Empregados
+            </h3>
+          </div>
+          <p className="mt-2 text-gray-600 text-sm">
+            Tempo de antecedencia para alertar os empregados sobre reservas confirmadas para preparar mesas.
+          </p>
+        </div>
+        <div className="mt-6 pl-11">
+          <label className="block text-sm font-medium text-gray-700">
+            Minutos antes da reserva
+          </label>
+          <div className="mt-2 flex items-center gap-3">
+            <input
+              type="number"
+              min="15"
+              max="180"
+              value={waiterAlertMinutes}
+              onChange={(e) => setWaiterAlertMinutes(parseInt(e.target.value) || 60)}
+              className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
+            />
+            <span className="text-gray-600">minutos antes</span>
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Exemplo: 60 minutos = alerta enviado 1 hora antes da reserva
+          </p>
+        </div>
       </div>
 
       {/* Info Box */}
@@ -1110,12 +1241,12 @@ function TableManagementTab() {
     is_active: true,
   });
 
-  const [selectedLocation, setSelectedLocation] = useState<string>(
+  const [selectedLocation, _setSelectedLocation] = useState<string>(
     locations[0]?.slug || "circunvalacao",
   );
-  const [selectedTableForDetail, setSelectedTableForDetail] =
+  const [_selectedTableForDetail, setSelectedTableForDetail] =
     useState<TableDTO | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [_showDetailModal, setShowDetailModal] = useState(false);
 
   // Helper to get location label
   const getLocationLabel = (slug: string) => {
@@ -1124,13 +1255,6 @@ function TableManagementTab() {
 
   const {
     tables: mapTables,
-    isLoading: mapIsLoading,
-    refresh: refreshMap,
-    startWalkInSession,
-    markTableInactive,
-    reactivateTable,
-    requestBill,
-    closeSession,
   } = useTableManagement({
     location: selectedLocation as "circunvalacao" | "boavista",
     refreshInterval: 15000,
@@ -1356,12 +1480,12 @@ function TableManagementTab() {
     };
   };
 
-  const handleTableClick = (table: TableDTO) => {
+  const _handleTableClick = (table: TableDTO) => {
     setSelectedTableForDetail(table);
     setShowDetailModal(true);
   };
 
-  const handleDetailModalClose = () => {
+  const _handleDetailModalClose = () => {
     setShowDetailModal(false);
     setSelectedTableForDetail(null);
   };
@@ -1380,7 +1504,7 @@ function TableManagementTab() {
     return counts;
   };
 
-  const statusCounts = getStatusCounts();
+  const _statusCounts = getStatusCounts();
 
   const handlePrintAllQRs = (location?: string) => {
     const tablesToPrint = location
@@ -2086,6 +2210,7 @@ function RestaurantManagementTab() {
   const [recreatingTablesFor, setRecreatingTablesFor] = useState<string | null>(
     null,
   );
+  const [closingAllFor, setClosingAllFor] = useState<string | null>(null);
 
   // Modal states for replacing system alerts/confirms
   const [alertModal, setAlertModal] = useState<{
@@ -2153,6 +2278,7 @@ function RestaurantManagementTab() {
     orderCooldownMinutes: 0,
     autoTableAssignment: false,
     autoReservations: false,
+    autoReservationMaxPartySize: 6,
     isActive: true,
     gamesEnabled: false,
     gamesMode: "selection" as "selection" | "random",
@@ -2188,13 +2314,14 @@ function RestaurantManagementTab() {
         orderCooldownMinutes: restaurant.orderCooldownMinutes,
         autoTableAssignment: restaurant.autoTableAssignment,
         autoReservations: restaurant.autoReservations,
+        autoReservationMaxPartySize: restaurant.autoReservationMaxPartySize ?? 6,
         isActive: restaurant.isActive,
         gamesEnabled: restaurant.gamesEnabled,
         gamesMode: restaurant.gamesMode,
         gamesPrizeType: restaurant.gamesPrizeType,
         gamesPrizeValue: restaurant.gamesPrizeValue ?? "",
         gamesPrizeProductId:
-          restaurant.gamesPrizeProductId != null
+          restaurant.gamesPrizeProductId !== null
             ? String(restaurant.gamesPrizeProductId)
             : "",
         gamesMinRoundsForPrize: restaurant.gamesMinRoundsForPrize,
@@ -2211,6 +2338,7 @@ function RestaurantManagementTab() {
         orderCooldownMinutes: 0,
         autoTableAssignment: false,
         autoReservations: false,
+        autoReservationMaxPartySize: 6,
         isActive: true,
         gamesEnabled: false,
         gamesMode: "selection",
@@ -2401,6 +2529,51 @@ function RestaurantManagementTab() {
     );
   };
 
+  const handleCloseAllTables = (restaurant: Restaurant) => {
+    showConfirm(
+      `Fechar todas as mesas de ${restaurant.name}?`,
+      "Todas as sessões ativas serão encerradas e as mesas ficarão disponíveis.\n\nEsta ação não pode ser revertida.",
+      async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        setClosingAllFor(restaurant.id);
+
+        try {
+          const res = await fetch("/api/tables/close-all", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ location: restaurant.slug }),
+          });
+          const data = await res.json();
+
+          if (!res.ok) {
+            showAlert(
+              "Erro",
+              data.error || "Erro ao fechar mesas",
+              "error",
+            );
+          } else {
+            showAlert(
+              "Mesas fechadas",
+              data.closed > 0
+                ? `${data.closed} sessão(ões) encerrada(s). Todas as mesas estão disponíveis.`
+                : "Nenhuma sessão ativa encontrada. Mesas já estão disponíveis.",
+              "success",
+            );
+          }
+        } catch (err) {
+          showAlert(
+            "Erro",
+            err instanceof Error ? err.message : "Erro desconhecido",
+            "error",
+          );
+        } finally {
+          setClosingAllFor(null);
+        }
+      },
+      { variant: "danger", confirmText: "Fechar todas" },
+    );
+  };
+
   const handleDelete = (id: string) => {
     showConfirm(
       "Eliminar restaurante",
@@ -2563,8 +2736,8 @@ function RestaurantManagementTab() {
                 </span>
               )}
               {restaurant.autoReservations && (
-                <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                  Reservas automáticas
+                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                  Reservas auto (max {restaurant.autoReservationMaxPartySize ?? 6}p)
                 </span>
               )}
               {!restaurant.autoTableAssignment &&
@@ -2618,6 +2791,35 @@ function RestaurantManagementTab() {
                       />
                     </svg>
                     Recriar Mesas
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => handleCloseAllTables(restaurant)}
+                disabled={closingAllFor === restaurant.id}
+                className="w-full px-3 py-2 border border-orange-300 text-orange-600 rounded-lg hover:bg-orange-50 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {closingAllFor === restaurant.id ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-orange-600 border-t-transparent rounded-full" />
+                    Fechando...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                      />
+                    </svg>
+                    Fechar Todas as Mesas
                   </>
                 )}
               </button>
@@ -2890,10 +3092,68 @@ function RestaurantManagementTab() {
                 </p>
               </div>
 
-              {/* Automation Flags */}
+              {/* Auto Reservations */}
+              <div className="space-y-3 p-4 bg-green-50 rounded-lg">
+                <p className="text-sm font-medium text-green-900">
+                  Reservas Automáticas
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="autoReservations"
+                    checked={formData.autoReservations}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        autoReservations: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  />
+                  <label
+                    htmlFor="autoReservations"
+                    className="text-sm text-gray-700"
+                  >
+                    Ativar reservas automáticas
+                  </label>
+                </div>
+
+                {formData.autoReservations && (
+                  <div className="space-y-3 pl-6 border-l-2 border-green-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Máximo de pessoas para reserva automática
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={formData.autoReservationMaxPartySize}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            autoReservationMaxPartySize: parseInt(e.target.value) || 6,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Reservas com mais pessoas que este limite seguem o fluxo manual.
+                      </p>
+                    </div>
+                    <p className="text-xs text-green-700">
+                      Quando ativo, reservas dentro do limite são confirmadas automaticamente,
+                      uma mesa é atribuída e um empregado é alocado para preparar a sala.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Auto Table Assignment */}
               <div className="space-y-3 p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm font-medium text-blue-900">
-                  Configurações de Automação (Funcionalidades Futuras)
+                  Atribuição Automática de Mesas
                 </p>
 
                 <div className="flex items-center gap-2">
@@ -2907,40 +3167,19 @@ function RestaurantManagementTab() {
                         autoTableAssignment: e.target.checked,
                       })
                     }
-                    className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <label
                     htmlFor="autoTableAssignment"
                     className="text-sm text-gray-700"
                   >
-                    Automatizar atribuição de mesas aos funcionários
+                    Atribuir automaticamente mesas aos empregados
                   </label>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="autoReservations"
-                    checked={formData.autoReservations}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        autoReservations: e.target.checked,
-                      })
-                    }
-                    className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
-                  />
-                  <label
-                    htmlFor="autoReservations"
-                    className="text-sm text-gray-700"
-                  >
-                    Automatizar gestão de reservas
-                  </label>
-                </div>
-
-                <p className="text-xs text-blue-600 mt-2">
-                  Estas funcionalidades estarão disponíveis em futuras
-                  atualizações
+                <p className="text-xs text-blue-700 mt-2">
+                  Quando ativo, ao iniciar uma sessão numa mesa sem empregado atribuído,
+                  o sistema atribui automaticamente o empregado com menos mesas ocupadas.
                 </p>
               </div>
 
@@ -3217,7 +3456,7 @@ function RestaurantManagementTab() {
 // =============================================
 
 function CategoriesTab() {
-  const { categories, isLoading, error, create, update, remove, reorder, refresh } =
+  const { categories, isLoading, error, create, update, remove, reorder } =
     useCategories();
   const { activeZones } = useKitchenZones();
 
@@ -3595,7 +3834,7 @@ function CategoriesTab() {
 // =============================================
 
 function KitchenZonesTab() {
-  const { zones, isLoading, error, create, update, remove, refresh } =
+  const { zones, isLoading, error, create, update, remove } =
     useKitchenZones();
 
   const [showModal, setShowModal] = useState(false);

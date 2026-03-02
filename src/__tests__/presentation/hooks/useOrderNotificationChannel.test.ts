@@ -8,13 +8,13 @@ import {
 } from '@/presentation/hooks/useOrderNotificationChannel';
 
 describe('useOrderNotificationChannel', () => {
-  let mockSetOrderNotification: ReturnType<typeof vi.fn<(value: string | null) => void>>;
+  let mockSetOrderNotification: ReturnType<typeof vi.fn<(_value: string | null) => void>>;
   let mockFetchSessionOrders: ReturnType<typeof vi.fn<() => void>>;
   let mockRemoveChannel: ReturnType<typeof vi.fn>;
-  let broadcastCallback: (payload: { payload: { customerName: string; itemCount: number; deviceId?: string } }) => void;
+  let broadcastCallback: (_payload: { payload: { customerName: string; itemCount: number; deviceId?: string } }) => void;
 
   const createMockChannel = () => ({
-    on: vi.fn().mockImplementation((_type: string, _opts: Record<string, string>, cb: (payload: { payload: { customerName: string; itemCount: number; deviceId?: string } }) => void) => {
+    on: vi.fn().mockImplementation((_type: string, _opts: Record<string, string>, cb: (_payload: { payload: { customerName: string; itemCount: number; deviceId?: string } }) => void) => {
       broadcastCallback = cb;
       return { subscribe: vi.fn() };
     }),
@@ -30,7 +30,7 @@ describe('useOrderNotificationChannel', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    mockSetOrderNotification = vi.fn<(value: string | null) => void>();
+    mockSetOrderNotification = vi.fn<(_value: string | null) => void>();
     mockFetchSessionOrders = vi.fn<() => void>();
     mockRemoveChannel = vi.fn();
   });

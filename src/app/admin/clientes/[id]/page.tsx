@@ -4,8 +4,23 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useLocations } from "@/presentation/hooks";
-import { CustomerTierService } from "@/domain/services/CustomerTierService";
-import type { CustomerTier } from "@/domain/value-objects/CustomerTier";
+import { CustomerTierService, type BehavioralInsight, type CustomerStats } from "@/domain/services/CustomerTierService";
+import { CUSTOMER_TIER_LABELS, CUSTOMER_TIER_COLORS, getProfileCompleteness } from "@/domain/value-objects/CustomerTier";
+
+const PROFILE_FIELD_LABELS: Record<string, string> = {
+  email: "Email",
+  phone: "Telefone",
+  birthDate: "Data de Nascimento",
+  preferredLocation: "Localização Preferida",
+  marketingConsent: "Marketing",
+};
+
+const INSIGHT_SEVERITY_COLORS: Record<string, string> = {
+  info: "bg-blue-50 text-blue-700 border-blue-200",
+  positive: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  warning: "bg-amber-50 text-amber-700 border-amber-200",
+  negative: "bg-red-50 text-red-700 border-red-200",
+};
 
 interface CustomerHistoryReservation {
   id: string;
@@ -24,6 +39,9 @@ interface CustomerHistoryReservation {
   specialRequests: string | null;
   confirmedAt: string | null;
   cancelledAt: string | null;
+  cancellationReason: string | null;
+  cancelledBy: string | null;
+  cancellationSource: string | null;
   sessionId: string | null;
   seatedAt: string | null;
   createdAt: string;
@@ -52,13 +70,6 @@ interface CustomerHistoryOrder {
   status: string;
   createdAt: string;
 }
-
-const TIER_LABELS_PT: Record<CustomerTier, string> = {
-  1: "Sessão",
-  2: "Básico",
-  3: "Completo",
-  4: "Perfil Entrega",
-};
 
 const RESERVATION_STATUS_LABELS: Record<string, string> = {
   pending: "Pendente",
@@ -102,6 +113,7 @@ interface CustomerHistoryData {
   reservations: CustomerHistoryReservation[];
   visits: CustomerHistoryVisit[];
   orders: CustomerHistoryOrder[];
+  stats: CustomerStats;
 }
 
 export default function ClienteDetailPage() {
@@ -166,15 +178,13 @@ export default function ClienteDetailPage() {
     );
   }
 
-  const { customer, reservations, visits, orders } = data;
-  const tier = CustomerTierService.computeTier({
-    displayName: customer.name,
-    email: customer.email,
-    phone: customer.phone,
-    fullName: customer.name,
-    birthDate: customer.birthDate,
-  });
-  const totalFromOrders = orders.reduce((sum, o) => sum + o.total, 0);
+  const { customer, reservations, visits, orders, stats } = data;
+  const tier = CustomerTierService.computeTierFromCustomer(customer);
+  const tierColors = CUSTOMER_TIER_COLORS[tier];
+  const insights = CustomerTierService.computeInsights(stats);
+  const profile = getProfileCompleteness(customer);
+  const allProfileFields = ["email", "phone", "birthDate", "preferredLocation", "marketingConsent"];
+  const totalFromOrders = stats.totalFromOrders;
 
   return (
     <div className="space-y-8 text-gray-900">
@@ -232,7 +242,9 @@ export default function ClienteDetailPage() {
               </div>
               <div>
                 <p className="text-gray-500">Patamar</p>
-                <p className="font-medium text-gray-900">{TIER_LABELS_PT[tier as CustomerTier]}</p>
+                <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${tierColors.bg} ${tierColors.text}`}>
+                  {CUSTOMER_TIER_LABELS[tier]}
+                </span>
               </div>
               <div>
                 <p className="text-gray-500">Pontos</p>
@@ -265,6 +277,87 @@ export default function ClienteDetailPage() {
             </div>
           </section>
 
+          {/* Dados recolhidos + Insights comportamentais */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Perfil de conhecimento */}
+            <section className="p-4 bg-white rounded-xl border border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">
+                Dados recolhidos ({profile.filled.length}/{allProfileFields.length})
+              </h2>
+              <div className="space-y-2">
+                {allProfileFields.map((field) => {
+                  const isFilled = profile.filled.includes(field);
+                  return (
+                    <div key={field} className="flex items-center gap-2">
+                      <span className={`w-5 h-5 flex items-center justify-center rounded-full text-xs ${
+                        isFilled ? "bg-emerald-100 text-emerald-600" : "bg-gray-100 text-gray-400"
+                      }`}>
+                        {isFilled ? "✓" : "○"}
+                      </span>
+                      <span className={`text-sm ${isFilled ? "text-gray-900" : "text-gray-400"}`}>
+                        {PROFILE_FIELD_LABELS[field]}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Progress bar */}
+              <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-400 rounded-full transition-all"
+                  style={{ width: `${(profile.filled.length / allProfileFields.length) * 100}%` }}
+                />
+              </div>
+            </section>
+
+            {/* Insights comportamentais */}
+            <section className="p-4 bg-white rounded-xl border border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">
+                Perfil comportamental
+              </h2>
+              {insights.length === 0 ? (
+                <p className="text-sm text-gray-400">
+                  Dados insuficientes para gerar insights.
+                  {stats.reservationCount === 0 && " Sem reservas registadas."}
+                  {stats.visitCount === 0 && " Sem visitas registadas."}
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {insights.map((insight: BehavioralInsight) => (
+                    <span
+                      key={insight.key}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border ${INSIGHT_SEVERITY_COLORS[insight.severity]}`}
+                    >
+                      <span>{insight.icon}</span>
+                      <span>{insight.label}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Summary stats */}
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div className="flex justify-between p-1.5 bg-gray-50 rounded">
+                  <span className="text-gray-500">Reservas</span>
+                  <span className="font-medium text-gray-900">{stats.reservationCount}</span>
+                </div>
+                <div className="flex justify-between p-1.5 bg-gray-50 rounded">
+                  <span className="text-gray-500">No-shows</span>
+                  <span className={`font-medium ${stats.noShowCount > 0 ? "text-red-600" : "text-gray-900"}`}>
+                    {stats.noShowCount}
+                  </span>
+                </div>
+                <div className="flex justify-between p-1.5 bg-gray-50 rounded">
+                  <span className="text-gray-500">Cancelamentos</span>
+                  <span className="font-medium text-gray-900">{stats.cancelledReservations}</span>
+                </div>
+                <div className="flex justify-between p-1.5 bg-gray-50 rounded">
+                  <span className="text-gray-500">Média pax</span>
+                  <span className="font-medium text-gray-900">{stats.avgPartySize || "—"}</span>
+                </div>
+              </div>
+            </section>
+          </div>
+
           {/* Resumo valor pago */}
           <section className="p-4 bg-[#D4AF37]/10 rounded-xl border border-[#D4AF37]/30">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">Valor pago (pedidos)</h2>
@@ -281,6 +374,11 @@ export default function ClienteDetailPage() {
           <section>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Reservas ({reservations.length})
+              {reservations.filter(r => r.status === 'cancelled').length > 0 && (
+                <span className="text-sm font-normal text-red-500 ml-2">
+                  — {reservations.filter(r => r.status === 'cancelled').length} cancelada{reservations.filter(r => r.status === 'cancelled').length !== 1 ? 's' : ''}
+                </span>
+              )}
             </h2>
             {reservations.length === 0 ? (
               <p className="text-gray-500 text-sm">Nenhuma reserva encontrada (por email).</p>
@@ -293,14 +391,13 @@ export default function ClienteDetailPage() {
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Nome</th>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Pax</th>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Local</th>
-                      <th className="px-4 py-2 text-left font-medium text-gray-700">Mesa</th>
                       <th className="px-4 py-2 text-left font-medium text-gray-700">Estado</th>
-                      <th className="px-4 py-2 text-left font-medium text-gray-700">Rodízio</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Cancelamento</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 text-gray-900">
                     {reservations.map((r) => (
-                      <tr key={r.id} className="hover:bg-gray-50">
+                      <tr key={r.id} className={`hover:bg-gray-50 ${r.status === 'cancelled' ? 'bg-red-50/50' : ''}`}>
                         <td className="px-4 py-2 text-gray-900">
                           {formatDate(r.reservationDate)} {r.reservationTime}
                         </td>
@@ -309,13 +406,36 @@ export default function ClienteDetailPage() {
                         </td>
                         <td className="px-4 py-2 text-gray-900">{r.partySize}</td>
                         <td className="px-4 py-2 text-gray-900">{getLocationLabel(r.location)}</td>
-                        <td className="px-4 py-2 text-gray-900">{r.tableNumber ?? r.tableName ?? "—"}</td>
                         <td className="px-4 py-2 text-gray-900">
-                          <span className="font-medium">
+                          <span className={`font-medium ${r.status === 'cancelled' ? 'text-red-600' : ''}`}>
                             {RESERVATION_STATUS_LABELS[r.status] ?? r.status}
                           </span>
                         </td>
-                        <td className="px-4 py-2 text-gray-900">{r.isRodizio ? "Sim" : "Não"}</td>
+                        <td className="px-4 py-2">
+                          {r.status === 'cancelled' ? (
+                            <div className="space-y-1">
+                              {r.cancellationReason && (
+                                <p className="text-xs text-gray-600 italic line-clamp-1">{r.cancellationReason}</p>
+                              )}
+                              <div className="flex flex-wrap gap-1">
+                                {r.cancelledBy && (
+                                  <span className={`px-1.5 py-0.5 text-[10px] rounded-full font-medium ${
+                                    r.cancelledBy === 'customer' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                                  }`}>
+                                    {r.cancelledBy === 'customer' ? 'Cliente' : 'Admin'}
+                                  </span>
+                                )}
+                                {r.cancellationSource && (
+                                  <span className="px-1.5 py-0.5 text-[10px] rounded-full font-medium bg-gray-100 text-gray-600">
+                                    {r.cancellationSource === 'site' ? 'Site' : 'Telefone'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

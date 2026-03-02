@@ -11,10 +11,10 @@ import type { VendusConfig } from "./types";
 // Tabela locations não está nos tipos gerados; usar cast para query dinâmica
 function fromLocations(supabase: ReturnType<typeof createAdminClient>) {
   type LocationsQuery = {
-    select: (c: string) => {
+    select: (_c: string) => {
       eq: (
-        col: string,
-        val: unknown,
+        _col: string,
+        _val: unknown,
       ) => {
         single: () => Promise<{
           data: {
@@ -24,16 +24,16 @@ function fromLocations(supabase: ReturnType<typeof createAdminClient>) {
           } | null;
         }>;
         not: (
-          col: string,
-          op: string,
-          val: unknown,
+          _col: string,
+          _op: string,
+          _val: unknown,
         ) => {
           not: (
-            col: string,
-            op: string,
-            val: unknown,
+            _col: string,
+            _op: string,
+            _val: unknown,
           ) => {
-            order: (col: string) => Promise<{ data: { slug: string }[] }>;
+            order: (_col: string) => Promise<{ data: { slug: string }[] }>;
           };
         };
       };
@@ -145,6 +145,15 @@ export async function getVendusConfig(
  */
 export function isVendusEnabled(): boolean {
   return !!process.env.VENDUS_API_KEY;
+}
+
+/**
+ * Verifica se o Vendus esta em modo de somente-leitura.
+ * Quando true, operacoes de escrita (push/export) sao bloqueadas.
+ * Util durante desenvolvimento/testes para proteger dados no Vendus.
+ */
+export function isVendusReadOnly(): boolean {
+  return process.env.VENDUS_READONLY === "true";
 }
 
 /**

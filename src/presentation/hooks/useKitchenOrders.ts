@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useKitchenOrders - Hook para gestão de pedidos da cozinha
@@ -10,15 +10,15 @@
  * - Agrupamento e contagem de pedidos
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useDependencies } from '../contexts/DependencyContext';
-import { KitchenOrderDTO, OrderCountsDTO } from '@/application/dto/OrderDTO';
-import { OrderStatus } from '@/domain/value-objects/OrderStatus';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useDependencies } from "../contexts/DependencyContext";
+import { KitchenOrderDTO, OrderCountsDTO } from "@/application/dto/OrderDTO";
+import { OrderStatus } from "@/domain/value-objects/OrderStatus";
 import {
   OrderRealtimeHandler,
   OrderRealtimeHandlerFactory,
   OrderRealtimeEvent,
-} from '@/infrastructure/realtime/OrderRealtimeHandler';
+} from "@/infrastructure/realtime/OrderRealtimeHandler";
 
 /**
  * Opções do hook
@@ -37,12 +37,15 @@ export interface UseKitchenOrdersOptions {
   /**
    * Callback quando um novo pedido chega
    */
-  onNewOrder?: (order: KitchenOrderDTO) => void;
+  onNewOrder?: (_order: KitchenOrderDTO) => void;
 
   /**
    * Callback quando um pedido é atualizado
    */
-  onOrderUpdated?: (order: KitchenOrderDTO, previousStatus: OrderStatus) => void;
+  onOrderUpdated?: (
+    _order: KitchenOrderDTO,
+    _previousStatus: OrderStatus,
+  ) => void;
 
   /**
    * Intervalo de refresh automático em ms (0 para desativar)
@@ -91,12 +94,12 @@ export interface UseKitchenOrdersResult {
   /**
    * Atualiza o status de um pedido
    */
-  updateStatus: (orderId: string, newStatus: OrderStatus) => Promise<boolean>;
+  updateStatus: (_orderId: string, _newStatus: OrderStatus) => Promise<boolean>;
 
   /**
    * Avança um pedido para o próximo status
    */
-  advanceOrder: (orderId: string) => Promise<boolean>;
+  advanceOrder: (_orderId: string) => Promise<boolean>;
 
   /**
    * Força refresh dos dados
@@ -106,14 +109,14 @@ export interface UseKitchenOrdersResult {
   /**
    * Limpa o indicador de "novo" de um pedido
    */
-  clearNewIndicator: (orderId: string) => void;
+  clearNewIndicator: (_orderId: string) => void;
 }
 
 /**
  * Hook para gestão de pedidos da cozinha
  */
 export function useKitchenOrders(
-  options: UseKitchenOrdersOptions = {}
+  options: UseKitchenOrdersOptions = {},
 ): UseKitchenOrdersResult {
   const {
     location,
@@ -162,7 +165,7 @@ export function useKitchenOrders(
 
     try {
       const result = await getKitchenOrders.execute({
-        statuses: ['pending', 'preparing', 'ready'],
+        statuses: ["pending", "preparing", "ready"],
         location,
       });
 
@@ -174,7 +177,7 @@ export function useKitchenOrders(
         setError(result.error);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar pedidos');
+      setError(err instanceof Error ? err.message : "Erro ao carregar pedidos");
     } finally {
       setIsLoading(false);
     }
@@ -203,8 +206,8 @@ export function useKitchenOrders(
             prev
               .map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
               .filter((o) =>
-                ['pending', 'preparing', 'ready'].includes(o.status)
-              )
+                ["pending", "preparing", "ready"].includes(o.status),
+              ),
           );
 
           // Re-agrupar
@@ -219,16 +222,25 @@ export function useKitchenOrders(
 
             return {
               pending:
-                newStatus === 'pending'
-                  ? [...prev.pending.filter((o) => o.id !== orderId), updatedOrder]
+                newStatus === "pending"
+                  ? [
+                      ...prev.pending.filter((o) => o.id !== orderId),
+                      updatedOrder,
+                    ]
                   : prev.pending.filter((o) => o.id !== orderId),
               preparing:
-                newStatus === 'preparing'
-                  ? [...prev.preparing.filter((o) => o.id !== orderId), updatedOrder]
+                newStatus === "preparing"
+                  ? [
+                      ...prev.preparing.filter((o) => o.id !== orderId),
+                      updatedOrder,
+                    ]
                   : prev.preparing.filter((o) => o.id !== orderId),
               ready:
-                newStatus === 'ready'
-                  ? [...prev.ready.filter((o) => o.id !== orderId), updatedOrder]
+                newStatus === "ready"
+                  ? [
+                      ...prev.ready.filter((o) => o.id !== orderId),
+                      updatedOrder,
+                    ]
                   : prev.ready.filter((o) => o.id !== orderId),
             };
           });
@@ -247,11 +259,13 @@ export function useKitchenOrders(
           return false;
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao atualizar pedido');
+        setError(
+          err instanceof Error ? err.message : "Erro ao atualizar pedido",
+        );
         return false;
       }
     },
-    [updateOrderStatus]
+    [updateOrderStatus],
   );
 
   /**
@@ -263,9 +277,9 @@ export function useKitchenOrders(
       if (!order) return false;
 
       const nextStatusMap: Partial<Record<OrderStatus, OrderStatus>> = {
-        pending: 'preparing',
-        preparing: 'ready',
-        ready: 'delivered',
+        pending: "preparing",
+        preparing: "ready",
+        ready: "delivered",
       };
 
       const nextStatus = nextStatusMap[order.status];
@@ -273,7 +287,7 @@ export function useKitchenOrders(
 
       return handleUpdateStatus(orderId, nextStatus);
     },
-    [orders, handleUpdateStatus]
+    [orders, handleUpdateStatus],
   );
 
   /**
@@ -315,8 +329,8 @@ export function useKitchenOrders(
           createdAt: event.new.createdAt.toISOString(),
           timeElapsedMinutes: 0,
           isLate: false,
-          urgencyColor: 'green',
-          product: { id: '', name: '', imageUrl: null },
+          urgencyColor: "green",
+          product: { id: "", name: "", imageUrl: null },
           table: null,
           customerName: null,
           waiterName: null,
@@ -341,7 +355,9 @@ export function useKitchenOrders(
       } else if (event.statusChanged && event.new) {
         // Status mudou - atualizar ou remover
         const newStatus = event.new.status;
-        const isRelevant = ['pending', 'preparing', 'ready'].includes(newStatus);
+        const isRelevant = ["pending", "preparing", "ready"].includes(
+          newStatus,
+        );
 
         if (isRelevant) {
           // Refetch para obter dados atualizados
@@ -363,8 +379,8 @@ export function useKitchenOrders(
             createdAt: event.new.createdAt.toISOString(),
             timeElapsedMinutes: 0,
             isLate: false,
-            urgencyColor: 'green',
-            product: { id: '', name: '', imageUrl: null },
+            urgencyColor: "green",
+            product: { id: "", name: "", imageUrl: null },
             table: null,
             customerName: null,
             waiterName: null,
@@ -381,7 +397,7 @@ export function useKitchenOrders(
         }
       }
     },
-    [fetchOrders, onNewOrder, onOrderUpdated]
+    [fetchOrders, onNewOrder, onOrderUpdated],
   );
 
   // Fetch inicial
@@ -393,7 +409,8 @@ export function useKitchenOrders(
   useEffect(() => {
     if (!realtime) return;
 
-    realtimeHandlerRef.current = OrderRealtimeHandlerFactory.forKitchen(location);
+    realtimeHandlerRef.current =
+      OrderRealtimeHandlerFactory.forKitchen(location);
     realtimeHandlerRef.current.subscribeWithDetails(handleRealtimeEvent);
 
     return () => {

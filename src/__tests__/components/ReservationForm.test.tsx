@@ -6,7 +6,50 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '../helpers/test-utils';
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { ReservationForm } from '@/components/ReservationForm';
+
+// Portuguese translations for namespaces used by ReservationForm
+const translations: Record<string, Record<string, string>> = {
+  reservationForm: {
+    firstName: 'Primeiro Nome',
+    lastName: 'Apelido',
+    email: 'Email',
+    phone: 'Telefone',
+    date: 'Data',
+    time: 'Hora',
+    selectTime: 'Selecione a hora',
+    noTimesAvailable: 'Sem horários disponíveis',
+    noTimesToday: 'Não há mais horários disponíveis para hoje',
+    partySize: 'Número de Pessoas',
+    decreaseParty: 'Diminuir número de pessoas',
+    increaseParty: 'Aumentar número de pessoas',
+    restaurant: 'Restaurante',
+    serviceType: 'Tipo de Serviço',
+    rodizio: 'Rodízio',
+    alaCarte: 'À Carta',
+    occasion: 'Ocasião',
+    specialRequests: 'Pedidos Especiais / Alergias',
+    specialRequestsPlaceholder: 'Informe-nos de alergias ou pedidos especiais...',
+    marketingConsent: 'Aceito receber novidades e promoções por email',
+    submit: 'Confirmar Reserva',
+    submitting: 'A processar...',
+    confirmationNote: 'A sua reserva será confirmada por telefone ou email.',
+    successTitle: 'Reserva Recebida!',
+    successMessage: 'Entraremos em contacto para confirmar a sua reserva.',
+    newReservation: 'Fazer Nova Reserva',
+    errorDefault: 'Erro ao criar reserva',
+    closureWarning: 'Por favor escolha outra data.',
+    required: '*',
+  },
+  reservation: {
+    selectOptional: 'Selecione (opcional)',
+    birthday: 'Aniversário',
+    celebration: 'Celebração',
+    business: 'Negócios',
+    other: 'Outro',
+  },
+};
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -43,6 +86,11 @@ describe('ReservationForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockReset();
+
+    // Override global next-intl mock with real Portuguese translations
+    vi.mocked(useTranslations).mockImplementation(
+      (namespace: string) => ((key: string) => translations[namespace]?.[key] ?? key) as any
+    );
 
     // Default mock for closure check - not closed
     mockFetch.mockImplementation((url: string) => {

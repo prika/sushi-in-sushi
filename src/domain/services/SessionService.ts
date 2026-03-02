@@ -3,7 +3,7 @@
  * Contém a lógica de negócio pura relacionada a sessões de mesa
  */
 
-import { Session, SessionWithOrders } from '../entities/Session';
+import { Session } from '../entities/Session';
 import { Table } from '../entities/Table';
 import { Order } from '../entities/Order';
 import { SessionStatus, canSessionTransitionTo, isSessionActive, isSessionClosed } from '../value-objects/SessionStatus';

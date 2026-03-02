@@ -1,9 +1,4 @@
-# Plano de Deployment - sushinsushi.pt
-
-> Documento completo com todos os passos para colocar o projeto online.
-> Data: 2026-02-20
-
----
+# Plano de Deployment
 
 ## Indice
 
@@ -42,7 +37,7 @@
 
 - [x] Tenho acesso ao painel DNS do dominio sushinsushi.pt (OVHcloud)
 - [x] Tenho conta Vercel Pro
-- [x] Tenho o projeto Supabase `xrmzhvpkvkgoryvfozfy` com acesso admin
+- [x] Tenho o projeto Supabase com acesso admin
 - [x] Tenho as credenciais Supabase (URL, Anon Key, Service Role Key)
 - [ ] Sei as passwords que quero usar para admin/cozinha/empregados
 
@@ -146,7 +141,6 @@ O projeto precisa de duas coisas diferentes para email:
 | Branch | Ambiente | URL |
 |--------|----------|-----|
 | `main` | Production | sushinsushi.pt |
-| `vendus_billing` (ou outra) | Preview | *.vercel.app |
 
 ### 3.3 Configuracoes do projeto Vercel
 

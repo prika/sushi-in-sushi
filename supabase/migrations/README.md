@@ -64,7 +64,7 @@ Esta pasta contém todas as migrations de base de dados prontas para produção,
 | **037** | `waiter_calls_customer.sql` | Link chamadas → customers | 007, 008 |
 | **038** | `identity_verification.sql` | Verificação de identidade | 001 |
 
-### Session & Table Control (039-043)
+### Session & Table Control (039-045)
 
 | # | Nome | Descrição | Dependências |
 |---|------|-----------|--------------|
@@ -73,6 +73,36 @@ Esta pasta contém todas as migrations de base de dados prontas para produção,
 | **041** | `fix_waiter_assignments.sql` | Fix de atribuições de waiters | 001, 002 |
 | **042** | `enable_auto_assignment.sql` | Auto-atribuição de mesas | 002 |
 | **043** | `close_session_update_table.sql` | Função fechar sessão e liberar mesa | 002 |
+| **044** | `fix_close_session_function.sql` | Fix tipo UUID na função | 043 |
+| **045** | `fix_product_ratings_constraints.sql` | Fix constraints para upsert | 028, 035 |
+
+### Vendus POS Integration (046-049)
+
+| # | Nome | Descrição | Dependências |
+|---|------|-----------|--------------|
+| **046** | `vendus_integration.sql` | Core Vendus: sync log, retry queue, invoices, payment methods | 002 |
+| **047** | `vendus_categories.sql` | `vendus_id` em categorias | 046 |
+| **048** | `locations_flexible.sql` | `is_active` em localizações | 046 |
+| **049** | `products_location.sql` | `location_id` em produtos | 046 |
+
+### Product Service Modes (050-053)
+
+| # | Nome | Descrição | Dependências |
+|---|------|-----------|--------------|
+| **050** | `products_service_modes.sql` | Array `service_modes` (dine_in, delivery, takeaway) | 002 |
+| **051** | `import_vendus_products.sql` | Import de produtos Vendus (6K linhas, executar separadamente) | 046 |
+| **052** | `products_service_prices.sql` | JSONB `service_prices` por modo | 050 |
+| **053** | `products_vendus_ids.sql` | JSONB `vendus_ids` por modo de serviço | 046 |
+
+### Kitchen, Ingredients & Billing (054-058)
+
+| # | Nome | Descrição | Dependências |
+|---|------|-----------|--------------|
+| **054** | `kitchen_zones.sql` | Zonas de cozinha (Quentes, Frios, Bar) | 002 |
+| **055** | `ingredients_catalog.sql` | Catálogo de ingredientes + product_ingredients | 002 |
+| **056** | `fix_session_status_constraint.sql` | Fix constraint status sessões | 002 |
+| **057** | `billing_fields.sql` | Campo `customer_nif` em sessões | 002 |
+| **058** | `reservation_table_assignment.sql` | Atribuição de mesas a reservas + alerta waiter | 003 |
 
 ---
 
@@ -85,18 +115,24 @@ Esta pasta contém todas as migrations de base de dados prontas para produção,
 ✅ **007-009:** Chamadas de waiter
 ✅ **022:** Performance indexes (40-60% mais rápido)
 ✅ **023:** Multi-restaurantes
+✅ **043-044:** Fechar sessão corretamente (função close_session_and_free_table)
+✅ **056:** Fix constraint de status de sessões
 
 ### Important (Features principais)
 
 ⚠️ **020:** Gestão de férias
 ⚠️ **039:** Controlo de pedidos waiter/client
-⚠️ **043:** Fechar sessão corretamente
+⚠️ **046-049:** Vendus POS integration (faturação)
+⚠️ **053:** Vendus IDs por modo de serviço
+⚠️ **057:** Campo NIF para faturação
+⚠️ **058:** Atribuição de mesas a reservas
 
 ### Optional (Gamificação e extras)
 
 🎮 **029-033:** Sistema de jogos
 ⭐ **028, 035:** Avaliações de produtos
 📧 **004, 015:** Email tracking e reminders
+🍽️ **054-055:** Zonas de cozinha e ingredientes
 
 ---
 
@@ -154,25 +190,41 @@ npx supabase migration list
 
 ---
 
-## 📦 Migrations Pendentes de Aplicação
+## 📦 Aplicar Migrations Pendentes
 
-**Verificar no ambiente de produção:**
+### Script Consolidado (RECOMENDADO)
 
-```sql
--- Esta query mostra se migration 039 foi aplicada
-SELECT column_name FROM information_schema.columns
-WHERE table_name = 'sessions' AND column_name = 'ordering_mode';
--- Se retornar vazio → Migration 039 NÃO aplicada
+Usar o script consolidado que inclui tudo de 024 a 058 (idempotente, seguro para executar múltiplas vezes):
 
--- Esta query mostra se migration 043 foi aplicada
-SELECT proname FROM pg_proc
-WHERE proname = 'close_session_and_free_table';
--- Se retornar vazio → Migration 043 NÃO aplicada
+```
+/supabase/scripts/apply-pending-to-prod.sql
 ```
 
-**Migrations confirmadas pendentes:**
-- ⚠️ **039:** `session_ordering_mode.sql` (Controlo de pedidos)
-- ⚠️ **043:** `close_session_update_table.sql` (Fechar sessão)
+**Como usar:**
+1. Abrir Supabase Dashboard SQL Editor
+2. Copiar o conteúdo do script (ou secção por secção se houver timeout)
+3. Executar
+4. Verificar com as queries no final do script
+
+### Verificação Rápida
+
+```sql
+-- Verificar se migrations principais foram aplicadas
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'sessions' AND column_name IN ('ordering_mode', 'customer_nif');
+
+SELECT proname FROM pg_proc WHERE proname = 'close_session_and_free_table';
+
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public' AND table_name IN ('reservation_tables', 'invoices', 'kitchen_zones');
+
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'reservation_settings' AND column_name = 'waiter_alert_minutes';
+```
+
+### Nota sobre 051_import_vendus_products.sql
+
+Este ficheiro (6K linhas) contém dados de importação de produtos Vendus. **NÃO está incluído** no script consolidado. Executar separadamente se necessário.
 
 ---
 
@@ -182,22 +234,24 @@ WHERE proname = 'close_session_and_free_table';
 001 (Staff/Roles)
  ├─→ 002 (Tables/Sessions/Orders/Products)
  │    ├─→ 003 (Reservations)
+ │    │    └─→ 058 (Reservation Table Assignment)
  │    ├─→ 007 (Waiter Calls)
  │    │    ├─→ 009 (Calls → Orders)
  │    │    └─→ 037 (Calls → Customers)
  │    ├─→ 008 (Session Customers)
- │    │    └─→ 029 (Games)
- │    │         ├─→ 030 (Game Questions Seed)
- │    │         ├─→ 031 (Game Answers RT)
- │    │         ├─→ 032 (Game Scoring)
- │    │         └─→ 033 (Game Modes)
+ │    │    └─→ 029-033 (Games)
  │    ├─→ 022 (Performance Indexes)
  │    ├─→ 023 (Restaurants Table)
- │    ├─→ 024-028 (Order Enhancements)
+ │    ├─→ 024-028 (Order/Product Enhancements)
  │    ├─→ 034-036 (Order Tracking)
- │    ├─→ 039 (Ordering Mode) ⚠️ PENDENTE
+ │    ├─→ 039 (Ordering Mode)
  │    ├─→ 040-042 (Waiter Management)
- │    └─→ 043 (Close Session) ⚠️ PENDENTE
+ │    ├─→ 043-044 (Close Session Function)
+ │    ├─→ 046-049 (Vendus POS Integration)
+ │    │    ├─→ 050-053 (Service Modes & Vendus IDs)
+ │    │    └─→ 051 (Import Data - separado)
+ │    ├─→ 054-055 (Kitchen Zones & Ingredients)
+ │    └─→ 056-057 (Session Fixes & Billing)
  ├─→ 005 (Restaurant Closures)
  ├─→ 011 (Supabase Auth)
  │    ├─→ 012 (RLS Policies)
@@ -273,8 +327,8 @@ WHERE proname = 'close_session_and_free_table';
 
 1. **Criar ficheiro:**
    ```bash
-   # Próximo número: 044
-   touch supabase/migrations/044_nome_descritivo.sql
+   # Próximo número: 059
+   touch supabase/migrations/059_nome_descritivo.sql
    ```
 
 2. **Template:**
@@ -316,10 +370,10 @@ WHERE proname = 'close_session_and_free_table';
 ## 📚 Documentação Relacionada
 
 - **Scripts de Diagnóstico:** [/supabase/scripts/README.md](../scripts/README.md)
-- **Alterações Recentes:** [/RECENT_CHANGES.md](../../RECENT_CHANGES.md)
-- **Fluxos:** [/README_WAITER_CLIENT_FLOWS.md](../../README_WAITER_CLIENT_FLOWS.md)
-- **Deployment:** [/DEPLOYMENT_CHECKLIST.md](../../DEPLOYMENT_CHECKLIST.md)
-- **Ordering Mode:** [/ORDERING_MODE_STATUS.md](../../ORDERING_MODE_STATUS.md)
+- **Alterações Recentes:** [/docs/RECENT_CHANGES.md](../../docs/RECENT_CHANGES.md)
+- **Script Consolidado Prod:** [/supabase/scripts/apply-pending-to-prod.sql](../scripts/apply-pending-to-prod.sql)
+- **Vendus Prod (046-049):** [/supabase/scripts/apply-vendus-to-prod.sql](../scripts/apply-vendus-to-prod.sql)
+- **Fluxos:** [/docs/README_WAITER_CLIENT_FLOWS.md](../../docs/README_WAITER_CLIENT_FLOWS.md)
 - **Arquitetura:** [/CLAUDE.md](../../CLAUDE.md)
 
 ---
@@ -343,5 +397,5 @@ WHERE proname = 'close_session_and_free_table';
 
 **Projeto:** Sushi in Sushi
 **Database:** PostgreSQL via Supabase
-**Total Migrations:** 43 (001-043)
-**Última atualização:** 2026-02-17
+**Total Migrations:** 58 (000-058, excluindo gaps 006/017-019/021)
+**Última atualização:** 2026-02-23

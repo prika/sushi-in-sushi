@@ -26,7 +26,6 @@ export async function getStaffById(id: string): Promise<StaffWithRole | null> {
       role: data.role,
     } as StaffWithRole;
   } catch (error) {
-    console.error("Error fetching staff:", error);
     return null;
   }
 }
@@ -48,8 +47,7 @@ export async function getAllStaff(): Promise<StaffWithRole[]> {
     if (error || !data) return [];
 
     return data as StaffWithRole[];
-  } catch (error) {
-    console.error("Error fetching staff:", error);
+  } catch {
     return [];
   }
 }

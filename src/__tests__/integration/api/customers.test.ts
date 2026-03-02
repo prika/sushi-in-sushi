@@ -25,11 +25,11 @@ function createMockSessionCustomersChain(mockData: Record<string, unknown>[]) {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     then(
-      resolve: (value: {
+      resolve: (_value: {
         data: Record<string, unknown>[];
         error: null;
       }) => unknown,
-      reject?: (reason: unknown) => unknown,
+      reject?: (_reason: unknown) => unknown,
     ) {
       return Promise.resolve({ data: mockData, error: null }).then(
         resolve,

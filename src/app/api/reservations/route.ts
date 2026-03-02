@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { SupabaseReservationRepository } from "@/infrastructure/repositories/SupabaseReservationRepository";
 import { SupabaseRestaurantClosureRepository } from "@/infrastructure/repositories/SupabaseRestaurantClosureRepository";
+import { SupabaseCustomerRepository } from "@/infrastructure/repositories/SupabaseCustomerRepository";
 import {
   GetAllReservationsUseCase,
   CreateReservationUseCase,
 } from "@/application/use-cases/reservations";
 import type { ReservationFilter, CreateReservationData, Reservation } from "@/domain/entities/Reservation";
-import type { Location } from "@/types/database";
-import { sendReservationEmails } from "@/lib/email";
-import type { Reservation as LegacyReservation } from "@/types/database";
+import type { Location, Reservation as LegacyReservation } from "@/types/database";
+import { sendReservationEmails, sendReservationConfirmedEmail, sendRestaurantNotificationEmail } from "@/lib/email";
 
 // Helper to map domain entity to legacy format for emails
 function mapToLegacyReservation(reservation: Reservation): LegacyReservation {
@@ -32,6 +32,7 @@ function mapToLegacyReservation(reservation: Reservation): LegacyReservation {
     confirmed_at: reservation.confirmedAt?.toISOString() || null,
     cancelled_at: reservation.cancelledAt?.toISOString() || null,
     cancellation_reason: reservation.cancellationReason,
+    customer_id: reservation.customerId,
     session_id: reservation.sessionId,
     seated_at: reservation.seatedAt?.toISOString() || null,
     marketing_consent: reservation.marketingConsent,
@@ -64,7 +65,7 @@ function mapToLegacyReservation(reservation: Reservation): LegacyReservation {
 // GET - List reservations (for admin)
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseReservationRepository(supabase);
     const getAllReservations = new GetAllReservationsUseCase(repository);
 
@@ -206,7 +207,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const reservationRepository = new SupabaseReservationRepository(supabase);
     const closureRepository = new SupabaseRestaurantClosureRepository(supabase);
     const createReservation = new CreateReservationUseCase(reservationRepository, closureRepository);
@@ -242,13 +243,245 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const reservation = result.data;
+    let reservation = result.data;
 
-    // Send confirmation emails (don't block on this)
+    // Upsert customer: create if new, update if existing
+    try {
+      const customerRepository = new SupabaseCustomerRepository(supabase);
+      const existingCustomer = await customerRepository.findByEmail(reservationData.email);
+
+      let customerId: string | null = null;
+
+      if (!existingCustomer) {
+        const newCustomer = await customerRepository.create({
+          email: reservationData.email,
+          name: `${reservationData.firstName} ${reservationData.lastName}`,
+          phone: reservationData.phone,
+          preferredLocation: reservationData.location as Location,
+          marketingConsent: reservationData.marketingConsent,
+        });
+        customerId = newCustomer.id;
+      } else {
+        // Update phone, marketing consent, and preferred location if changed
+        await customerRepository.update(existingCustomer.id, {
+          phone: reservationData.phone,
+          preferredLocation: reservationData.location as Location,
+          ...(reservationData.marketingConsent && { marketingConsent: true }),
+        });
+        customerId = existingCustomer.id;
+      }
+
+      // Link customer to reservation
+      if (customerId) {
+        await supabase
+          .from("reservations")
+          .update({ customer_id: customerId })
+          .eq("id", reservation.id);
+      }
+    } catch (customerError) {
+      // Don't fail the reservation if customer upsert fails
+      console.error("Customer upsert failed:", customerError);
+    }
+
+    // Auto-reservation: check if restaurant has auto-reservations enabled
+    let autoAssigned = false;
+    try {
+      const { data: restaurantRow, error: restError } = await supabase
+        .from("restaurants")
+        .select("*")
+        .eq("slug", location)
+        .eq("is_active", true)
+        .single();
+
+      if (restError) {
+        console.error("Auto-reservation: restaurant query failed:", restError.message);
+      }
+
+      const restaurantData = restaurantRow as Record<string, unknown> | null;
+      const autoEnabled = !!restaurantData?.auto_reservations;
+      const maxParty = Number(restaurantData?.auto_reservation_max_party_size) || 6;
+
+      console.log("Auto-reservation check:", {
+        location,
+        autoEnabled,
+        maxParty,
+        partySize,
+        eligible: autoEnabled && partySize <= maxParty,
+      });
+
+      if (autoEnabled && partySize <= maxParty) {
+        // Find available tables at this location, ordered by capacity DESC
+        const tableResult = await (supabase as any)
+          .from("tables")
+          .select("id, number, capacity")
+          .eq("location", location)
+          .eq("status", "available")
+          .eq("is_active", true)
+          .order("capacity", { ascending: false });
+        const allAvailable = tableResult.data as { id: string; number: number; capacity: number }[] | null;
+        const tableError = tableResult.error;
+
+        if (tableError) {
+          console.error("Auto-reservation: table query failed:", tableError.message);
+        }
+
+        // Select tables: try single table first, then combine if needed
+        let selectedTables: { id: string; number: number; capacity: number }[] = [];
+        if (allAvailable && allAvailable.length > 0) {
+          // Option 1: single table that fits
+          const singleTable = allAvailable.find((t) => t.capacity >= partySize);
+          if (singleTable) {
+            selectedTables = [singleTable];
+          } else {
+            // Option 2: combine tables (greedy - largest first until capacity met)
+            let totalCapacity = 0;
+            for (const table of allAvailable) {
+              selectedTables.push(table);
+              totalCapacity += table.capacity;
+              if (totalCapacity >= partySize) break;
+            }
+            // Not enough capacity even combining all tables
+            if (totalCapacity < partySize) {
+              selectedTables = [];
+            }
+          }
+        }
+
+        const primaryTable = selectedTables[0] || null;
+        console.log("Auto-reservation: selected tables:", selectedTables.map((t) => `#${t.number}(${t.capacity}p)`).join(" + ") || "none");
+
+        // Find waiter with least active tables at this location
+        const { data: waiterRole } = await supabase
+          .from("roles")
+          .select("id")
+          .eq("name", "waiter")
+          .single();
+
+        let bestWaiterId: string | null = null;
+        if (waiterRole) {
+          const { data: waiters, error: waitersError } = await supabase
+            .from("staff")
+            .select("id, name")
+            .eq("role_id", waiterRole.id)
+            .eq("location", location)
+            .eq("is_active", true);
+
+          if (waitersError) {
+            console.error("Auto-reservation: waiters query failed:", waitersError.message);
+          }
+          console.log("Auto-reservation: waiters found:", waiters?.length ?? 0);
+
+          if (waiters && waiters.length > 0) {
+            const waiterIds = waiters.map((w: any) => w.id);
+            const { data: assignments } = await supabase
+              .from("waiter_tables")
+              .select("staff_id")
+              .in("staff_id", waiterIds);
+
+            const countMap = new Map<string, number>();
+            for (const wid of waiterIds) countMap.set(wid, 0);
+            for (const a of assignments || []) {
+              countMap.set(a.staff_id, (countMap.get(a.staff_id) || 0) + 1);
+            }
+            let minCount = Infinity;
+            Array.from(countMap.entries()).forEach(([wid, count]) => {
+              if (count < minCount) {
+                minCount = count;
+                bestWaiterId = wid;
+              }
+            });
+            console.log("Auto-reservation: selected waiter:", bestWaiterId, "with", minCount, "tables");
+          }
+        } else {
+          console.error("Auto-reservation: waiter role not found in roles table");
+        }
+
+        if (primaryTable && bestWaiterId) {
+          // 1. Insert all tables into reservation_tables (primary + additional)
+          const rtRows = selectedTables.map((t, i) => ({
+            reservation_id: reservation.id,
+            table_id: t.id,
+            is_primary: i === 0,
+            assigned_by: bestWaiterId,
+          }));
+          const { error: rtError } = await (supabase as any)
+            .from("reservation_tables")
+            .insert(rtRows);
+          if (rtError) console.error("Auto-reservation: reservation_tables insert failed:", rtError.message);
+
+          // 2. Update all selected tables status to reserved
+          const allTableIds = selectedTables.map((t) => t.id);
+          const { error: tsError } = await supabase
+            .from("tables")
+            .update({ status: "reserved" })
+            .in("id", allTableIds);
+          if (tsError) console.error("Auto-reservation: table status update failed:", tsError.message);
+
+          // 3. Assign waiter to primary table if not already assigned
+          const { data: existingAssignment } = await supabase
+            .from("waiter_tables")
+            .select("id")
+            .eq("staff_id", bestWaiterId)
+            .eq("table_id", primaryTable.id)
+            .maybeSingle();
+
+          if (!existingAssignment) {
+            const { error: wtError } = await supabase.from("waiter_tables").insert({
+              staff_id: bestWaiterId,
+              table_id: primaryTable.id,
+            });
+            if (wtError) console.error("Auto-reservation: waiter_tables insert failed:", wtError.message);
+          }
+
+          // 4. Update reservation: confirm + assign primary table
+          const now = new Date().toISOString();
+          const { error: resError } = await (supabase as any)
+            .from("reservations")
+            .update({
+              status: "confirmed",
+              tables_assigned: true,
+              table_id: primaryTable.id,
+              confirmed_at: now,
+            })
+            .eq("id", reservation.id);
+          if (resError) console.error("Auto-reservation: reservation update failed:", resError.message);
+
+          // Update local reservation data for response
+          reservation = {
+            ...reservation,
+            status: "confirmed" as const,
+            tableId: primaryTable.id as any,
+            confirmedAt: new Date(now),
+          };
+          autoAssigned = true;
+          const tableDesc = selectedTables.map((t) => `#${t.number}`).join(" + ");
+          console.log("Auto-reservation: SUCCESS -", tableDesc, "(", selectedTables.length, "mesa(s)) waiter", bestWaiterId);
+        } else {
+          console.log("Auto-reservation: skipped -", !primaryTable ? "no available tables" : "no waiter found");
+        }
+      }
+    } catch (autoError) {
+      // Auto-assignment failed — continue with manual flow (reservation stays pending)
+      console.error("Auto-reservation assignment failed:", autoError);
+    }
+
+    // Send emails (don't block on this)
     const legacyReservation = mapToLegacyReservation(reservation);
-    sendReservationEmails(legacyReservation).catch((emailError) => {
-      console.error("Error sending reservation emails:", emailError);
-    });
+    if (autoAssigned) {
+      // Auto-confirmed: send "reserva confirmada" directly (skip "pending" acknowledgment)
+      sendReservationConfirmedEmail(legacyReservation).catch((emailError) => {
+        console.error("Error sending auto-confirmation email:", emailError);
+      });
+      // Notify restaurant separately
+      sendRestaurantNotificationEmail(legacyReservation).catch((emailError) => {
+        console.error("Error sending restaurant notification:", emailError);
+      });
+    } else {
+      // Manual flow: send "recebemos o seu pedido" + restaurant notification
+      sendReservationEmails(legacyReservation).catch((emailError) => {
+        console.error("Error sending reservation emails:", emailError);
+      });
+    }
 
     // Return in database format for backwards compatibility
     return NextResponse.json({
@@ -273,6 +506,7 @@ export async function POST(request: NextRequest) {
       session_id: reservation.sessionId,
       seated_at: reservation.seatedAt?.toISOString() || null,
       marketing_consent: reservation.marketingConsent,
+      auto_assigned: autoAssigned,
       created_at: reservation.createdAt.toISOString(),
       updated_at: reservation.updatedAt.toISOString(),
     }, { status: 201 });

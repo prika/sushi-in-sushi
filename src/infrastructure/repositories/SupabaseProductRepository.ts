@@ -13,7 +13,6 @@ import {
   CreateProductData,
   UpdateProductData,
   ProductWithCategory,
-  type Ingredient,
 } from '@/domain/entities/Product';
 
 /**
@@ -32,7 +31,13 @@ interface DatabaseProduct {
   sort_order: number;
   service_modes: string[] | null;
   service_prices: Record<string, number> | null;
-  ingredients: Ingredient[] | null;
+  quantity: number | null;
+  descriptions: Record<string, string> | null;
+  seo_title: string | null;
+  seo_description: string | null;
+  seo_titles: Record<string, string> | null;
+  seo_descriptions: Record<string, string> | null;
+  seo_generated_at: string | null;
   created_at: string;
   updated_at?: string; // optional: products table may not have this column
 }
@@ -165,9 +170,9 @@ export class SupabaseProductRepository implements IProductRepository {
         is_available: data.isAvailable ?? true,
         is_rodizio: data.isRodizio ?? false,
         sort_order: data.sortOrder ?? 0,
+        quantity: data.quantity ?? 1,
         service_modes: data.serviceModes ?? [],
         service_prices: data.servicePrices ?? {},
-        ingredients: data.ingredients ?? [],
       })
       .select()
       .single();
@@ -192,9 +197,9 @@ export class SupabaseProductRepository implements IProductRepository {
     if (data.isAvailable !== undefined) updateData.is_available = data.isAvailable;
     if (data.isRodizio !== undefined) updateData.is_rodizio = data.isRodizio;
     if (data.sortOrder !== undefined) updateData.sort_order = data.sortOrder;
+    if (data.quantity !== undefined) updateData.quantity = data.quantity;
     if (data.serviceModes !== undefined) updateData.service_modes = data.serviceModes;
     if (data.servicePrices !== undefined) updateData.service_prices = data.servicePrices;
-    if (data.ingredients !== undefined) updateData.ingredients = data.ingredients;
 
     const { data: product, error } = await this.supabase
       .from('products')
@@ -239,9 +244,15 @@ export class SupabaseProductRepository implements IProductRepository {
       isAvailable: data.is_available,
       isRodizio: data.is_rodizio,
       sortOrder: data.sort_order,
+      quantity: data.quantity ?? 1,
+      descriptions: data.descriptions ?? {},
+      seoTitle: data.seo_title ?? null,
+      seoDescription: data.seo_description ?? null,
+      seoTitles: data.seo_titles ?? {},
+      seoDescriptions: data.seo_descriptions ?? {},
+      seoGeneratedAt: data.seo_generated_at ? new Date(data.seo_generated_at) : null,
       serviceModes: data.service_modes ?? [],
       servicePrices: data.service_prices ?? {},
-      ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
       createdAt: new Date(data.created_at),
       updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(data.created_at),
     };

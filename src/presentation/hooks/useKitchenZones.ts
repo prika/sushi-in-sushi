@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { SupabaseKitchenZoneRepository } from '@/infrastructure/repositories/SupabaseKitchenZoneRepository';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { SupabaseKitchenZoneRepository } from "@/infrastructure/repositories/SupabaseKitchenZoneRepository";
 import {
   KitchenZone,
   CreateKitchenZoneData,
   UpdateKitchenZoneData,
   KitchenZoneWithCategoryCount,
-} from '@/domain/entities/KitchenZone';
+} from "@/domain/entities/KitchenZone";
 import {
   GetAllKitchenZonesUseCase,
   GetActiveKitchenZonesUseCase,
   CreateKitchenZoneUseCase,
   UpdateKitchenZoneUseCase,
   DeleteKitchenZoneUseCase,
-} from '@/application/use-cases/kitchen-zones';
+} from "@/application/use-cases/kitchen-zones";
 
 export interface UseKitchenZonesOptions {
   autoLoad?: boolean;
@@ -25,14 +25,17 @@ export interface UseKitchenZonesResult {
   activeZones: KitchenZone[];
   isLoading: boolean;
   error: string | null;
-  create: (data: CreateKitchenZoneData) => Promise<KitchenZone | null>;
-  update: (id: string, data: UpdateKitchenZoneData) => Promise<KitchenZone | null>;
-  remove: (id: string) => Promise<boolean>;
+  create: (_data: CreateKitchenZoneData) => Promise<KitchenZone | null>;
+  update: (
+    _id: string,
+    _data: UpdateKitchenZoneData,
+  ) => Promise<KitchenZone | null>;
+  remove: (_id: string) => Promise<boolean>;
   refresh: () => Promise<void>;
 }
 
 export function useKitchenZones(
-  options: UseKitchenZonesOptions = {}
+  options: UseKitchenZonesOptions = {},
 ): UseKitchenZonesResult {
   const { autoLoad = true } = options;
 
@@ -83,9 +86,7 @@ export function useKitchenZones(
         setActiveZones(activeResult.data);
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Erro ao carregar zonas'
-      );
+      setError(err instanceof Error ? err.message : "Erro ao carregar zonas");
     } finally {
       setIsLoading(false);
     }
@@ -102,11 +103,14 @@ export function useKitchenZones(
       setError(result.error);
       return null;
     },
-    [createZone, fetchZones]
+    [createZone, fetchZones],
   );
 
   const update = useCallback(
-    async (id: string, data: UpdateKitchenZoneData): Promise<KitchenZone | null> => {
+    async (
+      id: string,
+      data: UpdateKitchenZoneData,
+    ): Promise<KitchenZone | null> => {
       setError(null);
       const result = await updateZone.execute({ id, data });
       if (result.success) {
@@ -116,7 +120,7 @@ export function useKitchenZones(
       setError(result.error);
       return null;
     },
-    [updateZone, fetchZones]
+    [updateZone, fetchZones],
   );
 
   const remove = useCallback(
@@ -130,7 +134,7 @@ export function useKitchenZones(
       setError(result.error);
       return false;
     },
-    [deleteZone, fetchZones]
+    [deleteZone, fetchZones],
   );
 
   useEffect(() => {

@@ -32,91 +32,27 @@ describe('supabase/env', () => {
   });
 
   describe('getSupabaseUrl', () => {
-    it('deve retornar URL dev quando em development com DEV var', async () => {
-      process.env.NEXT_PUBLIC_APP_ENV = 'development';
-      process.env.NEXT_PUBLIC_SUPABASE_URL_DEV = 'https://dev.supabase.co';
-      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://prod.supabase.co';
+    it('deve retornar NEXT_PUBLIC_SUPABASE_URL', async () => {
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://my.supabase.co';
       const { getSupabaseUrl } = await import('@/lib/supabase/env');
-      expect(getSupabaseUrl()).toBe('https://dev.supabase.co');
-    });
-
-    it('deve retornar URL padrao quando em production', async () => {
-      process.env.NEXT_PUBLIC_APP_ENV = 'production';
-      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://prod.supabase.co';
-      const { getSupabaseUrl } = await import('@/lib/supabase/env');
-      expect(getSupabaseUrl()).toBe('https://prod.supabase.co');
-    });
-
-    it('deve fazer fallback para URL padrao quando DEV var nao existe', async () => {
-      process.env.NEXT_PUBLIC_APP_ENV = 'development';
-      delete process.env.NEXT_PUBLIC_SUPABASE_URL_DEV;
-      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://prod.supabase.co';
-      const { getSupabaseUrl } = await import('@/lib/supabase/env');
-      expect(getSupabaseUrl()).toBe('https://prod.supabase.co');
+      expect(getSupabaseUrl()).toBe('https://my.supabase.co');
     });
   });
 
   describe('getSupabaseAnonKey', () => {
-    it('deve retornar key dev quando em development', async () => {
-      process.env.NEXT_PUBLIC_APP_ENV = 'development';
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_DEV = 'dev-key';
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'prod-key';
+    it('deve retornar NEXT_PUBLIC_SUPABASE_ANON_KEY', async () => {
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'my-key';
       const { getSupabaseAnonKey } = await import('@/lib/supabase/env');
-      expect(getSupabaseAnonKey()).toBe('dev-key');
-    });
-
-    it('deve retornar key padrao quando em production', async () => {
-      process.env.NEXT_PUBLIC_APP_ENV = 'production';
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'prod-key';
-      const { getSupabaseAnonKey } = await import('@/lib/supabase/env');
-      expect(getSupabaseAnonKey()).toBe('prod-key');
+      expect(getSupabaseAnonKey()).toBe('my-key');
     });
   });
 
   describe('getSupabaseServiceRoleKey', () => {
-    it('deve retornar service key dev quando em development', async () => {
-      process.env.NEXT_PUBLIC_APP_ENV = 'development';
-      process.env.SUPABASE_SERVICE_ROLE_KEY_DEV = 'dev-service-key';
-      process.env.SUPABASE_SERVICE_ROLE_KEY = 'prod-service-key';
+    it('deve retornar SUPABASE_SERVICE_ROLE_KEY', async () => {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = 'my-service-key';
       const { getSupabaseServiceRoleKey } = await import('@/lib/supabase/env');
-      expect(getSupabaseServiceRoleKey()).toBe('dev-service-key');
-    });
-
-    it('deve retornar service key padrao quando em production', async () => {
-      process.env.NEXT_PUBLIC_APP_ENV = 'production';
-      process.env.SUPABASE_SERVICE_ROLE_KEY = 'prod-service-key';
-      const { getSupabaseServiceRoleKey } = await import('@/lib/supabase/env');
-      expect(getSupabaseServiceRoleKey()).toBe('prod-service-key');
+      expect(getSupabaseServiceRoleKey()).toBe('my-service-key');
     });
   });
 
-  describe('shouldUseSupabaseAuth', () => {
-    it('deve retornar false em development (legacy auth)', async () => {
-      process.env.NEXT_PUBLIC_APP_ENV = 'development';
-      delete process.env.NEXT_PUBLIC_USE_SUPABASE_AUTH;
-      const { shouldUseSupabaseAuth } = await import('@/lib/supabase/env');
-      expect(shouldUseSupabaseAuth()).toBe(false);
-    });
-
-    it('deve retornar true em production (Supabase Auth)', async () => {
-      process.env.NEXT_PUBLIC_APP_ENV = 'production';
-      delete process.env.NEXT_PUBLIC_USE_SUPABASE_AUTH;
-      const { shouldUseSupabaseAuth } = await import('@/lib/supabase/env');
-      expect(shouldUseSupabaseAuth()).toBe(true);
-    });
-
-    it('deve respeitar override true', async () => {
-      process.env.NEXT_PUBLIC_APP_ENV = 'development';
-      process.env.NEXT_PUBLIC_USE_SUPABASE_AUTH = 'true';
-      const { shouldUseSupabaseAuth } = await import('@/lib/supabase/env');
-      expect(shouldUseSupabaseAuth()).toBe(true);
-    });
-
-    it('deve respeitar override false', async () => {
-      process.env.NEXT_PUBLIC_APP_ENV = 'production';
-      process.env.NEXT_PUBLIC_USE_SUPABASE_AUTH = 'false';
-      const { shouldUseSupabaseAuth } = await import('@/lib/supabase/env');
-      expect(shouldUseSupabaseAuth()).toBe(false);
-    });
-  });
 });

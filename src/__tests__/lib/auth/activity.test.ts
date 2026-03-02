@@ -5,7 +5,7 @@ beforeEach(() => {
 });
 
 const mockInsert = vi.fn().mockResolvedValue({ error: null });
-const mockSelect = vi.fn();
+const _mockSelect = vi.fn();
 const mockFrom = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
@@ -194,7 +194,7 @@ describe('Activity Queries', () => {
         eq: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
-        then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: mockLogs, error: null }).then(fn),
+        then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: mockLogs, error: null }).then(fn),
       };
       mockFrom.mockReturnValue(chain);
 
@@ -208,7 +208,7 @@ describe('Activity Queries', () => {
         eq: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
-        then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: null, error: { message: 'fail' } }).then(fn),
+        then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: null, error: { message: 'fail' } }).then(fn),
       };
       mockFrom.mockReturnValue(chain);
 
@@ -224,7 +224,7 @@ describe('Activity Queries', () => {
         eq: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
-        then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: mockLogs, error: null }).then(fn),
+        then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: mockLogs, error: null }).then(fn),
       };
       mockFrom.mockReturnValue(chain);
 
@@ -241,7 +241,7 @@ describe('Activity Queries', () => {
         gte: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
-        then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: mockLogs, error: null }).then(fn),
+        then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: mockLogs, error: null }).then(fn),
       };
       mockFrom.mockReturnValue(chain);
 
@@ -256,7 +256,7 @@ describe('Activity Queries', () => {
         gte: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
-        then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(fn),
+        then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(fn),
       };
       mockFrom.mockReturnValue(chain);
 

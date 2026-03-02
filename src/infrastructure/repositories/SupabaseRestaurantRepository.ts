@@ -20,6 +20,7 @@ interface DatabaseRestaurant {
   default_people_per_table: number;
   auto_table_assignment: boolean;
   auto_reservations: boolean;
+  auto_reservation_max_party_size: number;
   order_cooldown_minutes: number;
   show_upgrade_after_order: boolean;
   show_upgrade_at_bill: boolean;
@@ -114,6 +115,7 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
         default_people_per_table: data.defaultPeoplePerTable,
         auto_table_assignment: data.autoTableAssignment ?? false,
         auto_reservations: data.autoReservations ?? false,
+        auto_reservation_max_party_size: data.autoReservationMaxPartySize ?? 6,
         order_cooldown_minutes: data.orderCooldownMinutes ?? 0,
         show_upgrade_after_order: data.showUpgradeAfterOrder ?? false,
         show_upgrade_at_bill: data.showUpgradeAtBill ?? false,
@@ -149,6 +151,8 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
       updateData.auto_table_assignment = data.autoTableAssignment;
     if (data.autoReservations !== undefined)
       updateData.auto_reservations = data.autoReservations;
+    if (data.autoReservationMaxPartySize !== undefined)
+      updateData.auto_reservation_max_party_size = data.autoReservationMaxPartySize;
     if (data.orderCooldownMinutes !== undefined)
       updateData.order_cooldown_minutes = data.orderCooldownMinutes;
     if (data.showUpgradeAfterOrder !== undefined)
@@ -215,6 +219,7 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
       defaultPeoplePerTable: row.default_people_per_table,
       autoTableAssignment: row.auto_table_assignment,
       autoReservations: row.auto_reservations,
+      autoReservationMaxPartySize: row.auto_reservation_max_party_size ?? 6,
       orderCooldownMinutes: row.order_cooldown_minutes,
       showUpgradeAfterOrder: row.show_upgrade_after_order,
       showUpgradeAtBill: row.show_upgrade_at_bill,

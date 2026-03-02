@@ -11,11 +11,11 @@ export interface GamePrizeProps {
   /** Prize won by the player */
   prize: GamePrizeEntity;
   /** Callback to redeem the prize (marks as shown to staff) */
-  onRedeem: (prizeId: string) => Promise<void>;
+  onRedeem: (_prizeId: string) => Promise<void>;
   /** Callback when close/back is clicked */
   onClose: () => void;
   /** Translation function */
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: (_key: string, _params?: Record<string, string | number>) => string;
 }
 
 /** Human-readable code from prize ID for staff validation */

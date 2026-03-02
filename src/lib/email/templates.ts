@@ -282,15 +282,18 @@ ${getEmailHead("Confirmação de Reserva")}
             </td>
           </tr>
 
-          <!-- Info Note -->
+          <!-- Cancellation Link -->
           <tr>
             <td style="padding: 0 50px 40px;">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #1f1f1f; border-radius: 14px; border: 1px dashed #444;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #252525; border-radius: 14px;">
                 <tr>
-                  <td style="padding: 25px 30px; text-align: center;">
-                    <p style="margin: 0; font-family: ${fontSans}; color: #888; font-size: 20px; line-height: 1.7;">
-                      ℹ️ Se precisar de <strong style="color: #fff;">alterar</strong> ou <strong style="color: #fff;">cancelar</strong> a sua reserva, por favor contacte-nos.
+                  <td style="padding: 20px 30px; text-align: center;">
+                    <p style="margin: 0 0 8px; font-family: ${fontSans}; color: #888; font-size: 14px;">
+                      Precisa cancelar? Pode fazê-lo até 2 horas antes da reserva.
                     </p>
+                    <a href="${BASE_URL}/pt/cancelar-reserva" style="font-family: ${fontSans}; color: #D4AF37; font-size: 14px; text-decoration: underline;">
+                      Cancelar Reserva
+                    </a>
                   </td>
                 </tr>
               </table>
@@ -1155,9 +1158,12 @@ ${getEmailHead("Lembrete de Reserva")}
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #1f1f1f; border-radius: 14px; border: 1px dashed #444;">
                 <tr>
                   <td style="padding: 25px 30px; text-align: center;">
-                    <p style="margin: 0; font-family: ${fontSans}; color: #888; font-size: 20px; line-height: 1.7;">
-                      ℹ️ Se precisar de <strong style="color: #fff;">alterar</strong> ou <strong style="color: #fff;">cancelar</strong> a sua reserva, por favor contacte-nos o mais rapidamente possível.
+                    <p style="margin: 0 0 12px; font-family: ${fontSans}; color: #888; font-size: 20px; line-height: 1.7;">
+                      ℹ️ Precisa de <strong style="color: #fff;">cancelar</strong>? Pode fazê-lo online até <strong style="color: #fff;">2 horas antes</strong> da reserva.
                     </p>
+                    <a href="${BASE_URL}/pt/cancelar-reserva" style="font-family: ${fontSans}; color: #D4AF37; font-size: 16px; text-decoration: underline;">
+                      Cancelar Reserva
+                    </a>
                   </td>
                 </tr>
               </table>
@@ -1315,6 +1321,15 @@ ${getEmailHead("Lembrete - Daqui a 2 horas")}
                   </td>
                 </tr>
               </table>
+            </td>
+          </tr>
+
+          <!-- Cancellation Note -->
+          <tr>
+            <td style="padding: 0 50px 30px;">
+              <p style="margin: 0; font-family: ${fontSans}; color: #888; font-size: 14px; text-align: center; line-height: 1.6;">
+                Precisa cancelar? O prazo para cancelamento online está a terminar. <a href="${BASE_URL}/pt/cancelar-reserva" style="color: #D4AF37; text-decoration: underline;">Cancelar agora</a> ou contacte-nos diretamente.
+              </p>
             </td>
           </tr>
 

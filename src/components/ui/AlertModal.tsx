@@ -83,7 +83,7 @@ export function AlertModal({
   const styles = variantStyles[variant];
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-[60] overflow-y-auto">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/50 transition-opacity"
@@ -129,7 +129,7 @@ export function AlertModal({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes modal-pop {
           from { opacity: 0; transform: scale(0.95); }
           to { opacity: 1; transform: scale(1); }

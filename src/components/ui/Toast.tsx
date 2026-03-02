@@ -17,7 +17,7 @@ interface Toast {
 }
 
 interface ToastContextType {
-  showToast: (type: ToastType, message: string) => void;
+  showToast: (_type: ToastType, _message: string) => void;
 }
 
 const ToastContext = createContext<ToastContextType | null>(null);
@@ -178,7 +178,7 @@ function ToastItem({
         </svg>
       </button>
 
-      <style jsx>{`
+      <style>{`
         @keyframes toast-in {
           from {
             opacity: 0;

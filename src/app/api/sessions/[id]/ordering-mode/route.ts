@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth';
 import { SupabaseSessionRepository } from '@/infrastructure/repositories/SupabaseSessionRepository';
 import { UpdateSessionOrderingModeUseCase } from '@/application/use-cases/sessions/UpdateSessionOrderingModeUseCase';
@@ -26,7 +26,7 @@ export async function PATCH(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // Get current user from legacy auth
     const user = await getAuthUser();

@@ -107,13 +107,13 @@ export interface ActivityLogRowOptions {
 /**
  * Log an activity in the activity log
  */
-export async function logActivity(options: ActivityLogRowOptions): Promise<void>;
+export async function logActivity(_options: ActivityLogRowOptions): Promise<void>;
 export async function logActivity(
-  staffId: string,
-  action: string,
-  entityType?: string,
-  entityId?: string,
-  details?: Record<string, unknown>
+  _staffId: string,
+  _action: string,
+  _entityType?: string,
+  _entityId?: string,
+  _details?: Record<string, unknown>
 ): Promise<void>;
 export async function logActivity(
   staffIdOrOptions: string | ActivityLogRowOptions,

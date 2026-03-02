@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { TableDTO } from "@/application/use-cases/tables/GetAllTablesUseCase";
-import type { TableStatus } from "@/domain/value-objects/TableStatus";
 
 interface TableDetailModalProps {
   table: TableDTO | null;
@@ -11,22 +10,22 @@ interface TableDetailModalProps {
   onClose: () => void;
   onStatusChange: () => void;
   onStartSession: (
-    tableId: string,
-    isRodizio: boolean,
-    numPeople: number
+    _tableId: string,
+    _isRodizio: boolean,
+    _numPeople: number
   ) => Promise<{ success: boolean; error?: string }>;
   onMarkInactive: (
-    tableId: string,
-    reason: string
+    _tableId: string,
+    _reason: string
   ) => Promise<{ success: boolean; error?: string }>;
   onReactivate: (
-    tableId: string
+    _tableId: string
   ) => Promise<{ success: boolean; error?: string }>;
   onRequestBill: (
-    sessionId: string
+    _sessionId: string
   ) => Promise<{ success: boolean; error?: string }>;
   onCloseSession: (
-    sessionId: string
+    _sessionId: string
   ) => Promise<{ success: boolean; error?: string }>;
 }
 

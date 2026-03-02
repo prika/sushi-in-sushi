@@ -10,9 +10,8 @@ import {
   getPastDate,
   createTestClosure,
 } from "../../helpers/factories";
-import { GET as GETClosures } from "@/app/api/closures/route";
+import { GET as GETClosures, POST, DELETE } from "@/app/api/closures/route";
 import { GET as GETClosuresCheck } from "@/app/api/closures/check/route";
-import { POST, DELETE } from "@/app/api/closures/route";
 
 // Hoisted mocks (available when vi.mock factories run)
 const { mockVerifyAuth, mockSupabaseFrom } = vi.hoisted(() => ({
@@ -21,11 +20,9 @@ const { mockVerifyAuth, mockSupabaseFrom } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(() =>
-    Promise.resolve({
-      from: mockSupabaseFrom,
-    }),
-  ),
+  createAdminClient: vi.fn(() => ({
+    from: mockSupabaseFrom,
+  })),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -45,11 +42,11 @@ function createMockClosureChain(mockData: Record<string, unknown>[]) {
   const thenable = {
     ...chain,
     then(
-      resolve: (value: {
+      resolve: (_value: {
         data: Record<string, unknown>[];
         error: null;
       }) => unknown,
-      reject?: (reason: unknown) => unknown,
+      reject?: (_reason: unknown) => unknown,
     ) {
       return Promise.resolve({ data: mockData, error: null }).then(
         resolve,

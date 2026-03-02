@@ -27,8 +27,8 @@ type Messages = typeof pt;
 
 interface MesaLocaleContextType {
   locale: Locale;
-  setLocale: (locale: Locale) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  setLocale: (_locale: Locale) => void;
+  t: (_key: string, _params?: Record<string, string | number>) => string;
   messages: Messages;
 }
 

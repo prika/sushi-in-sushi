@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
 
 // Force dynamic rendering
@@ -16,14 +16,14 @@ const DAILY_DAYS = 30;
  * Returns aggregated game analytics for the admin dashboard.
  * All queries are bounded by date filter (last STATS_DAYS) and SAFETY_LIMIT.
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const auth = await verifyAuth();
     if (!auth || auth.role !== "admin") {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const statsSince = new Date(
       Date.now() - STATS_DAYS * 24 * 60 * 60 * 1000,
@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
 
     // Question stats (most answered, hardest) - only quiz answers count for accuracy
     const quizAnswersForQuestions = (answersResult.data ?? []).filter(
-      (a) => a.question_id != null && a.game_type === "quiz",
+      (a) => a.question_id !== null && a.game_type === "quiz",
     );
     const questionAnswerMap: Record<
       string,
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
     > = {};
     for (const a of quizAnswersForQuestions) {
       const qid = a.question_id;
-      if (qid == null) continue;
+      if (qid === null) continue;
       const key = String(qid);
       if (!questionAnswerMap[key]) {
         questionAnswerMap[key] = { quizTotal: 0, quizCorrect: 0 };

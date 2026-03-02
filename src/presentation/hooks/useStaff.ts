@@ -1,30 +1,20 @@
-'use client';
+"use client";
 
 /**
  * useStaff - Hook para gestão de funcionários
+ * Uses API routes (/api/staff) that handle Supabase Auth user management.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { SupabaseStaffRepository } from '@/infrastructure/repositories/SupabaseStaffRepository';
-import {
+import { useState, useEffect, useCallback } from "react";
+import type {
   StaffWithRole,
   Staff,
   CreateStaffData,
   UpdateStaffData,
-  StaffFilter,
   Role,
-} from '@/domain/entities/Staff';
-import {
-  GetAllStaffUseCase,
-  GetStaffByIdUseCase,
-  CreateStaffUseCase,
-  UpdateStaffUseCase,
-  DeleteStaffUseCase,
-  GetAllRolesUseCase,
-} from '@/application/use-cases/staff';
+} from "@/domain/entities/Staff";
 
 export interface UseStaffOptions {
-  filter?: StaffFilter;
   autoLoad?: boolean;
   loadTableAssignments?: boolean;
 }
@@ -35,139 +25,230 @@ export interface UseStaffResult {
   tableAssignments: Record<string, string[]>;
   isLoading: boolean;
   error: string | null;
-  getById: (id: string) => Promise<StaffWithRole | null>;
-  create: (data: CreateStaffData) => Promise<Staff | null>;
-  update: (id: string, data: UpdateStaffData) => Promise<Staff | null>;
-  remove: (id: string) => Promise<boolean>;
-  assignTables: (staffId: string, tableIds: string[]) => Promise<boolean>;
-  getAssignedTables: (staffId: string) => Promise<string[]>;
+  getById: (_id: string) => Promise<StaffWithRole | null>;
+  create: (_data: CreateStaffData) => Promise<Staff | null>;
+  update: (_id: string, _data: UpdateStaffData) => Promise<Staff | null>;
+  remove: (_id: string) => Promise<boolean>;
+  assignTables: (_staffId: string, _tableIds: string[]) => Promise<boolean>;
+  getAssignedTables: (_staffId: string) => Promise<string[]>;
   refresh: () => Promise<void>;
 }
 
+function mapDates(s: Record<string, unknown>): StaffWithRole {
+  return {
+    ...s,
+    lastLogin: s.lastLogin ? new Date(s.lastLogin as string) : null,
+    createdAt: new Date(s.createdAt as string),
+  } as StaffWithRole;
+}
+
+function mapStaffDates(s: Record<string, unknown>): Staff {
+  return {
+    ...s,
+    lastLogin: s.lastLogin ? new Date(s.lastLogin as string) : null,
+    createdAt: new Date(s.createdAt as string),
+  } as Staff;
+}
+
 export function useStaff(options: UseStaffOptions = {}): UseStaffResult {
-  const { filter, autoLoad = true, loadTableAssignments = false } = options;
+  const { autoLoad = true, loadTableAssignments = false } = options;
 
   const [staff, setStaff] = useState<StaffWithRole[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [tableAssignments, setTableAssignments] = useState<Record<string, string[]>>({});
+  const [tableAssignments, setTableAssignments] = useState<
+    Record<string, string[]>
+  >({});
   const [isLoading, setIsLoading] = useState(autoLoad);
   const [error, setError] = useState<string | null>(null);
-
-  // Memoize repository and use-cases to avoid recreating on every render
-  const repository = useMemo(() => new SupabaseStaffRepository(), []);
-  const getAllStaff = useMemo(() => new GetAllStaffUseCase(repository), [repository]);
-  const getStaffById = useMemo(() => new GetStaffByIdUseCase(repository), [repository]);
-  const createStaff = useMemo(() => new CreateStaffUseCase(repository), [repository]);
-  const updateStaff = useMemo(() => new UpdateStaffUseCase(repository), [repository]);
-  const deleteStaff = useMemo(() => new DeleteStaffUseCase(repository), [repository]);
-  const getAllRoles = useMemo(() => new GetAllRolesUseCase(repository), [repository]);
 
   const fetchStaff = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const [staffResult, rolesResult] = await Promise.all([
-        getAllStaff.execute(filter),
-        getAllRoles.execute(),
-      ]);
-
-      if (staffResult.success) {
-        setStaff(staffResult.data);
-
-        // Load table assignments for waiters if requested
-        if (loadTableAssignments) {
-          const assignments: Record<string, string[]> = {};
-          const waiters = staffResult.data.filter(s => s.role?.name === 'waiter');
-
-          await Promise.all(
-            waiters.map(async (waiter) => {
-              const tables = await repository.getAssignedTables(waiter.id);
-              assignments[waiter.id] = tables;
-            })
-          );
-          setTableAssignments(assignments);
-        }
-      } else {
-        setError(staffResult.error);
+      const res = await fetch("/api/staff?includeRoles=true");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Erro ao carregar funcionários");
       }
 
-      if (rolesResult.success) {
-        setRoles(rolesResult.data);
+      const data = await res.json();
+      const staffList: StaffWithRole[] = (data.staff || []).map(mapDates);
+      setStaff(staffList);
+
+      if (data.roles) {
+        setRoles(data.roles);
+      }
+
+      // Load table assignments for waiters if requested
+      if (loadTableAssignments) {
+        const assignments: Record<string, string[]> = {};
+        const waiters = staffList.filter(
+          (s) => s.role?.name === "waiter",
+        );
+
+        await Promise.all(
+          waiters.map(async (waiter) => {
+            try {
+              const tablesRes = await fetch(
+                `/api/staff/${waiter.id}?includeTables=true`,
+              );
+              if (tablesRes.ok) {
+                const tablesData = await tablesRes.json();
+                assignments[waiter.id] = tablesData.assignedTables || [];
+              }
+            } catch {
+              // Ignore individual table assignment fetch failures
+            }
+          }),
+        );
+        setTableAssignments(assignments);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar funcionários');
+      setError(
+        err instanceof Error ? err.message : "Erro ao carregar funcionários",
+      );
     } finally {
       setIsLoading(false);
     }
-  }, [filter, loadTableAssignments, getAllStaff, getAllRoles, repository]);
+  }, [loadTableAssignments]);
 
-  const getById = useCallback(async (id: string): Promise<StaffWithRole | null> => {
-    const result = await getStaffById.execute(id);
-    if (result.success) {
-      return result.data;
-    }
-    setError(result.error);
-    return null;
-  }, [getStaffById]);
+  const getById = useCallback(
+    async (id: string): Promise<StaffWithRole | null> => {
+      try {
+        const res = await fetch(`/api/staff/${id}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        return mapDates(data);
+      } catch {
+        return null;
+      }
+    },
+    [],
+  );
 
-  const create = useCallback(async (data: CreateStaffData): Promise<Staff | null> => {
-    setError(null);
-    const result = await createStaff.execute(data);
-    if (result.success) {
-      await fetchStaff();
-      return result.data;
-    }
-    setError(result.error);
-    return null;
-  }, [fetchStaff, createStaff]);
+  const create = useCallback(
+    async (data: CreateStaffData): Promise<Staff | null> => {
+      setError(null);
+      try {
+        const res = await fetch("/api/staff", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
 
-  const update = useCallback(async (id: string, data: UpdateStaffData): Promise<Staff | null> => {
-    setError(null);
-    const result = await updateStaff.execute(id, data);
-    if (result.success) {
-      await fetchStaff();
-      return result.data;
-    }
-    setError(result.error);
-    return null;
-  }, [fetchStaff, updateStaff]);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || "Erro ao criar funcionário");
+        }
 
-  const remove = useCallback(async (id: string): Promise<boolean> => {
-    setError(null);
-    const result = await deleteStaff.execute(id);
-    if (result.success) {
-      await fetchStaff();
-      return true;
-    }
-    setError(result.error);
-    return false;
-  }, [fetchStaff, deleteStaff]);
+        const created = await res.json();
+        await fetchStaff();
+        return mapStaffDates(created);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Erro ao criar funcionário",
+        );
+        return null;
+      }
+    },
+    [fetchStaff],
+  );
 
-  const assignTables = useCallback(async (staffId: string, tableIds: string[]): Promise<boolean> => {
-    setError(null);
-    try {
-      await repository.assignTables(staffId, tableIds);
-      // Update local state
-      setTableAssignments(prev => ({
-        ...prev,
-        [staffId]: tableIds,
-      }));
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao atribuir mesas');
-      return false;
-    }
-  }, [repository]);
+  const update = useCallback(
+    async (id: string, data: UpdateStaffData): Promise<Staff | null> => {
+      setError(null);
+      try {
+        const res = await fetch(`/api/staff/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
 
-  const getAssignedTables = useCallback(async (staffId: string): Promise<string[]> => {
-    try {
-      return await repository.getAssignedTables(staffId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar mesas atribuídas');
-      return [];
-    }
-  }, [repository]);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || "Erro ao atualizar funcionário");
+        }
+
+        const updated = await res.json();
+        await fetchStaff();
+        return mapStaffDates(updated);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Erro ao atualizar funcionário",
+        );
+        return null;
+      }
+    },
+    [fetchStaff],
+  );
+
+  const remove = useCallback(
+    async (id: string): Promise<boolean> => {
+      setError(null);
+      try {
+        const res = await fetch(`/api/staff/${id}`, {
+          method: "DELETE",
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || "Erro ao apagar funcionário");
+        }
+
+        await fetchStaff();
+        return true;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Erro ao apagar funcionário",
+        );
+        return false;
+      }
+    },
+    [fetchStaff],
+  );
+
+  const assignTables = useCallback(
+    async (staffId: string, tableIds: string[]): Promise<boolean> => {
+      setError(null);
+      try {
+        const res = await fetch(`/api/staff/${staffId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tableIds }),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || "Erro ao atribuir mesas");
+        }
+
+        setTableAssignments((prev) => ({
+          ...prev,
+          [staffId]: tableIds,
+        }));
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao atribuir mesas");
+        return false;
+      }
+    },
+    [],
+  );
+
+  const getAssignedTables = useCallback(
+    async (staffId: string): Promise<string[]> => {
+      try {
+        const res = await fetch(`/api/staff/${staffId}?includeTables=true`);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.assignedTables || [];
+      } catch {
+        return [];
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (autoLoad) {

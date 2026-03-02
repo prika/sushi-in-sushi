@@ -18,6 +18,7 @@ export {
   SYNC_OPERATIONS,
   getVendusConfig,
   isVendusEnabled,
+  isVendusReadOnly,
   getConfiguredLocations,
   validateVendusConfig,
 } from "./config";

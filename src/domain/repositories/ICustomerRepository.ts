@@ -10,6 +10,16 @@ import {
   CustomerFilter,
 } from '../entities/Customer';
 
+export interface SessionStatsData {
+  gamesPlayed: number;
+  totalScore: number;
+  prizesWon: number;
+  prizesRedeemed: number;
+  ratingsGiven: number;
+  ratingsSum: number;
+  allergens: string[];
+}
+
 export interface ICustomerRepository {
   findAll(filter?: CustomerFilter): Promise<Customer[]>;
   findById(id: string): Promise<CustomerWithHistory | null>;
@@ -19,4 +29,6 @@ export interface ICustomerRepository {
   delete(id: string): Promise<void>;
   addPoints(id: string, points: number): Promise<Customer>;
   recordVisit(id: string, spent: number): Promise<Customer>;
+  recordVisitWithSessionStats(id: string, spent: number, stats: SessionStatsData): Promise<Customer>;
+  recordCompanionship(customerId: string, companionId: string): Promise<void>;
 }

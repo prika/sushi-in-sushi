@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
 type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];
@@ -39,6 +39,9 @@ export type CustomerHistoryReservation = {
   specialRequests: string | null;
   confirmedAt: string | null;
   cancelledAt: string | null;
+  cancellationReason: string | null;
+  cancelledBy: string | null;
+  cancellationSource: string | null;
   sessionId: string | null;
   seatedAt: string | null;
   createdAt: string;
@@ -82,7 +85,7 @@ export async function GET(
       return NextResponse.json({ error: "id obrigatório" }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: customerRow, error: customerError } = await supabase
       .from("customers")
@@ -104,10 +107,10 @@ export async function GET(
     const email = customerRow.email;
 
     const [reservationsRes, sessionCustomersRes] = await Promise.all([
-      supabase
+      (supabase as any)
         .from("reservations")
         .select(
-          "id, first_name, last_name, email, phone, reservation_date, reservation_time, party_size, location, status, is_rodizio, special_requests, confirmed_at, cancelled_at, session_id, seated_at, created_at, table_id"
+          "id, first_name, last_name, email, phone, reservation_date, reservation_time, party_size, location, status, is_rodizio, special_requests, confirmed_at, cancelled_at, cancellation_reason, cancelled_by, cancellation_source, session_id, seated_at, created_at, table_id"
         )
         .eq("email", email)
         .order("reservation_date", { ascending: false })
@@ -126,11 +129,11 @@ export async function GET(
 
     let reservations: CustomerHistoryReservation[] = [];
     if (reservationsRes.data?.length) {
-      const tableIds = Array.from(
+      const tableIds: string[] = Array.from(
         new Set(
           reservationsRes.data
-            .map((r) => r.table_id)
-            .filter((tid): tid is string => tid !== null)
+            .map((r: any) => r.table_id)
+            .filter((tid: any): tid is string => tid !== null)
         )
       );
       let tableMap: Record<string, { number: number; name: string }> = {};
@@ -147,7 +150,7 @@ export async function GET(
           {}
         );
       }
-      reservations = reservationsRes.data.map((r) => {
+      reservations = reservationsRes.data.map((r: any) => {
         const t = r.table_id ? tableMap[r.table_id] : null;
         return {
           id: r.id,
@@ -166,6 +169,9 @@ export async function GET(
           specialRequests: r.special_requests,
           confirmedAt: r.confirmed_at,
           cancelledAt: r.cancelled_at,
+          cancellationReason: r.cancellation_reason ?? null,
+          cancelledBy: r.cancelled_by ?? null,
+          cancellationSource: r.cancellation_source ?? null,
           sessionId: r.session_id,
           seatedAt: r.seated_at,
           createdAt: r.created_at,
@@ -252,11 +258,32 @@ export async function GET(
       }
     }
 
+    // Compute behavioral stats for the detail page
+    const completedReservations = reservations.filter(r => r.status === 'completed').length;
+    const cancelledReservations = reservations.filter(r => r.status === 'cancelled').length;
+    const noShowCount = reservations.filter(r => r.status === 'no_show').length;
+    const avgPartySize = reservations.length > 0
+      ? reservations.reduce((sum, r) => sum + r.partySize, 0) / reservations.length
+      : 0;
+    const totalFromOrders = orders.reduce((sum, o) => sum + o.total, 0);
+
+    const stats = {
+      reservationCount: reservations.length,
+      completedReservations,
+      cancelledReservations,
+      noShowCount,
+      avgPartySize: Math.round(avgPartySize * 10) / 10,
+      visitCount: visits.length,
+      totalSpent: customer.totalSpent,
+      totalFromOrders,
+    };
+
     return NextResponse.json({
       customer,
       reservations,
       visits,
       orders,
+      stats,
     });
   } catch (err) {
     console.error("[customers/history] error:", err);

@@ -25,7 +25,7 @@ describe('getStaffById', () => {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       single: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: mockStaff, error: null }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: mockStaff, error: null }).then(fn),
     };
     mockFrom.mockReturnValue(chain);
 
@@ -40,7 +40,7 @@ describe('getStaffById', () => {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       single: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: null, error: { message: 'not found' } }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: null, error: { message: 'not found' } }).then(fn),
     };
     mockFrom.mockReturnValue(chain);
 
@@ -63,7 +63,7 @@ describe('getAllStaff', () => {
   it('deve retornar lista de staff', async () => {
     const chain = {
       select: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: [mockStaff], error: null }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: [mockStaff], error: null }).then(fn),
     };
     mockFrom.mockReturnValue(chain);
 
@@ -75,7 +75,7 @@ describe('getAllStaff', () => {
   it('deve retornar array vazio em caso de erro', async () => {
     const chain = {
       select: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: null, error: { message: 'error' } }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: null, error: { message: 'error' } }).then(fn),
     };
     mockFrom.mockReturnValue(chain);
 
@@ -125,7 +125,7 @@ describe('removeTableFromWaiter', () => {
     const chain = {
       delete: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ error: null }).then(fn),
     };
     mockFrom.mockReturnValue(chain);
 
@@ -137,7 +137,7 @@ describe('removeTableFromWaiter', () => {
     const chain = {
       delete: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ error: { message: 'fail' } }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ error: { message: 'fail' } }).then(fn),
     };
     mockFrom.mockReturnValue(chain);
 
@@ -160,7 +160,7 @@ describe('getWaiterTables', () => {
     const chain = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ data, error: null }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data, error: null }).then(fn),
     };
     mockFrom.mockReturnValue(chain);
 
@@ -178,7 +178,7 @@ describe('getWaiterTables', () => {
     const chain = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ data, error: null }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data, error: null }).then(fn),
     };
     mockFrom.mockReturnValue(chain);
 
@@ -190,7 +190,7 @@ describe('getWaiterTables', () => {
     const chain = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      then: (fn: (v: unknown) => unknown) => Promise.resolve({ data: null, error: { message: 'fail' } }).then(fn),
+      then: (fn: (_v: unknown) => unknown) => Promise.resolve({ data: null, error: { message: 'fail' } }).then(fn),
     };
     mockFrom.mockReturnValue(chain);
 

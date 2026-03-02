@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/auth";
 import { SupabaseSessionRepository } from "@/infrastructure/repositories/SupabaseSessionRepository";
 import { SupabaseTableRepository } from "@/infrastructure/repositories/SupabaseTableRepository";
 import { SupabaseStaffRepository } from "@/infrastructure/repositories/SupabaseStaffRepository";
@@ -7,9 +8,89 @@ import { SupabaseRestaurantRepository } from "@/infrastructure/repositories/Supa
 import { StartSessionUseCase } from "@/application/use-cases/sessions/StartSessionUseCase";
 import { AutoAssignWaiterUseCase } from "@/application/use-cases/sessions/AutoAssignWaiterUseCase";
 
-// POST - Start a new session (public - used by customer mesa page)
+// GET - Check for active session on a table (public - used by customer mesa page)
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const tableNumber = searchParams.get("tableNumber");
+    const location = searchParams.get("location") || "circunvalacao";
+
+    if (!tableNumber) {
+      return NextResponse.json(
+        { error: "tableNumber é obrigatório" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createAdminClient();
+
+    // Find table by number and location
+    const { data: tableData } = await supabase
+      .from("tables")
+      .select("id")
+      .eq("number", parseInt(tableNumber))
+      .eq("location", location)
+      .maybeSingle();
+
+    if (!tableData) {
+      return NextResponse.json({ tableId: null, session: null });
+    }
+
+    // Fetch active session
+    const { data: activeSession } = await supabase
+      .from("sessions")
+      .select("*")
+      .eq("table_id", tableData.id)
+      .in("status", ["active", "pending_payment"])
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // Fetch waiter name
+    let waiterName: string | null = null;
+    const { data: waiterData } = await (supabase as ReturnType<typeof createAdminClient>)
+      .from("waiter_assignments" as any)
+      .select("staff_name")
+      .eq("table_id", tableData.id)
+      .maybeSingle();
+    if (waiterData) {
+      waiterName = (waiterData as any).staff_name;
+    }
+
+    // Fetch restaurant settings
+    const { data: restaurantData } = await supabase
+      .from("restaurants")
+      .select("id, order_cooldown_minutes, games_mode")
+      .eq("slug", location)
+      .maybeSingle();
+
+    return NextResponse.json({
+      tableId: tableData.id,
+      session: activeSession,
+      waiterName,
+      restaurant: restaurantData,
+    });
+  } catch (error) {
+    console.error("[API /sessions GET] Error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Erro ao verificar sessão" },
+      { status: 500 }
+    );
+  }
+}
+
+// POST - Start a new session (staff-only - waiters and admins)
 export async function POST(request: NextRequest) {
   try {
+    // Only authenticated staff (waiter/admin) can create sessions
+    const user = await getAuthUser();
+    if (!user || !['admin', 'waiter'].includes(user.role)) {
+      return NextResponse.json(
+        { error: "Apenas empregados podem iniciar sessões" },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { tableId, isRodizio, numPeople, totalAmount, orderingMode } = body;
 
@@ -82,6 +163,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Clear customer_waiting_since flag (in case customer requested opening via QR scan)
+    await supabase
+      .from("tables")
+      .update({ customer_waiting_since: null })
+      .eq("id", tableId);
 
     // Update total_amount for rodizio sessions
     if (totalAmount && totalAmount > 0 && result.data) {

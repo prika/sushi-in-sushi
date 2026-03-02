@@ -61,14 +61,14 @@ export function Menu() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
                 </div>
-                <div className="p-5">
+                <div className="p-5 text-center">
                   <h3 className="font-display text-xl font-semibold mb-2 group-hover:text-gold transition-colors">
                     {item.name}
                   </h3>
                   <p className="text-muted text-sm mb-3 leading-relaxed">
                     {item.description}
                   </p>
-                  <p className="text-gold font-semibold text-lg">€{item.price}</p>
+                  {/* <p className="text-gold font-semibold text-lg">€{item.price}</p> */}
                 </div>
               </div>
             </BlurFade>

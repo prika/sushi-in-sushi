@@ -6,7 +6,7 @@ import type { TableStatus } from "@/domain/value-objects/TableStatus";
 
 interface TableMapProps {
   tables: TableDTO[];
-  onTableClick: (table: TableDTO) => void;
+  onTableClick: (_table: TableDTO) => void;
   isLoading?: boolean;
 }
 

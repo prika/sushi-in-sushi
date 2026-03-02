@@ -68,6 +68,7 @@ function createMockReservationRepository(): IReservationRepository {
     markAsSeated: vi.fn(),
     markAsNoShow: vi.fn(),
     markAsCompleted: vi.fn(),
+    findUpcomingByEmail: vi.fn(),
   };
 }
 
@@ -429,7 +430,7 @@ describe('CancelReservationUseCase', () => {
     if (result.success) {
       expect(result.data.status).toBe('cancelled');
     }
-    expect(mockRepository.cancel).toHaveBeenCalledWith('reservation-1', 'Cliente pediu cancelamento');
+    expect(mockRepository.cancel).toHaveBeenCalledWith('reservation-1', 'Cliente pediu cancelamento', undefined, undefined);
   });
 
   it('deve cancelar reserva confirmada', async () => {

@@ -8,6 +8,7 @@ import {
 } from '@/lib/validation/twilio';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const TEST_EMAIL_OVERRIDE = process.env.TEST_EMAIL_OVERRIDE;
 
 /**
  * POST /api/verification/send
@@ -116,9 +117,14 @@ export async function POST(request: NextRequest) {
         // Create verification link with token pre-filled
         const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/mesa/verify?token=${token}&customerId=${sessionCustomerId}`;
 
+        const recipientEmail = TEST_EMAIL_OVERRIDE || contactValue;
+        if (TEST_EMAIL_OVERRIDE) {
+          console.info(`📧 [TEST MODE] Verification email redirected from ${contactValue} to ${TEST_EMAIL_OVERRIDE}`);
+        }
+
         await resend.emails.send({
           from: process.env.FROM_EMAIL || 'noreply@sushiinsushi.pt',
-          to: contactValue,
+          to: recipientEmail,
           subject: '🍣 Código de Verificação - Sushi in Sushi',
           html: `
             <!DOCTYPE html>

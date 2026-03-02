@@ -42,6 +42,25 @@ export class UpdateReservationSettingsUseCase {
         }
       }
 
+      // Validar limitador de peças
+      if (input.data.pieceLimiterMaxPerPerson !== undefined) {
+        if (input.data.pieceLimiterMaxPerPerson < 1 || input.data.pieceLimiterMaxPerPerson > 100) {
+          return Results.error(
+            'Limite de peças por pessoa deve estar entre 1 e 100',
+            'INVALID_PIECE_LIMIT'
+          );
+        }
+      }
+
+      if (input.data.pieceLimiterMode !== undefined) {
+        if (!['block', 'warning'].includes(input.data.pieceLimiterMode)) {
+          return Results.error(
+            'Modo do limitador deve ser "block" ou "warning"',
+            'INVALID_LIMITER_MODE'
+          );
+        }
+      }
+
       const settings = await this.reservationSettingsRepository.update(
         input.data,
         input.updatedBy

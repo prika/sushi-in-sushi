@@ -24,7 +24,7 @@ import { Location } from '@/types/database';
  */
 function getExtendedClient(client: SupabaseClient) {
   return client as unknown as {
-    from: (table: string) => ReturnType<typeof client.from>;
+    from: (_table: string) => ReturnType<typeof client.from>;
   };
 }
 

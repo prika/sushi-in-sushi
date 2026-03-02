@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useSessionOrders - Hook para gestão de pedidos de uma sessão
@@ -9,15 +9,15 @@
  * - Totais e contagens
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useDependencies } from '../contexts/DependencyContext';
-import { SessionOrderDTO, SessionOrdersSummaryDTO, OrderCountsDTO } from '@/application/dto/OrderDTO';
-import { OrderStatus } from '@/domain/value-objects/OrderStatus';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useDependencies } from "../contexts/DependencyContext";
+import { SessionOrderDTO, OrderCountsDTO } from "@/application/dto/OrderDTO";
+import { OrderStatus } from "@/domain/value-objects/OrderStatus";
 import {
   OrderRealtimeHandler,
   OrderRealtimeHandlerFactory,
   OrderRealtimeEvent,
-} from '@/infrastructure/realtime/OrderRealtimeHandler';
+} from "@/infrastructure/realtime/OrderRealtimeHandler";
 
 /**
  * Opções do hook
@@ -36,12 +36,15 @@ export interface UseSessionOrdersOptions {
   /**
    * Callback quando um pedido é criado
    */
-  onOrderCreated?: (order: SessionOrderDTO) => void;
+  onOrderCreated?: (_order: SessionOrderDTO) => void;
 
   /**
    * Callback quando um pedido é atualizado
    */
-  onOrderUpdated?: (order: SessionOrderDTO, previousStatus: OrderStatus) => void;
+  onOrderUpdated?: (
+    _order: SessionOrderDTO,
+    _previousStatus: OrderStatus,
+  ) => void;
 
   /**
    * Intervalo de refresh automático em ms (0 para desativar)
@@ -89,19 +92,24 @@ export interface UseSessionOrdersResult {
   /**
    * Cria um novo pedido
    */
-  createOrder: (productId: string, quantity: number, notes?: string, sessionCustomerId?: string) => Promise<boolean>;
+  createOrder: (
+    _productId: string,
+    _quantity: number,
+    _notes?: string,
+    _sessionCustomerId?: string,
+  ) => Promise<boolean>;
 
   /**
    * Cancela um pedido
    */
-  cancelOrder: (orderId: string) => Promise<boolean>;
+  cancelOrder: (_orderId: string) => Promise<boolean>;
 }
 
 /**
  * Hook para gestão de pedidos de uma sessão
  */
 export function useSessionOrders(
-  options: UseSessionOrdersOptions
+  options: UseSessionOrdersOptions,
 ): UseSessionOrdersResult {
   const {
     sessionId,
@@ -111,7 +119,8 @@ export function useSessionOrders(
     refreshInterval = 0, // Desativado por defeito para sessões
   } = options;
 
-  const { getSessionOrders, createOrder, updateOrderStatus } = useDependencies();
+  const { getSessionOrders, createOrder, updateOrderStatus } =
+    useDependencies();
 
   // Estado
   const [orders, setOrders] = useState<SessionOrderDTO[]>([]);
@@ -124,10 +133,12 @@ export function useSessionOrders(
     total: 0,
     active: 0,
   });
-  const [totals, setTotals] = useState<{ subtotal: number; itemCount: number }>({
-    subtotal: 0,
-    itemCount: 0,
-  });
+  const [totals, setTotals] = useState<{ subtotal: number; itemCount: number }>(
+    {
+      subtotal: 0,
+      itemCount: 0,
+    },
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -155,7 +166,7 @@ export function useSessionOrders(
         setError(result.error);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar pedidos');
+      setError(err instanceof Error ? err.message : "Erro ao carregar pedidos");
     } finally {
       setIsLoading(false);
     }
@@ -169,7 +180,7 @@ export function useSessionOrders(
       productId: string,
       quantity: number,
       notes?: string,
-      sessionCustomerId?: string
+      sessionCustomerId?: string,
     ): Promise<boolean> => {
       try {
         const result = await createOrder.execute({
@@ -189,11 +200,11 @@ export function useSessionOrders(
           return false;
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao criar pedido');
+        setError(err instanceof Error ? err.message : "Erro ao criar pedido");
         return false;
       }
     },
-    [createOrder, sessionId, fetchOrders]
+    [createOrder, sessionId, fetchOrders],
   );
 
   /**
@@ -209,15 +220,17 @@ export function useSessionOrders(
       try {
         const result = await updateOrderStatus.execute({
           orderId,
-          newStatus: 'cancelled',
+          newStatus: "cancelled",
         });
 
         if (result.success) {
           // Atualização otimista
           setOrders((prev) =>
             prev.map((o) =>
-              o.id === orderId ? { ...o, status: 'cancelled' as OrderStatus } : o
-            )
+              o.id === orderId
+                ? { ...o, status: "cancelled" as OrderStatus }
+                : o,
+            ),
           );
 
           // Recalcular contagens e totais
@@ -228,11 +241,13 @@ export function useSessionOrders(
           return false;
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao cancelar pedido');
+        setError(
+          err instanceof Error ? err.message : "Erro ao cancelar pedido",
+        );
         return false;
       }
     },
-    [updateOrderStatus, fetchOrders]
+    [updateOrderStatus, fetchOrders],
   );
 
   /**
@@ -263,7 +278,7 @@ export function useSessionOrders(
           notes: event.new.notes,
           status: event.new.status,
           createdAt: event.new.createdAt.toISOString(),
-          product: { id: '', name: '', imageUrl: null },
+          product: { id: "", name: "", imageUrl: null },
           subtotal: event.new.quantity * event.new.unitPrice,
         };
         onOrderCreated?.(orderDTO);
@@ -281,14 +296,14 @@ export function useSessionOrders(
             notes: event.new.notes,
             status: event.new.status,
             createdAt: event.new.createdAt.toISOString(),
-            product: { id: '', name: '', imageUrl: null },
+            product: { id: "", name: "", imageUrl: null },
             subtotal: event.new.quantity * event.new.unitPrice,
           };
           onOrderUpdated?.(orderDTO, event.previousStatus);
         }
       }
     },
-    [sessionId, fetchOrders, onOrderCreated, onOrderUpdated]
+    [sessionId, fetchOrders, onOrderCreated, onOrderUpdated],
   );
 
   // Fetch inicial
@@ -302,7 +317,8 @@ export function useSessionOrders(
   useEffect(() => {
     if (!realtime || !sessionId) return;
 
-    realtimeHandlerRef.current = OrderRealtimeHandlerFactory.forSession(sessionId);
+    realtimeHandlerRef.current =
+      OrderRealtimeHandlerFactory.forSession(sessionId);
     realtimeHandlerRef.current.subscribeWithDetails(handleRealtimeEvent);
 
     return () => {

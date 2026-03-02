@@ -34,7 +34,7 @@ const ACTIVITY_THROTTLE_MS = 1000;
 interface SessionTimeoutOptions {
   timeoutMs?: number;
   warningBeforeMs?: number;
-  onWarning?: (remainingMs: number) => void;
+  onWarning?: (_remainingMs: number) => void;
   onTimeout?: () => void;
   enabled?: boolean;
 }
@@ -109,7 +109,7 @@ export function useSessionTimeout(options: SessionTimeoutOptions = {}) {
   const handleWarning = useCallback(() => {
     setState((prev) => ({ ...prev, isWarning: true }));
 
-    const warningStartTime = Date.now();
+    const _warningStartTime = Date.now();
     const timeoutTime = lastActivityRef.current + timeoutMs;
 
     // Start countdown

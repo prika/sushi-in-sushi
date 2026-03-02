@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useWaiterCalls, useLocations } from "@/presentation/hooks";
 import type { WaiterCallWithDetails, WaiterCallStatus, WaiterCallType } from "@/domain/entities/WaiterCall";
@@ -81,7 +81,7 @@ export default function ChamadasPage() {
           table: "waiter_calls",
         },
         (payload) => {
-          console.info("Waiter call realtime update:", payload);
+          console.error("Waiter call realtime update:", payload);
           // Play sound for new pending calls
           if (
             payload.eventType === "INSERT" &&
@@ -368,7 +368,7 @@ function CallCard({
   call: WaiterCallWithDetails;
   onAcknowledge?: () => void;
   onComplete?: () => void;
-  formatTimeAgo: (date: Date) => string;
+  formatTimeAgo: (_date: Date) => string;
   locationName: string;
 }) {
   const typeConfig = CALL_TYPE_CONFIG[call.callType] || CALL_TYPE_CONFIG.other;
@@ -457,7 +457,7 @@ function CallCard({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes pulse-border {
           0%,
           100% {

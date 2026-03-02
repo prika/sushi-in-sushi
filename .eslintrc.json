@@ -1,3 +1,51 @@
 {
-  "extends": "next/core-web-vitals"
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "no-console": ["error", { "allow": ["error"] }],
+    "no-debugger": "error",
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "prefer-const": "error",
+    "no-var": "error",
+    "no-duplicate-imports": "error",
+    "eqeqeq": ["error", "always"],
+    "no-return-await": "error"
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/__tests__/**/*",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "src/lib/vendus/__tests__/**/*"
+      ],
+      "rules": {
+        "no-unused-vars": "warn",
+        "react/display-name": "off"
+      }
+    },
+    {
+      "files": [
+        "src/domain/repositories/I*.ts",
+        "src/application/use-cases/**/*.ts",
+        "src/application/ports/**/*.ts",
+        "src/lib/vendus/client.ts"
+      ],
+      "rules": {
+        "no-unused-vars": "off"
+      }
+    },
+    {
+      "files": [
+        "src/lib/vendus/**/*.ts",
+        "src/lib/email/**/*.ts",
+        "src/lib/auth/**/*.ts",
+        "src/app/api/**/*.ts",
+        "src/infrastructure/**/*.ts"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
 }

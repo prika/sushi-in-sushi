@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createToken, verifyToken } from '@/lib/auth/token';
-import type { TokenPayload } from '@/lib/auth/token';
+import { createToken, verifyToken, type TokenPayload } from '@/lib/auth/token';
 
 const validPayload: TokenPayload = {
   id: '123e4567-e89b-12d3-a456-426614174000',

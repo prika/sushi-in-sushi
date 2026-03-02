@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { verifyAuth } from "@/lib/auth";
 import { SupabaseStaffTimeOffRepository } from "@/infrastructure/repositories/SupabaseStaffTimeOffRepository";
 import {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseStaffTimeOffRepository(supabase);
     const getAllStaffTimeOff = new GetAllStaffTimeOffUseCase(repository);
 
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseStaffTimeOffRepository(supabase);
     const createStaffTimeOff = new CreateStaffTimeOffUseCase(repository);
 

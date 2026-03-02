@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createTestSession, createTestTable, createTestStaff } from '../../helpers/factories';
+import { createTestSession, createTestStaff } from '../../helpers/factories';
 import type { OrderingMode } from '@/domain/value-objects/OrderingMode';
 
 // Mock Supabase

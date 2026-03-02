@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
 import { SupabaseReservationRepository } from "@/infrastructure/repositories/SupabaseReservationRepository";
 import {
@@ -13,7 +13,9 @@ import {
 } from "@/application/use-cases/reservations";
 import type { UpdateReservationData, Reservation } from "@/domain/entities/Reservation";
 import type { Reservation as LegacyReservation } from "@/types/database";
-import { sendReservationConfirmedEmail } from "@/lib/email";
+import { sendReservationConfirmedEmail, sendCancellationEmail } from "@/lib/email";
+import { SupabaseCustomerRepository } from "@/infrastructure/repositories/SupabaseCustomerRepository";
+import { RecordCustomerVisitUseCase } from "@/application/use-cases/customers/RecordCustomerVisitUseCase";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +40,7 @@ function mapToLegacyReservation(reservation: Reservation): LegacyReservation {
     confirmed_at: reservation.confirmedAt?.toISOString() || null,
     cancelled_at: reservation.cancelledAt?.toISOString() || null,
     cancellation_reason: reservation.cancellationReason,
+    customer_id: reservation.customerId,
     session_id: reservation.sessionId,
     seated_at: reservation.seatedAt?.toISOString() || null,
     marketing_consent: reservation.marketingConsent,
@@ -88,6 +91,7 @@ function mapToResponse(reservation: Reservation) {
     confirmed_at: reservation.confirmedAt?.toISOString() || null,
     cancelled_at: reservation.cancelledAt?.toISOString() || null,
     cancellation_reason: reservation.cancellationReason,
+    customer_id: reservation.customerId,
     session_id: reservation.sessionId,
     seated_at: reservation.seatedAt?.toISOString() || null,
     marketing_consent: reservation.marketingConsent,
@@ -103,7 +107,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseReservationRepository(supabase);
     const getReservationById = new GetReservationByIdUseCase(repository);
 
@@ -147,7 +151,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseReservationRepository(supabase);
 
     // Handle status changes with specialized use-cases
@@ -161,7 +165,8 @@ export async function PATCH(
     } else if (status === "cancelled") {
       const cancelReservation = new CancelReservationUseCase(repository);
       const reason = body.cancellation_reason || body.cancellationReason;
-      result = await cancelReservation.execute(id, reason);
+      const cancellationSource = body.cancellation_source || 'site';
+      result = await cancelReservation.execute(id, reason, 'admin', cancellationSource);
     } else if (status === "completed" && (body.session_id || body.sessionId)) {
       const markSeated = new MarkReservationSeatedUseCase(repository);
       result = await markSeated.execute(id, body.session_id || body.sessionId);
@@ -216,6 +221,31 @@ export async function PATCH(
       });
     }
 
+    // Send cancellation email if status changed to cancelled
+    if (status === "cancelled" && reservation) {
+      const legacyReservation = mapToLegacyReservation(reservation);
+      const reason = body.cancellation_reason || body.cancellationReason || "Cancelada pelo restaurante";
+      sendCancellationEmail(legacyReservation, reason).catch((emailError) => {
+        console.error("Error sending cancellation email:", emailError);
+      });
+    }
+
+    // Record customer visit when reservation is completed (customer showed up)
+    if (status === "completed" && reservation) {
+      try {
+        const customerRepository = new SupabaseCustomerRepository(supabase);
+        const customer = reservation.customerId
+          ? await customerRepository.findById(reservation.customerId)
+          : await customerRepository.findByEmail(reservation.email);
+        if (customer) {
+          const recordVisit = new RecordCustomerVisitUseCase(customerRepository);
+          await recordVisit.execute(customer.id, 0);
+        }
+      } catch (visitError) {
+        console.error("Customer visit recording failed:", visitError);
+      }
+    }
+
     return NextResponse.json(mapToResponse(reservation));
   } catch (error) {
     console.error("Error updating reservation:", error);
@@ -238,7 +268,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseReservationRepository(supabase);
     const deleteReservation = new DeleteReservationUseCase(repository);
 

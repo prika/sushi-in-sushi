@@ -6,18 +6,17 @@ import {
   useCallback,
   useRef,
   useMemo,
+  Suspense,
 } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useProductsOptimized } from "@/presentation/hooks";
 import { useCart } from "@/presentation/hooks/useCart";
 import { useOrderReview } from "@/presentation/hooks/useOrderReview";
 import { useOrderCooldown } from "@/presentation/hooks/useOrderCooldown";
-import { useProductPreparationTimes } from "@/hooks/useProductPreparationTimes";
-import {
-  useOrderNotificationChannel,
-} from "@/presentation/hooks/useOrderNotificationChannel";
+import { useOrderNotificationChannel } from "@/presentation/hooks/useOrderNotificationChannel";
 import { CartService } from "@/domain/services/CartService";
 import type { Product, Category } from "@/domain/entities";
 import type {
@@ -29,9 +28,12 @@ import type {
   SessionCustomerInsert,
 } from "@/types/database";
 import { useMesaLocale } from "@/contexts/MesaLocaleContext";
+import { getLocalized } from "@/lib/i18n/getLocalized";
 import { MesaLanguageSwitcher } from "@/components/mesa/MesaLanguageSwitcher";
 import { type TableLeaderInfo } from "@/components/mesa/SwipeRatingGame";
 import { GameHub } from "@/components/mesa/GameHub";
+import { ProductDetailSheet } from "@/components/mesa/ProductDetailSheet";
+import { ALLERGEN_EMOJI_MAP, ALL_ALLERGENS } from "@/lib/constants/allergens";
 import type { GamesMode } from "@/domain/value-objects/GameConfig";
 
 type Step = "welcome" | "active";
@@ -62,7 +64,21 @@ const STATUS_ICONS: Record<OrderStatus, { icon: string; color: string }> = {
 };
 
 export default function MesaPage() {
-  const { t } = useMesaLocale();
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+          <div className="animate-spin h-8 w-8 border-2 border-[#D4AF37] border-t-transparent rounded-full" />
+        </main>
+      }
+    >
+      <MesaPageContent />
+    </Suspense>
+  );
+}
+
+function MesaPageContent() {
+  const { t, locale } = useMesaLocale();
   const params = useParams();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -75,10 +91,14 @@ export default function MesaPage() {
   const [activeTab, setActiveTab] = useState<Tab>("menu");
   const [orderType, setOrderType] = useState<OrderType>(null);
   const [numPessoas, setNumPessoas] = useState(2);
-  const [isLunch, setIsLunch] = useState(() => {
+  const [isLunch, setIsLunch] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  // Compute isLunch on client only to avoid SSR hydration mismatch
+  useEffect(() => {
     const hour = new Date().getHours();
-    return hour >= 11 && hour < 16;
-  });
+    setIsLunch(hour >= 11 && hour < 16);
+  }, []);
 
   // Session state
   const [session, setSession] = useState<Session | null>(null);
@@ -90,13 +110,94 @@ export default function MesaPage() {
     categories: rawCategories,
     isLoading: isLoadingProducts,
   } = useProductsOptimized({
-    availableOnly: true, // Only show available products
+    availableOnly: true,
+    serviceModes: ["dine_in", "takeaway"],
   });
 
-  // Average preparation times for products
-  const { times: preparationTimes } = useProductPreparationTimes(
-    products.map((p) => p.id),
+  // Stable product IDs key for React Query (avoids re-fetching on array reference changes)
+  const productIdsKey = useMemo(
+    () =>
+      products
+        .map((p) => p.id)
+        .sort()
+        .join(","),
+    [products],
   );
+
+  // Average preparation times - cached with React Query (replaces N individual API calls)
+  const { data: preparationTimes = {} } = useQuery({
+    queryKey: ["preparation-times", productIdsKey],
+    queryFn: async () => {
+      if (products.length === 0) return {};
+      const results = await Promise.all(
+        products.map(async (p) => {
+          try {
+            const res = await fetch(`/api/products/${p.id}/average-time`);
+            if (res.ok) {
+              const data = await res.json();
+              return { id: p.id, time: data.averagePreparationTimeMinutes };
+            }
+          } catch {
+            // ignore individual failures
+          }
+          return { id: p.id, time: null };
+        }),
+      );
+      const map: Record<string, number | null> = {};
+      results.forEach(({ id, time }) => {
+        map[id] = time;
+      });
+      return map;
+    },
+    enabled: products.length > 0,
+    staleTime: Infinity, // Static data - only changes when admin edits catalog
+    gcTime: Infinity,
+  });
+
+  // Product ingredients - cached for entire session (only changes when admin edits catalog)
+  const { data: productIngredientsMap = {} } = useQuery({
+    queryKey: ["product-ingredients", productIdsKey],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("product_ingredients")
+        .select("product_id, ingredients(name, name_translations, allergens)")
+        .in(
+          "product_id",
+          products.map((p) => p.id),
+        );
+
+      const map: Record<
+        string,
+        Array<{
+          name: string;
+          nameTranslations: Record<string, string> | null;
+          allergens: string[];
+        }>
+      > = {};
+      if (data) {
+        for (const row of data) {
+          const pid = String(row.product_id);
+          if (!map[pid]) map[pid] = [];
+          const ing = row.ingredients as unknown as {
+            name: string;
+            name_translations: Record<string, string> | null;
+            allergens: string[] | null;
+          } | null;
+          if (ing) {
+            map[pid].push({
+              name: ing.name,
+              nameTranslations: ing.name_translations,
+              allergens: ing.allergens ?? [],
+            });
+          }
+        }
+      }
+      return map;
+    },
+    enabled: products.length > 0,
+    staleTime: Infinity, // Static data - only changes when admin edits catalog
+    gcTime: Infinity,
+  });
 
   // Game config (for gamesMode: 'selection' | 'random')
   const [gamesMode, setGamesMode] = useState<GamesMode>("selection");
@@ -139,12 +240,14 @@ export default function MesaPage() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isStartingSession, setIsStartingSession] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [showBillModal, setShowBillModal] = useState(false);
   const [isRequestingBill, setIsRequestingBill] = useState(false);
   const [billRequested, setBillRequested] = useState(false);
   const [showLeaveTableModal, setShowLeaveTableModal] = useState(false);
+  const [closeReason, setCloseReason] = useState("");
+  const [wantsNif, setWantsNif] = useState(false);
+  const [nifInput, setNifInput] = useState("");
   const [isLeavingTable, setIsLeavingTable] = useState(false);
 
   // Cooldown state
@@ -168,6 +271,7 @@ export default function MesaPage() {
     [],
   );
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [customerForm, setCustomerForm] = useState({
     display_name: "",
     full_name: "",
@@ -176,6 +280,7 @@ export default function MesaPage() {
     birth_date: "",
     marketing_consent: false,
     preferred_contact: "email" as "email" | "phone" | "none",
+    allergens: [] as string[],
   });
 
   // Broadcast notification state
@@ -187,17 +292,19 @@ export default function MesaPage() {
   > | null>(null);
 
   // Device ID for broadcast deduplication (prevent processing own broadcasts)
-  // Using useState with lazy initialization to ensure stable value across renders
-  const [deviceId] = useState<string>(() => {
-    if (typeof window === "undefined") return "server";
+  // Initialize empty to avoid SSR/client mismatch, then set from localStorage in useEffect
+  const [deviceId, setDeviceId] = useState<string>("");
 
+  useEffect(() => {
     const stored = localStorage.getItem("mesa-device-id");
-    if (stored) return stored;
-
-    const id = `device-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    if (stored) {
+      setDeviceId(stored);
+      return;
+    }
+    const id = `device-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     localStorage.setItem("mesa-device-id", id);
-    return id;
-  });
+    setDeviceId(id);
+  }, []);
 
   // Verification state
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -269,6 +376,65 @@ export default function MesaPage() {
     cooldownMinutes,
   });
 
+  // Piece limiter settings (fetched from public endpoint)
+  const [pieceLimiterSettings, setPieceLimiterSettings] = useState<{
+    enabled: boolean;
+    mode: "block" | "warning";
+    maxPerPerson: number;
+    wasteFee: number;
+    wastePolicyEnabled: boolean;
+  } | null>(null);
+
+  // Fetch piece limiter settings when rodizio session is active
+  useEffect(() => {
+    if (step !== "active" || orderType !== "rodizio") return;
+
+    const fetchPieceLimiterSettings = async () => {
+      try {
+        const res = await fetch("/api/piece-limiter-settings");
+        if (res.ok) {
+          const data = await res.json();
+          setPieceLimiterSettings({
+            enabled: data.piece_limiter_enabled,
+            mode: data.piece_limiter_mode,
+            maxPerPerson: data.piece_limiter_max_per_person,
+            wasteFee: data.rodizio_waste_fee_per_piece,
+            wastePolicyEnabled: data.rodizio_waste_policy_enabled,
+          });
+        }
+      } catch {
+        // Non-critical: limiter not enforced if settings unavailable
+      }
+    };
+
+    fetchPieceLimiterSettings();
+  }, [step, orderType]);
+
+  // Piece limit calculation
+  const pieceLimitStatus = useMemo(() => {
+    if (!pieceLimiterSettings?.enabled || orderType !== "rodizio") {
+      return {
+        exceeded: false,
+        totalPieces: 0,
+        maxPieces: 0,
+        mode: "warning" as const,
+      };
+    }
+
+    const totalPieces = cartItemsCount;
+    const maxPieces = pieceLimiterSettings.maxPerPerson * numPessoas;
+    const exceeded = totalPieces > maxPieces;
+
+    return {
+      exceeded,
+      totalPieces,
+      maxPieces,
+      mode: pieceLimiterSettings.mode,
+      maxPerPerson: pieceLimiterSettings.maxPerPerson,
+      wasteFee: pieceLimiterSettings.wasteFee,
+    };
+  }, [pieceLimiterSettings, orderType, cartItemsCount, numPessoas]);
+
   // Check if profile is incomplete (missing optional fields)
   const hasIncompleteProfile = useMemo(() => {
     if (!currentCustomer) return false;
@@ -286,70 +452,91 @@ export default function MesaPage() {
     ).length;
   }, [orderItemsForRating, ratingsStats.userRatedOrderIds]);
 
-  // Fetch table info, waiter, and recover existing session on load
+  // Track step in a ref to avoid stale closures in polling interval
+  const stepRef = useRef(step);
   useEffect(() => {
-    async function fetchTableAndSession() {
+    stepRef.current = step;
+  }, [step]);
+
+  // Track whether we've already sent the auto-open request
+  const hasRequestedOpen = useRef(false);
+
+  // Fetch table info, waiter, and poll for session (waiter must open it)
+  // Uses API route to bypass RLS - ensures session detection works
+  useEffect(() => {
+    let pollTimer: NodeJS.Timeout | null = null;
+    let isMounted = true;
+
+    async function checkForSession() {
+      // Stop polling once session is active
+      if (stepRef.current === "active") return;
+
       try {
-        // Get table by number and location
-        const { data: tableData } = await supabase
-          .from("tables")
-          .select("id")
-          .eq("number", parseInt(mesaNumero))
-          .eq("location", localizacao)
-          .maybeSingle();
+        const res = await fetch(
+          `/api/sessions?tableNumber=${encodeURIComponent(mesaNumero)}&location=${encodeURIComponent(localizacao)}`,
+        );
+        const data = await res.json();
 
-        if (!tableData) return;
+        if (!isMounted) return;
 
-        setTableId(tableData.id);
+        if (!data.tableId) return;
 
-        // Fetch waiter assignment using the view
-        const { data: waiterData } = await supabase
-          .from("waiter_assignments")
-          .select("staff_name")
-          .eq("table_id", tableData.id)
-          .maybeSingle();
+        setTableId(data.tableId);
 
-        if (waiterData) {
-          setWaiterName(waiterData.staff_name);
+        if (data.waiterName) {
+          setWaiterName(data.waiterName);
         }
 
-        // Fetch cooldown setting and games mode from restaurant
-        const { data: restaurantData } = await supabase
-          .from("restaurants")
-          .select("id, order_cooldown_minutes, games_mode")
-          .eq("slug", localizacao)
-          .maybeSingle();
-        if (restaurantData) {
-          setCooldownMinutes(restaurantData.order_cooldown_minutes ?? 0);
-          setGamesMode((restaurantData.games_mode ?? "selection") as GamesMode);
-          if (restaurantData.id) setRestaurantId(restaurantData.id);
+        if (data.restaurant) {
+          setCooldownMinutes(data.restaurant.order_cooldown_minutes ?? 0);
+          setGamesMode(
+            (data.restaurant.games_mode ?? "selection") as GamesMode,
+          );
+          if (data.restaurant.id) setRestaurantId(data.restaurant.id);
         }
 
-        // Check for existing active session on this table
-        const { data: activeSession } = await supabase
-          .from("sessions")
-          .select("*")
-          .eq("table_id", tableData.id)
-          .in("status", ["active", "pending_payment"])
-          .order("started_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (activeSession) {
-          setSession(activeSession);
-          setOrderType(activeSession.is_rodizio ? "rodizio" : "carta");
-          setNumPessoas(activeSession.num_people || 2);
+        // If an active session exists (waiter opened it), enter directly
+        if (data.session) {
+          setSession(data.session);
+          setOrderType(data.session.is_rodizio ? "rodizio" : "carta");
+          setNumPessoas(data.session.num_people || 2);
           setStep("active");
+          // Stop polling
+          if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+          }
+        } else if (!hasRequestedOpen.current) {
+          // No session — automatically request table opening (once)
+          hasRequestedOpen.current = true;
+          fetch(`/api/tables/${data.tableId}/request-open`, {
+            method: "POST",
+          }).catch(() => {
+            // Non-critical: waiter can still be called manually
+          });
         }
       } catch (err) {
         console.error("Error fetching table info", err);
       } finally {
-        setIsCheckingSession(false);
+        if (isMounted) {
+          setIsCheckingSession(false);
+        }
       }
     }
 
-    fetchTableAndSession();
-  }, [supabase, mesaNumero, localizacao]);
+    // Initial fetch
+    checkForSession();
+
+    // Poll every 4 seconds while waiting for waiter to open session
+    pollTimer = setInterval(checkForSession, 4000);
+
+    return () => {
+      isMounted = false;
+      if (pollTimer) {
+        clearInterval(pollTimer);
+      }
+    };
+  }, [mesaNumero, localizacao]);
 
   // Prompt customer identification when entering active session
   useEffect(() => {
@@ -369,6 +556,7 @@ export default function MesaPage() {
         birth_date: currentCustomer.birth_date || "",
         marketing_consent: currentCustomer.marketing_consent || false,
         preferred_contact: currentCustomer.preferred_contact || "email",
+        allergens: currentCustomer.allergens || [],
       });
     }
   }, [showCustomerModal, currentCustomer]);
@@ -513,15 +701,23 @@ export default function MesaPage() {
           if (payload.new.ordering_mode !== session?.ordering_mode) {
             // Update session with new ordering_mode
             setSession((prev) =>
-              prev ? { ...prev, ordering_mode: payload.new.ordering_mode } : null
+              prev
+                ? { ...prev, ordering_mode: payload.new.ordering_mode }
+                : null,
             );
 
             // Show notification toast
-            if (payload.new.ordering_mode === 'waiter_only') {
-              setError(t("mesa.orderingLockedNotification") || "O empregado bloqueou os pedidos");
+            if (payload.new.ordering_mode === "waiter_only") {
+              setError(
+                t("mesa.orderingLockedNotification") ||
+                  "O empregado bloqueou os pedidos",
+              );
               setTimeout(() => setError(null), 3000);
             } else {
-              setSuccessMessage(t("mesa.orderingUnlockedNotification") || "Já pode fazer pedidos novamente");
+              setSuccessMessage(
+                t("mesa.orderingUnlockedNotification") ||
+                  "Já pode fazer pedidos novamente",
+              );
               setTimeout(() => setSuccessMessage(null), 3000);
             }
           }
@@ -574,92 +770,6 @@ export default function MesaPage() {
       element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, []);
-
-  // Start session function
-  const startSession = useCallback(async () => {
-    if (!orderType) return;
-
-    setIsStartingSession(true);
-    setError(null);
-
-    try {
-      // 1. Find table by number and location
-      let foundTableId: string | null = null;
-
-      const { data: tableData } = await supabase
-        .from("tables")
-        .select("id")
-        .eq("number", parseInt(mesaNumero))
-        .eq("location", localizacao)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (tableData) {
-        foundTableId = tableData.id;
-      } else {
-        // Fallback: search without location filter
-        const { data: tableDataFallback } =
-          await supabase
-            .from("tables")
-            .select("id")
-            .eq("number", parseInt(mesaNumero))
-            .eq("is_active", true)
-            .maybeSingle();
-
-        if (!tableDataFallback) {
-          throw new Error(t("mesa.errors.tableNotFound"));
-        }
-        foundTableId = tableDataFallback.id;
-      }
-
-      setTableId(foundTableId);
-
-      // 2. Create session via API (handles table status + auto waiter assignment)
-      const totalAmount =
-        orderType === "rodizio" ? rodizioPrice * numPessoas : 0;
-
-      const response = await fetch("/api/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tableId: foundTableId,
-          isRodizio: orderType === "rodizio",
-          numPeople: numPessoas,
-          totalAmount,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || t("mesa.errors.startSession"));
-      }
-
-      setSession(result.session);
-
-      // 3. Update waiter name if auto-assigned
-      if (result.waiterName) {
-        setWaiterName(result.waiterName);
-      }
-
-      setStep("active");
-    } catch (err) {
-      console.error("Error starting session:", err);
-      setError(
-        err instanceof Error ? err.message : t("mesa.errors.startSession"),
-      );
-    } finally {
-      setIsStartingSession(false);
-    }
-  }, [
-    orderType,
-    mesaNumero,
-    localizacao,
-    numPessoas,
-    rodizioPrice,
-    supabase,
-    t,
-  ]);
 
   // Fetch session customers
   const fetchSessionCustomers = useCallback(
@@ -871,6 +981,7 @@ export default function MesaPage() {
   const registerCustomer = useCallback(async () => {
     if (!session || !customerForm.display_name.trim()) return;
 
+    setIsRegistering(true);
     setError(null);
     const emailTrim = customerForm.email.trim();
     const phoneTrim = customerForm.phone.trim();
@@ -888,22 +999,37 @@ export default function MesaPage() {
     try {
       if (isEditingCurrent && currentCustomer) {
         // Atualizar perfil do session_customer atual (ex.: adicionar email)
-        const { data: updated, error: updateError } = await supabase
+        const updatePayload: Record<string, unknown> = {
+          display_name: customerForm.display_name.trim(),
+          full_name: customerForm.full_name.trim() || null,
+          email: emailTrim || null,
+          phone: phoneTrim || null,
+          birth_date: customerForm.birth_date || null,
+          marketing_consent: customerForm.marketing_consent,
+          preferred_contact: customerForm.preferred_contact,
+          allergens: customerForm.allergens,
+        };
+
+        let { data: updated, error: updateError } = await supabase
           .from("session_customers")
-          .update({
-            display_name: customerForm.display_name.trim(),
-            full_name: customerForm.full_name.trim() || null,
-            email: emailTrim || null,
-            phone: phoneTrim || null,
-            birth_date: customerForm.birth_date || null,
-            marketing_consent: customerForm.marketing_consent,
-            preferred_contact: customerForm.preferred_contact,
-          })
+          .update(updatePayload)
           .eq("id", currentCustomer.id)
           .select()
           .single();
 
+        // Retry without allergens if column doesn't exist yet (migration 074)
+        if (updateError?.message?.includes("allergens")) {
+          delete updatePayload.allergens;
+          ({ data: updated, error: updateError } = await supabase
+            .from("session_customers")
+            .update(updatePayload)
+            .eq("id", currentCustomer.id)
+            .select()
+            .single());
+        }
+
         if (updateError) throw updateError;
+        if (!updated) throw new Error("No data returned from update");
 
         const updatedCustomer = updated;
         setSessionCustomers((prev) =>
@@ -911,30 +1037,7 @@ export default function MesaPage() {
         );
         setCurrentCustomer(updatedCustomer);
 
-        // Send verification if email or phone was added/changed
-        if (emailChanged || phoneChanged) {
-          const type = emailChanged ? "email" : "phone";
-          const contact = emailChanged ? emailTrim : phoneTrim;
-
-          const result = await sendVerificationCode(
-            currentCustomer.id,
-            type,
-            contact,
-          );
-
-          if (result.success) {
-            setVerificationSessionCustomerId(currentCustomer.id);
-            setVerificationType(type);
-            setVerificationContact(contact);
-            setShowCustomerModal(false);
-            setShowVerificationModal(true);
-            return;
-          } else {
-            // Even if verification fails, continue with normal flow
-            console.error("Failed to send verification:", result.error);
-          }
-        }
-
+        // Sync to loyalty program BEFORE verification (so customer appears in admin)
         if (emailTrim) {
           const customerId = await syncToLoyaltyCustomer(
             currentCustomer.id,
@@ -953,23 +1056,48 @@ export default function MesaPage() {
                 ? { ...prev, customer_id: customerId }
                 : prev,
             );
-            setSuccessMessage(
-              t("mesa.success.profileSaved") ||
-                "Perfil guardado. Aparecerá no painel Clientes.",
-            );
           }
-        } else {
-          setSuccessMessage(
-            t("mesa.success.profileSaved") || "Perfil guardado.",
-          );
         }
+
+        // Send verification if email or phone was added/changed
+        if (emailChanged || phoneChanged) {
+          const type = emailChanged ? "email" : "phone";
+          const contact = emailChanged ? emailTrim : phoneTrim;
+
+          const result = await sendVerificationCode(
+            currentCustomer.id,
+            type,
+            contact,
+          );
+
+          if (result.success) {
+            setVerificationSessionCustomerId(currentCustomer.id);
+            setVerificationType(type);
+            setVerificationContact(contact);
+            setShowCustomerModal(false);
+            setShowVerificationModal(true);
+            setIsRegistering(false);
+            return;
+          } else {
+            // Even if verification fails, continue with normal flow
+            console.error("Failed to send verification:", result.error);
+          }
+        }
+
+        setSuccessMessage(
+          emailTrim
+            ? t("mesa.success.profileSaved") ||
+                "Perfil guardado. Aparecerá no painel Clientes."
+            : t("mesa.success.profileSaved") || "Perfil guardado.",
+        );
         setTimeout(() => setSuccessMessage(null), 3000);
         setShowCustomerModal(false);
+        setIsRegistering(false);
         return;
       }
 
       // Inserir novo participante na sessão
-      const customerData: SessionCustomerInsert = {
+      const customerData: Record<string, unknown> = {
         session_id: session.id,
         display_name: customerForm.display_name.trim(),
         full_name: customerForm.full_name.trim() || null,
@@ -979,20 +1107,52 @@ export default function MesaPage() {
         marketing_consent: customerForm.marketing_consent,
         preferred_contact: customerForm.preferred_contact,
         is_session_host: sessionCustomers.length === 0,
+        allergens: customerForm.allergens,
       };
 
-      const { data, error: insertError } = await supabase
+      let { data, error: insertError } = await supabase
         .from("session_customers")
-        .insert(customerData)
+        .insert(customerData as SessionCustomerInsert)
         .select()
         .single();
 
+      // Retry without allergens if column doesn't exist yet (migration 074)
+      if (insertError?.message?.includes("allergens")) {
+        delete customerData.allergens;
+        ({ data, error: insertError } = await supabase
+          .from("session_customers")
+          .insert(customerData as SessionCustomerInsert)
+          .select()
+          .single());
+      }
+
       if (insertError) throw insertError;
+      if (!data) throw new Error("No data returned from insert");
 
       const newCustomer = data;
       setSessionCustomers((prev) => [...prev, newCustomer]);
       setCurrentCustomer(newCustomer);
       localStorage.setItem(`customer_${session.id}`, newCustomer.id);
+
+      // Sync to loyalty program BEFORE verification (so customer appears in admin)
+      if (emailTrim) {
+        const customerId = await syncToLoyaltyCustomer(
+          newCustomer.id,
+          emailTrim,
+        );
+        if (customerId) {
+          setSessionCustomers((prev) =>
+            prev.map((c) =>
+              c.id === newCustomer.id ? { ...c, customer_id: customerId } : c,
+            ),
+          );
+          setCurrentCustomer((prev) =>
+            prev?.id === newCustomer.id
+              ? { ...prev, customer_id: customerId }
+              : prev,
+          );
+        }
+      }
 
       // Send verification if new customer has email or phone
       if (hasNewContact) {
@@ -1019,34 +1179,17 @@ export default function MesaPage() {
             birth_date: "",
             marketing_consent: false,
             preferred_contact: "email",
+            allergens: [],
           });
           setShowCustomerModal(false);
 
           // Show verification modal
           setShowVerificationModal(true);
+          setIsRegistering(false);
           return;
         } else {
           // Even if verification fails, continue with normal flow
           console.error("Failed to send verification:", result.error);
-        }
-      }
-
-      if (emailTrim) {
-        const customerId = await syncToLoyaltyCustomer(
-          newCustomer.id,
-          emailTrim,
-        );
-        if (customerId) {
-          setSessionCustomers((prev) =>
-            prev.map((c) =>
-              c.id === newCustomer.id ? { ...c, customer_id: customerId } : c,
-            ),
-          );
-          setCurrentCustomer((prev) =>
-            prev?.id === newCustomer.id
-              ? { ...prev, customer_id: customerId }
-              : prev,
-          );
         }
       }
 
@@ -1058,14 +1201,25 @@ export default function MesaPage() {
         birth_date: "",
         marketing_consent: false,
         preferred_contact: "email",
+        allergens: [],
       });
       setShowCustomerModal(false);
 
       setSuccessMessage(`Olá, ${newCustomer.display_name}! Bom apetite!`);
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error registering customer:", err);
-      setError(t("mesa.errors.register"));
+      const msg =
+        err && typeof err === "object" && "message" in err
+          ? (err as { message: string }).message
+          : "";
+      setError(
+        msg
+          ? `${t("mesa.errors.register")} (${msg})`
+          : t("mesa.errors.register"),
+      );
+    } finally {
+      setIsRegistering(false);
     }
   }, [
     session,
@@ -1078,26 +1232,17 @@ export default function MesaPage() {
     sendVerificationCode,
   ]);
 
-  // Select existing customer
-  const selectCustomer = useCallback(
-    (customer: SessionCustomer) => {
-      if (session?.id) {
-        setCurrentCustomer(customer);
-        localStorage.setItem(`customer_${session.id}`, customer.id);
-        setShowCustomerModal(false);
-      }
-    },
-    [session?.id],
-  );
-
-  // Submit order
+  // Submit order via API route (server-side price validation)
   const submitOrder = useCallback(async () => {
     // Prevent double-clicks and double submissions
     if (isSubmittingOrder || !session || cart.length === 0) return;
 
     // Check if ordering is locked by waiter
-    if (session.ordering_mode === 'waiter_only') {
-      setError(t("mesa.errors.orderingLocked") || "Apenas o empregado pode fazer pedidos neste momento");
+    if (session.ordering_mode === "waiter_only") {
+      setError(
+        t("mesa.errors.orderingLocked") ||
+          "Apenas o empregado pode fazer pedidos neste momento",
+      );
       return;
     }
 
@@ -1105,27 +1250,30 @@ export default function MesaPage() {
     setError(null);
 
     try {
-      const ordersToInsert = CartService.buildOrderInserts(
-        cart,
-        session.id,
-        currentCustomer?.id || null,
+      const items = cart.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        notes: item.notes || undefined,
+        sessionCustomerId: currentCustomer?.id || undefined,
+      }));
+
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: session.id, items }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || t("mesa.errors.submitOrder"));
+      }
+
+      const data = await response.json();
+
+      // Update local session state with server-calculated total
+      setSession((prev) =>
+        prev ? { ...prev, total_amount: data.total_amount } : null,
       );
-
-      const { error: ordersError } = await supabase
-        .from("orders")
-        .insert(ordersToInsert);
-
-      if (ordersError) throw ordersError;
-
-      const newTotal = (session.total_amount || 0) + cartTotal;
-      const { error: updateError } = await supabase
-        .from("sessions")
-        .update({ total_amount: newTotal })
-        .eq("id", session.id);
-
-      if (updateError) throw updateError;
-
-      setSession((prev) => (prev ? { ...prev, total_amount: newTotal } : null));
 
       // Broadcast notification to other devices at this table
       const customerName = currentCustomer?.display_name;
@@ -1154,7 +1302,9 @@ export default function MesaPage() {
       setActiveTab("pedidos");
     } catch (err) {
       console.error("Error submitting order:", err);
-      setError(t("mesa.errors.submitOrder"));
+      setError(
+        err instanceof Error ? err.message : t("mesa.errors.submitOrder"),
+      );
     } finally {
       setIsSubmittingOrder(false);
     }
@@ -1162,10 +1312,8 @@ export default function MesaPage() {
     isSubmittingOrder,
     session,
     cart,
-    cartTotal,
     cartItemsCount,
     clearCart,
-    supabase,
     currentCustomer?.id,
     currentCustomer?.display_name,
     deviceId,
@@ -1176,13 +1324,26 @@ export default function MesaPage() {
   const requestBill = useCallback(async () => {
     if (!session) return;
 
+    // Validate NIF if provided (Portuguese NIF: 9 digits)
+    const nif = wantsNif ? nifInput.trim() : undefined;
+    if (wantsNif && nif && !/^\d{9}$/.test(nif)) {
+      setError("NIF inválido. Deve ter 9 dígitos.");
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+
     setIsRequestingBill(true);
     setError(null);
 
     try {
+      const updateData: Record<string, unknown> = { status: "pending_payment" };
+      if (nif) {
+        updateData.customer_nif = nif;
+      }
+
       const { error: updateError } = await supabase
         .from("sessions")
-        .update({ status: "pending_payment" })
+        .update(updateData)
         .eq("id", session.id);
 
       if (updateError) throw updateError;
@@ -1192,6 +1353,8 @@ export default function MesaPage() {
       );
       setBillRequested(true);
       setShowBillModal(false);
+      setWantsNif(false);
+      setNifInput("");
       setSuccessMessage(t("mesa.success.billRequested"));
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
@@ -1200,31 +1363,29 @@ export default function MesaPage() {
     } finally {
       setIsRequestingBill(false);
     }
-  }, [session, supabase, t]);
+  }, [session, supabase, t, wantsNif, nifInput]);
 
-  // Leave table (only if no orders/consumption)
+  // Close/leave table via server-side API (bypasses RLS)
   const leaveTable = useCallback(async () => {
     if (!session) return;
-
-    // Check if there are any orders or consumption
-    if ((session.total_amount || 0) > 0 || sessionOrders.length > 0) {
-      setError("Não pode sair da mesa com pedidos. Por favor, chame o empregado.");
-      setShowLeaveTableModal(false);
-      setTimeout(() => setError(null), 5000);
-      return;
-    }
 
     setIsLeavingTable(true);
     setError(null);
 
     try {
-      // Use RPC function to close session and free table atomically
-      const { error: rpcError } = await supabase.rpc(
-        "close_session_and_free_table",
-        { session_id_param: session.id }
-      );
+      const response = await fetch(`/api/sessions/${session.id}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cancelOrders: true,
+          closeReason: closeReason.trim() || undefined,
+        }),
+      });
 
-      if (rpcError) throw rpcError;
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Erro ao encerrar sessão");
+      }
 
       setSession(null);
       setShowLeaveTableModal(false);
@@ -1241,7 +1402,7 @@ export default function MesaPage() {
     } finally {
       setIsLeavingTable(false);
     }
-  }, [session, sessionOrders, supabase]);
+  }, [session, closeReason]);
 
   // Call waiter function
   const callWaiter = useCallback(
@@ -1487,131 +1648,39 @@ export default function MesaPage() {
             </div>
           )}
 
-          <div className="w-full max-w-sm mb-8">
-            <p className="text-sm text-gray-400 text-center mb-4">
-              {t("mesa.chooseMode")}
+          {/* Waiting for waiter to open session */}
+          <div className="w-full max-w-sm text-center">
+            <div className="mb-6 flex justify-center">
+              <div className="w-16 h-16 rounded-full border-2 border-[#D4AF37]/30 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full border-2 border-[#D4AF37] border-t-transparent animate-spin" />
+              </div>
+            </div>
+
+            <h2 className="text-lg font-semibold text-white mb-2">
+              {t("mesa.waitingForWaiter")}
+            </h2>
+            <p className="text-sm text-gray-400 mb-8">
+              {t("mesa.waitingForWaiterDesc")}
             </p>
 
-            <div className="space-y-3">
-              <button
-                onClick={() => setOrderType("rodizio")}
-                className={`w-full p-4 rounded-xl border-2 transition-all ${
-                  orderType === "rodizio"
-                    ? "border-[#D4AF37] bg-[#D4AF37]/10"
-                    : "border-gray-700 bg-gray-900/50 hover:border-gray-600"
-                }`}
+            {/* Waiter notified indicator */}
+            <div className="flex items-center justify-center gap-2 text-sm text-green-400">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <div className="flex justify-between items-center">
-                  <div className="text-left">
-                    <p className="font-semibold text-lg">Rodízio</p>
-                    <p className="text-sm text-gray-400">
-                      {isLunch ? t("mesa.lunch") : t("mesa.dinner")} •{" "}
-                      {t("mesa.allYouCanEat")}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-[#D4AF37]">
-                      €{rodizioPrice}
-                    </p>
-                    <p className="text-xs text-gray-500">por pessoa</p>
-                  </div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => setOrderType("carta")}
-                className={`w-full p-4 rounded-xl border-2 transition-all ${
-                  orderType === "carta"
-                    ? "border-[#D4AF37] bg-[#D4AF37]/10"
-                    : "border-gray-700 bg-gray-900/50 hover:border-gray-600"
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <div className="text-left">
-                    <p className="font-semibold text-lg">
-                      {t("mesa.alaCarte")}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      {t("mesa.alaCarteDesc")}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-400">
-                      {t("mesa.variedPrices")}
-                    </p>
-                  </div>
-                </div>
-              </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              <span>{t("mesa.waiterNotified")}</span>
             </div>
           </div>
-
-          <div className="w-full max-w-sm mb-10">
-            <p className="text-sm text-gray-400 text-center mb-4">
-              {t("mesa.numPeople")}
-            </p>
-            <div className="flex items-center justify-center gap-4">
-              <button
-                onClick={() => setNumPessoas(Math.max(1, numPessoas - 1))}
-                className="w-14 h-14 rounded-full border-2 border-gray-700 flex items-center justify-center text-2xl hover:border-[#D4AF37] transition-colors disabled:opacity-50"
-                disabled={numPessoas <= 1}
-              >
-                −
-              </button>
-              <span className="text-4xl font-bold w-16 text-center text-[#D4AF37]">
-                {numPessoas}
-              </span>
-              <button
-                onClick={() => setNumPessoas(Math.min(8, numPessoas + 1))}
-                className="w-14 h-14 rounded-full border-2 border-gray-700 flex items-center justify-center text-2xl hover:border-[#D4AF37] transition-colors disabled:opacity-50"
-                disabled={numPessoas >= 8}
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          <button
-            onClick={startSession}
-            disabled={!orderType || isStartingSession}
-            className={`w-full max-w-sm py-4 rounded-xl font-semibold text-lg transition-all ${
-              orderType && !isStartingSession
-                ? "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
-                : "bg-gray-800 text-gray-500 cursor-not-allowed"
-            }`}
-          >
-            {isStartingSession ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                {t("mesa.starting")}
-              </span>
-            ) : (
-              t("mesa.startOrder")
-            )}
-          </button>
-
-          {orderType === "rodizio" && (
-            <p className="mt-4 text-sm text-gray-400">
-              {t("mesa.estimatedTotal")}{" "}
-              <span className="text-[#D4AF37] font-semibold">
-                €{rodizioPrice * numPessoas}
-              </span>
-            </p>
-          )}
         </div>
       )}
 
@@ -1631,8 +1700,8 @@ export default function MesaPage() {
                     <span className="text-xs text-gray-500">•</span>
                     <span className="text-xs text-gray-400">
                       {orderType === "rodizio"
-                        ? `Rodízio ${numPessoas}p`
-                        : "À Carta"}
+                        ? `Rodízio: ${numPessoas}p`
+                        : `À Carta: ${numPessoas}p`}
                     </span>
                   </div>
 
@@ -1692,7 +1761,7 @@ export default function MesaPage() {
               </div>
 
               {/* Lock Mode Banner */}
-              {session?.ordering_mode === 'waiter_only' && (
+              {session?.ordering_mode === "waiter_only" && (
                 <div className="bg-red-500/20 border-y border-red-500/50 px-4 py-3">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">🔒</span>
@@ -1701,7 +1770,8 @@ export default function MesaPage() {
                         {t("mesa.orderingLocked") || "Pedidos Bloqueados"}
                       </h3>
                       <p className="text-xs text-red-300 mt-0.5">
-                        {t("mesa.orderingLockedMessage") || "O empregado está a gerir os pedidos. Pode visualizar o menu e chamar para assistência."}
+                        {t("mesa.orderingLockedMessage") ||
+                          "O empregado está a gerir os pedidos. Pode visualizar o menu e chamar para assistência."}
                       </p>
                     </div>
                   </div>
@@ -1762,13 +1832,32 @@ export default function MesaPage() {
                               orderType === "rodizio" && product.isRodizio;
                             const hasQuantity = cartQty > 0;
 
+                            // Check if product contains any of the customer's declared allergens
+                            const customerAllergens =
+                              currentCustomer?.allergens || [];
+                            const productAllergens = new Set<string>();
+                            for (const ing of productIngredientsMap[
+                              String(product.id)
+                            ] || []) {
+                              for (const a of ing.allergens)
+                                productAllergens.add(a);
+                            }
+                            const matchingAllergens = customerAllergens.filter(
+                              (a) => productAllergens.has(a),
+                            );
+                            const hasAllergenWarning =
+                              matchingAllergens.length > 0;
+
                             return (
                               <div
                                 key={product.id}
-                                className={`relative bg-gray-900 rounded-xl overflow-hidden border-2 transition-all ${
-                                  hasQuantity
-                                    ? "border-[#D4AF37]"
-                                    : "border-transparent"
+                                onClick={() => setSelectedProduct(product)}
+                                className={`relative bg-gray-900 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                                  hasAllergenWarning
+                                    ? "border-red-500/70"
+                                    : hasQuantity
+                                      ? "border-[#D4AF37]"
+                                      : "border-transparent"
                                 }`}
                               >
                                 <div className="relative aspect-square bg-gray-800">
@@ -1791,6 +1880,19 @@ export default function MesaPage() {
                                     </div>
                                   )}
 
+                                  {hasAllergenWarning && (
+                                    <div className="absolute bottom-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                                      <span>⚠️</span>
+                                      <span>
+                                        {matchingAllergens
+                                          .map(
+                                            (a) => ALLERGEN_EMOJI_MAP[a] || "",
+                                          )
+                                          .join("")}
+                                      </span>
+                                    </div>
+                                  )}
+
                                   {hasQuantity && (
                                     <div className="absolute top-2 right-2 bg-[#D4AF37] text-black text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center">
                                       {cartQty}
@@ -1802,6 +1904,60 @@ export default function MesaPage() {
                                   <h3 className="font-medium text-sm leading-tight mb-1 line-clamp-2">
                                     {product.name}
                                   </h3>
+
+                                  {(() => {
+                                    const desc = getLocalized(
+                                      product.descriptions,
+                                      product.description,
+                                      locale,
+                                    );
+                                    return desc ? (
+                                      <p className="text-[11px] text-gray-400 line-clamp-2 mt-0.5">
+                                        {desc}
+                                      </p>
+                                    ) : null;
+                                  })()}
+
+                                  {productIngredientsMap[String(product.id)]
+                                    ?.length > 0 && (
+                                    <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">
+                                      {productIngredientsMap[String(product.id)]
+                                        .map((ing) =>
+                                          getLocalized(
+                                            ing.nameTranslations,
+                                            ing.name,
+                                            locale,
+                                          ),
+                                        )
+                                        .join(", ")}
+                                    </p>
+                                  )}
+
+                                  {/* Allergen badges */}
+                                  {(() => {
+                                    const ings =
+                                      productIngredientsMap[String(product.id)];
+                                    if (!ings?.length) return null;
+                                    const allergenSet = new Set<string>();
+                                    for (const ing of ings) {
+                                      for (const a of ing.allergens)
+                                        allergenSet.add(a);
+                                    }
+                                    if (allergenSet.size === 0) return null;
+                                    return (
+                                      <div className="flex gap-0.5 mt-0.5">
+                                        {Array.from(allergenSet).map((a) => (
+                                          <span
+                                            key={a}
+                                            className="text-[10px]"
+                                            title={a}
+                                          >
+                                            {ALLERGEN_EMOJI_MAP[a] || "⚠️"}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
 
                                   {preparationTimes[product.id] && (
                                     <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
@@ -1830,13 +1986,17 @@ export default function MesaPage() {
                                     {hasQuantity ? (
                                       <div className="flex items-center gap-1">
                                         <button
-                                          onClick={() =>
+                                          onClick={(e) => {
+                                            e.stopPropagation();
                                             updateQuantity(
                                               product.id,
                                               cartQty - 1,
-                                            )
+                                            );
+                                          }}
+                                          disabled={
+                                            session?.ordering_mode ===
+                                            "waiter_only"
                                           }
-                                          disabled={session?.ordering_mode === 'waiter_only'}
                                           className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                           −
@@ -1845,14 +2005,18 @@ export default function MesaPage() {
                                           {cartQty}
                                         </span>
                                         <button
-                                          onClick={() =>
+                                          onClick={(e) => {
+                                            e.stopPropagation();
                                             addToCart(
                                               product,
                                               currentCustomer?.display_name ||
-                                                "?",
-                                            )
+                                                undefined,
+                                            );
+                                          }}
+                                          disabled={
+                                            session?.ordering_mode ===
+                                            "waiter_only"
                                           }
-                                          disabled={session?.ordering_mode === 'waiter_only'}
                                           className="w-8 h-8 rounded-full bg-[#D4AF37] flex items-center justify-center text-black font-bold hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                           +
@@ -1860,17 +2024,22 @@ export default function MesaPage() {
                                       </div>
                                     ) : (
                                       <button
-                                        onClick={() =>
+                                        onClick={(e) => {
+                                          e.stopPropagation();
                                           addToCart(
                                             product,
                                             currentCustomer?.display_name ||
-                                              "?",
-                                          )
+                                              undefined,
+                                          );
+                                        }}
+                                        disabled={
+                                          session?.ordering_mode ===
+                                          "waiter_only"
                                         }
-                                        disabled={session?.ordering_mode === 'waiter_only'}
                                         className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center text-black hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                       >
-                                        {session?.ordering_mode === 'waiter_only' ? (
+                                        {session?.ordering_mode ===
+                                        "waiter_only" ? (
                                           <span className="text-lg">🔒</span>
                                         ) : (
                                           <svg
@@ -1912,9 +2081,28 @@ export default function MesaPage() {
                   <h2 className="text-lg font-semibold">
                     {t("mesa.yourOrder")}
                   </h2>
-                  <span className="text-sm text-gray-400">
-                    {cartItemsCount} {t("mesa.review.itemsCount")}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {pieceLimiterSettings?.enabled &&
+                      orderType === "rodizio" && (
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            pieceLimitStatus.exceeded
+                              ? pieceLimitStatus.mode === "block"
+                                ? "bg-red-900/40 text-red-300"
+                                : "bg-amber-900/40 text-amber-300"
+                              : "bg-gray-800 text-gray-400"
+                          }`}
+                        >
+                          {t("mesa.pieceLimiter.counter", {
+                            current: pieceLimitStatus.totalPieces,
+                            max: pieceLimitStatus.maxPieces,
+                          })}
+                        </span>
+                      )}
+                    <span className="text-sm text-gray-400">
+                      {cartItemsCount} {t("mesa.review.itemsCount")}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -2101,149 +2289,185 @@ export default function MesaPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {cart.map((item) => (
-                      <div
-                        key={item.productId}
-                        className="bg-gray-900 rounded-xl p-4"
-                      >
-                        <div className="flex gap-3">
-                          <div className="relative w-16 h-16 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
-                            {item.product.imageUrl ? (
-                              <Image
-                                src={item.product.imageUrl}
-                                alt={item.product.name}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-xl">
-                                🍣
-                              </div>
-                            )}
-                          </div>
+                    {cart.map((item) => {
+                      // Check if product contains any of the customer's declared allergens
+                      const custAllergens = currentCustomer?.allergens || [];
+                      const cartProductAllergens = new Set<string>();
+                      for (const ing of productIngredientsMap[
+                        String(item.productId)
+                      ] || []) {
+                        for (const a of ing.allergens)
+                          cartProductAllergens.add(a);
+                      }
+                      const cartMatchingAllergens = custAllergens.filter((a) =>
+                        cartProductAllergens.has(a),
+                      );
+                      const cartHasAllergenWarning =
+                        cartMatchingAllergens.length > 0;
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <h3 className="font-medium text-sm line-clamp-1">
-                                  {item.product.name}
-                                </h3>
-                                {item.addedBy && (
-                                  <span className="text-[10px] text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded-full">
-                                    {item.addedBy}
-                                  </span>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => removeFromCart(item.productId)}
-                                className="p-1 text-gray-500 hover:text-red-500 transition-colors flex-shrink-0"
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-
-                            <div className="flex items-center justify-between mt-1.5">
-                              <div>
-                                {orderType === "rodizio" &&
-                                item.product.isRodizio ? (
-                                  <span className="text-green-500 text-xs">
-                                    {t("mesa.included")}
-                                  </span>
-                                ) : (
-                                  <span className="text-[#D4AF37] font-semibold text-sm">
-                                    €
-                                    {(
-                                      item.product.price * item.quantity
-                                    ).toFixed(2)}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() =>
-                                    updateQuantity(
-                                      item.productId,
-                                      item.quantity - 1,
-                                    )
-                                  }
-                                  className="w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 text-sm"
-                                >
-                                  −
-                                </button>
-                                <span className="w-5 text-center font-semibold text-sm">
-                                  {item.quantity}
-                                </span>
-                                <button
-                                  onClick={() =>
-                                    updateQuantity(
-                                      item.productId,
-                                      item.quantity + 1,
-                                    )
-                                  }
-                                  className="w-7 h-7 rounded-full bg-[#D4AF37] text-black flex items-center justify-center hover:bg-[#C4A030] text-sm"
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="mt-2">
-                              {editingNotes === item.productId ? (
-                                <input
-                                  type="text"
-                                  placeholder={t("mesa.notePlaceholder")}
-                                  defaultValue={item.notes || ""}
-                                  className="w-full bg-gray-800 text-xs px-3 py-1.5 rounded-lg border border-gray-700 focus:border-[#D4AF37] focus:outline-none"
-                                  onBlur={(e) => {
-                                    updateNotes(item.productId, e.target.value);
-                                    setEditingNotes(null);
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      updateNotes(
-                                        item.productId,
-                                        e.currentTarget.value,
-                                      );
-                                      setEditingNotes(null);
-                                    }
-                                  }}
-                                  autoFocus
+                      return (
+                        <div
+                          key={item.productId}
+                          className={`bg-gray-900 rounded-xl p-4 ${cartHasAllergenWarning ? "border border-red-500/70" : ""}`}
+                        >
+                          <div className="flex gap-3">
+                            <div className="relative w-16 h-16 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
+                              {item.product.imageUrl ? (
+                                <Image
+                                  src={item.product.imageUrl}
+                                  alt={item.product.name}
+                                  fill
+                                  className="object-cover"
                                 />
                               ) : (
-                                <button
-                                  onClick={() =>
-                                    setEditingNotes(item.productId)
-                                  }
-                                  className="text-xs text-gray-400 hover:text-white transition-colors"
-                                >
-                                  {item.notes ? (
-                                    <span className="flex items-center gap-1">
-                                      📝 {item.notes}
-                                    </span>
-                                  ) : (
-                                    <span className="flex items-center gap-1">
-                                      + {t("mesa.addNote")}
+                                <div className="w-full h-full flex items-center justify-center text-xl">
+                                  🍣
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <h3 className="font-medium text-sm line-clamp-1">
+                                    {item.product.name}
+                                  </h3>
+                                  {item.addedBy && (
+                                    <span className="text-[10px] text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded-full">
+                                      {item.addedBy}
                                     </span>
                                   )}
+                                </div>
+                                <button
+                                  onClick={() => removeFromCart(item.productId)}
+                                  className="p-1 text-gray-500 hover:text-red-500 transition-colors flex-shrink-0"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                  </svg>
                                 </button>
+                              </div>
+
+                              {cartHasAllergenWarning && (
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <span className="text-[10px] font-bold text-red-300 bg-red-900/50 border border-red-500/50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span>⚠️</span>
+                                    <span>
+                                      {cartMatchingAllergens
+                                        .map((a) => ALLERGEN_EMOJI_MAP[a] || "")
+                                        .join("")}
+                                    </span>
+                                    <span>
+                                      {t("mesa.productDetail.allergens")}
+                                    </span>
+                                  </span>
+                                </div>
                               )}
+
+                              <div className="flex items-center justify-between mt-1.5">
+                                <div>
+                                  {orderType === "rodizio" &&
+                                  item.product.isRodizio ? (
+                                    <span className="text-green-500 text-xs">
+                                      {t("mesa.included")}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[#D4AF37] font-semibold text-sm">
+                                      €
+                                      {(
+                                        item.product.price * item.quantity
+                                      ).toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() =>
+                                      updateQuantity(
+                                        item.productId,
+                                        item.quantity - 1,
+                                      )
+                                    }
+                                    className="w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 text-sm"
+                                  >
+                                    −
+                                  </button>
+                                  <span className="w-5 text-center font-semibold text-sm">
+                                    {item.quantity}
+                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      updateQuantity(
+                                        item.productId,
+                                        item.quantity + 1,
+                                      )
+                                    }
+                                    className="w-7 h-7 rounded-full bg-[#D4AF37] text-black flex items-center justify-center hover:bg-[#C4A030] text-sm"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="mt-2">
+                                {editingNotes === item.productId ? (
+                                  <input
+                                    type="text"
+                                    placeholder={t("mesa.notePlaceholder")}
+                                    defaultValue={item.notes || ""}
+                                    className="w-full bg-gray-800 text-xs px-3 py-1.5 rounded-lg border border-gray-700 focus:border-[#D4AF37] focus:outline-none"
+                                    onBlur={(e) => {
+                                      updateNotes(
+                                        item.productId,
+                                        e.target.value,
+                                      );
+                                      setEditingNotes(null);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        updateNotes(
+                                          item.productId,
+                                          e.currentTarget.value,
+                                        );
+                                        setEditingNotes(null);
+                                      }
+                                    }}
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <button
+                                    onClick={() =>
+                                      setEditingNotes(item.productId)
+                                    }
+                                    className="text-xs text-gray-400 hover:text-white transition-colors"
+                                  >
+                                    {item.notes ? (
+                                      <span className="flex items-center gap-1">
+                                        📝 {item.notes}
+                                      </span>
+                                    ) : (
+                                      <span className="flex items-center gap-1">
+                                        + {t("mesa.addNote")}
+                                      </span>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -2627,35 +2851,61 @@ export default function MesaPage() {
                   </div>
                 )}
 
-                {/* Request Bill Button */}
-                <button
-                  onClick={() => setShowBillModal(true)}
-                  disabled={billRequested}
-                  className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-colors ${
-                    billRequested
-                      ? "bg-green-500/20 text-green-500 border-2 border-green-500/30"
-                      : "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
-                  }`}
-                >
-                  {billRequested ? (
-                    <>
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      {t("mesa.success.billRequested")}
-                    </>
-                  ) : (
-                    <>
+                {/* Request Bill Button - Only when at least one order is delivered */}
+                {sessionOrders.some((o) => o.status === "delivered") ? (
+                  <button
+                    onClick={() => setShowBillModal(true)}
+                    disabled={billRequested}
+                    className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-colors ${
+                      billRequested
+                        ? "bg-green-500/20 text-green-500 border-2 border-green-500/30"
+                        : "bg-[#D4AF37] text-black hover:bg-[#C4A030]"
+                    }`}
+                  >
+                    {billRequested ? (
+                      <>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        {t("mesa.success.billRequested")}
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
+                        </svg>
+                        {t("mesa.requestBill")}
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  !billRequested &&
+                  (sessionOrders.length > 0 ? (
+                    /* Request Bill Button - When orders exist but none delivered yet */
+                    <button
+                      onClick={() => setShowBillModal(true)}
+                      className="w-full py-4 rounded-xl font-semibold text-lg bg-[#D4AF37] text-black hover:bg-[#C4A030] transition-colors flex items-center justify-center gap-2"
+                    >
                       <svg
                         className="w-5 h-5"
                         fill="none"
@@ -2670,31 +2920,32 @@ export default function MesaPage() {
                         />
                       </svg>
                       {t("mesa.requestBill")}
-                    </>
-                  )}
-                </button>
-
-                {/* Leave Table Button - Only show if no consumption */}
-                {session && (session.total_amount || 0) === 0 && sessionOrders.length === 0 && !billRequested && (
-                  <button
-                    onClick={() => setShowLeaveTableModal(true)}
-                    className="w-full py-3 mt-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 hover:bg-gray-900/50 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                    </button>
+                  ) : (
+                    /* Leave Table Button - When no orders at all */
+                    <button
+                      onClick={() => {
+                        setCloseReason("");
+                        setShowLeaveTableModal(true);
+                      }}
+                      className="w-full py-4 rounded-xl font-semibold text-lg border-2 border-gray-700 text-gray-300 hover:border-gray-600 hover:bg-gray-900/50 transition-colors flex items-center justify-center gap-2"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                    Sair da Mesa
-                  </button>
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                        />
+                      </svg>
+                      {t("mesa.leaveTable.leaveTableButton")}
+                    </button>
+                  ))
                 )}
               </div>
             </div>
@@ -2915,10 +3166,10 @@ export default function MesaPage() {
             <h3 className="text-xl font-semibold mb-2">
               {t("mesa.requestBill")}
             </h3>
-            <p className="text-gray-400 mb-6">{t("mesa.confirmBill")}</p>
+            <p className="text-gray-400 mb-4">{t("mesa.confirmBill")}</p>
 
             {session && (
-              <div className="bg-gray-900 rounded-xl p-4 mb-6">
+              <div className="bg-gray-900 rounded-xl p-4 mb-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">{t("mesa.totalToPay")}</span>
                   <span className="text-2xl font-bold text-[#D4AF37]">
@@ -2928,16 +3179,58 @@ export default function MesaPage() {
               </div>
             )}
 
+            {/* NIF / Contribuinte toggle */}
+            <div className="bg-gray-900 rounded-xl p-4 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-300">
+                  {t("mesa.invoiceWithNif")}
+                </span>
+                <button
+                  onClick={() => setWantsNif(!wantsNif)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    wantsNif ? "bg-[#D4AF37]" : "bg-gray-700"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                      wantsNif ? "translate-x-6" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+              {wantsNif && (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={9}
+                  placeholder={t("mesa.nifPlaceholder")}
+                  value={nifInput}
+                  onChange={(e) =>
+                    setNifInput(e.target.value.replace(/\D/g, ""))
+                  }
+                  className="w-full mt-2 px-4 py-3 bg-gray-800 rounded-xl text-white placeholder-gray-500 text-lg tracking-wider text-center border border-gray-700 focus:border-[#D4AF37] focus:outline-none"
+                />
+              )}
+            </div>
+
             <div className="flex gap-3">
               <button
-                onClick={() => setShowBillModal(false)}
+                onClick={() => {
+                  setShowBillModal(false);
+                  setWantsNif(false);
+                  setNifInput("");
+                }}
                 className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
               >
                 {t("mesa.cancel")}
               </button>
               <button
                 onClick={requestBill}
-                disabled={isRequestingBill}
+                disabled={
+                  isRequestingBill ||
+                  (wantsNif && nifInput.length > 0 && nifInput.length !== 9)
+                }
                 className="flex-1 py-3 rounded-xl bg-[#D4AF37] text-black font-semibold hover:bg-[#C4A030] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isRequestingBill ? (
@@ -2993,47 +3286,88 @@ export default function MesaPage() {
               </div>
             </div>
 
-            <h3 className="text-xl font-semibold mb-2 text-center">
-              Sair da Mesa?
-            </h3>
-            <p className="text-gray-400 mb-6 text-center">
-              Como não consumiu nada, pode sair da mesa sem pagar. A sessão será encerrada.
-            </p>
+            {(() => {
+              const hasPreparingOrReady = sessionOrders.some(
+                (o) => o.status === "preparing" || o.status === "ready",
+              );
+              const hasOnlyPending =
+                sessionOrders.length > 0 && !hasPreparingOrReady;
+              return (
+                <>
+                  <h3 className="text-xl font-semibold mb-2 text-center">
+                    {sessionOrders.length > 0
+                      ? t("mesa.leaveTable.closeTitle")
+                      : t("mesa.leaveTable.leaveTitle")}
+                  </h3>
+                  <p className="text-gray-400 mb-4 text-center">
+                    {hasPreparingOrReady
+                      ? t("mesa.leaveTable.preparingWarning")
+                      : hasOnlyPending
+                        ? t("mesa.leaveTable.pendingWarning")
+                        : t("mesa.leaveTable.noOrdersMessage")}
+                  </p>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowLeaveTableModal(false)}
-                className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={leaveTable}
-                disabled={isLeavingTable}
-                className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isLeavingTable ? (
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                ) : (
-                  "Sim, Sair"
-                )}
-              </button>
-            </div>
+                  {hasPreparingOrReady && (
+                    <div className="mb-4">
+                      <label className="text-sm text-gray-300 mb-2 block">
+                        {t("mesa.leaveTable.reasonLabel")}
+                      </label>
+                      <textarea
+                        value={closeReason}
+                        onChange={(e) => setCloseReason(e.target.value)}
+                        placeholder={t("mesa.leaveTable.reasonPlaceholder")}
+                        className="w-full px-4 py-3 bg-gray-800 rounded-xl text-white placeholder-gray-500 text-sm border border-gray-700 focus:border-[#D4AF37] focus:outline-none resize-none"
+                        rows={2}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowLeaveTableModal(false)}
+                      className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
+                    >
+                      {t("mesa.cancel")}
+                    </button>
+                    <button
+                      onClick={leaveTable}
+                      disabled={
+                        isLeavingTable ||
+                        (hasPreparingOrReady && closeReason.trim().length === 0)
+                      }
+                      className="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isLeavingTable ? (
+                        <svg
+                          className="animate-spin h-5 w-5"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                      ) : sessionOrders.length > 0 ? (
+                        t("mesa.leaveTable.confirmClose")
+                      ) : (
+                        t("mesa.leaveTable.confirmLeave")
+                      )}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -3173,11 +3507,86 @@ export default function MesaPage() {
 
             <>
               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-                {/* Anti-waste policy banner */}
-                <div className="bg-amber-900/30 border border-amber-700/50 rounded-xl p-3">
-                  <p className="text-amber-200 text-xs leading-relaxed">
-                    ⚠️ {t("mesa.review.wastePolicy")}
-                  </p>
+                {/* Piece limit warning/block banner (Rodizio only) */}
+                {pieceLimitStatus.exceeded && (
+                  <div
+                    className={`rounded-xl p-3 ${
+                      pieceLimitStatus.mode === "block"
+                        ? "bg-red-900/30 border border-red-700/50"
+                        : "bg-amber-900/30 border border-amber-700/50"
+                    }`}
+                  >
+                    <p
+                      className={`text-xs leading-relaxed ${
+                        pieceLimitStatus.mode === "block"
+                          ? "text-red-200"
+                          : "text-amber-200"
+                      }`}
+                    >
+                      {pieceLimitStatus.mode === "block" ? "🚫" : "⚠️"}{" "}
+                      {t("mesa.pieceLimiter.exceeded", {
+                        total: pieceLimitStatus.totalPieces,
+                        max: pieceLimitStatus.maxPieces,
+                        perPerson: pieceLimitStatus.maxPerPerson ?? 0,
+                      })}
+                    </p>
+                    {pieceLimitStatus.mode === "warning" &&
+                      pieceLimiterSettings?.wastePolicyEnabled && (
+                        <p className="text-amber-300 text-xs mt-1">
+                          {t("mesa.pieceLimiter.wasteFeeReminder", {
+                            fee: pieceLimitStatus.wasteFee?.toFixed(2) ?? "0",
+                          })}
+                        </p>
+                      )}
+                    {pieceLimitStatus.mode === "block" && (
+                      <p className="text-red-300 text-xs mt-1">
+                        {t("mesa.pieceLimiter.removeItems")}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Anti-waste / sustainability banner */}
+                <div
+                  className="rounded-xl overflow-hidden border border-emerald-800/40"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #0a1f0a 0%, #132513 50%, #0d1f15 100%)",
+                  }}
+                >
+                  <div className="flex items-start gap-3 p-4">
+                    <div
+                      className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, #166534 0%, #15803d 100%)",
+                      }}
+                    >
+                      <svg
+                        className="w-5 h-5 text-emerald-200"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66L7 18" />
+                        <path d="M17 8c3.13-.88 5.36-1.47 5.95-1.34.6.13.48 1.38-.22 3.14A13.9 13.9 0 0 1 17 16c-4.6 2.46-8.58 1.14-10 0" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wider mb-1.5">
+                        {t("mesa.review.wastePolicyTitle")}
+                      </p>
+                      <p className="text-emerald-100/90 text-xs leading-relaxed">
+                        {t("mesa.review.wastePolicy")}
+                      </p>
+                      <p className="text-emerald-400/70 text-[10px] leading-relaxed mt-2 italic">
+                        {t("mesa.review.wastePolicyFeedback")}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Duplicate alerts - must be confirmed before submitting */}
@@ -3322,9 +3731,21 @@ export default function MesaPage() {
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-xs text-gray-400">
-                                  x{item.quantity}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-400">
+                                    x{item.quantity}
+                                  </span>
+                                  {item.product.quantity > 0 && (
+                                    <span className="text-[10px] text-gray-500">
+                                      ({item.product.quantity * item.quantity}{" "}
+                                      {item.product.quantity * item.quantity ===
+                                      1
+                                        ? "peça"
+                                        : "peças"}
+                                      )
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div className="text-sm text-right flex-shrink-0">
                                 {orderType === "rodizio" &&
@@ -3379,6 +3800,12 @@ export default function MesaPage() {
                   paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)",
                 }}
               >
+                {pieceLimitStatus.exceeded &&
+                  pieceLimitStatus.mode === "block" && (
+                    <p className="text-xs text-red-400 text-center">
+                      {t("mesa.pieceLimiter.removeItems")}
+                    </p>
+                  )}
                 {hasUnconfirmedDuplicates && (
                   <p className="text-xs text-amber-400 text-center">
                     {t("mesa.review.confirmDuplicatesFirst")}
@@ -3400,14 +3827,18 @@ export default function MesaPage() {
                       isSubmittingOrder ||
                       hasUnconfirmedDuplicates ||
                       isCooldownActive ||
-                      session?.ordering_mode === 'waiter_only'
+                      session?.ordering_mode === "waiter_only" ||
+                      (pieceLimitStatus.exceeded &&
+                        pieceLimitStatus.mode === "block")
                     }
                     className="flex-1 py-3 rounded-xl bg-[#D4AF37] text-black font-bold hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {session?.ordering_mode === 'waiter_only' ? (
+                    {session?.ordering_mode === "waiter_only" ? (
                       <>
                         <span className="text-lg">🔒</span>
-                        <span>{t("mesa.orderingLocked") || "Pedidos Bloqueados"}</span>
+                        <span>
+                          {t("mesa.orderingLocked") || "Pedidos Bloqueados"}
+                        </span>
                       </>
                     ) : isSubmittingOrder ? (
                       <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
@@ -3530,6 +3961,53 @@ export default function MesaPage() {
                       </div>
                     </div>
                   )}
+
+                {/* Allergen Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    {t("mesa.allergenQuestion")}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {ALL_ALLERGENS.map((allergen) => {
+                      const isSelected = customerForm.allergens.includes(
+                        allergen.id,
+                      );
+                      return (
+                        <button
+                          key={allergen.id}
+                          type="button"
+                          onClick={() =>
+                            setCustomerForm((prev) => ({
+                              ...prev,
+                              allergens: isSelected
+                                ? prev.allergens.filter(
+                                    (a) => a !== allergen.id,
+                                  )
+                                : [...prev.allergens, allergen.id],
+                            }))
+                          }
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                            isSelected
+                              ? "bg-red-500/20 text-red-300 border border-red-500/50"
+                              : "bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600"
+                          }`}
+                        >
+                          <span>{allergen.emoji}</span>
+                          <span>
+                            {t(
+                              `mesa.productDetail.allergenNames.${allergen.id}`,
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {customerForm.allergens.length > 0 && (
+                    <p className="text-xs text-red-400/70 mt-2">
+                      {t("mesa.allergenWarning")}
+                    </p>
+                  )}
+                </div>
 
                 {/* Incomplete profile reminder - Show if some data is filled but not all */}
                 {currentCustomer &&
@@ -3759,9 +4237,14 @@ export default function MesaPage() {
 
               {/* Submit Button - Smart single button */}
               <div className="mt-6 pt-4 border-t border-gray-800">
+                {error && (
+                  <div className="mb-3 p-3 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-sm">
+                    {error}
+                  </div>
+                )}
                 <button
                   onClick={() => {
-                    // Check if there are changes
+                    // Check if there are changes (use spread to avoid mutating state with .sort())
                     const hasChanges =
                       currentCustomer &&
                       (customerForm.display_name.trim() !==
@@ -3775,7 +4258,11 @@ export default function MesaPage() {
                         customerForm.marketing_consent !==
                           (currentCustomer.marketing_consent || false) ||
                         customerForm.preferred_contact !==
-                          (currentCustomer.preferred_contact || "email"));
+                          (currentCustomer.preferred_contact || "email") ||
+                        JSON.stringify([...customerForm.allergens].sort()) !==
+                          JSON.stringify(
+                            [...(currentCustomer.allergens || [])].sort(),
+                          ));
 
                     if (hasChanges || !currentCustomer) {
                       // Save changes or register new customer
@@ -3785,36 +4272,47 @@ export default function MesaPage() {
                       setShowCustomerModal(false);
                     }
                   }}
-                  disabled={!customerForm.display_name.trim()}
+                  disabled={!customerForm.display_name.trim() || isRegistering}
                   className="w-full py-4 rounded-xl bg-[#D4AF37] text-black font-bold text-lg hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {(() => {
-                    // Smart button text based on context
-                    if (!currentCustomer) {
-                      return sessionCustomers.length === 0
-                        ? t("mesa.startOrdering")
-                        : t("mesa.addPerson");
-                    }
+                  {isRegistering ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin h-5 w-5 border-2 border-black border-t-transparent rounded-full" />
+                      <span>A guardar...</span>
+                    </div>
+                  ) : (
+                    (() => {
+                      // Smart button text based on context
+                      if (!currentCustomer) {
+                        return sessionCustomers.length === 0
+                          ? t("mesa.startOrdering")
+                          : t("mesa.addPerson");
+                      }
 
-                    // Check if editing current customer
-                    const hasChanges =
-                      customerForm.display_name.trim() !==
-                        currentCustomer.display_name ||
-                      customerForm.email.trim() !==
-                        (currentCustomer.email || "") ||
-                      customerForm.phone.trim() !==
-                        (currentCustomer.phone || "") ||
-                      customerForm.birth_date !==
-                        (currentCustomer.birth_date || "") ||
-                      customerForm.marketing_consent !==
-                        (currentCustomer.marketing_consent || false) ||
-                      customerForm.preferred_contact !==
-                        (currentCustomer.preferred_contact || "email");
+                      // Check if editing current customer (use spread to avoid mutating state with .sort())
+                      const hasChanges =
+                        customerForm.display_name.trim() !==
+                          currentCustomer.display_name ||
+                        customerForm.email.trim() !==
+                          (currentCustomer.email || "") ||
+                        customerForm.phone.trim() !==
+                          (currentCustomer.phone || "") ||
+                        customerForm.birth_date !==
+                          (currentCustomer.birth_date || "") ||
+                        customerForm.marketing_consent !==
+                          (currentCustomer.marketing_consent || false) ||
+                        customerForm.preferred_contact !==
+                          (currentCustomer.preferred_contact || "email") ||
+                        JSON.stringify([...customerForm.allergens].sort()) !==
+                          JSON.stringify(
+                            [...(currentCustomer.allergens || [])].sort(),
+                          );
 
-                    return hasChanges
-                      ? t("mesa.saveChanges") || "Guardar Alterações"
-                      : t("mesa.continue") || "Continuar";
-                  })()}
+                      return hasChanges
+                        ? t("mesa.saveChanges") || "Guardar Alterações"
+                        : t("mesa.continue") || "Continuar";
+                    })()
+                  )}
                 </button>
               </div>
 
@@ -3973,7 +4471,7 @@ export default function MesaPage() {
       )}
 
       {/* Custom Styles */}
-      <style jsx>{`
+      <style>{`
         @keyframes slide-up {
           from {
             transform: translateY(100%);
@@ -4015,6 +4513,38 @@ export default function MesaPage() {
           display: none;
         }
       `}</style>
+
+      {/* Product Detail Bottom Sheet */}
+      <ProductDetailSheet
+        product={selectedProduct}
+        locale={locale}
+        orderType={orderType}
+        cartQuantity={selectedProduct ? getCartQuantity(selectedProduct.id) : 0}
+        preparationTime={
+          selectedProduct
+            ? (preparationTimes[selectedProduct.id] ?? null)
+            : null
+        }
+        ingredients={
+          selectedProduct
+            ? (productIngredientsMap[String(selectedProduct.id)] ?? [])
+            : []
+        }
+        customerAllergens={currentCustomer?.allergens || []}
+        isWaiterOnly={session?.ordering_mode === "waiter_only"}
+        onClose={() => setSelectedProduct(null)}
+        onAddToCart={() => {
+          if (selectedProduct)
+            addToCart(
+              selectedProduct,
+              currentCustomer?.display_name || undefined,
+            );
+        }}
+        onUpdateQuantity={(qty) => {
+          if (selectedProduct) updateQuantity(selectedProduct.id, qty);
+        }}
+        t={t}
+      />
     </main>
   );
 }

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useTableManagement - Hook para gestão de mesas
@@ -9,12 +9,15 @@
  * - Operações de gestão de mesas e sessões
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useDependencies } from '../contexts/DependencyContext';
-import { TableDTO, TableStatisticsDTO } from '@/application/use-cases/tables/GetAllTablesUseCase';
-import { TableStatus } from '@/domain/value-objects/TableStatus';
-import { Location } from '@/types/database';
-import { createClient } from '@/lib/supabase/client';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useDependencies } from "../contexts/DependencyContext";
+import {
+  TableDTO,
+  TableStatisticsDTO,
+} from "@/application/use-cases/tables/GetAllTablesUseCase";
+import { TableStatus } from "@/domain/value-objects/TableStatus";
+import { Location } from "@/types/database";
+import { createClient } from "@/lib/supabase/client";
 
 /**
  * Opções do hook
@@ -79,55 +82,57 @@ export interface UseTableManagementResult {
    * Altera o status de uma mesa
    */
   changeTableStatus: (
-    tableId: string,
-    newStatus: TableStatus,
-    reason?: string
+    _tableId: string,
+    _newStatus: TableStatus,
+    _reason?: string,
   ) => Promise<{ success: boolean; error?: string }>;
 
   /**
    * Marca mesa como inativa
    */
   markTableInactive: (
-    tableId: string,
-    reason: string
+    _tableId: string,
+    _reason: string,
   ) => Promise<{ success: boolean; error?: string }>;
 
   /**
    * Reativa uma mesa
    */
-  reactivateTable: (tableId: string) => Promise<{ success: boolean; error?: string }>;
+  reactivateTable: (
+    _tableId: string,
+  ) => Promise<{ success: boolean; error?: string }>;
 
   /**
    * Inicia uma sessão walk-in
    */
   startWalkInSession: (
-    tableId: string,
-    isRodizio: boolean,
-    numPeople: number
+    _tableId: string,
+    _isRodizio: boolean,
+    _numPeople: number,
   ) => Promise<{ success: boolean; sessionId?: string; error?: string }>;
 
   /**
    * Pede a conta de uma sessão
    */
-  requestBill: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+  requestBill: (
+    _sessionId: string,
+  ) => Promise<{ success: boolean; error?: string }>;
 
   /**
    * Fecha uma sessão
    */
-  closeSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+  closeSession: (
+    _sessionId: string,
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 /**
  * Hook para gestão de mesas
  */
 export function useTableManagement(
-  options: UseTableManagementOptions = {}
+  options: UseTableManagementOptions = {},
 ): UseTableManagementResult {
-  const {
-    location,
-    realtime = true,
-    refreshInterval = 30000,
-  } = options;
+  const { location, realtime = true, refreshInterval = 30000 } = options;
 
   const {
     tableRepository,
@@ -173,14 +178,16 @@ export function useTableManagement(
 
     try {
       const allTables = await tableRepository.findAllFullStatus(
-        location ? { location } : undefined
+        location ? { location } : undefined,
       );
       const now = new Date();
 
       // Mapear para DTOs
       const tableDTOs: TableDTO[] = allTables.map((table) => {
         const durationMinutes = table.activeSession
-          ? Math.floor((now.getTime() - table.activeSession.startedAt.getTime()) / 60000)
+          ? Math.floor(
+              (now.getTime() - table.activeSession.startedAt.getTime()) / 60000,
+            )
           : 0;
 
         return {
@@ -209,27 +216,32 @@ export function useTableManagement(
 
       // Agrupar por status
       const grouped: Record<TableStatus, TableDTO[]> = {
-        available: tableDTOs.filter((t) => t.status === 'available'),
-        reserved: tableDTOs.filter((t) => t.status === 'reserved'),
-        occupied: tableDTOs.filter((t) => t.status === 'occupied'),
-        inactive: tableDTOs.filter((t) => t.status === 'inactive'),
+        available: tableDTOs.filter((t) => t.status === "available"),
+        reserved: tableDTOs.filter((t) => t.status === "reserved"),
+        occupied: tableDTOs.filter((t) => t.status === "occupied"),
+        inactive: tableDTOs.filter((t) => t.status === "inactive"),
       };
 
       // Agrupar por localização
       const byLoc: Record<Location, TableDTO[]> = {
-        circunvalacao: tableDTOs.filter((t) => t.location === 'circunvalacao'),
-        boavista: tableDTOs.filter((t) => t.location === 'boavista'),
+        circunvalacao: tableDTOs.filter((t) => t.location === "circunvalacao"),
+        boavista: tableDTOs.filter((t) => t.location === "boavista"),
       };
 
       // Calcular estatísticas
-      const activeTables = grouped.available.length + grouped.occupied.length + grouped.reserved.length;
-      const occupancyRate = activeTables > 0 ? (grouped.occupied.length / activeTables) * 100 : 0;
+      const activeTables =
+        grouped.available.length +
+        grouped.occupied.length +
+        grouped.reserved.length;
+      const occupancyRate =
+        activeTables > 0 ? (grouped.occupied.length / activeTables) * 100 : 0;
       const totalRevenue = tableDTOs
         .filter((t) => t.activeSession)
         .reduce((sum, t) => sum + (t.activeSession?.totalAmount || 0), 0);
-      const averageRevenuePerTable = grouped.occupied.length > 0
-        ? totalRevenue / grouped.occupied.length
-        : 0;
+      const averageRevenuePerTable =
+        grouped.occupied.length > 0
+          ? totalRevenue / grouped.occupied.length
+          : 0;
 
       const stats: TableStatisticsDTO = {
         total: tableDTOs.length,
@@ -247,7 +259,7 @@ export function useTableManagement(
       setByLocation(byLoc);
       setStatistics(stats);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar mesas');
+      setError(err instanceof Error ? err.message : "Erro ao carregar mesas");
     } finally {
       setIsLoading(false);
     }
@@ -260,7 +272,7 @@ export function useTableManagement(
     async (
       tableId: string,
       newStatus: TableStatus,
-      _reason?: string
+      _reason?: string,
     ): Promise<{ success: boolean; error?: string }> => {
       try {
         await tableRepository.updateStatus(tableId, newStatus);
@@ -269,28 +281,31 @@ export function useTableManagement(
       } catch (err) {
         return {
           success: false,
-          error: err instanceof Error ? err.message : 'Erro ao alterar estado',
+          error: err instanceof Error ? err.message : "Erro ao alterar estado",
         };
       }
     },
-    [tableRepository, fetchTables]
+    [tableRepository, fetchTables],
   );
 
   /**
    * Marca mesa como inativa
    */
   const markTableInactive = useCallback(
-    async (tableId: string, reason: string): Promise<{ success: boolean; error?: string }> => {
+    async (
+      tableId: string,
+      reason: string,
+    ): Promise<{ success: boolean; error?: string }> => {
       const table = tables.find((t) => t.id === tableId);
       if (table?.activeSession) {
         return {
           success: false,
-          error: 'Não é possível desativar mesa com sessão ativa',
+          error: "Não é possível desativar mesa com sessão ativa",
         };
       }
-      return changeTableStatus(tableId, 'inactive', reason);
+      return changeTableStatus(tableId, "inactive", reason);
     },
-    [tables, changeTableStatus]
+    [tables, changeTableStatus],
   );
 
   /**
@@ -298,9 +313,9 @@ export function useTableManagement(
    */
   const reactivateTable = useCallback(
     async (tableId: string): Promise<{ success: boolean; error?: string }> => {
-      return changeTableStatus(tableId, 'available', 'Mesa reativada');
+      return changeTableStatus(tableId, "available", "Mesa reativada");
     },
-    [changeTableStatus]
+    [changeTableStatus],
   );
 
   /**
@@ -310,14 +325,14 @@ export function useTableManagement(
     async (
       tableId: string,
       isRodizio: boolean,
-      numPeople: number
+      numPeople: number,
     ): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
       const table = tables.find((t) => t.id === tableId);
-      if (table?.status === 'occupied') {
-        return { success: false, error: 'Mesa já está ocupada' };
+      if (table?.status === "occupied") {
+        return { success: false, error: "Mesa já está ocupada" };
       }
-      if (table?.status === 'inactive') {
-        return { success: false, error: 'Mesa está inativa' };
+      if (table?.status === "inactive") {
+        return { success: false, error: "Mesa está inativa" };
       }
 
       const result = await startSessionUseCase.execute({
@@ -330,17 +345,22 @@ export function useTableManagement(
         await fetchTables();
         return { success: true, sessionId: result.data.id };
       } else {
-        return { success: false, error: result.error ?? 'Erro ao iniciar sessão' };
+        return {
+          success: false,
+          error: result.error ?? "Erro ao iniciar sessão",
+        };
       }
     },
-    [tables, startSessionUseCase, fetchTables]
+    [tables, startSessionUseCase, fetchTables],
   );
 
   /**
    * Pede a conta de uma sessão
    */
   const requestBill = useCallback(
-    async (sessionId: string): Promise<{ success: boolean; error?: string }> => {
+    async (
+      sessionId: string,
+    ): Promise<{ success: boolean; error?: string }> => {
       const result = await requestBillUseCase.execute({ sessionId });
 
       if (result.success) {
@@ -350,14 +370,16 @@ export function useTableManagement(
         return { success: false, error: result.error };
       }
     },
-    [requestBillUseCase, fetchTables]
+    [requestBillUseCase, fetchTables],
   );
 
   /**
    * Fecha uma sessão
    */
   const closeSession = useCallback(
-    async (sessionId: string): Promise<{ success: boolean; error?: string }> => {
+    async (
+      sessionId: string,
+    ): Promise<{ success: boolean; error?: string }> => {
       const result = await closeSessionUseCase.execute({ sessionId });
 
       if (result.success) {
@@ -367,7 +389,7 @@ export function useTableManagement(
         return { success: false, error: result.error };
       }
     },
-    [closeSessionUseCase, fetchTables]
+    [closeSessionUseCase, fetchTables],
   );
 
   // Fetch inicial
@@ -390,20 +412,20 @@ export function useTableManagement(
     const supabase = supabaseRef.current;
 
     const tablesChannel = supabase
-      .channel('tables-management-changes')
+      .channel("tables-management-changes")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tables' },
-        () => fetchTables()
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tables" },
+        () => fetchTables(),
       )
       .subscribe();
 
     const sessionsChannel = supabase
-      .channel('sessions-management-changes')
+      .channel("sessions-management-changes")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'sessions' },
-        () => fetchTables()
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sessions" },
+        () => fetchTables(),
       )
       .subscribe();
 
@@ -433,20 +455,20 @@ export function useTableManagement(
 // Helper functions
 function getStatusLabel(status: TableStatus): string {
   const labels: Record<TableStatus, string> = {
-    available: 'Disponível',
-    reserved: 'Reservada',
-    occupied: 'Ocupada',
-    inactive: 'Inativa',
+    available: "Disponível",
+    reserved: "Reservada",
+    occupied: "Ocupada",
+    inactive: "Inativa",
   };
   return labels[status];
 }
 
 function getStatusColor(status: TableStatus): string {
   const colors: Record<TableStatus, string> = {
-    available: 'green',
-    reserved: 'yellow',
-    occupied: 'red',
-    inactive: 'gray',
+    available: "green",
+    reserved: "yellow",
+    occupied: "red",
+    inactive: "gray",
   };
   return colors[status];
 }

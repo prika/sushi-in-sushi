@@ -8,11 +8,11 @@ import { KitchenStaffMetrics } from '@/domain/entities/KitchenMetrics';
 import { IKitchenMetricsRepository, KitchenMetricsFilter } from '@/domain/repositories/IKitchenMetricsRepository';
 
 export class SupabaseKitchenMetricsRepository implements IKitchenMetricsRepository {
-  constructor(private supabase: SupabaseClient) {}
+  constructor(private _supabase: SupabaseClient) {}
 
   async getStaffMetrics(filter: KitchenMetricsFilter): Promise<KitchenStaffMetrics[]> {
     // 1. Get all orders with prepared_by set (kitchen staff who prepared something)
-    let ordersQuery = this.supabase
+    let ordersQuery = this._supabase
       .from('orders')
       .select('id, prepared_by, preparing_started_at, ready_at, status')
       .not('prepared_by', 'is', null);
@@ -31,7 +31,7 @@ export class SupabaseKitchenMetricsRepository implements IKitchenMetricsReposito
     // 2. Get unique staff IDs and fetch their names
     const staffIds = Array.from(new Set(orders.map((o) => o.prepared_by as string)));
 
-    let staffQuery = this.supabase
+    let staffQuery = this._supabase
       .from('staff')
       .select('id, name')
       .in('id', staffIds);
@@ -64,7 +64,7 @@ export class SupabaseKitchenMetricsRepository implements IKitchenMetricsReposito
 
     // 4. Get ratings for orders that have prepared_by
     const orderIds = filteredOrders.map((o) => o.id);
-    const { data: ratings, error: ratingsError } = await this.supabase
+    const { data: ratings, error: ratingsError } = await this._supabase
       .from('product_ratings')
       .select('order_id, rating')
       .in('order_id', orderIds.length > 0 ? orderIds : ['__none__']);

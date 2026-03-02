@@ -159,9 +159,9 @@ describe('UpsertDeviceProfileUseCase', () => {
     );
   });
 
-  it('deve criar perfil com tier 3 (todos os campos)', async () => {
+  it('deve criar perfil com tier 2 (todos os campos sem visitas)', async () => {
     const profile = createTestDeviceProfile({
-      highestTier: 3,
+      highestTier: 2,
       lastEmail: 'joao@email.com',
       lastPhone: '+351912345678',
       lastFullName: 'João Silva',
@@ -180,11 +180,11 @@ describe('UpsertDeviceProfileUseCase', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.highestTier).toBe(3);
+      expect(result.data.highestTier).toBe(2);
     }
     expect(mockRepository.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        highestTier: 3,
+        highestTier: 2,
         lastFullName: 'João Silva',
         lastPhone: '+351912345678',
         lastBirthDate: '1990-05-15',

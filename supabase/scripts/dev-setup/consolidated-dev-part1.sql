@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS staff (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
+    auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
     role_id INTEGER NOT NULL REFERENCES roles(id),
     location VARCHAR(50) CHECK (location IN ('circunvalacao', 'boavista')),
     phone VARCHAR(20),
@@ -171,51 +171,43 @@ CREATE POLICY "System can insert activity log" ON activity_log
     FOR INSERT WITH CHECK (true);
 
 -- =============================================
--- INSERT DEFAULT ADMIN USER
--- Password: admin123 (should be changed in production)
--- Using simple hash for now - TODO: use bcrypt in production
+-- INSERT DEFAULT STAFF (auth managed via Supabase Auth)
+-- Use seed-test-users.ts to create Auth users + link auth_user_id
 -- =============================================
-INSERT INTO staff (email, name, password_hash, role_id, location)
+INSERT INTO staff (email, name, role_id, location)
 SELECT
     'admin@sushinsushi.pt',
     'Administrador',
-    'admin123', -- TODO: Replace with bcrypt hash in production
     (SELECT id FROM roles WHERE name = 'admin'),
     'circunvalacao'
 WHERE NOT EXISTS (
     SELECT 1 FROM staff WHERE email = 'admin@sushinsushi.pt'
 );
 
--- Insert default kitchen user
-INSERT INTO staff (email, name, password_hash, role_id, location)
+INSERT INTO staff (email, name, role_id, location)
 SELECT
     'cozinha@sushinsushi.pt',
     'Cozinha Circunvalação',
-    'cozinha123', -- TODO: Replace with bcrypt hash in production
     (SELECT id FROM roles WHERE name = 'kitchen'),
     'circunvalacao'
 WHERE NOT EXISTS (
     SELECT 1 FROM staff WHERE email = 'cozinha@sushinsushi.pt'
 );
 
--- Insert kitchen user for Boavista
-INSERT INTO staff (email, name, password_hash, role_id, location)
+INSERT INTO staff (email, name, role_id, location)
 SELECT
     'cozinha.boavista@sushinsushi.pt',
     'Cozinha Boavista',
-    'cozinha123', -- TODO: Replace with bcrypt hash in production
     (SELECT id FROM roles WHERE name = 'kitchen'),
     'boavista'
 WHERE NOT EXISTS (
     SELECT 1 FROM staff WHERE email = 'cozinha.boavista@sushinsushi.pt'
 );
 
--- Insert default waiter user
-INSERT INTO staff (email, name, password_hash, role_id, location)
+INSERT INTO staff (email, name, role_id, location)
 SELECT
     'empregado@sushinsushi.pt',
     'Empregado Circunvalação',
-    'empregado123', -- TODO: Replace with bcrypt hash in production
     (SELECT id FROM roles WHERE name = 'waiter'),
     'circunvalacao'
 WHERE NOT EXISTS (

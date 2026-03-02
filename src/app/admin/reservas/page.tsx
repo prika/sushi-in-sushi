@@ -14,12 +14,16 @@ import {
   Check,
   X,
   Filter,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import type { ReservationStatus, Location } from "@/types/database";
+import { getReasonsForSource } from "@/lib/constants/cancellation-reasons";
 
 type EmailStatus = "sent" | "delivered" | "opened" | "clicked" | "bounced" | "complained" | "failed";
+
+interface AssignedTable {
+  table_number: number;
+  is_primary: boolean;
+}
 
 interface Reservation {
   id: string;
@@ -39,8 +43,14 @@ interface Reservation {
   confirmed_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+  cancelled_by: 'admin' | 'customer' | null;
+  cancellation_source: 'site' | 'phone' | null;
   table_id: string | null;
   table_number?: number | null;
+  tables_assigned?: boolean;
+  // Auto-assignment info
+  assigned_tables?: AssignedTable[];
+  assigned_waiter_name?: string | null;
   // Email tracking
   customer_email_id: string | null;
   customer_email_sent_at: string | null;
@@ -52,6 +62,17 @@ interface Reservation {
   confirmation_email_delivered_at: string | null;
   confirmation_email_opened_at: string | null;
   confirmation_email_status: EmailStatus | null;
+  // Reminder tracking
+  day_before_reminder_id: string | null;
+  day_before_reminder_sent_at: string | null;
+  day_before_reminder_delivered_at: string | null;
+  day_before_reminder_opened_at: string | null;
+  day_before_reminder_status: EmailStatus | null;
+  same_day_reminder_id: string | null;
+  same_day_reminder_sent_at: string | null;
+  same_day_reminder_delivered_at: string | null;
+  same_day_reminder_opened_at: string | null;
+  same_day_reminder_status: EmailStatus | null;
 }
 
 const emailStatusConfig: Record<string, { icon: string; label: string; color: string }> = {
@@ -131,7 +152,77 @@ export default function ReservationsPage() {
       return;
     }
 
-    setReservations(data || []);
+    // Fetch assigned tables and waiter info for reservations
+    // Cast needed: new columns (cancelled_by, cancellation_source) may not be in generated Supabase types yet
+    let enrichedReservations: Reservation[] = (data || []) as unknown as Reservation[];
+
+    if (enrichedReservations.length > 0) {
+      const reservationIds = enrichedReservations.map(r => r.id);
+
+      // Fetch reservation_tables with table numbers
+      const { data: rtData } = await (supabase as any)
+        .from("reservation_tables")
+        .select("reservation_id, table_id, is_primary, assigned_by")
+        .in("reservation_id", reservationIds);
+
+      if (rtData && rtData.length > 0) {
+        // Get unique table IDs and fetch their numbers
+        const tableIds = Array.from(new Set(rtData.map((rt: any) => rt.table_id))) as string[];
+        const { data: tablesData } = await supabase
+          .from("tables")
+          .select("id, number")
+          .in("id", tableIds);
+
+        const tableNumberMap = new Map<string, number>();
+        if (tablesData) {
+          tablesData.forEach((t: any) => tableNumberMap.set(t.id, t.number));
+        }
+
+        // Get unique waiter IDs and fetch their names
+        const waiterIds = Array.from(new Set(rtData.map((rt: any) => rt.assigned_by).filter(Boolean))) as string[];
+        const waiterNameMap = new Map<string, string>();
+        if (waiterIds.length > 0) {
+          const { data: staffData } = await supabase
+            .from("staff")
+            .select("id, name")
+            .in("id", waiterIds);
+          if (staffData) {
+            staffData.forEach((s: any) => waiterNameMap.set(s.id, s.name));
+          }
+        }
+
+        // Group tables by reservation
+        const assignmentMap = new Map<string, { tables: AssignedTable[]; waiterName: string | null }>();
+        rtData.forEach((rt: any) => {
+          const existing = assignmentMap.get(rt.reservation_id) || { tables: [], waiterName: null };
+          const tableNumber = tableNumberMap.get(rt.table_id);
+          if (tableNumber !== undefined) {
+            existing.tables.push({ table_number: tableNumber, is_primary: rt.is_primary });
+          }
+          if (rt.assigned_by && waiterNameMap.has(rt.assigned_by)) {
+            existing.waiterName = waiterNameMap.get(rt.assigned_by) || null;
+          }
+          assignmentMap.set(rt.reservation_id, existing);
+        });
+
+        // Enrich reservations with assignment data
+        enrichedReservations = enrichedReservations.map(r => {
+          const assignment = assignmentMap.get(r.id);
+          if (assignment) {
+            return {
+              ...r,
+              assigned_tables: assignment.tables.sort((a, b) =>
+                a.is_primary === b.is_primary ? a.table_number - b.table_number : a.is_primary ? -1 : 1
+              ),
+              assigned_waiter_name: assignment.waiterName,
+            };
+          }
+          return r;
+        });
+      }
+    }
+
+    setReservations(enrichedReservations);
     setIsLoading(false);
   }, [viewMode, selectedDate, locationFilter, statusFilter]);
 
@@ -158,7 +249,8 @@ export default function ReservationsPage() {
   const updateReservationStatus = async (
     id: string,
     status: ReservationStatus,
-    cancellationReason?: string
+    cancellationReason?: string,
+    cancellationSource?: string
   ) => {
     setIsUpdating(true);
     try {
@@ -168,6 +260,7 @@ export default function ReservationsPage() {
         body: JSON.stringify({
           status,
           cancellation_reason: cancellationReason,
+          cancellation_source: cancellationSource,
         }),
       });
 
@@ -194,12 +287,15 @@ export default function ReservationsPage() {
     });
   };
 
-  // Separate pending from rest
-  const pendingReservations = reservations.filter(r => r.status === 'pending');
-  const upcomingReservations = reservations.filter(r => r.status !== 'pending');
+  const [showCancelled, setShowCancelled] = useState(false);
 
-  // Group upcoming reservations by date and time
-  const groupedReservations = upcomingReservations.reduce(
+  // Separate pending, active, and cancelled
+  const pendingReservations = reservations.filter(r => r.status === 'pending');
+  const activeReservations = reservations.filter(r => r.status !== 'pending' && r.status !== 'cancelled');
+  const cancelledReservations = reservations.filter(r => r.status === 'cancelled');
+
+  // Group active reservations by date and time
+  const groupedReservations = activeReservations.reduce(
     (acc, reservation) => {
       const dateKey = reservation.reservation_date;
       const timeKey = reservation.reservation_time;
@@ -373,7 +469,7 @@ export default function ReservationsPage() {
             </div>
           )}
 
-          {/* Upcoming Reservations */}
+          {/* Active Reservations (confirmed, completed, no_show) */}
           <div className="space-y-6">
             <h2 className="text-lg font-semibold text-gray-800">
               {viewMode === "future"
@@ -441,12 +537,44 @@ export default function ReservationsPage() {
               </div>
             )}
           </div>
+
+          {/* Cancelled Reservations (collapsible) */}
+          {cancelledReservations.length > 0 && (
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowCancelled(!showCancelled)}
+                className="flex items-center gap-2 w-full text-left"
+              >
+                <span className="w-2 h-2 bg-red-400 rounded-full" />
+                <h2 className="text-lg font-semibold text-red-600">
+                  Canceladas ({cancelledReservations.length})
+                </h2>
+                <svg
+                  className={`w-4 h-4 text-red-400 transition-transform ${showCancelled ? "rotate-180" : ""}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showCancelled && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {cancelledReservations.map((reservation) => (
+                    <CancelledReservationCard
+                      key={reservation.id}
+                      reservation={reservation}
+                      onClick={() => setSelectedReservation(reservation)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* RIGHT: Calendar (1/3 width on large screens) */}
         <div className="lg:col-span-1">
           <ReservationsCalendar
-            reservations={reservations}
+            reservations={reservations.filter(r => r.status !== 'cancelled')}
             selectedDate={selectedDate}
             onDateSelect={(date) => {
               setSelectedDate(date);
@@ -482,7 +610,7 @@ function ReservationCard({
 
   return (
     <>
-      <style jsx>{`
+      <style>{`
         @keyframes pulse-border {
           0%, 100% { border-color: rgb(253 224 71); }
           50% { border-color: rgb(250 204 21); }
@@ -525,6 +653,24 @@ function ReservationCard({
           <span className="text-gray-400">•</span>
           <span>{reservation.is_rodizio ? "Rodízio" : "À Carta"}</span>
         </div>
+        {/* Assigned Tables & Waiter */}
+        {reservation.assigned_tables && reservation.assigned_tables.length > 0 && (
+          <div className="flex items-center gap-2 text-gray-600">
+            <span className="text-xs">🪑</span>
+            <span className="font-medium">
+              {reservation.assigned_tables.length === 1
+                ? `Mesa ${reservation.assigned_tables[0].table_number}`
+                : `Mesas ${reservation.assigned_tables.map(t => t.table_number).join(" + ")}`}
+            </span>
+            {reservation.assigned_waiter_name && (
+              <>
+                <span className="text-gray-400">•</span>
+                <span>👤 {reservation.assigned_waiter_name}</span>
+              </>
+            )}
+            <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">Auto</span>
+          </div>
+        )}
         <div className="flex items-center gap-2 text-gray-600">
           <Phone size={14} />
           <span>{reservation.phone}</span>
@@ -576,26 +722,34 @@ function ReservationModal({
   reservation: Reservation;
   onClose: () => void;
   onUpdateStatus: (
-    id: string,
-    status: ReservationStatus,
-    reason?: string
+    _id: string,
+    _status: ReservationStatus,
+    _reason?: string,
+    _source?: string
   ) => Promise<void>;
   isUpdating: boolean;
 }) {
-  const [cancelReason, setCancelReason] = useState("");
+  const [cancelReasonId, setCancelReasonId] = useState("");
+  const [cancelCustomText, setCancelCustomText] = useState("");
+  const [cancelSource, setCancelSource] = useState<"site" | "phone">("site");
   const [showCancelForm, setShowCancelForm] = useState(false);
   const config = statusConfig[reservation.status];
+  const adminReasons = getReasonsForSource("admin");
+  const selectedAdminReason = adminReasons.find((r) => r.id === cancelReasonId);
 
   const handleConfirm = () => {
     onUpdateStatus(reservation.id, "confirmed");
   };
 
   const handleCancel = () => {
-    if (!cancelReason.trim()) {
-      alert("Por favor, indique o motivo do cancelamento");
+    const reason = selectedAdminReason?.isCustom
+      ? cancelCustomText.trim()
+      : selectedAdminReason?.label || "";
+    if (!reason) {
+      alert("Por favor, selecione o motivo do cancelamento");
       return;
     }
-    onUpdateStatus(reservation.id, "cancelled", cancelReason);
+    onUpdateStatus(reservation.id, "cancelled", reason, cancelSource);
   };
 
   const handleComplete = () => {
@@ -686,6 +840,40 @@ function ReservationModal({
             </p>
           </div>
 
+          {/* Assigned Tables & Waiter */}
+          {reservation.assigned_tables && reservation.assigned_tables.length > 0 && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">Reserva Automática</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-lg">🪑</span>
+                <div>
+                  <p className="text-xs text-gray-500">Mesa(s) Atribuída(s)</p>
+                  <p className="font-medium text-gray-900">
+                    {reservation.assigned_tables.map((t, i) => (
+                      <span key={t.table_number}>
+                        {i > 0 && " + "}
+                        <span className={t.is_primary ? "text-[#D4AF37] font-bold" : ""}>
+                          Mesa {t.table_number}
+                        </span>
+                      </span>
+                    ))}
+                  </p>
+                </div>
+              </div>
+              {reservation.assigned_waiter_name && (
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">👤</span>
+                  <div>
+                    <p className="text-xs text-gray-500">Empregado Atribuído</p>
+                    <p className="font-medium text-gray-900">{reservation.assigned_waiter_name}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Contact */}
           <div className="space-y-3">
             <h3 className="font-medium text-gray-900">Contacto</h3>
@@ -727,84 +915,147 @@ function ReservationModal({
             </div>
           )}
 
-          {/* Cancellation Reason */}
-          {reservation.status === "cancelled" &&
-            reservation.cancellation_reason && (
-              <div>
-                <h3 className="font-medium text-red-600 mb-2">
-                  Motivo do Cancelamento
-                </h3>
-                <p className="p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-gray-700">
-                  {reservation.cancellation_reason}
-                </p>
+          {/* Cancellation Details */}
+          {reservation.status === "cancelled" && (
+            <div className="space-y-3">
+              <h3 className="font-medium text-red-600">Detalhes do Cancelamento</h3>
+              <div className="p-4 bg-red-50 border border-red-100 rounded-lg space-y-2">
+                {reservation.cancellation_reason && (
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium text-gray-900">Motivo:</span> {reservation.cancellation_reason}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {reservation.cancelled_by && (
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                      reservation.cancelled_by === 'customer'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}>
+                      {reservation.cancelled_by === 'customer' ? 'Cancelado pelo cliente' : 'Cancelado pelo admin'}
+                    </span>
+                  )}
+                  {reservation.cancellation_source && (
+                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+                      {reservation.cancellation_source === 'site' ? 'Via site' : 'Por telefone'}
+                    </span>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
+          )}
 
           {/* Email Status */}
           <div>
             <h3 className="font-medium text-gray-900 mb-3">Estado dos Emails</h3>
-            <div className="space-y-3">
-              {/* Customer Confirmation Email */}
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Email de Confirmação</span>
-                  {reservation.customer_email_status ? (
-                    <span className={`text-sm font-medium ${emailStatusConfig[reservation.customer_email_status]?.color || "text-gray-400"}`}>
-                      {emailStatusConfig[reservation.customer_email_status]?.icon}{" "}
-                      {emailStatusConfig[reservation.customer_email_status]?.label}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-gray-400">
-                      {emailStatusConfig.not_sent.icon} {emailStatusConfig.not_sent.label}
-                    </span>
-                  )}
-                </div>
-                {reservation.customer_email_sent_at && (
-                  <div className="mt-2 text-xs text-gray-400 space-y-1">
-                    <p>Enviado: {new Date(reservation.customer_email_sent_at).toLocaleString("pt-PT")}</p>
-                    {reservation.customer_email_delivered_at && (
-                      <p>Entregue: {new Date(reservation.customer_email_delivered_at).toLocaleString("pt-PT")}</p>
-                    )}
-                    {reservation.customer_email_opened_at && (
-                      <p className="text-purple-600 font-medium">
-                        👁️ Lido: {new Date(reservation.customer_email_opened_at).toLocaleString("pt-PT")}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+            <div className="space-y-2">
+              {/* Auto-confirmed: show single "Confirmação automática" email */}
+              {/* Manual: show "Receção do pedido" + "Reserva confirmada" separately */}
+              {(() => {
+                const isAutoConfirmed = reservation.tables_assigned && reservation.confirmed_at && !reservation.customer_email_status && reservation.confirmation_email_status;
+                const hasCustomerEmail = !!reservation.customer_email_status;
+                const hasConfirmationEmail = !!reservation.confirmation_email_status;
 
-              {/* Reservation Confirmed Email (only shown if reservation is confirmed) */}
-              {reservation.status === "confirmed" && (
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Email de Reserva Confirmada</span>
-                    {reservation.confirmation_email_status ? (
-                      <span className={`text-sm font-medium ${emailStatusConfig[reservation.confirmation_email_status]?.color || "text-gray-400"}`}>
-                        {emailStatusConfig[reservation.confirmation_email_status]?.icon}{" "}
-                        {emailStatusConfig[reservation.confirmation_email_status]?.label}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-gray-400">
-                        {emailStatusConfig.not_sent.icon} {emailStatusConfig.not_sent.label}
-                      </span>
-                    )}
-                  </div>
-                  {reservation.confirmation_email_sent_at && (
-                    <div className="mt-2 text-xs text-gray-400 space-y-1">
-                      <p>Enviado: {new Date(reservation.confirmation_email_sent_at).toLocaleString("pt-PT")}</p>
-                      {reservation.confirmation_email_delivered_at && (
-                        <p>Entregue: {new Date(reservation.confirmation_email_delivered_at).toLocaleString("pt-PT")}</p>
-                      )}
-                      {reservation.confirmation_email_opened_at && (
-                        <p className="text-purple-600 font-medium">
-                          👁️ Lido: {new Date(reservation.confirmation_email_opened_at).toLocaleString("pt-PT")}
-                        </p>
+                // Helper to render an email row
+                const renderEmailRow = (
+                  label: string,
+                  status: EmailStatus | null,
+                  sentAt: string | null,
+                  deliveredAt: string | null,
+                  openedAt: string | null,
+                  bgColor: string,
+                  badge?: string,
+                ) => (
+                  <div className={`p-3 ${bgColor} rounded-lg`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">{label}</span>
+                        {badge && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-green-100 text-green-700">{badge}</span>
+                        )}
+                      </div>
+                      {status ? (
+                        <span className={`text-sm font-medium ${emailStatusConfig[status]?.color || "text-gray-400"}`}>
+                          {emailStatusConfig[status]?.icon}{" "}
+                          {emailStatusConfig[status]?.label}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">
+                          {emailStatusConfig.not_sent.icon} {emailStatusConfig.not_sent.label}
+                        </span>
                       )}
                     </div>
-                  )}
-                </div>
-              )}
+                    {sentAt && (
+                      <div className="mt-2 text-xs text-gray-400 space-y-0.5">
+                        <p>Enviado: {new Date(sentAt).toLocaleString("pt-PT")}</p>
+                        {deliveredAt && (
+                          <p>Entregue: {new Date(deliveredAt).toLocaleString("pt-PT")}</p>
+                        )}
+                        {openedAt && (
+                          <p className="text-purple-600 font-medium">
+                            👁️ Lido: {new Date(openedAt).toLocaleString("pt-PT")}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+
+                return (
+                  <>
+                    {/* 1. Receção do pedido (only for manual flow) */}
+                    {hasCustomerEmail && renderEmailRow(
+                      "Receção do pedido",
+                      reservation.customer_email_status,
+                      reservation.customer_email_sent_at,
+                      reservation.customer_email_delivered_at,
+                      reservation.customer_email_opened_at,
+                      "bg-gray-50",
+                    )}
+
+                    {/* 2. Confirmação (auto or manual) */}
+                    {(reservation.status === "confirmed" || reservation.status === "completed" || reservation.status === "no_show") && renderEmailRow(
+                      isAutoConfirmed ? "Confirmação automática" : "Reserva confirmada",
+                      reservation.confirmation_email_status,
+                      reservation.confirmation_email_sent_at,
+                      reservation.confirmation_email_delivered_at,
+                      reservation.confirmation_email_opened_at,
+                      "bg-green-50",
+                      isAutoConfirmed ? "Auto" : undefined,
+                    )}
+
+                    {/* Show "pending" state if not confirmed yet and no customer email */}
+                    {!hasCustomerEmail && !hasConfirmationEmail && reservation.status === "pending" && (
+                      <div className="p-3 bg-yellow-50 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Aguarda confirmação</span>
+                          <span className="text-sm text-yellow-600">⏳ Pendente</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. Lembrete 1 dia antes */}
+                    {renderEmailRow(
+                      "Lembrete 24h antes",
+                      reservation.day_before_reminder_status,
+                      reservation.day_before_reminder_sent_at,
+                      reservation.day_before_reminder_delivered_at,
+                      reservation.day_before_reminder_opened_at,
+                      "bg-blue-50",
+                    )}
+
+                    {/* 4. Lembrete 2h antes */}
+                    {renderEmailRow(
+                      "Lembrete 2h antes",
+                      reservation.same_day_reminder_status,
+                      reservation.same_day_reminder_sent_at,
+                      reservation.same_day_reminder_delivered_at,
+                      reservation.same_day_reminder_opened_at,
+                      "bg-blue-50",
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -834,13 +1085,36 @@ function ReservationModal({
               <h3 className="font-medium text-gray-900">
                 Motivo do Cancelamento
               </h3>
-              <textarea
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent resize-none"
-                rows={3}
-                placeholder="Ex: Cliente pediu cancelamento por telefone"
-              />
+              <select
+                value={cancelReasonId}
+                onChange={(e) => setCancelReasonId(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+              >
+                <option value="">Selecionar motivo...</option>
+                {adminReasons.map((r) => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+              </select>
+              {selectedAdminReason?.isCustom && (
+                <textarea
+                  value={cancelCustomText}
+                  onChange={(e) => setCancelCustomText(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent resize-none"
+                  rows={3}
+                  placeholder="Descreva o motivo..."
+                />
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Forma de cancelamento</label>
+                <select
+                  value={cancelSource}
+                  onChange={(e) => setCancelSource(e.target.value as "site" | "phone")}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                >
+                  <option value="site">Pelo site</option>
+                  <option value="phone">Por telefone</option>
+                </select>
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={handleCancel}
@@ -903,6 +1177,65 @@ function ReservationModal({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function CancelledReservationCard({
+  reservation,
+  onClick,
+}: {
+  reservation: Reservation;
+  onClick: () => void;
+}) {
+  return (
+    <div className="cursor-pointer hover:shadow-md transition-all" onClick={onClick}>
+      <Card variant="light" className="border border-red-200 bg-red-50/30">
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <h4 className="font-semibold text-gray-900">
+              {reservation.first_name} {reservation.last_name}
+            </h4>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Users size={14} />
+              <span>{reservation.party_size} pessoas</span>
+              <span className="text-gray-300">|</span>
+              <span>{new Date(reservation.reservation_date).toLocaleDateString("pt-PT")} {reservation.reservation_time}</span>
+            </div>
+          </div>
+          <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+            Cancelada
+          </span>
+        </div>
+        <div className="space-y-1.5 text-sm">
+          {reservation.cancellation_reason && (
+            <p className="text-gray-600 text-xs italic line-clamp-2">
+              &ldquo;{reservation.cancellation_reason}&rdquo;
+            </p>
+          )}
+          <div className="flex flex-wrap gap-1.5">
+            {reservation.cancelled_by && (
+              <span className={`px-1.5 py-0.5 text-xs rounded-full font-medium ${
+                reservation.cancelled_by === 'customer'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-red-100 text-red-700'
+              }`}>
+                {reservation.cancelled_by === 'customer' ? 'Cliente' : 'Admin'}
+              </span>
+            )}
+            {reservation.cancellation_source && (
+              <span className="px-1.5 py-0.5 text-xs rounded-full font-medium bg-gray-100 text-gray-600">
+                {reservation.cancellation_source === 'site' ? 'Via site' : 'Por telefone'}
+              </span>
+            )}
+            {reservation.cancelled_at && (
+              <span className="text-xs text-gray-400">
+                {new Date(reservation.cancelled_at).toLocaleString("pt-PT")}
+              </span>
+            )}
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

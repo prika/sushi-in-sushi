@@ -10,6 +10,7 @@ import { Reviews } from "@/components/Reviews";
 import { Locations } from "@/components/Locations";
 import { Contact } from "@/components/Contact";
 import { Footer } from "@/components/Footer";
+import { RestaurantSchema } from "@/components/seo/RestaurantSchema";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -21,8 +22,9 @@ export default async function Home({ params }: Props) {
 
   return (
     <>
+      <RestaurantSchema />
       <Header />
-      <main>
+      <main id="main-content">
         <Hero />
         <Menu />
         <About />

@@ -16,7 +16,7 @@ export interface Staff {
   id: string;
   email: string;
   name: string;
-  passwordHash: string;
+  authUserId: string | null;
   roleId: number;
   location: Location | null;
   phone: string | null;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { SupabaseOrderRepositoryOptimized as SupabaseOrderRepository } from '@/infrastructure/repositories/SupabaseOrderRepository.optimized';
 
 export async function GET(
@@ -9,7 +9,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const repository = new SupabaseOrderRepository(supabase);
 
     const averageTime = await repository.getAveragePreparationTime(id);

@@ -248,7 +248,7 @@ export default function VendusInvoicesPage() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                   {invoice.table_name ||
-                    (invoice.table_number != null
+                    (invoice.table_number !== null
                       ? `Mesa ${invoice.table_number}`
                       : "-")}
                 </td>

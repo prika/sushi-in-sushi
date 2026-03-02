@@ -989,7 +989,7 @@ function QuizForm({
   onChange,
 }: {
   form: typeof EMPTY_QUIZ_FORM;
-  onChange: (f: typeof EMPTY_QUIZ_FORM) => void;
+  onChange: (_f: typeof EMPTY_QUIZ_FORM) => void;
 }) {
   return (
     <>
@@ -1128,7 +1128,7 @@ function PreferenceForm({
   onChange,
 }: {
   form: typeof EMPTY_PREF_FORM;
-  onChange: (f: typeof EMPTY_PREF_FORM) => void;
+  onChange: (_f: typeof EMPTY_PREF_FORM) => void;
 }) {
   return (
     <>

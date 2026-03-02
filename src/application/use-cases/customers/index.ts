@@ -9,3 +9,4 @@ export * from './UpdateCustomerUseCase';
 export * from './DeleteCustomerUseCase';
 export * from './AddCustomerPointsUseCase';
 export * from './RecordCustomerVisitUseCase';
+export * from './TransferSessionDataUseCase';

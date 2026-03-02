@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useOrderReview - Hook para revisão de pedidos antes da submissão
@@ -10,9 +10,9 @@
  * - Validação de duplicados por confirmar
  */
 
-import { useState, useMemo, useCallback } from 'react';
-import { CartService } from '@/domain/services/CartService';
-import { CartItem, DuplicateInfo } from '@/domain/entities/CartItem';
+import { useState, useMemo, useCallback } from "react";
+import { CartService } from "@/domain/services/CartService";
+import { CartItem, DuplicateInfo } from "@/domain/entities/CartItem";
 
 /**
  * Opções do hook
@@ -21,7 +21,11 @@ export interface UseOrderReviewOptions {
   /** Itens atuais no carrinho */
   cart: CartItem[];
   /** Pedidos existentes na sessão (para deteção de duplicados) */
-  sessionOrders: Array<{ product_id: string; quantity: number; status: string }>;
+  sessionOrders: Array<{
+    product_id: string;
+    quantity: number;
+    status: string;
+  }>;
 }
 
 /**
@@ -43,39 +47,44 @@ export interface UseOrderReviewResult {
   /** Conjunto de productIds confirmados pelo utilizador */
   confirmedDuplicates: Set<string>;
   /** Confirma um duplicado (o utilizador aceita a repetição) */
-  confirmDuplicate: (productId: string) => void;
+  confirmDuplicate: (_productId: string) => void;
   /** Anula a confirmação de um duplicado */
-  undoConfirmDuplicate: (productId: string) => void;
+  undoConfirmDuplicate: (_productId: string) => void;
 }
 
 /**
  * Hook para revisão de pedidos antes da submissão
  */
-export function useOrderReview(options: UseOrderReviewOptions): UseOrderReviewResult {
+export function useOrderReview(
+  options: UseOrderReviewOptions,
+): UseOrderReviewResult {
   const { cart, sessionOrders } = options;
 
   // Estado do modal
   const [showReviewModal, setShowReviewModal] = useState(false);
 
   // Conjunto de duplicados confirmados pelo utilizador
-  const [confirmedDuplicates, setConfirmedDuplicates] = useState<Set<string>>(new Set());
+  const [confirmedDuplicates, setConfirmedDuplicates] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Mapa de duplicados (memoizado)
   const duplicateMap = useMemo(
     () => CartService.detectDuplicates(cart, sessionOrders),
-    [cart, sessionOrders]
+    [cart, sessionOrders],
   );
 
   // Itens duplicados (memoizado)
   const duplicateItems = useMemo(
     () => CartService.getDuplicateItems(cart, duplicateMap),
-    [cart, duplicateMap]
+    [cart, duplicateMap],
   );
 
   // Se existem duplicados por confirmar (memoizado)
   const hasUnconfirmedDuplicates = useMemo(
-    () => CartService.hasUnconfirmedDuplicates(duplicateItems, confirmedDuplicates),
-    [duplicateItems, confirmedDuplicates]
+    () =>
+      CartService.hasUnconfirmedDuplicates(duplicateItems, confirmedDuplicates),
+    [duplicateItems, confirmedDuplicates],
   );
 
   /**

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useSessionOrderingMode - Hook para gerir o modo de pedidos de uma sessão
@@ -8,10 +8,10 @@
  * - 'waiter_only': Apenas waiter pode fazer pedidos (modo bloqueio)
  */
 
-import { useState, useCallback } from 'react';
-import { useDependencies } from '../contexts/DependencyContext';
-import { OrderingMode } from '@/domain/value-objects/OrderingMode';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useCallback } from "react";
+import { useDependencies } from "../contexts/DependencyContext";
+import { OrderingMode } from "@/domain/value-objects/OrderingMode";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface UseSessionOrderingModeResult {
   /**
@@ -27,7 +27,9 @@ export interface UseSessionOrderingModeResult {
   /**
    * Atualiza o modo de pedidos
    */
-  updateMode: (newMode: OrderingMode) => Promise<{ success: boolean; error?: string }>;
+  updateMode: (
+    _newMode: OrderingMode,
+  ) => Promise<{ success: boolean; error?: string }>;
 
   /**
    * Estado de loading durante atualização
@@ -43,13 +45,13 @@ export interface UseSessionOrderingModeResult {
  */
 export function useSessionOrderingMode(
   sessionId: string | null,
-  initialMode?: OrderingMode
+  initialMode?: OrderingMode,
 ): UseSessionOrderingModeResult {
   const { updateSessionOrderingMode } = useDependencies();
   const { user } = useAuth();
 
   const [orderingMode, setOrderingMode] = useState<OrderingMode | null>(
-    initialMode || null
+    initialMode || null,
   );
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -57,13 +59,15 @@ export function useSessionOrderingMode(
    * Atualiza o ordering mode
    */
   const updateMode = useCallback(
-    async (newMode: OrderingMode): Promise<{ success: boolean; error?: string }> => {
+    async (
+      newMode: OrderingMode,
+    ): Promise<{ success: boolean; error?: string }> => {
       if (!sessionId) {
-        return { success: false, error: 'Nenhuma sessão selecionada' };
+        return { success: false, error: "Nenhuma sessão selecionada" };
       }
 
       if (!user) {
-        return { success: false, error: 'Não autenticado' };
+        return { success: false, error: "Não autenticado" };
       }
 
       setIsUpdating(true);
@@ -84,16 +88,16 @@ export function useSessionOrderingMode(
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Erro desconhecido',
+          error: error instanceof Error ? error.message : "Erro desconhecido",
         };
       } finally {
         setIsUpdating(false);
       }
     },
-    [sessionId, user, updateSessionOrderingMode]
+    [sessionId, user, updateSessionOrderingMode],
   );
 
-  const canClientOrder = orderingMode === 'client';
+  const canClientOrder = orderingMode === "client";
 
   return {
     orderingMode,

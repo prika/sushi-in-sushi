@@ -2,17 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SupabaseStaffRepository } from '@/infrastructure/repositories/SupabaseStaffRepository';
 import { createMockSupabaseClient, type MockSupabaseClient } from '@/__tests__/helpers/mock-supabase';
 
-vi.mock('bcryptjs', () => ({
-  default: {
-    hash: vi.fn().mockResolvedValue('hashed-password'),
-    compare: vi.fn().mockResolvedValue(true),
-  },
-}));
-
 /**
  * Testes para SupabaseStaffRepository
  *
- * Verifica mapeamento de dados, queries com filtros, hashing de password e
+ * Verifica mapeamento de dados, queries com filtros e
  * gestão de atribuições de mesas. Usa cliente Supabase mockado.
  */
 
@@ -21,7 +14,7 @@ function createDbStaff(overrides: Partial<any> = {}) {
     id: 'staff-1',
     email: 'admin@test.com',
     name: 'Admin User',
-    password_hash: 'hashed-pw',
+    auth_user_id: 'auth-user-1',
     role_id: 1,
     location: 'circunvalacao',
     phone: null,
@@ -123,7 +116,7 @@ describe('SupabaseStaffRepository', () => {
       expect(result).not.toBeNull();
       expect(result?.id).toBe('staff-1');
       expect(result?.email).toBe('admin@test.com');
-      expect(result?.passwordHash).toBe('hashed-pw');
+      expect(result?.authUserId).toBe('auth-user-1');
       expect(result?.roleId).toBe(1);
       expect(result?.role).toEqual({ id: 1, name: 'admin', description: 'Administrator' });
     });
@@ -189,10 +182,10 @@ describe('SupabaseStaffRepository', () => {
   // create
   // ---------------------------------------------------------------------------
   describe('create', () => {
-    it('deve criar staff com password hashed via bcrypt', async () => {
-      const dbRow = createDbStaff({ id: 'staff-new', password_hash: 'hashed-password' });
+    it('deve criar staff com auth_user_id', async () => {
+      const dbRow = createDbStaff({ id: 'staff-new', auth_user_id: 'auth-new' });
       // Remove roles since create returns mapToStaff (without role join)
-      const { roles, ...dbRowWithoutRoles } = dbRow;
+      const { roles: _roles, ...dbRowWithoutRoles } = dbRow;
       const builder = mockClient._newBuilder({ data: dbRowWithoutRoles, error: null });
 
       const result = await repository.create({
@@ -202,26 +195,25 @@ describe('SupabaseStaffRepository', () => {
         roleId: 3,
         location: 'boavista',
         phone: '+351911111111',
+        authUserId: 'auth-new',
       });
-
-      const bcrypt = (await import('bcryptjs')).default;
-      expect(bcrypt.hash).toHaveBeenCalledWith('senha-segura', 10);
 
       expect(builder.insert).toHaveBeenCalledWith({
         email: 'novo@test.com',
         name: 'Novo Staff',
-        password_hash: 'hashed-password',
         role_id: 3,
         location: 'boavista',
         phone: '+351911111111',
+        auth_user_id: 'auth-new',
       });
 
       expect(result.id).toBe('staff-new');
+      expect(result.authUserId).toBe('auth-new');
     });
 
     it('deve mapear roleId para role_id', async () => {
       const dbRow = createDbStaff({ role_id: 2 });
-      const { roles, ...dbRowWithoutRoles } = dbRow;
+      const { roles: _roles, ...dbRowWithoutRoles } = dbRow;
       const builder = mockClient._newBuilder({ data: dbRowWithoutRoles, error: null });
 
       await repository.create({
@@ -238,7 +230,7 @@ describe('SupabaseStaffRepository', () => {
 
     it('deve usar null para location e phone quando não fornecidos', async () => {
       const dbRow = createDbStaff({ location: null, phone: null });
-      const { roles, ...dbRowWithoutRoles } = dbRow;
+      const { roles: _roles, ...dbRowWithoutRoles } = dbRow;
       const builder = mockClient._newBuilder({ data: dbRowWithoutRoles, error: null });
 
       await repository.create({
@@ -276,7 +268,7 @@ describe('SupabaseStaffRepository', () => {
   describe('update', () => {
     it('deve atualizar campos parciais', async () => {
       const dbRow = createDbStaff({ name: 'Nome Atualizado' });
-      const { roles, ...dbRowWithoutRoles } = dbRow;
+      const { roles: _roles, ...dbRowWithoutRoles } = dbRow;
       const builder = mockClient._newBuilder({ data: dbRowWithoutRoles, error: null });
 
       const result = await repository.update('staff-1', { name: 'Nome Atualizado' });
@@ -286,21 +278,20 @@ describe('SupabaseStaffRepository', () => {
       expect(builder.eq).toHaveBeenCalledWith('id', 'staff-1');
     });
 
-    it('deve fazer hash da password quando fornecida', async () => {
-      const dbRow = createDbStaff({ password_hash: 'hashed-password' });
-      const { roles, ...dbRowWithoutRoles } = dbRow;
+    it('deve ignorar password (gerida via Supabase Auth)', async () => {
+      const dbRow = createDbStaff();
+      const { roles: _roles, ...dbRowWithoutRoles } = dbRow;
       const builder = mockClient._newBuilder({ data: dbRowWithoutRoles, error: null });
 
-      await repository.update('staff-1', { password: 'nova-senha' });
+      await repository.update('staff-1', { password: 'nova-senha', name: 'Novo Nome' });
 
-      const bcrypt = (await import('bcryptjs')).default;
-      expect(bcrypt.hash).toHaveBeenCalledWith('nova-senha', 10);
-      expect(builder.update).toHaveBeenCalledWith({ password_hash: 'hashed-password' });
+      // password should not appear in update data
+      expect(builder.update).toHaveBeenCalledWith({ name: 'Novo Nome' });
     });
 
     it('deve mapear isActive para is_active', async () => {
       const dbRow = createDbStaff({ is_active: false });
-      const { roles, ...dbRowWithoutRoles } = dbRow;
+      const { roles: _roles, ...dbRowWithoutRoles } = dbRow;
       const builder = mockClient._newBuilder({ data: dbRowWithoutRoles, error: null });
 
       await repository.update('staff-1', { isActive: false });
@@ -310,7 +301,7 @@ describe('SupabaseStaffRepository', () => {
 
     it('deve mapear roleId para role_id', async () => {
       const dbRow = createDbStaff({ role_id: 2 });
-      const { roles, ...dbRowWithoutRoles } = dbRow;
+      const { roles: _roles, ...dbRowWithoutRoles } = dbRow;
       const builder = mockClient._newBuilder({ data: dbRowWithoutRoles, error: null });
 
       await repository.update('staff-1', { roleId: 2 });
@@ -510,13 +501,13 @@ describe('SupabaseStaffRepository', () => {
   // mapToEntity (mapeamento de dados)
   // ---------------------------------------------------------------------------
   describe('mapToEntity', () => {
-    it('deve mapear password_hash para passwordHash', async () => {
-      const dbRow = createDbStaff({ password_hash: 'secret-hash' });
+    it('deve mapear auth_user_id para authUserId', async () => {
+      const dbRow = createDbStaff({ auth_user_id: 'auth-xyz' });
       mockClient._getBuilder().mockResolvedValue({ data: dbRow, error: null });
 
       const result = await repository.findById('staff-1');
 
-      expect(result?.passwordHash).toBe('secret-hash');
+      expect(result?.authUserId).toBe('auth-xyz');
     });
 
     it('deve mapear role_id para roleId', async () => {

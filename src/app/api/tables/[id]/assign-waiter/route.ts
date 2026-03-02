@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { getAuthUser } from '@/lib/auth';
 
 /**
@@ -17,7 +17,7 @@ export async function POST(
 ) {
   try {
     const tableId = params.id;
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // 1. Get current user from legacy auth
     const user = await getAuthUser();
@@ -211,7 +211,7 @@ export async function DELETE(
 ) {
   try {
     const tableId = params.id;
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // 1. Get current user from legacy auth
     const user = await getAuthUser();
@@ -237,7 +237,7 @@ export async function DELETE(
       );
     }
 
-    const roleName = (staffData.roles as any)?.name;
+    const _roleName = (staffData.roles as any)?.name;
 
     // 3. Delete assignment
     const { error: deleteError } = await supabase

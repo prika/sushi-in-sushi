@@ -62,7 +62,7 @@ const createChain = (resolvedValue: any) => {
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     single: vi.fn().mockReturnThis(),
-    then: (fn: (v: any) => any) => Promise.resolve(resolvedValue).then(fn),
+    then: (fn: (_v: any) => any) => Promise.resolve(resolvedValue).then(fn),
   };
   return chain;
 };

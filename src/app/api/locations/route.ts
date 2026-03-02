@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export async function GET() {
       return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("locations")
       .select(
@@ -35,5 +35,67 @@ export async function GET() {
       { error: "Erro ao obter localizacoes" },
       { status: 500 },
     );
+  }
+}
+
+/**
+ * POST /api/locations
+ * Create a new location (admin only)
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
+    }
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Nao autorizado" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { name, slug, vendus_enabled, vendus_store_id, vendus_register_id } = body;
+
+    if (!name?.trim() || !slug?.trim()) {
+      return NextResponse.json({ error: "Nome e slug obrigatorios" }, { status: 400 });
+    }
+
+    const supabase = createAdminClient();
+    const normalizedSlug = slug.trim().toLowerCase();
+
+    const { data: existing, error: existingError } = await supabase
+      .from("locations")
+      .select("id")
+      .eq("slug", normalizedSlug)
+      .maybeSingle();
+
+    if (existingError) {
+      return NextResponse.json({ error: existingError.message }, { status: 500 });
+    }
+
+    if (existing) {
+      return NextResponse.json({ error: "Slug ja existe" }, { status: 409 });
+    }
+
+    const { data, error } = await supabase
+      .from("locations")
+      .insert({
+        name: name.trim(),
+        slug: normalizedSlug,
+        is_active: true,
+        vendus_enabled: vendus_enabled ?? false,
+        vendus_store_id: vendus_store_id || null,
+        vendus_register_id: vendus_register_id || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data, { status: 201 });
+  } catch (error) {
+    console.error("Erro ao criar localizacao:", error);
+    return NextResponse.json({ error: "Erro ao criar localizacao" }, { status: 500 });
   }
 }
