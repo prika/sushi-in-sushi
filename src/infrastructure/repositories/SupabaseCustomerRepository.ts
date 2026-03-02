@@ -232,7 +232,7 @@ export class SupabaseCustomerRepository implements ICustomerRepository {
 
     // Merge allergens (union, deduplicated)
     const existingAllergens: string[] = current?.allergens ?? [];
-    const mergedAllergens = [...new Set([...existingAllergens, ...stats.allergens])];
+    const mergedAllergens = Array.from(new Set([...existingAllergens, ...stats.allergens]));
 
     const { data, error } = await this.supabase
       .from('customers')
