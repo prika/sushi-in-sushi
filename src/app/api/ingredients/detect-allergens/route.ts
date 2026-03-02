@@ -2,17 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { getAuthUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
+import { ALL_ALLERGENS } from "@/lib/constants/allergens";
 
-const EU_ALLERGENS = [
-  "gluten", "crustaceans", "eggs", "fish", "peanuts", "soybeans",
-  "milk", "nuts", "celery", "mustard", "sesame", "sulphites", "lupin", "molluscs",
-];
+const VALID_ALLERGEN_IDS = ALL_ALLERGENS.map((a) => a.id);
 
-const SYSTEM_PROMPT = `You are a food safety expert specializing in EU allergen regulations (Regulation 1169/2011).
+const SYSTEM_PROMPT = `You are a food safety expert specializing in allergen detection for restaurants.
 
-Your task is to identify which of the 14 mandatory EU allergens are present in each food ingredient.
+Your task is to identify which allergens are present in each food ingredient.
 
-The 14 EU allergens:
+Allergens to detect:
 - gluten: Cereals containing gluten (wheat, rye, barley, oats, spelt, kamut)
 - crustaceans: Crustaceans and products thereof (shrimp, crab, lobster)
 - eggs: Eggs and products thereof
@@ -27,6 +25,17 @@ The 14 EU allergens:
 - sulphites: Sulphur dioxide and sulphites (>10mg/kg, common in wine, dried fruits)
 - lupin: Lupin and products thereof
 - molluscs: Molluscs and products thereof (squid, octopus, clams, mussels, oysters)
+- wheat: Wheat specifically (beyond gluten — for wheat-specific allergies)
+- shellfish: Shellfish in general (broader than crustaceans — includes shrimp, crab, lobster, crayfish)
+- buckwheat: Buckwheat / soba noodles
+- gelatin: Gelatin and products thereof (gummy, jelly, some sauces)
+- banana: Banana and products thereof
+- kiwi: Kiwi and products thereof
+- peach: Peach and products thereof
+- apple: Apple and products thereof
+- raspberry: Raspberry and products thereof
+- strawberry: Strawberry and products thereof
+- passionfruit: Passion fruit and products thereof
 
 Guidelines:
 - Be accurate — only mark allergens that are genuinely present or commonly derived from that ingredient
@@ -160,7 +169,7 @@ export async function POST(request: NextRequest) {
     for (const ing of toProcess) {
       const detected = parsed[ing.name] ?? parsedLower[ing.name.toLowerCase().trim()];
       const allergens = detected
-        ? detected.filter((a) => EU_ALLERGENS.includes(a))
+        ? detected.filter((a) => VALID_ALLERGEN_IDS.includes(a))
         : [];
 
       const { error: updateError } = await supabase

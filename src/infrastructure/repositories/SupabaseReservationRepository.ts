@@ -34,6 +34,7 @@ interface DatabaseReservation {
   cancellation_reason: string | null;
   cancelled_by: string | null;
   cancellation_source: string | null;
+  customer_id: string | null;
   session_id: string | null;
   seated_at: string | null;
   marketing_consent: boolean;
@@ -146,6 +147,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
     if (data.cancellationReason !== undefined) updateData.cancellation_reason = data.cancellationReason;
     if (data.cancelledBy !== undefined) updateData.cancelled_by = data.cancelledBy;
     if (data.cancellationSource !== undefined) updateData.cancellation_source = data.cancellationSource;
+    if (data.customerId !== undefined) updateData.customer_id = data.customerId;
     if (data.sessionId !== undefined) updateData.session_id = data.sessionId;
 
     const { data: updated, error } = await this.supabase
@@ -287,6 +289,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
       cancellationReason: row.cancellation_reason,
       cancelledBy: (row.cancelled_by as Reservation['cancelledBy']) || null,
       cancellationSource: (row.cancellation_source as Reservation['cancellationSource']) || null,
+      customerId: row.customer_id,
       sessionId: row.session_id,
       seatedAt: row.seated_at ? new Date(row.seated_at) : null,
       marketingConsent: row.marketing_consent,

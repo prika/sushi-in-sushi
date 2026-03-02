@@ -38,6 +38,8 @@ interface UseProductsOptions {
   availableOnly?: boolean;
   rodizioOnly?: boolean;
   categoryId?: string;
+  /** Filter products that include at least one of these service modes */
+  serviceModes?: string[];
 }
 
 export function useProductsOptimized(options: UseProductsOptions = {}) {
@@ -149,12 +151,21 @@ export function useProductsOptimized(options: UseProductsOptions = {}) {
       filtered = filtered.filter((p) => p.categoryId === options.categoryId);
     }
 
+    if (options.serviceModes?.length) {
+      filtered = filtered.filter((p) =>
+        // Products with no service modes set are available in all modes (backwards compat)
+        p.serviceModes.length === 0 ||
+        p.serviceModes.some((m) => options.serviceModes!.includes(m)),
+      );
+    }
+
     return filtered;
   }, [
     products,
     options.availableOnly,
     options.rodizioOnly,
     options.categoryId,
+    options.serviceModes,
   ]);
 
   // Group products by category

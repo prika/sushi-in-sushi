@@ -1,5 +1,82 @@
 # Alterações Recentes - Sushi in Sushi
 
+## 📅 Data: 2026-03-01 (Atualização 2)
+
+### 🎯 Funcionalidades Implementadas
+
+#### 1. **Reserva → Cliente Automático (Visit Tracking)** ✅
+
+**Arquivos criados:**
+- `/supabase/migrations/075_reservation_customer_id.sql` — FK `customer_id` em reservations
+
+**Arquivos modificados:**
+- `/src/domain/entities/Reservation.ts` — campo `customerId: string | null`
+- `/src/infrastructure/repositories/SupabaseReservationRepository.ts` — mapeamento `customer_id` ↔ `customerId`
+- `/src/app/api/reservations/route.ts` — POST: após upsert customer, guarda `customer_id` na reserva
+- `/src/app/api/reservations/[id]/route.ts` — PATCH: ao completar reserva, chama `RecordCustomerVisitUseCase`
+- `/src/app/api/reservation-cancel/[id]/route.ts` — mapeamento legacy atualizado
+- `/src/types/database.ts` — `customer_id` em Row/Insert/Update
+- `/src/types/supabase.ts` — `customer_id` em Row/Insert/Update
+
+**O que faz:**
+- Quando o cliente faz uma reserva, é criado/atualizado na tabela `customers` e o `customer_id` é guardado na reserva
+- Quando a reserva é marcada como "completed" (cliente sentou-se), `RecordCustomerVisitUseCase` incrementa `visit_count`
+- Isto provoca a progressão automática de tier: Tier 2 (Identificado) → Tier 3 (Cliente)
+- `spent=0` no momento de sentar — o `totalSpent` será atualizado quando a sessão fechar (futuro)
+- Fallback: se `customer_id` não existir na reserva, procura cliente por email
+
+**Fluxo:**
+```
+POST /api/reservations  → upsert customer + customer_id na reserva → Tier 2
+PATCH status=completed  → RecordCustomerVisitUseCase → visitCount++ → Tier 3
+```
+
+---
+
+#### 2. **Session Customers no Admin Clientes** ✅
+
+**Arquivos criados:**
+- `/src/app/api/admin/session-customers/route.ts` — Lista com stats de jogos, paginação e pesquisa
+- `/src/app/api/admin/session-customers/[id]/route.ts` — Detalhe com game answers, prizes e orders
+
+**Arquivos modificados:**
+- `/src/app/admin/clientes/page.tsx` — Tabs "Fidelizados" + "Sessão", painel lateral com detalhes
+
+**O que faz:**
+- Tab "Sessão" mostra todos os `session_customers` (utilizadores de mesa via QR code)
+- Tabela: Nome | Patamar | Mesa | Jogos | Score | Prémios | Data
+- Stats: Total, Com Email, Com Jogos, Prémios
+- Painel lateral com histórico de jogos, prémios e pedidos
+- Tier computado dinamicamente via `computeCustomerTier()` (não usa valor guardado)
+- Paginação para > 200 registos
+
+---
+
+#### 3. **Revisão de Lógica de Tiers** ✅
+
+**Arquivos modificados:**
+- `/src/domain/value-objects/CustomerTier.ts` — Tier 3 agora requer contacto **e** visitas
+- `/src/domain/services/CustomerTierService.ts` — `getMissingFieldsForNextTier` atualizado
+- `/src/__tests__/domain/services/CustomerTierService.test.ts` — 30 testes
+- `/src/__tests__/application/use-cases/session-customers/SessionCustomersUseCases.test.ts` — corrigido para novo tier
+- `/src/__tests__/application/use-cases/device-profiles/DeviceProfilesUseCases.test.ts` — corrigido para novo tier
+
+**Alteração principal:**
+- **Antes:** Tier 3 = (email **e** phone) **ou** visitas
+- **Depois:** Tier 3 = (email **ou** phone) **e** >= 1 visita concluída
+- Ter email+phone sem visitas agora resulta em Tier 2, não Tier 3
+
+---
+
+### 🗄️ Migrações de Base de Dados
+
+#### Migration 075: `reservation_customer_id`
+- `ALTER TABLE reservations ADD COLUMN customer_id UUID REFERENCES customers(id)`
+- `CREATE INDEX idx_reservations_customer_id ON reservations(customer_id)`
+- Status: Pendente aplicação via SQL Editor
+
+---
+
 ## 📅 Data: 2026-03-01
 
 ### 🎯 Funcionalidades Implementadas
@@ -15,11 +92,11 @@
 - `/src/__tests__/domain/services/CustomerTierService.test.ts` — 25 testes
 
 **O que faz:**
-- Tier 1 (Novo): só nome, sem contacto
-- Tier 2 (Identificado): email ou telefone
-- Tier 3 (Cliente): email+phone OU 1+ visita
-- Tier 4 (Regular): perfil completo + 3+ visitas
-- Tier 5 (VIP): perfil completo + 10+ visitas + 500€+ gasto
+- Tier 1 (Novo): sem email nem phone (só dados estatísticos)
+- Tier 2 (Identificado): tem email **ou** phone
+- Tier 3 (Cliente): tem email ou phone **e** >= 1 visita concluída
+- Tier 4 (Regular): perfil completo (email+phone+birthDate) **e** >= 3 visitas
+- Tier 5 (VIP): perfil completo **e** >= 10 visitas **e** >= 500€ gasto
 - Insights: reserva frequente, no-show, grupos grandes, alto valor, cliente fiável
 - Cores por tier (cinza, azul, âmbar, esmeralda, roxo)
 

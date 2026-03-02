@@ -18,6 +18,13 @@ function createTestCustomer(overrides: Partial<Customer> = {}): Customer {
     points: 0,
     totalSpent: 0,
     visitCount: 0,
+    gamesPlayed: 0,
+    totalScore: 0,
+    prizesWon: 0,
+    prizesRedeemed: 0,
+    ratingsGiven: 0,
+    avgRatingGiven: 0,
+    allergens: [],
     isActive: true,
     createdAt: new Date('2026-01-01T12:00:00Z'),
     updatedAt: new Date('2026-01-01T12:00:00Z'),
@@ -35,6 +42,8 @@ function createMockCustomerRepository() {
     delete: vi.fn(),
     addPoints: vi.fn(),
     recordVisit: vi.fn(),
+    recordVisitWithSessionStats: vi.fn(),
+    recordCompanionship: vi.fn(),
   };
 }
 
@@ -306,8 +315,8 @@ describe('RegisterSessionCustomerUseCase', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      // With email + phone + fullName + birthDate => tier 3
-      expect(result.data.tier).toBe(3);
+      // With email + phone but no visits => tier 2 (Identificado)
+      expect(result.data.tier).toBe(2);
     }
   });
 
@@ -428,7 +437,8 @@ describe('RegisterSessionCustomerUseCase', () => {
     if (result.success) {
       expect(result.data.id).toBe('sc-1');
       expect(result.data.session_id).toBe('session-1');
-      expect(result.data.tier).toBe(3);
+      // email + phone but no visits => tier 2 (Identificado)
+      expect(result.data.tier).toBe(2);
     }
   });
 
@@ -533,12 +543,12 @@ describe('UpdateSessionCustomerTierUseCase', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      // displayName + email + phone => tier 3 (email+phone = Cliente)
-      expect(result.data.tier).toBe(3);
+      // displayName + email + phone but no visits => tier 2 (Identificado)
+      expect(result.data.tier).toBe(2);
     }
   });
 
-  it('deve computar tier 3 quando todos os campos estao preenchidos', async () => {
+  it('deve computar tier 2 quando tem email e phone mas sem visitas', async () => {
     mockSessionCustomerClient.getSessionCustomer.mockResolvedValue({
       data: { ...currentRecord, email: 'joao@teste.pt', phone: '+351912345678' },
       error: null,
@@ -555,8 +565,8 @@ describe('UpdateSessionCustomerTierUseCase', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      // email + phone + fullName + birthDate => tier 3
-      expect(result.data.tier).toBe(3);
+      // email + phone + fullName + birthDate but no visits => tier 2 (Identificado)
+      expect(result.data.tier).toBe(2);
     }
   });
 

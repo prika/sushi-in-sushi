@@ -16,6 +16,14 @@ export interface Customer {
   totalSpent: number;
   visitCount: number;
   isActive: boolean;
+  // Session stats (accumulated across all sessions)
+  gamesPlayed: number;
+  totalScore: number;
+  prizesWon: number;
+  prizesRedeemed: number;
+  ratingsGiven: number;
+  avgRatingGiven: number;
+  allergens: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +48,13 @@ export interface UpdateCustomerData {
   totalSpent?: number;
   visitCount?: number;
   isActive?: boolean;
+  gamesPlayed?: number;
+  totalScore?: number;
+  prizesWon?: number;
+  prizesRedeemed?: number;
+  ratingsGiven?: number;
+  avgRatingGiven?: number;
+  allergens?: string[];
 }
 
 export interface CustomerFilter {

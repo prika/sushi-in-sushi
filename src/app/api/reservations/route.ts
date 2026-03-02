@@ -32,6 +32,7 @@ function mapToLegacyReservation(reservation: Reservation): LegacyReservation {
     confirmed_at: reservation.confirmedAt?.toISOString() || null,
     cancelled_at: reservation.cancelledAt?.toISOString() || null,
     cancellation_reason: reservation.cancellationReason,
+    customer_id: reservation.customerId,
     session_id: reservation.sessionId,
     seated_at: reservation.seatedAt?.toISOString() || null,
     marketing_consent: reservation.marketingConsent,
@@ -249,14 +250,17 @@ export async function POST(request: NextRequest) {
       const customerRepository = new SupabaseCustomerRepository(supabase);
       const existingCustomer = await customerRepository.findByEmail(reservationData.email);
 
+      let customerId: string | null = null;
+
       if (!existingCustomer) {
-        await customerRepository.create({
+        const newCustomer = await customerRepository.create({
           email: reservationData.email,
           name: `${reservationData.firstName} ${reservationData.lastName}`,
           phone: reservationData.phone,
           preferredLocation: reservationData.location as Location,
           marketingConsent: reservationData.marketingConsent,
         });
+        customerId = newCustomer.id;
       } else {
         // Update phone, marketing consent, and preferred location if changed
         await customerRepository.update(existingCustomer.id, {
@@ -264,6 +268,15 @@ export async function POST(request: NextRequest) {
           preferredLocation: reservationData.location as Location,
           ...(reservationData.marketingConsent && { marketingConsent: true }),
         });
+        customerId = existingCustomer.id;
+      }
+
+      // Link customer to reservation
+      if (customerId) {
+        await supabase
+          .from("reservations")
+          .update({ customer_id: customerId })
+          .eq("id", reservation.id);
       }
     } catch (customerError) {
       // Don't fail the reservation if customer upsert fails

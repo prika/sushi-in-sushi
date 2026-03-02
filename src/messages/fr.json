@@ -203,6 +203,8 @@
     "requestBill": "Demander l'Addition",
     "confirmBill": "Voulez-vous vraiment demander l'addition ? Un membre du personnel viendra à votre table.",
     "totalToPay": "Total à payer",
+    "invoiceWithNif": "Facture avec numéro fiscal ?",
+    "nifPlaceholder": "NIF (9 chiffres)",
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "staffNotified": "Un membre du personnel sera immédiatement notifié.",
@@ -218,6 +220,8 @@
     "addNewPerson": "ou ajouter une nouvelle personne",
     "howToAddress": "Comment souhaitez-vous être appelé(e) ? *",
     "namePlaceholder": "Ex : Jean, Marie, M. Dupont...",
+    "allergenQuestion": "Êtes-vous allergique à l'un de ces ingrédients ?",
+    "allergenWarning": "Les produits contenant ces allergènes seront mis en évidence dans le menu.",
     "exclusiveBenefits": "Obtenez des avantages exclusifs !",
     "benefitsDesc": "Remplissez les informations supplémentaires et recevez des offres spéciales pour votre anniversaire et des promotions exclusives.",
     "additionalData": "Informations supplémentaires (optionnel)",
@@ -315,7 +319,9 @@
     },
     "review": {
       "title": "Révision de la Commande",
-      "wastePolicy": "Pour éviter le gaspillage, confirmez que vous souhaitez tous les articles. Les articles non consommés peuvent entraîner des frais supplémentaires.",
+      "wastePolicyTitle": "Engagement Zéro Gaspillage",
+      "wastePolicy": "La durabilité nous tient très à cœur et nous voulons éviter tout gaspillage. Confirmez que vous souhaitez toutes les pièces — vous pouvez toujours en commander plus après !",
+      "wastePolicyFeedback": "Un plat ne vous a pas plu ? Dites-le nous ! Évaluez les pièces spécifiques pour nous aider à améliorer notre service.",
       "duplicateWarning": "Doublon",
       "groupedBy": "Articles de {name}",
       "reviewAndSend": "Réviser et Envoyer",
@@ -331,6 +337,12 @@
       "confirmed": "Confirmé",
       "undo": "Annuler",
       "confirmDuplicatesFirst": "Veuillez confirmer les articles en double ci-dessus avant d'envoyer"
+    },
+    "pieceLimiter": {
+      "exceeded": "Limite de pièces dépassée : {total} pièces dans le panier, maximum {max} ({perPerson} par personne).",
+      "wasteFeeReminder": "Rappel : les pièces non consommées entraîneront des frais de {fee}€ par pièce.",
+      "removeItems": "Retirez des articles du panier pour pouvoir envoyer la commande.",
+      "counter": "{current}/{max} pièces"
     },
     "status": {
       "pending": "En attente",
@@ -369,7 +381,34 @@
       "reasonLabel": "Motif de fermeture",
       "reasonPlaceholder": "Ex : Le client a changé d'avis, erreur de commande...",
       "confirmClose": "Oui, Fermer",
-      "confirmLeave": "Oui, Quitter"
+      "confirmLeave": "Oui, Quitter",
+      "leaveTableButton": "Quitter la Table (Sans Consommation)"
+    },
+    "productDetail": {
+      "ingredients": "Ingrédients",
+      "allergens": "Allergènes",
+      "prepTime": "Temps de préparation",
+      "reviews": "avis",
+      "pieces": "{count} pièces",
+      "includedInRodizio": "Inclus dans le Rodízio",
+      "close": "Fermer",
+      "addToCart": "Ajouter",
+      "allergenNames": {
+        "gluten": "Gluten",
+        "crustaceans": "Crustacés",
+        "eggs": "Œufs",
+        "fish": "Poisson",
+        "peanuts": "Arachides",
+        "soybeans": "Soja",
+        "milk": "Lait",
+        "nuts": "Fruits à coque",
+        "celery": "Céleri",
+        "mustard": "Moutarde",
+        "sesame": "Sésame",
+        "sulphites": "Sulfites",
+        "lupin": "Lupin",
+        "molluscs": "Mollusques"
+      }
     }
   },
   "reservation": {

@@ -85,6 +85,9 @@ function NotificationsTab() {
   const [wasteEnabled, setWasteEnabled] = useState(true);
   const [wasteFee, setWasteFee] = useState(2.5);
   const [waiterAlertMinutes, setWaiterAlertMinutes] = useState(60);
+  const [pieceLimiterEnabled, setPieceLimiterEnabled] = useState(false);
+  const [pieceLimiterMode, setPieceLimiterMode] = useState<'block' | 'warning'>('warning');
+  const [pieceLimiterMaxPerPerson, setPieceLimiterMaxPerPerson] = useState(15);
 
   useEffect(() => {
     fetchSettings();
@@ -103,6 +106,9 @@ function NotificationsTab() {
         setWasteEnabled(data.rodizio_waste_policy_enabled);
         setWasteFee(data.rodizio_waste_fee_per_piece);
         setWaiterAlertMinutes(data.waiter_alert_minutes || 60);
+        setPieceLimiterEnabled(data.piece_limiter_enabled ?? false);
+        setPieceLimiterMode(data.piece_limiter_mode ?? 'warning');
+        setPieceLimiterMaxPerPerson(data.piece_limiter_max_per_person ?? 15);
       }
     } catch (error) {
       console.error("Error fetching settings:", error);
@@ -128,6 +134,9 @@ function NotificationsTab() {
           rodizio_waste_policy_enabled: wasteEnabled,
           rodizio_waste_fee_per_piece: wasteFee,
           waiter_alert_minutes: waiterAlertMinutes,
+          piece_limiter_enabled: pieceLimiterEnabled,
+          piece_limiter_mode: pieceLimiterMode,
+          piece_limiter_max_per_person: pieceLimiterMaxPerPerson,
         }),
       });
 
@@ -317,6 +326,93 @@ function NotificationsTab() {
               Este valor sera mostrado no email de lembrete para reservas de
               rodizio
             </p>
+          </div>
+        )}
+      </div>
+
+      {/* Piece Limiter per Order (Rodizio) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📏</span>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Limitador de Pecas por Pedido (Rodizio)
+              </h3>
+            </div>
+            <p className="mt-2 text-gray-600 text-sm">
+              Limita o numero maximo de pecas que cada pessoa pode pedir por encomenda em modo rodizio.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={pieceLimiterEnabled}
+              onChange={(e) => setPieceLimiterEnabled(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
+          </label>
+        </div>
+
+        {pieceLimiterEnabled && (
+          <div className="mt-6 pl-11 space-y-4">
+            {/* Mode selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Modo de funcionamento
+              </label>
+              <div className="mt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPieceLimiterMode('warning')}
+                  className={`flex-1 py-2 px-3 text-sm rounded-lg border transition-colors ${
+                    pieceLimiterMode === 'warning'
+                      ? 'border-amber-400 bg-amber-50 text-amber-800 font-medium'
+                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  Aviso (permite enviar)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPieceLimiterMode('block')}
+                  className={`flex-1 py-2 px-3 text-sm rounded-lg border transition-colors ${
+                    pieceLimiterMode === 'block'
+                      ? 'border-red-400 bg-red-50 text-red-800 font-medium'
+                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                  }`}
+                >
+                  Bloquear (impede envio)
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                {pieceLimiterMode === 'warning'
+                  ? 'O cliente ve um aviso sobre o limite e a taxa de desperdicio, mas pode enviar o pedido.'
+                  : 'O cliente nao consegue enviar o pedido se ultrapassar o limite de pecas.'}
+              </p>
+            </div>
+
+            {/* Max pieces per person */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Limite de pecas por pessoa
+              </label>
+              <div className="mt-2 flex items-center gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={pieceLimiterMaxPerPerson}
+                  onChange={(e) => setPieceLimiterMaxPerPerson(parseInt(e.target.value) || 15)}
+                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37]"
+                />
+                <span className="text-gray-600">pecas por pessoa</span>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Exemplo: {pieceLimiterMaxPerPerson} pecas/pessoa x mesa de 4 = maximo {pieceLimiterMaxPerPerson * 4} pecas por pedido
+              </p>
+            </div>
           </div>
         )}
       </div>

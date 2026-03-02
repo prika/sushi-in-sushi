@@ -19,6 +19,9 @@ interface DatabaseReservationSettings {
   rodizio_waste_policy_enabled: boolean;
   rodizio_waste_fee_per_piece: number;
   waiter_alert_minutes: number;
+  piece_limiter_enabled: boolean;
+  piece_limiter_mode: string;
+  piece_limiter_max_per_person: number;
   updated_at: string;
   updated_by: string | null;
 }
@@ -77,6 +80,15 @@ export class SupabaseReservationSettingsRepository implements IReservationSettin
     if (data.waiterAlertMinutes !== undefined) {
       updateData.waiter_alert_minutes = data.waiterAlertMinutes;
     }
+    if (data.pieceLimiterEnabled !== undefined) {
+      updateData.piece_limiter_enabled = data.pieceLimiterEnabled;
+    }
+    if (data.pieceLimiterMode !== undefined) {
+      updateData.piece_limiter_mode = data.pieceLimiterMode;
+    }
+    if (data.pieceLimiterMaxPerPerson !== undefined) {
+      updateData.piece_limiter_max_per_person = data.pieceLimiterMaxPerPerson;
+    }
 
     const { data: updated, error } = await this.supabase
       .from('reservation_settings')
@@ -100,6 +112,9 @@ export class SupabaseReservationSettingsRepository implements IReservationSettin
       rodizioWastePolicyEnabled: row.rodizio_waste_policy_enabled,
       rodizioWasteFeePerPiece: row.rodizio_waste_fee_per_piece,
       waiterAlertMinutes: row.waiter_alert_minutes ?? 60,
+      pieceLimiterEnabled: row.piece_limiter_enabled ?? false,
+      pieceLimiterMode: (row.piece_limiter_mode ?? 'warning') as 'block' | 'warning',
+      pieceLimiterMaxPerPerson: row.piece_limiter_max_per_person ?? 15,
       updatedAt: new Date(row.updated_at),
       updatedBy: row.updated_by,
     };
@@ -115,6 +130,9 @@ export class SupabaseReservationSettingsRepository implements IReservationSettin
       rodizioWastePolicyEnabled: true,
       rodizioWasteFeePerPiece: 2.5,
       waiterAlertMinutes: 60,
+      pieceLimiterEnabled: false,
+      pieceLimiterMode: 'warning',
+      pieceLimiterMaxPerPerson: 15,
       updatedAt: new Date(),
       updatedBy: null,
     };

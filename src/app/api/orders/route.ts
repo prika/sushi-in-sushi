@@ -4,6 +4,8 @@ import { SupabaseOrderRepository } from "@/infrastructure/repositories/SupabaseO
 import { SupabaseProductRepository } from "@/infrastructure/repositories/SupabaseProductRepository";
 import { SupabaseSessionRepository } from "@/infrastructure/repositories/SupabaseSessionRepository";
 import { CreateOrderUseCase } from "@/application/use-cases/orders/CreateOrderUseCase";
+import { SupabaseReservationSettingsRepository } from "@/infrastructure/repositories/SupabaseReservationSettingsRepository";
+import { GetReservationSettingsUseCase } from "@/application/use-cases/reservation-settings";
 import type { CreateOrderDTO } from "@/application/dto/OrderDTO";
 
 export const dynamic = "force-dynamic";
@@ -100,6 +102,36 @@ export async function POST(request: NextRequest) {
         { error: "Apenas o empregado pode fazer pedidos neste momento" },
         { status: 403 },
       );
+    }
+
+    // Piece limiter enforcement (block mode only, rodizio sessions)
+    if (session.isRodizio) {
+      const settingsRepo = new SupabaseReservationSettingsRepository(supabase);
+      const settingsUseCase = new GetReservationSettingsUseCase(settingsRepo);
+      const settingsResult = await settingsUseCase.execute();
+
+      if (settingsResult.success && settingsResult.data.pieceLimiterEnabled) {
+        const settings = settingsResult.data;
+
+        if (settings.pieceLimiterMode === "block") {
+          const totalPieces = (items as OrderItemInput[]).reduce(
+            (sum, item) => sum + item.quantity,
+            0,
+          );
+          const maxPieces =
+            settings.pieceLimiterMaxPerPerson * (session.numPeople || 1);
+
+          if (totalPieces > maxPieces) {
+            return NextResponse.json(
+              {
+                error: `Limite excedido: máximo ${maxPieces} peças por pedido (${settings.pieceLimiterMaxPerPerson} por pessoa)`,
+                code: "PIECE_LIMIT_EXCEEDED",
+              },
+              { status: 400 },
+            );
+          }
+        }
+      }
     }
 
     // Create orders via use case (server-side price validation)

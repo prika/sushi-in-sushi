@@ -97,6 +97,7 @@ export async function POST(
         confirmed_at: reservation.confirmedAt?.toISOString() || null,
         cancelled_at: reservation.cancelledAt?.toISOString() || null,
         cancellation_reason: reservation.cancellationReason,
+        customer_id: reservation.customerId,
         session_id: reservation.sessionId,
         seated_at: reservation.seatedAt?.toISOString() || null,
         marketing_consent: reservation.marketingConsent,

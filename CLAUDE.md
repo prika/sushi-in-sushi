@@ -17,13 +17,14 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 ### Última Atualização: 2026-03-01
 
 **Alterações Recentes:**
+- ✅ **Sistema de Customer Tiers** - 5 tiers progressivos (Novo→Identificado→Cliente→Regular→VIP) com critérios comportamentais
+- ✅ **Reserva → Cliente Automático** - Reserva cria customer (Tier 2), visita concluída incrementa visitCount (→ Tier 3)
+- ✅ **Migration 075** - `reservations.customer_id` FK para `customers`, ligação bidirecional reserva↔cliente
+- ✅ **Session Customers no Admin** - Tab "Sessão" em `/admin/clientes` com dados de jogos, scores e prémios
 - ✅ **Alerta de Reservas para Empregados** - Waiter alertado X min antes de reservas confirmadas (configurável no admin, default 60min)
 - ✅ **Atribuição de Mesas para Reservas** - Modal com grelha de mesas: principal (dourado) + adicionais (azul, modo reservado)
-- ✅ **Migration 058** - `reservation_tables` (junção reserva→mesas), `waiter_alert_minutes`, `tables_assigned`
 - ✅ **Vendus Invoice Multi-Modo** - Faturas usam `vendus_ids[orderingMode]` correto por modo de serviço
-- ✅ **"Encerrar Mesa" vs "Pedir Conta"** - Sem pedidos → encerrar direto; com pedidos → modal de faturação
 - ✅ **Dashboard Waiter Reestruturado** - Tabs Ativas/Disponíveis, reservas próximas, chamadas desaparecem ao concluir
-- ✅ **Notificações Imediatas** - Estado local atualizado sem esperar refetch + polling 15s fallback
 
 Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 
@@ -35,18 +36,19 @@ Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 - ✅ **12 entidades** de domínio completas (incluindo Restaurant)
 - ✅ **13 repositórios** (interfaces + implementações Supabase)
 - ✅ **55+ use cases** totalmente testados
-- ✅ **3 domain services** com lógica de negócio isolada
+- ✅ **4 domain services** com lógica de negócio isolada
 - ✅ **Dependency Injection** via DependencyContext
 - ✅ **Result Pattern** para tratamento de erros tipado
 
 ### 📊 Cobertura de Testes - Exemplar
 
-**3004 testes passando**:
+**3006 testes passando**:
 - ✅ **Use Cases:** 100% testados (55+ use cases)
-- ✅ **Domain Services:** 100% testados (118 tests)
+- ✅ **Domain Services:** 100% testados (148 tests)
   - OrderService (44 tests)
   - SessionService (34 tests)
   - TableService (40 tests)
+  - CustomerTierService (30 tests)
 - ✅ **Infrastructure:** Padrão estabelecido (61 tests)
   - SupabaseRestaurantClosureRepository
   - SupabaseStaffTimeOffRepository
@@ -200,8 +202,8 @@ npx supabase db reset
 - `products` - Items do menu
 - `sessions` - Sessões de mesa (refeições)
 - `orders` - Pedidos individuais
-- `reservations` - Reservas
-- `customers` - Programa de fidelização
+- `reservations` - Reservas (`customer_id` FK → customers para tracking de visitas)
+- `customers` - Programa de fidelização (tier calculado dinamicamente via `computeCustomerTier`)
 - `waiter_tables` - Atribuições empregado-mesa (**UUID types:** staff_id é UUID, não integer)
 - `waiter_calls` - Chamadas de assistência
 - `restaurant_closures` - Dias de fecho do restaurante
@@ -338,11 +340,13 @@ O projeto segue **Clean Architecture** com separação rigorosa de responsabilid
 **Value Objects** (`/domain/value-objects/`):
 - `OrderStatus`, `SessionStatus`, `TableStatus`, `ReservationStatus`
 - `Location` (circunvalacao | boavista)
+- `CustomerTier` - Tiers 1-5 com labels, cores e lógica de computação
 
 **Domain Services** (`/domain/services/`):
 - `OrderService` - Cálculo de urgência, validação de status
 - `SessionService` - Regras de transição de estados
 - `TableService` - Validação de disponibilidade
+- `CustomerTierService` - Computação de tier, insights comportamentais, upgrade prompts
 
 ---
 
@@ -561,7 +565,8 @@ src/__tests__/
 │   └── services/
 │       ├── OrderService.test.ts (44 tests)
 │       ├── SessionService.test.ts (34 tests)
-│       └── TableService.test.ts (40 tests)
+│       ├── TableService.test.ts (40 tests)
+│       └── CustomerTierService.test.ts (30 tests)
 ├── infrastructure/
 │   └── repositories/
 │       ├── SupabaseRestaurantClosureRepository.test.ts (19 tests)
@@ -574,9 +579,9 @@ src/__tests__/
         └── useStaffTimeOff.test.ts (12 tests)
 ```
 
-**Cobertura:** 3004 testes passando
-- Use Cases: 100% testados (50+ use cases)
-- Domain Services: 100% testados (OrderService, SessionService, TableService)
+**Cobertura:** 3006 testes passando
+- Use Cases: 100% testados (55+ use cases)
+- Domain Services: 100% testados (OrderService, SessionService, TableService, CustomerTierService)
 - Repositories: Padrão estabelecido com infraestrutura testada
 - React Hooks: Padrão estabelecido (useActivityLog, useProducts, useStaffTimeOff)
 
@@ -780,6 +785,8 @@ As migrações estão em `/supabase/migrations/`:
 - `053_products_vendus_ids.sql` - `vendus_ids` JSONB multi-modo (dine_in, delivery, takeaway)
 - `055_ingredients_catalog.sql` - Catálogo de ingredientes e product-ingredients
 - `058_reservation_table_assignment.sql` - Atribuição de mesas a reservas, alerta waiter
+- `073_piece_limiter.sql` - Limitador de peças por sessão
+- `075_reservation_customer_id.sql` - FK `customer_id` em reservations → customers (visit tracking)
 
 ## Notas Importantes
 
@@ -819,3 +826,53 @@ Ordem das secções no painel do waiter (`/waiter`):
 - Produtos com preços diferentes por modo têm `vendus_ids` JSONB: `{"dine_in": "123", "delivery": "456"}`
 - Faturas resolvem: `vendus_ids[session.ordering_mode]` → `vendus_id` → `product_id`
 - Migration 053 adicionou a coluna e migrou dados existentes
+
+### Customer Tiers (Progressive Profiling)
+
+**5 tiers baseados em perfil + comportamento:**
+
+| Tier | Label | Critério |
+|------|-------|----------|
+| 1 | Novo | Sem email nem phone (só dados estatísticos) |
+| 2 | Identificado | Tem email **ou** phone |
+| 3 | Cliente | Tem email ou phone **e** >= 1 visita concluída |
+| 4 | Regular | Perfil completo (email+phone+birthDate) **e** >= 3 visitas |
+| 5 | VIP | Perfil completo **e** >= 10 visitas **e** >= 500€ gasto |
+
+**Ficheiros chave:**
+- `/src/domain/value-objects/CustomerTier.ts` — `computeCustomerTier()`, labels, cores
+- `/src/domain/services/CustomerTierService.ts` — `computeTier()`, `getMissingFieldsForNextTier()`, `computeInsights()`, `shouldShowUpgradePrompt()`
+- `/src/__tests__/domain/services/CustomerTierService.test.ts` — 30 testes
+
+**Cores por tier:** cinza (1), azul (2), âmbar (3), esmeralda (4), roxo (5)
+
+### Reservation → Customer Visit Tracking
+
+**Fluxo completo:**
+```
+1. Cliente faz reserva (POST /api/reservations)
+   → Customer upsert (email+phone) → Tier 2 (Identificado)
+   → reservations.customer_id = customer.id
+
+2. Admin confirma (PATCH status=confirmed)
+   → Email confirmação
+
+3. Cliente chega (PATCH status=completed + session_id)
+   → MarkReservationSeatedUseCase: status→completed, seated_at, session_id
+   → RecordCustomerVisitUseCase: visitCount++ → Tier 3 (Cliente)
+```
+
+**Ficheiros chave:**
+- `/src/app/api/reservations/route.ts` — POST: upsert customer + guarda `customer_id` na reserva
+- `/src/app/api/reservations/[id]/route.ts` — PATCH: ao completar, chama `RecordCustomerVisitUseCase`
+- `/src/application/use-cases/customers/RecordCustomerVisitUseCase.ts` — incrementa `visit_count` e `total_spent`
+- `/supabase/migrations/075_reservation_customer_id.sql` — `customer_id UUID REFERENCES customers(id)`
+
+### Admin Clientes — Tabs
+
+A página `/admin/clientes` tem duas tabs:
+- **Fidelizados** — Clientes da tabela `customers` (programa de fidelização, tiers, pontos)
+- **Sessão** — Clientes da tabela `session_customers` (utilizadores de mesa via QR code)
+  - Mostra dados de jogos: respostas, scores, prémios
+  - Tier computado dinamicamente via `computeCustomerTier()` (não usa tier guardado)
+  - APIs: `GET /api/admin/session-customers` (lista) e `GET /api/admin/session-customers/[id]` (detalhe)

@@ -28,6 +28,7 @@ export interface Reservation {
   cancellationReason: string | null;
   cancelledBy: 'admin' | 'customer' | null;
   cancellationSource: 'site' | 'phone' | null;
+  customerId: string | null;
   sessionId: string | null;
   seatedAt: Date | null;
   marketingConsent: boolean;
@@ -57,6 +58,7 @@ export interface UpdateReservationData {
   cancellationReason?: string;
   cancelledBy?: 'admin' | 'customer';
   cancellationSource?: 'site' | 'phone';
+  customerId?: string | null;
   sessionId?: string;
 }
 

@@ -2,9 +2,9 @@
  * Customer Tier Value Object
  * Defines progressive tiers based on profile completeness + behavioral engagement.
  *
- * Tier 1 – Novo:         Only a name, no contact info, no visits
+ * Tier 1 – Novo:         No contact info (only statistical data)
  * Tier 2 – Identificado: Has email or phone
- * Tier 3 – Cliente:      Has email+phone, OR has at least 1 visit/reservation
+ * Tier 3 – Cliente:      Has email or phone AND at least 1 completed visit
  * Tier 4 – Regular:      Full profile (email+phone+birthDate) + 3+ visits
  * Tier 5 – VIP:          Full profile + 10+ visits + 500€+ total spent
  */
@@ -56,8 +56,8 @@ export function computeCustomerTier(fields: CustomerTierInput): CustomerTier {
   // Regular: full profile + moderate engagement
   if (fullProfile && visitCount >= 3) return 4;
 
-  // Cliente: some engagement history OR good contact info
-  if ((hasEmail && hasPhone) || visitCount >= 1) return 3;
+  // Cliente: has contact AND at least 1 completed visit
+  if ((hasEmail || hasPhone) && visitCount >= 1) return 3;
 
   // Identificado: basic contact
   if (hasEmail || hasPhone) return 2;

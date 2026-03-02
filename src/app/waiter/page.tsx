@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRequireWaiter } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import { useLocations } from "@/presentation/hooks";
+import { useToast } from "@/components/ui/Toast";
 import type {
   Session,
   Table,
@@ -36,6 +37,7 @@ interface OrderWithTableInfo extends OrderWithProduct {
 export default function WaiterDashboard() {
   const { user, logout, isLoading: authLoading } = useRequireWaiter();
   const { locations } = useLocations();
+  const { showToast } = useToast();
   const [tables, setTables] = useState<TableWithSession[]>([]);
   const [orders, setOrders] = useState<OrderWithTableInfo[]>([]);
   const [waiterCalls, setWaiterCalls] = useState<
@@ -526,13 +528,11 @@ export default function WaiterDashboard() {
 
         if (!response.ok) {
           if (result.code === "LOCATION_MISMATCH") {
-            alert(`⚠️ ${result.error}`);
+            showToast("warning", result.error);
           } else if (result.code === "ALREADY_ASSIGNED") {
-            alert(`⚠️ Mesa já atribuída a ${result.assignedTo}`);
+            showToast("warning", `Mesa já atribuída a ${result.assignedTo}`);
           } else {
-            alert(
-              `Erro: ${result.error || "Não foi possível comandar a mesa"}`,
-            );
+            showToast("error", result.error || "Não foi possível comandar a mesa");
           }
           return;
         }
@@ -540,16 +540,15 @@ export default function WaiterDashboard() {
         // Success - refresh data to update UI
         await fetchDataRef.current();
 
-        // Show success message briefly
-        alert(`✅ ${result.message || "Mesa comandada com sucesso!"}`);
+        showToast("success", result.message || "Mesa comandada com sucesso!");
       } catch (error) {
         console.error("Error assigning table:", error);
-        alert("Erro ao comandar mesa");
+        showToast("error", "Erro ao comandar mesa");
       } finally {
         setAssigningTableId(null);
       }
     },
-    [user],
+    [user, showToast],
   );
 
   const handleOpenWaitingTable = useCallback(
@@ -573,20 +572,20 @@ export default function WaiterDashboard() {
 
         if (!response.ok) {
           const result = await response.json().catch(() => ({}));
-          alert(`Erro: ${result.error || "Não foi possível abrir a mesa"}`);
+          showToast("error", result.error || "Não foi possível abrir a mesa");
           return;
         }
 
         await fetchDataRef.current();
-        alert(`✅ Mesa #${tableNumber} aberta`);
+        showToast("success", `Mesa #${tableNumber} aberta`);
       } catch (error) {
         console.error("Error opening waiting table:", error);
-        alert("Erro ao abrir mesa");
+        showToast("error", "Erro ao abrir mesa");
       } finally {
         setOpeningTableId(null);
       }
     },
-    [],
+    [showToast],
   );
 
   const handleDismissWaiting = useCallback(
@@ -604,12 +603,12 @@ export default function WaiterDashboard() {
         await fetchDataRef.current();
       } catch (error) {
         console.error("Error dismissing waiting request:", error);
-        alert("Erro ao dispensar pedido");
+        showToast("error", "Erro ao dispensar pedido");
       } finally {
         setDismissingTableId(null);
       }
     },
-    [],
+    [showToast],
   );
 
   const handleOpenTableAssign = useCallback((reservation: Record<string, unknown>) => {
@@ -679,14 +678,14 @@ export default function WaiterDashboard() {
       setAdditionalTableIds([]);
       await fetchDataRef.current();
 
-      alert(`Mesa(s) atribuída(s) com sucesso!`);
+      showToast("success", "Mesa(s) atribuída(s) com sucesso!");
     } catch (err) {
       console.error("Error assigning tables:", err);
-      alert("Erro ao atribuir mesas. Tente novamente.");
+      showToast("error", "Erro ao atribuir mesas. Tente novamente.");
     } finally {
       setAssigningReservation(false);
     }
-  }, [selectedReservation, primaryTableId, additionalTableIds, user, supabase, allLocationTables]);
+  }, [selectedReservation, primaryTableId, additionalTableIds, user, supabase, allLocationTables, showToast]);
 
   if (authLoading || isLoading) {
     return (

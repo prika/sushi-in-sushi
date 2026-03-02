@@ -27,17 +27,26 @@ describe('CustomerTierService', () => {
       expect(tier).toBe(2);
     });
 
-    it('deve retornar tier 3 quando tem email e phone', () => {
+    it('deve retornar tier 2 quando tem email e phone mas sem visitas', () => {
       const tier = CustomerTierService.computeTier({
         email: 'ana@example.com',
         phone: '+351 912 345 678',
       });
+      expect(tier).toBe(2);
+    });
+
+    it('deve retornar tier 3 quando tem contacto e 1+ visita', () => {
+      const tier = CustomerTierService.computeTier({
+        email: 'x@y.com',
+        visitCount: 1,
+      });
       expect(tier).toBe(3);
     });
 
-    it('deve retornar tier 3 quando tem 1+ visita mesmo sem contacto completo', () => {
+    it('deve retornar tier 3 quando tem email, phone e 1+ visita', () => {
       const tier = CustomerTierService.computeTier({
-        email: 'x@y.com',
+        email: 'ana@example.com',
+        phone: '+351 912 345 678',
         visitCount: 1,
       });
       expect(tier).toBe(3);
@@ -72,8 +81,17 @@ describe('CustomerTierService', () => {
         visitCount: 20,
         totalSpent: 1000,
       });
-      // email + phone → tier 3, but not full profile, so can't reach 4/5
+      // email + phone + visits → tier 3, but not full profile, so can't reach 4/5
       expect(tier).toBe(3);
+    });
+
+    it('deve retornar tier 1 sem contacto mesmo com visitas', () => {
+      const tier = CustomerTierService.computeTier({
+        displayName: 'Anon',
+        visitCount: 5,
+      });
+      // sem email nem phone → não pode subir de tier 1
+      expect(tier).toBe(1);
     });
 
     it('deve ignorar strings vazias ou só espaços', () => {
@@ -129,15 +147,13 @@ describe('CustomerTierService', () => {
       expect(missing).not.toContain('email_or_phone');
     });
 
-    it('deve retornar phone e birth_date quando tier 2 e campos em falta', () => {
+    it('deve indicar more_visits quando tier 2 e sem visitas', () => {
       const missing = CustomerTierService.getMissingFieldsForNextTier(2 as CustomerTier, {
         email: 'a@b.com',
         visitCount: 0,
         totalSpent: 0,
       });
-      expect(missing).toContain('phone');
-      expect(missing).toContain('birth_date');
-      expect(missing).not.toContain('email');
+      expect(missing).toContain('more_visits');
     });
 
     it('deve indicar more_visits para tier 3', () => {

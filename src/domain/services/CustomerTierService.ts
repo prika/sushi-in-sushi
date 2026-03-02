@@ -88,9 +88,8 @@ export class CustomerTierService {
       }
     }
 
-    if (currentTier <= 2) {
-      if (!fields.email?.trim()) missing.push('email');
-      if (!fields.phone?.trim()) missing.push('phone');
+    if (currentTier === 2) {
+      if (visitCount < 1) missing.push('more_visits');
     }
 
     if (currentTier <= 3) {

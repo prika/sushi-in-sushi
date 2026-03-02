@@ -2,6 +2,8 @@
  * ReservationSettings Entity - Configurações do sistema de reservas
  */
 
+export type PieceLimiterMode = 'block' | 'warning';
+
 export interface ReservationSettings {
   id: number;
   dayBeforeReminderEnabled: boolean;
@@ -11,6 +13,9 @@ export interface ReservationSettings {
   rodizioWastePolicyEnabled: boolean;
   rodizioWasteFeePerPiece: number;
   waiterAlertMinutes: number;
+  pieceLimiterEnabled: boolean;
+  pieceLimiterMode: PieceLimiterMode;
+  pieceLimiterMaxPerPerson: number;
   updatedAt: Date;
   updatedBy: string | null;
 }
@@ -23,4 +28,7 @@ export interface UpdateReservationSettingsData {
   rodizioWastePolicyEnabled?: boolean;
   rodizioWasteFeePerPiece?: number;
   waiterAlertMinutes?: number;
+  pieceLimiterEnabled?: boolean;
+  pieceLimiterMode?: PieceLimiterMode;
+  pieceLimiterMaxPerPerson?: number;
 }

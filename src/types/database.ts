@@ -333,6 +333,7 @@ export type Database = {
           is_session_host: boolean;
           device_id: string | null;
           tier: number;
+          allergens: string[];
           email_verified: boolean;
           phone_verified: boolean;
           verification_token: string | null;
@@ -355,6 +356,7 @@ export type Database = {
           is_session_host?: boolean;
           device_id?: string | null;
           tier?: number;
+          allergens?: string[];
           email_verified?: boolean;
           phone_verified?: boolean;
           verification_token?: string | null;
@@ -375,6 +377,7 @@ export type Database = {
           is_session_host?: boolean;
           device_id?: string | null;
           tier?: number;
+          allergens?: string[];
           email_verified?: boolean;
           phone_verified?: boolean;
           verification_token?: string | null;
@@ -583,6 +586,14 @@ export type Database = {
           is_active: boolean;
           email_verified: boolean;
           phone_verified: boolean;
+          games_played: number;
+          total_score: number;
+          prizes_won: number;
+          prizes_redeemed: number;
+          ratings_given: number;
+          ratings_sum: number;
+          avg_rating_given: number;
+          allergens: string[];
           created_at: string;
           updated_at: string;
         };
@@ -600,6 +611,14 @@ export type Database = {
           is_active?: boolean;
           email_verified?: boolean;
           phone_verified?: boolean;
+          games_played?: number;
+          total_score?: number;
+          prizes_won?: number;
+          prizes_redeemed?: number;
+          ratings_given?: number;
+          ratings_sum?: number;
+          avg_rating_given?: number;
+          allergens?: string[];
           created_at?: string;
           updated_at?: string;
         };
@@ -617,6 +636,14 @@ export type Database = {
           is_active?: boolean;
           email_verified?: boolean;
           phone_verified?: boolean;
+          games_played?: number;
+          total_score?: number;
+          prizes_won?: number;
+          prizes_redeemed?: number;
+          ratings_given?: number;
+          ratings_sum?: number;
+          avg_rating_given?: number;
+          allergens?: string[];
           created_at?: string;
           updated_at?: string;
         };
@@ -1326,6 +1353,7 @@ export type Database = {
           confirmed_at: string | null;
           cancelled_at: string | null;
           cancellation_reason: string | null;
+          customer_id: string | null;
           session_id: string | null;
           seated_at: string | null;
           marketing_consent: boolean;
@@ -1367,6 +1395,7 @@ export type Database = {
           special_requests?: string | null;
           occasion?: string | null;
           status?: string;
+          customer_id?: string | null;
           marketing_consent?: boolean;
         };
         Update: {
@@ -1388,6 +1417,7 @@ export type Database = {
           confirmed_at?: string | null;
           cancelled_at?: string | null;
           cancellation_reason?: string | null;
+          customer_id?: string | null;
           session_id?: string | null;
           seated_at?: string | null;
           marketing_consent?: boolean;
@@ -2044,6 +2074,7 @@ export type Reservation = {
   confirmed_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+  customer_id: string | null;
   session_id: string | null;
   seated_at: string | null;
   marketing_consent: boolean;
@@ -2373,6 +2404,7 @@ export type SessionCustomer = {
   is_session_host: boolean;
   device_id: string | null;
   tier: number;
+  allergens: string[];
   created_at: string;
   updated_at: string;
 };
@@ -2390,6 +2422,7 @@ export type SessionCustomerInsert = {
   is_session_host?: boolean;
   device_id?: string | null;
   tier?: number;
+  allergens?: string[];
 };
 
 export type SessionCustomerUpdate = Partial<

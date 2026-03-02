@@ -23,6 +23,13 @@ function createTestCustomer(overrides: Partial<Customer> = {}): Customer {
     totalSpent: 500.00,
     visitCount: 5,
     isActive: true,
+    gamesPlayed: 0,
+    totalScore: 0,
+    prizesWon: 0,
+    prizesRedeemed: 0,
+    ratingsGiven: 0,
+    avgRatingGiven: 0,
+    allergens: [],
     createdAt: new Date('2024-01-01T12:00:00Z'),
     updatedAt: new Date('2024-01-01T12:00:00Z'),
     ...overrides,
@@ -49,6 +56,8 @@ function createMockCustomerRepository(): ICustomerRepository {
     delete: vi.fn(),
     addPoints: vi.fn(),
     recordVisit: vi.fn(),
+    recordVisitWithSessionStats: vi.fn(),
+    recordCompanionship: vi.fn(),
   };
 }
 

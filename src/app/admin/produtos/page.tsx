@@ -8,6 +8,7 @@ import type {
   IngredientWithProductCount,
 } from "@/domain/entities/Ingredient";
 import { AlertModal, ConfirmDialog } from "@/components/ui";
+import { ALL_ALLERGENS } from "@/lib/constants/allergens";
 
 type ProductStats = { orderCountByProductId: Record<string, number> };
 type ProductRatingsMap = Record<string, { avgRating: number; count: number }>;
@@ -1592,22 +1593,7 @@ export default function ProdutosPage() {
 // INGREDIENTS CATALOG TAB
 // =============================================
 
-const EU_ALLERGENS = [
-  { id: "gluten", label: "Glúten", emoji: "🌾" },
-  { id: "crustaceans", label: "Crustáceos", emoji: "🦐" },
-  { id: "eggs", label: "Ovos", emoji: "🥚" },
-  { id: "fish", label: "Peixe", emoji: "🐟" },
-  { id: "peanuts", label: "Amendoins", emoji: "🥜" },
-  { id: "soybeans", label: "Soja", emoji: "🫘" },
-  { id: "milk", label: "Leite", emoji: "🥛" },
-  { id: "nuts", label: "Frutos casca rija", emoji: "🌰" },
-  { id: "celery", label: "Aipo", emoji: "🥬" },
-  { id: "mustard", label: "Mostarda", emoji: "🟡" },
-  { id: "sesame", label: "Sésamo", emoji: "⚪" },
-  { id: "sulphites", label: "Sulfitos", emoji: "🍷" },
-  { id: "lupin", label: "Tremoço", emoji: "🌱" },
-  { id: "molluscs", label: "Moluscos", emoji: "🐚" },
-];
+// EU_ALLERGENS imported from shared constants
 
 const UNIT_OPTIONS = [
   { value: "g", label: "g (gramas)" },
@@ -1812,7 +1798,7 @@ function IngredientsCatalogTab() {
                   <div className="flex flex-wrap gap-0.5">
                     {(ing.allergens ?? []).length > 0 ? (
                       (ing.allergens ?? []).map((a) => {
-                        const allergen = EU_ALLERGENS.find((e) => e.id === a);
+                        const allergen = ALL_ALLERGENS.find((e) => e.id === a);
                         return allergen ? (
                           <span key={a} className="inline-block text-xs" title={allergen.label}>
                             {allergen.emoji}
@@ -1911,7 +1897,7 @@ function IngredientsCatalogTab() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Alergénios</label>
                 <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
-                  {EU_ALLERGENS.map((a) => (
+                  {ALL_ALLERGENS.map((a) => (
                     <label key={a.id} className="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 rounded px-1.5 py-1">
                       <input
                         type="checkbox"

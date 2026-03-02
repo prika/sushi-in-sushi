@@ -203,6 +203,8 @@
     "requestBill": "Request Bill",
     "confirmBill": "Are you sure you want to request the bill? A staff member will come to your table.",
     "totalToPay": "Total to pay",
+    "invoiceWithNif": "Invoice with tax number?",
+    "nifPlaceholder": "Tax ID (9 digits)",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "staffNotified": "A staff member will be notified immediately.",
@@ -218,6 +220,8 @@
     "addNewPerson": "or add new person",
     "howToAddress": "How would you like to be addressed? *",
     "namePlaceholder": "E.g.: John, Mary, Mr. Smith...",
+    "allergenQuestion": "Are you allergic to any of these ingredients?",
+    "allergenWarning": "Products containing these allergens will be highlighted in the menu.",
     "exclusiveBenefits": "Get exclusive benefits!",
     "benefitsDesc": "Fill in additional details and receive special birthday offers and exclusive promotions.",
     "additionalData": "Additional details (optional)",
@@ -315,7 +319,9 @@
     },
     "review": {
       "title": "Review Order",
-      "wastePolicy": "To avoid waste, please confirm you want all items. Unconsumed items may incur an additional fee.",
+      "wastePolicyTitle": "Zero Waste Commitment",
+      "wastePolicy": "We take sustainability very seriously and want to avoid any waste. Please confirm you want all pieces — you can always order more later!",
+      "wastePolicyFeedback": "Didn't enjoy a dish? Let us know! Rate specific pieces to help us improve our service.",
       "duplicateWarning": "Duplicate",
       "groupedBy": "Items from {name}",
       "reviewAndSend": "Review & Send",
@@ -331,6 +337,12 @@
       "confirmed": "Confirmed",
       "undo": "Undo",
       "confirmDuplicatesFirst": "Please confirm the duplicate items above before sending"
+    },
+    "pieceLimiter": {
+      "exceeded": "Piece limit exceeded: {total} pieces in cart, maximum {max} ({perPerson} per person).",
+      "wasteFeeReminder": "Remember: uneaten pieces will incur a fee of {fee}€ per piece.",
+      "removeItems": "Remove items from your cart to submit the order.",
+      "counter": "{current}/{max} pieces"
     },
     "status": {
       "pending": "In queue",
@@ -369,7 +381,34 @@
       "reasonLabel": "Reason for closing",
       "reasonPlaceholder": "E.g.: Customer changed mind, order mistake...",
       "confirmClose": "Yes, Close",
-      "confirmLeave": "Yes, Leave"
+      "confirmLeave": "Yes, Leave",
+      "leaveTableButton": "Leave Table (No Consumption)"
+    },
+    "productDetail": {
+      "ingredients": "Ingredients",
+      "allergens": "Allergens",
+      "prepTime": "Preparation time",
+      "reviews": "reviews",
+      "pieces": "{count} pieces",
+      "includedInRodizio": "Included in Rodízio",
+      "close": "Close",
+      "addToCart": "Add",
+      "allergenNames": {
+        "gluten": "Gluten",
+        "crustaceans": "Crustaceans",
+        "eggs": "Eggs",
+        "fish": "Fish",
+        "peanuts": "Peanuts",
+        "soybeans": "Soybeans",
+        "milk": "Milk",
+        "nuts": "Tree nuts",
+        "celery": "Celery",
+        "mustard": "Mustard",
+        "sesame": "Sesame",
+        "sulphites": "Sulphites",
+        "lupin": "Lupin",
+        "molluscs": "Molluscs"
+      }
     }
   },
   "reservation": {

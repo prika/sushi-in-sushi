@@ -4,7 +4,7 @@
 
 import { createClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { ICustomerRepository } from '@/domain/repositories/ICustomerRepository';
+import { ICustomerRepository, SessionStatsData } from '@/domain/repositories/ICustomerRepository';
 import {
   Customer,
   CustomerWithHistory,
@@ -25,6 +25,14 @@ interface DatabaseCustomer {
   total_spent: number;
   visit_count: number;
   is_active: boolean;
+  games_played: number;
+  total_score: number;
+  prizes_won: number;
+  prizes_redeemed: number;
+  ratings_given: number;
+  ratings_sum: number;
+  avg_rating_given: number;
+  allergens: string[];
   created_at: string;
   updated_at: string;
 }
@@ -137,6 +145,13 @@ export class SupabaseCustomerRepository implements ICustomerRepository {
     if (data.totalSpent !== undefined) updateData.total_spent = data.totalSpent;
     if (data.visitCount !== undefined) updateData.visit_count = data.visitCount;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
+    if (data.gamesPlayed !== undefined) updateData.games_played = data.gamesPlayed;
+    if (data.totalScore !== undefined) updateData.total_score = data.totalScore;
+    if (data.prizesWon !== undefined) updateData.prizes_won = data.prizesWon;
+    if (data.prizesRedeemed !== undefined) updateData.prizes_redeemed = data.prizesRedeemed;
+    if (data.ratingsGiven !== undefined) updateData.ratings_given = data.ratingsGiven;
+    if (data.avgRatingGiven !== undefined) updateData.avg_rating_given = data.avgRatingGiven;
+    if (data.allergens !== undefined) updateData.allergens = data.allergens;
 
     const { data: updated, error } = await this.supabase
       .from('customers')
@@ -202,6 +217,75 @@ export class SupabaseCustomerRepository implements ICustomerRepository {
     return this.mapToEntity(data);
   }
 
+  async recordVisitWithSessionStats(id: string, spent: number, stats: SessionStatsData): Promise<Customer> {
+    const { data: current } = await this.supabase
+      .from('customers')
+      .select('visit_count, total_spent, games_played, total_score, prizes_won, prizes_redeemed, ratings_given, ratings_sum, allergens')
+      .eq('id', id)
+      .single();
+
+    const newRatingsGiven = (current?.ratings_given || 0) + stats.ratingsGiven;
+    const newRatingsSum = (current?.ratings_sum || 0) + stats.ratingsSum;
+    const newAvgRating = newRatingsGiven > 0
+      ? Math.round((newRatingsSum / newRatingsGiven) * 10) / 10
+      : 0;
+
+    // Merge allergens (union, deduplicated)
+    const existingAllergens: string[] = current?.allergens ?? [];
+    const mergedAllergens = [...new Set([...existingAllergens, ...stats.allergens])];
+
+    const { data, error } = await this.supabase
+      .from('customers')
+      .update({
+        visit_count: (current?.visit_count || 0) + 1,
+        total_spent: (current?.total_spent || 0) + spent,
+        games_played: (current?.games_played || 0) + stats.gamesPlayed,
+        total_score: (current?.total_score || 0) + stats.totalScore,
+        prizes_won: (current?.prizes_won || 0) + stats.prizesWon,
+        prizes_redeemed: (current?.prizes_redeemed || 0) + stats.prizesRedeemed,
+        ratings_given: newRatingsGiven,
+        ratings_sum: newRatingsSum,
+        avg_rating_given: newAvgRating,
+        allergens: mergedAllergens,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return this.mapToEntity(data);
+  }
+
+  async recordCompanionship(customerId: string, companionId: string): Promise<void> {
+    // Upsert: increment shared_sessions if exists, create if not
+    const { data: existing } = await this.supabase
+      .from('customer_companions')
+      .select('shared_sessions')
+      .eq('customer_id', customerId)
+      .eq('companion_id', companionId)
+      .single();
+
+    if (existing) {
+      await this.supabase
+        .from('customer_companions')
+        .update({
+          shared_sessions: existing.shared_sessions + 1,
+          last_shared_session_at: new Date().toISOString(),
+        })
+        .eq('customer_id', customerId)
+        .eq('companion_id', companionId);
+    } else {
+      await this.supabase
+        .from('customer_companions')
+        .insert({
+          customer_id: customerId,
+          companion_id: companionId,
+          shared_sessions: 1,
+          last_shared_session_at: new Date().toISOString(),
+        });
+    }
+  }
+
   private mapToEntity(row: DatabaseCustomer): Customer {
     return {
       id: row.id,
@@ -215,6 +299,13 @@ export class SupabaseCustomerRepository implements ICustomerRepository {
       totalSpent: row.total_spent,
       visitCount: row.visit_count,
       isActive: row.is_active,
+      gamesPlayed: row.games_played ?? 0,
+      totalScore: row.total_score ?? 0,
+      prizesWon: row.prizes_won ?? 0,
+      prizesRedeemed: row.prizes_redeemed ?? 0,
+      ratingsGiven: row.ratings_given ?? 0,
+      avgRatingGiven: Number(row.avg_rating_given) || 0,
+      allergens: row.allergens ?? [],
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };

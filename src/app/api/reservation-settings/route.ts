@@ -40,6 +40,9 @@ export async function GET() {
       rodizio_waste_policy_enabled: result.data.rodizioWastePolicyEnabled,
       rodizio_waste_fee_per_piece: result.data.rodizioWasteFeePerPiece,
       waiter_alert_minutes: result.data.waiterAlertMinutes,
+      piece_limiter_enabled: result.data.pieceLimiterEnabled,
+      piece_limiter_mode: result.data.pieceLimiterMode,
+      piece_limiter_max_per_person: result.data.pieceLimiterMaxPerPerson,
       updated_at: result.data.updatedAt.toISOString(),
       updated_by: result.data.updatedBy,
     };
@@ -93,6 +96,15 @@ export async function PATCH(request: NextRequest) {
     if (body.waiterAlertMinutes !== undefined || body.waiter_alert_minutes !== undefined) {
       updateData.waiterAlertMinutes = body.waiterAlertMinutes ?? body.waiter_alert_minutes;
     }
+    if (body.pieceLimiterEnabled !== undefined || body.piece_limiter_enabled !== undefined) {
+      updateData.pieceLimiterEnabled = body.pieceLimiterEnabled ?? body.piece_limiter_enabled;
+    }
+    if (body.pieceLimiterMode !== undefined || body.piece_limiter_mode !== undefined) {
+      updateData.pieceLimiterMode = body.pieceLimiterMode ?? body.piece_limiter_mode;
+    }
+    if (body.pieceLimiterMaxPerPerson !== undefined || body.piece_limiter_max_per_person !== undefined) {
+      updateData.pieceLimiterMaxPerPerson = body.pieceLimiterMaxPerPerson ?? body.piece_limiter_max_per_person;
+    }
 
     const result = await updateReservationSettings.execute({
       data: updateData,
@@ -116,6 +128,9 @@ export async function PATCH(request: NextRequest) {
       rodizio_waste_policy_enabled: result.data.rodizioWastePolicyEnabled,
       rodizio_waste_fee_per_piece: result.data.rodizioWasteFeePerPiece,
       waiter_alert_minutes: result.data.waiterAlertMinutes,
+      piece_limiter_enabled: result.data.pieceLimiterEnabled,
+      piece_limiter_mode: result.data.pieceLimiterMode,
+      piece_limiter_max_per_person: result.data.pieceLimiterMaxPerPerson,
       updated_at: result.data.updatedAt.toISOString(),
       updated_by: result.data.updatedBy,
     };

@@ -34,7 +34,7 @@ export interface UseCartResult {
   /** Itens atuais no carrinho */
   cart: CartItem[];
   /** Adiciona um produto ao carrinho */
-  addToCart: (_product: Product, _addedBy: string) => void;
+  addToCart: (_product: Product, _addedBy?: string) => void;
   /** Remove um produto do carrinho */
   removeFromCart: (_productId: string) => void;
   /** Atualiza a quantidade de um item */
@@ -99,8 +99,8 @@ export function useCart(options: UseCartOptions): UseCartResult {
   /**
    * Adiciona um produto ao carrinho
    */
-  const addToCart = useCallback((product: Product, addedBy: string) => {
-    setCart((prev) => CartService.addItem(prev, product, addedBy));
+  const addToCart = useCallback((product: Product, addedBy?: string) => {
+    setCart((prev) => CartService.addItem(prev, product, addedBy || ""));
   }, []);
 
   /**

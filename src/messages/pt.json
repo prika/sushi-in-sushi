@@ -203,6 +203,8 @@
     "requestBill": "Pedir Conta",
     "confirmBill": "Confirma que pretende pedir a conta? Um funcionário virá até à sua mesa.",
     "totalToPay": "Total a pagar",
+    "invoiceWithNif": "Fatura com contribuinte?",
+    "nifPlaceholder": "NIF (9 dígitos)",
     "cancel": "Cancelar",
     "confirm": "Confirmar",
     "staffNotified": "Um funcionário será notificado imediatamente.",
@@ -218,6 +220,8 @@
     "addNewPerson": "ou adicionar nova pessoa",
     "howToAddress": "Como quer ser tratado(a)? *",
     "namePlaceholder": "Ex: João, Maria, Sr. Silva...",
+    "allergenQuestion": "Tem alergia a algum destes ingredientes?",
+    "allergenWarning": "Os produtos com estes alergénios serão destacados no menu.",
     "exclusiveBenefits": "Ganhe vantagens exclusivas!",
     "benefitsDesc": "Preencha os dados adicionais e receba ofertas especiais no seu aniversário e promoções exclusivas.",
     "additionalData": "Dados adicionais (opcional)",
@@ -314,7 +318,9 @@
     },
     "review": {
       "title": "Revisão do Pedido",
-      "wastePolicy": "Para evitar desperdício, confirme que pretende todos os items. Items não consumidos podem ter taxa adicional.",
+      "wastePolicyTitle": "Compromisso Zero Desperdício",
+      "wastePolicy": "Levamos a sustentabilidade muito a sério e queremos evitar qualquer desperdício. Confirme que pretende todas as peças — pode sempre pedir mais depois!",
+      "wastePolicyFeedback": "Não gostou de algum prato? Diga-nos! Avalie as peças específicas para nos ajudar a melhorar o nosso serviço.",
       "duplicateWarning": "Duplicado",
       "groupedBy": "Items de {name}",
       "reviewAndSend": "Rever e Enviar",
@@ -330,6 +336,12 @@
       "confirmed": "Confirmado",
       "undo": "Desfazer",
       "confirmDuplicatesFirst": "Confirme os artigos duplicados acima antes de enviar"
+    },
+    "pieceLimiter": {
+      "exceeded": "Limite de peças excedido: {total} peças no carrinho, máximo {max} ({perPerson} por pessoa).",
+      "wasteFeeReminder": "Lembre-se: peças não consumidas terão taxa de {fee}€ por peça.",
+      "removeItems": "Remova itens do carrinho para poder enviar o pedido.",
+      "counter": "{current}/{max} peças"
     },
     "status": {
       "pending": "Na fila",
@@ -368,7 +380,34 @@
       "reasonLabel": "Motivo do encerramento",
       "reasonPlaceholder": "Ex: Cliente desistiu, erro no pedido...",
       "confirmClose": "Sim, Fechar",
-      "confirmLeave": "Sim, Sair"
+      "confirmLeave": "Sim, Sair",
+      "leaveTableButton": "Sair da Mesa (Sem Consumo)"
+    },
+    "productDetail": {
+      "ingredients": "Ingredientes",
+      "allergens": "Alergénios",
+      "prepTime": "Tempo de preparação",
+      "reviews": "avaliações",
+      "pieces": "{count} peças",
+      "includedInRodizio": "Incluído no Rodízio",
+      "close": "Fechar",
+      "addToCart": "Adicionar",
+      "allergenNames": {
+        "gluten": "Glúten",
+        "crustaceans": "Crustáceos",
+        "eggs": "Ovos",
+        "fish": "Peixe",
+        "peanuts": "Amendoins",
+        "soybeans": "Soja",
+        "milk": "Leite",
+        "nuts": "Frutos de casca rija",
+        "celery": "Aipo",
+        "mustard": "Mostarda",
+        "sesame": "Sésamo",
+        "sulphites": "Sulfitos",
+        "lupin": "Tremoço",
+        "molluscs": "Moluscos"
+      }
     }
   },
   "reservation": {

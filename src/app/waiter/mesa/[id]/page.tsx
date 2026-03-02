@@ -70,7 +70,10 @@ export default function WaiterMesaPage() {
   );
 
   // Products & categories via React Query (domain entities, cached)
-  const { products, categories, isLoading: loadingProducts } = useProductsOptimized({ availableOnly: true });
+  const { products, categories, isLoading: loadingProducts } = useProductsOptimized({ availableOnly: true, serviceModes: ["dine_in", "takeaway"] });
+
+  // Derived ordering type (rodizio vs à la carte) - consistent with mesa page
+  const isSessionRodizio = table?.activeSession?.is_rodizio === true;
 
   // Cart hook
   const {
@@ -397,7 +400,7 @@ export default function WaiterMesaPage() {
       const closeRes = await fetch(`/api/sessions/${sessionId}/close`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cancelOrders: hasOpenKitchenOrders }),
+        body: JSON.stringify({ cancelOrders: hasOpenKitchenOrders, totalSpent: total }),
       });
 
       if (!closeRes.ok) {
@@ -771,7 +774,7 @@ export default function WaiterMesaPage() {
                     </h3>
                     <div className="space-y-2">
                       {readyOrders.map((order) => (
-                        <OrderCard key={order.id} order={order} onStatusChange={handleUpdateOrderStatus} onRequestRevert={setRevertOrderId} />
+                        <OrderCard key={order.id} order={order} onStatusChange={handleUpdateOrderStatus} onRequestRevert={setRevertOrderId} isRodizio={isSessionRodizio} />
                       ))}
                     </div>
                   </div>
@@ -785,7 +788,7 @@ export default function WaiterMesaPage() {
                     </h3>
                     <div className="space-y-2">
                       {pendingOrders.map((order) => (
-                        <OrderCard key={order.id} order={order} onStatusChange={handleUpdateOrderStatus} onRequestRevert={setRevertOrderId} />
+                        <OrderCard key={order.id} order={order} onStatusChange={handleUpdateOrderStatus} onRequestRevert={setRevertOrderId} isRodizio={isSessionRodizio} />
                       ))}
                     </div>
                   </section>
@@ -799,7 +802,7 @@ export default function WaiterMesaPage() {
                     </h3>
                     <div className="space-y-2">
                       {preparingOrders.map((order) => (
-                        <OrderCard key={order.id} order={order} onStatusChange={handleUpdateOrderStatus} onRequestRevert={setRevertOrderId} />
+                        <OrderCard key={order.id} order={order} onStatusChange={handleUpdateOrderStatus} onRequestRevert={setRevertOrderId} isRodizio={isSessionRodizio} />
                       ))}
                     </div>
                   </section>
@@ -813,7 +816,7 @@ export default function WaiterMesaPage() {
                     </h3>
                     <div className="space-y-2">
                       {deliveredOrders.map((order) => (
-                        <OrderCard key={order.id} order={order} onStatusChange={handleUpdateOrderStatus} onRequestRevert={setRevertOrderId} />
+                        <OrderCard key={order.id} order={order} onStatusChange={handleUpdateOrderStatus} onRequestRevert={setRevertOrderId} isRodizio={isSessionRodizio} />
                       ))}
                     </div>
                   </section>
@@ -883,9 +886,19 @@ export default function WaiterMesaPage() {
                                 <span className="font-medium text-white text-sm leading-tight flex-1 mr-2">
                                   {product.name}
                                 </span>
-                                <span className="text-[#D4AF37] font-semibold text-sm whitespace-nowrap">
-                                  {product.price.toFixed(2)}€
-                                </span>
+                                {isSessionRodizio && product.isRodizio ? (
+                                  <span className="text-green-500 text-xs font-semibold whitespace-nowrap">
+                                    Incluído
+                                  </span>
+                                ) : isSessionRodizio && !product.isRodizio ? (
+                                  <span className="text-[#D4AF37] font-semibold text-sm whitespace-nowrap">
+                                    +{product.price.toFixed(2)}€
+                                  </span>
+                                ) : (
+                                  <span className="text-[#D4AF37] font-semibold text-sm whitespace-nowrap">
+                                    {product.price.toFixed(2)}€
+                                  </span>
+                                )}
                               </div>
                               {product.description && (
                                 <p className="text-xs text-gray-400 line-clamp-2 mb-2">
@@ -949,7 +962,7 @@ export default function WaiterMesaPage() {
 
                 {/* Floating cart bar */}
                 {cartItemsCount > 0 && (
-                  <div className="border-t border-gray-800 bg-[#1a1a1a] px-4 py-3 shrink-0 mb-16">
+                  <div className="border-t border-gray-800 bg-[#1a1a1a] px-4 py-3 shrink-0">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
                         <span className="text-white font-medium text-sm">{cartItemsCount} item(s)</span>
@@ -957,7 +970,13 @@ export default function WaiterMesaPage() {
                           Limpar
                         </button>
                       </div>
-                      <span className="text-[#D4AF37] font-bold">{cartTotal.toFixed(2)}€</span>
+                      {isSessionRodizio ? (
+                        <span className="text-[#D4AF37] font-bold">
+                          {cartTotal > 0 ? `+${cartTotal.toFixed(2)}€ extras` : "Incluído"}
+                        </span>
+                      ) : (
+                        <span className="text-[#D4AF37] font-bold">{cartTotal.toFixed(2)}€</span>
+                      )}
                     </div>
                     <button
                       onClick={openReview}
@@ -1211,9 +1230,15 @@ export default function WaiterMesaPage() {
                       <p className="text-xs text-gray-500 mt-1 truncate">📝 {item.notes}</p>
                     )}
                   </div>
-                  <span className="text-[#D4AF37] font-medium text-sm shrink-0">
-                    {(item.product.price * item.quantity).toFixed(2)}€
-                  </span>
+                  {isSessionRodizio && item.product.isRodizio ? (
+                    <span className="text-green-500 text-xs shrink-0">
+                      Incluído
+                    </span>
+                  ) : (
+                    <span className="text-[#D4AF37] font-medium text-sm shrink-0">
+                      {isSessionRodizio ? "+" : ""}{(item.product.price * item.quantity).toFixed(2)}€
+                    </span>
+                  )}
                   <button
                     onClick={() => removeFromCart(item.productId)}
                     className="text-gray-500 hover:text-red-400 transition-colors shrink-0"
@@ -1229,8 +1254,12 @@ export default function WaiterMesaPage() {
             {/* Totals + submit */}
             <div className="border-t border-gray-800 px-5 py-4">
               <div className="flex justify-between font-bold text-lg mb-4">
-                <span className="text-white">Total</span>
-                <span className="text-[#D4AF37]">{cartTotal.toFixed(2)}€</span>
+                <span className="text-white">{isSessionRodizio ? "Extras" : "Total"}</span>
+                {isSessionRodizio && cartTotal === 0 ? (
+                  <span className="text-green-500">Tudo incluído</span>
+                ) : (
+                  <span className="text-[#D4AF37]">{isSessionRodizio ? "+" : ""}{cartTotal.toFixed(2)}€</span>
+                )}
               </div>
               {hasUnconfirmedDuplicates && (
                 <p className="text-xs text-amber-400 text-center mb-3">
@@ -1693,10 +1722,12 @@ function OrderCard({
   order,
   onStatusChange,
   onRequestRevert,
+  isRodizio,
 }: {
   order: OrderWithProduct;
   onStatusChange: (_orderId: string, _status: string) => void;
   onRequestRevert?: (_orderId: string) => void;
+  isRodizio?: boolean;
 }) {
   const touchRef = useRef<{ startX: number; startY: number; swiping: boolean }>({ startX: 0, startY: 0, swiping: false });
   const [translateX, setTranslateX] = useState(0);
@@ -1826,9 +1857,13 @@ function OrderCard({
         </div>
 
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-800">
-          <span className="text-[#D4AF37] font-semibold">
-            {(order.unit_price * order.quantity).toFixed(2)}€
-          </span>
+          {isRodizio && order.product.is_rodizio ? (
+            <span className="text-green-500 text-xs font-semibold">Incluído</span>
+          ) : (
+            <span className="text-[#D4AF37] font-semibold">
+              {isRodizio ? "+" : ""}{(order.unit_price * order.quantity).toFixed(2)}€
+            </span>
+          )}
 
           {isSwipeableRight && (
             <span className="text-xs text-gray-600 flex items-center gap-1">
