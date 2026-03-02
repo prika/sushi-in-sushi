@@ -177,10 +177,11 @@ describe('GET /api/staff/[id]/metrics', () => {
     });
 
     it('ignora tempos de entrega inválidos', () => {
+      const now = Date.now();
       const invalidTimes = [
-        { created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, // 0 minutes
-        { created_at: new Date().toISOString(), updated_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString() }, // negative
-        { created_at: new Date().toISOString(), updated_at: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString() }, // > 120 min
+        { created_at: new Date(now).toISOString(), updated_at: new Date(now).toISOString() }, // 0 minutes
+        { created_at: new Date(now).toISOString(), updated_at: new Date(now - 3 * 60 * 60 * 1000).toISOString() }, // negative
+        { created_at: new Date(now).toISOString(), updated_at: new Date(now + 5 * 60 * 60 * 1000).toISOString() }, // > 120 min
       ];
 
       invalidTimes.forEach(time => {
@@ -478,25 +479,25 @@ describe('POST /api/staff-time-off', () => {
     });
 
     it('usa "vacation" como tipo padrão', () => {
-      const body = {
+      const body: { staffId: string; startDate: string; endDate: string; type?: string } = {
         staffId: 'staff-1',
         startDate: getFutureDate(7),
         endDate: getFutureDate(14),
       };
 
-      const type = body.type || 'vacation';
+      const type = body.type ?? 'vacation';
 
       expect(type).toBe('vacation');
     });
 
     it('usa null como reason padrão', () => {
-      const body = {
+      const body: { staffId: string; startDate: string; endDate: string; reason?: string | null } = {
         staffId: 'staff-1',
         startDate: getFutureDate(7),
         endDate: getFutureDate(14),
       };
 
-      const reason = body.reason || null;
+      const reason = body.reason ?? null;
 
       expect(reason).toBeNull();
     });
@@ -688,7 +689,7 @@ describe('PATCH /api/staff-time-off/[id]', () => {
       const body = { status: 'approved' };
       const auth = await mockVerifyAuth();
 
-      const updateData = { ...body };
+      const updateData: { status: string; approvedBy?: string } = { ...body };
       if (body.status === 'approved' && auth) {
         updateData.approvedBy = auth.id;
       }
@@ -699,7 +700,7 @@ describe('PATCH /api/staff-time-off/[id]', () => {
     it('não regista approvedBy se status não é approved', () => {
       const body = { status: 'pending' };
 
-      const updateData = { ...body };
+      const updateData: { status: string; approvedBy?: string } = { ...body };
       if (body.status === 'approved') {
         updateData.approvedBy = 'admin-1';
       }
