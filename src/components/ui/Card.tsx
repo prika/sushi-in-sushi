@@ -13,7 +13,7 @@ interface CardProps {
 
 export function Card({
   children,
-  variant = "dark",
+  variant = "light",
   padding = true,
   header,
   footer,

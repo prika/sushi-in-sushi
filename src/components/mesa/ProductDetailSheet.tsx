@@ -168,6 +168,9 @@ export function ProductDetailSheet({
           {/* Sheet */}
           <motion.div
             key="sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-sheet-title"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -200,7 +203,7 @@ export function ProductDetailSheet({
               {/* Product info */}
               <div className="px-4 pt-4 pb-28">
                 {/* Name + pieces */}
-                <h2 className="text-xl font-bold text-white">{product.name}</h2>
+                <h2 id="product-sheet-title" className="text-xl font-bold text-white">{product.name}</h2>
                 {product.quantity > 1 && (
                   <p className="text-sm text-gray-400 mt-0.5">
                     {t("mesa.productDetail.pieces", {
@@ -289,7 +292,7 @@ export function ProductDetailSheet({
 
             {/* Sticky bottom bar - Add to cart */}
             <div
-              className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 px-4 py-3 pb-safe flex items-center justify-between"
+              className="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 px-4 py-3 flex items-center justify-between"
               style={{
                 paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
               }}
@@ -308,38 +311,23 @@ export function ProductDetailSheet({
                 )}
               </div>
 
-              {/* Price */}
-              <div className="mt-3">
-                {isIncludedInRodizio ? (
-                  <span className="inline-block bg-[#D4AF37] text-black text-sm font-bold px-3 py-1 rounded-full">
-                    {t("mesa.productDetail.includedInRodizio")}
-                  </span>
-                ) : orderType === "rodizio" && !product.isRodizio ? (
-                  <span className="text-[#D4AF37] font-bold text-lg">
-                    +€{product.price.toFixed(2)}
-                  </span>
-                ) : (
-                  <span className="text-[#D4AF37] font-bold text-lg">
-                    €{product.price.toFixed(2)}
-                  </span>
-                )}
-              </div>
-
               {cartQuantity > 0 ? (
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => onUpdateQuantity(cartQuantity - 1)}
                     disabled={isWaiterOnly}
+                    aria-label={t("mesa.productDetail.decreaseQuantity")}
                     className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-gray-700 transition-colors disabled:opacity-50"
                   >
                     −
                   </button>
-                  <span className="w-8 text-center font-bold text-lg text-white">
+                  <span className="w-8 text-center font-bold text-lg text-white" aria-live="polite" aria-label={t("mesa.productDetail.quantity", { count: cartQuantity })}>
                     {cartQuantity}
                   </span>
                   <button
                     onClick={onAddToCart}
                     disabled={isWaiterOnly}
+                    aria-label={t("mesa.productDetail.increaseQuantity")}
                     className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center text-black font-bold hover:bg-[#C4A030] transition-colors disabled:opacity-50"
                   >
                     +

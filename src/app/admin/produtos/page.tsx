@@ -53,6 +53,8 @@ export default function ProdutosPage() {
     seoDescriptions: Record<string, string>;
   } | null>(null);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
+  const [isRevalidatingSchema, setIsRevalidatingSchema] = useState(false);
+  const [schemaRevalidatedAt, setSchemaRevalidatedAt] = useState<string | null>(null);
   const [bulkProgress, setBulkProgress] = useState<{
     generated: number;
     failed: number;
@@ -99,6 +101,22 @@ export default function ProdutosPage() {
 
     refreshAllProductIngredients();
   }, [refreshAllProductIngredients]);
+
+  const handleRevalidateSchema = async () => {
+    setIsRevalidatingSchema(true);
+    try {
+      const res = await fetch("/api/admin/revalidate-menu", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setSchemaRevalidatedAt(data.revalidatedAt);
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setIsRevalidatingSchema(false);
+    }
+  };
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -588,6 +606,22 @@ export default function ProdutosPage() {
               {isBulkGenerating ? "A gerar..." : "Traduzir Todos"}
             </button>
           </div>
+          <button
+            type="button"
+            onClick={handleRevalidateSchema}
+            disabled={isRevalidatingSchema}
+            title={schemaRevalidatedAt ? `Última atualização: ${new Date(schemaRevalidatedAt).toLocaleTimeString("pt-PT")}` : "Atualiza o schema de menu para Google/AI"}
+            className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isRevalidatingSchema ? (
+              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            )}
+            {isRevalidatingSchema ? "A atualizar..." : schemaRevalidatedAt ? "Schema ✓" : "Atualizar Schema"}
+          </button>
         </div>
       </div>
 

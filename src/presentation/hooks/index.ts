@@ -27,6 +27,7 @@ export * from './useAdminProducts';
 // Restaurant management hooks
 export * from './useRestaurants';
 export * from './useLocations';
+export * from './useSiteSettings';
 
 // Category and kitchen zone management hooks
 export * from './useCategories';

@@ -62,7 +62,8 @@ type TabId =
   | "tables"
   | "restaurants"
   | "categories"
-  | "kitchen-zones";
+  | "kitchen-zones"
+  | "brand";
 
 // =============================================
 // NOTIFICATIONS TAB COMPONENT
@@ -2203,6 +2204,7 @@ function RestaurantManagementTab() {
   });
 
   const [showModal, setShowModal] = useState(false);
+  const [modalTab, setModalTab] = useState<'geral' | 'operacoes' | 'jogos' | 'horarios'>('geral');
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(
     null,
   );
@@ -2273,6 +2275,13 @@ function RestaurantManagementTab() {
     name: "",
     slug: "",
     address: "",
+    description: "",
+    addressLocality: "Porto",
+    addressCountry: "PT",
+    googleMapsUrl: "",
+    phone: "",
+    opensAt: "12:00",
+    closesAt: "23:00",
     maxCapacity: 50,
     defaultPeoplePerTable: 4,
     orderCooldownMinutes: 0,
@@ -2293,10 +2302,106 @@ function RestaurantManagementTab() {
     gamesQuestionsPerRound: 5,
   });
 
+  // ── Schedule state (per-day hours) ──
+  type DaySchedule = { closed: boolean; shifts: { opens: string; closes: string }[] };
+  const DAYS_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon→Sun
+  const DAY_NAMES: Record<number, string> = {
+    0: "Domingo", 1: "Segunda-feira", 2: "Terça-feira", 3: "Quarta-feira",
+    4: "Quinta-feira", 5: "Sexta-feira", 6: "Sábado",
+  };
+
+  const makeEmptyWeek = (): Record<number, DaySchedule> =>
+    Object.fromEntries(DAYS_ORDER.map((d) => [d, { closed: true, shifts: [{ opens: "12:00", closes: "15:00" }] }]));
+
+  const [weekSchedule, setWeekSchedule] = useState<Record<number, DaySchedule>>(makeEmptyWeek);
+  const [loadingHours, setLoadingHours] = useState(false);
+  const [savingHours, setSavingHours] = useState(false);
+
+  const loadHours = useCallback(async (slug: string) => {
+    setLoadingHours(true);
+    try {
+      const res = await fetch(`/api/admin/restaurant-hours?slug=${slug}`);
+      const data: { day_of_week: number; opens_at: string; closes_at: string }[] = await res.json();
+      const schedule = makeEmptyWeek();
+      // Group by day
+      for (const row of data) {
+        const day = schedule[row.day_of_week];
+        if (day.closed) {
+          day.closed = false;
+          day.shifts = [];
+        }
+        day.shifts.push({ opens: row.opens_at, closes: row.closes_at });
+      }
+      setWeekSchedule(schedule);
+    } catch {
+      // Keep empty schedule on error
+    } finally {
+      setLoadingHours(false);
+    }
+  }, []);
+
+  const saveHours = async (slug: string) => {
+    const hours: { day_of_week: number; opens_at: string; closes_at: string }[] = [];
+    for (const [dayStr, day] of Object.entries(weekSchedule)) {
+      if (day.closed) continue;
+      for (const shift of day.shifts) {
+        if (shift.opens && shift.closes) {
+          hours.push({ day_of_week: Number(dayStr), opens_at: shift.opens, closes_at: shift.closes });
+        }
+      }
+    }
+    setSavingHours(true);
+    try {
+      await fetch("/api/admin/restaurant-hours", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, hours }),
+      });
+    } finally {
+      setSavingHours(false);
+    }
+  };
+
+  const updateDay = (dayOfWeek: number, update: Partial<DaySchedule>) => {
+    setWeekSchedule((prev) => ({
+      ...prev,
+      [dayOfWeek]: { ...prev[dayOfWeek], ...update },
+    }));
+  };
+
+  const updateShift = (dayOfWeek: number, shiftIdx: number, field: 'opens' | 'closes', value: string) => {
+    setWeekSchedule((prev) => {
+      const day = { ...prev[dayOfWeek] };
+      const shifts = [...day.shifts];
+      shifts[shiftIdx] = { ...shifts[shiftIdx], [field]: value };
+      return { ...prev, [dayOfWeek]: { ...day, shifts } };
+    });
+  };
+
+  const addShift = (dayOfWeek: number) => {
+    setWeekSchedule((prev) => {
+      const day = { ...prev[dayOfWeek] };
+      return { ...prev, [dayOfWeek]: { ...day, shifts: [...day.shifts, { opens: "18:00", closes: "22:00" }] } };
+    });
+  };
+
+  const removeShift = (dayOfWeek: number, shiftIdx: number) => {
+    setWeekSchedule((prev) => {
+      const day = { ...prev[dayOfWeek] };
+      const shifts = day.shifts.filter((_, i) => i !== shiftIdx);
+      return { ...prev, [dayOfWeek]: { ...day, shifts: shifts.length > 0 ? shifts : [{ opens: "12:00", closes: "15:00" }] } };
+    });
+  };
+
   const toRestaurantPayload = (
     fd: typeof formData,
   ): CreateRestaurantData & UpdateRestaurantData => ({
     ...fd,
+    description: fd.description.trim() || null,
+    addressLocality: fd.addressLocality.trim() || "Porto",
+    addressCountry: fd.addressCountry.trim() || "PT",
+    googleMapsUrl: fd.googleMapsUrl.trim() || null,
+    phone: fd.phone.trim() || null,
     gamesPrizeProductId: fd.gamesPrizeProductId?.trim()
       ? Number(fd.gamesPrizeProductId)
       : null,
@@ -2309,6 +2414,13 @@ function RestaurantManagementTab() {
         name: restaurant.name,
         slug: restaurant.slug,
         address: restaurant.address,
+        description: restaurant.description ?? "",
+        addressLocality: restaurant.addressLocality ?? "Porto",
+        addressCountry: restaurant.addressCountry ?? "PT",
+        googleMapsUrl: restaurant.googleMapsUrl ?? "",
+        phone: restaurant.phone ?? "",
+        opensAt: restaurant.opensAt ?? "12:00",
+        closesAt: restaurant.closesAt ?? "23:00",
         maxCapacity: restaurant.maxCapacity,
         defaultPeoplePerTable: restaurant.defaultPeoplePerTable,
         orderCooldownMinutes: restaurant.orderCooldownMinutes,
@@ -2333,6 +2445,13 @@ function RestaurantManagementTab() {
         name: "",
         slug: "",
         address: "",
+        description: "",
+        addressLocality: "Porto",
+        addressCountry: "PT",
+        googleMapsUrl: "",
+        phone: "",
+        opensAt: "12:00",
+        closesAt: "23:00",
         maxCapacity: 50,
         defaultPeoplePerTable: 4,
         orderCooldownMinutes: 0,
@@ -2348,6 +2467,12 @@ function RestaurantManagementTab() {
         gamesMinRoundsForPrize: 3,
         gamesQuestionsPerRound: 5,
       });
+    }
+    setModalTab('geral');
+    if (restaurant) {
+      loadHours(restaurant.slug);
+    } else {
+      setWeekSchedule(makeEmptyWeek());
     }
     setShowModal(true);
   };
@@ -2401,6 +2526,7 @@ function RestaurantManagementTab() {
           setCreatingTables(true);
           try {
             await update(editingRestaurant.id, toRestaurantPayload(formData));
+            await saveHours(formData.slug);
 
             const result = await recreateTablesViaApi(formData.slug, true);
 
@@ -2435,6 +2561,7 @@ function RestaurantManagementTab() {
           onCancel: async () => {
             setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
             await update(editingRestaurant.id, toRestaurantPayload(formData));
+            await saveHours(formData.slug);
             setShowModal(false);
           },
         },
@@ -2447,10 +2574,12 @@ function RestaurantManagementTab() {
     try {
       if (editingRestaurant) {
         await update(editingRestaurant.id, toRestaurantPayload(formData));
+        await saveHours(formData.slug);
       } else {
         const restaurant = await create(toRestaurantPayload(formData));
 
         if (restaurant) {
+          await saveHours(formData.slug);
           const result = await recreateTablesViaApi(formData.slug, false);
 
           if (result.success) {
@@ -2908,7 +3037,34 @@ function RestaurantManagementTab() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {/* Modal Tabs */}
+            <div className="flex border-b border-gray-200 px-6">
+              {([
+                { id: 'geral', label: 'Geral' },
+                { id: 'horarios', label: 'Horários' },
+                { id: 'operacoes', label: 'Operações' },
+                { id: 'jogos', label: 'Jogos' },
+              ] as const).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setModalTab(tab.id)}
+                  className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                    modalTab === tab.id
+                      ? 'border-[#D4AF37] text-[#D4AF37]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              {/* ── Tab: Geral ── */}
+              {modalTab === 'geral' && (
+              <div className="space-y-4">
+
               {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2965,109 +3121,219 @@ function RestaurantManagementTab() {
                 />
               </div>
 
-              {/* Max Capacity */}
+              {/* Phone */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Lotação Máxima *
+                  Telefone
                 </label>
                 <input
-                  type="number"
-                  min="1"
-                  value={formData.maxCapacity}
+                  type="tel"
+                  value={formData.phone}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      maxCapacity: parseInt(e.target.value),
-                    })
+                    setFormData({ ...formData, phone: e.target.value })
                   }
+                  placeholder="+351912348545"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-                  required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Capacidade total do restaurante (todas as mesas)
+                  Aparece nos resultados do Google
                 </p>
+              </div>
 
-                {/* Preview da Distribuição */}
-                {formData.maxCapacity > 0 && (
-                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <svg
-                        className="w-4 h-4 text-blue-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <span className="text-sm font-medium text-blue-900">
-                        Preview da Distribuição
-                      </span>
-                    </div>
-                    <div className="text-sm text-blue-800">
-                      {(() => {
-                        const ppt = formData.defaultPeoplePerTable || 4;
-                        const totalTables = Math.ceil(
-                          formData.maxCapacity / ppt,
-                        );
-                        const totalCapacity = totalTables * ppt;
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descrição
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  rows={3}
+                  placeholder="Breve descrição desta localização..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent resize-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Descrição específica desta localização (aparece no Google)
+                </p>
+              </div>
 
-                        return (
-                          <>
-                            <div className="flex flex-wrap gap-2 mb-2">
-                              <span className="px-2 py-1 bg-blue-200 text-blue-900 text-xs font-medium rounded-full">
-                                {totalTables} mesa{totalTables > 1 ? "s" : ""}{" "}
-                                de {ppt} pessoas
-                              </span>
-                            </div>
-                            <div className="text-xs text-blue-700 font-medium">
-                              📊 Total: {totalTables} mesa
-                              {totalTables > 1 ? "s" : ""} = {totalCapacity}{" "}
-                              lugares
-                              {totalCapacity > formData.maxCapacity && (
-                                <span className="ml-2 text-yellow-700">
-                                  (+{totalCapacity - formData.maxCapacity} lugar
-                                  {totalCapacity - formData.maxCapacity > 1
-                                    ? "es"
-                                    : ""}{" "}
-                                  extra)
-                                </span>
-                              )}
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </div>
+              {/* Address Locality & Country */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cidade
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.addressLocality}
+                    onChange={(e) =>
+                      setFormData({ ...formData, addressLocality: e.target.value })
+                    }
+                    placeholder="Porto"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    País (código)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={2}
+                    value={formData.addressCountry}
+                    onChange={(e) =>
+                      setFormData({ ...formData, addressCountry: e.target.value.toUpperCase() })
+                    }
+                    placeholder="PT"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Google Maps URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Google Maps URL
+                </label>
+                <input
+                  type="url"
+                  value={formData.googleMapsUrl}
+                  onChange={(e) =>
+                    setFormData({ ...formData, googleMapsUrl: e.target.value })
+                  }
+                  placeholder="https://maps.google.com/..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                />
+              </div>
+
+              {/* Active Toggle */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={formData.isActive}
+                  onChange={(e) =>
+                    setFormData({ ...formData, isActive: e.target.checked })
+                  }
+                  className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
+                />
+                <label htmlFor="isActive" className="text-sm text-gray-700">
+                  Restaurante ativo
+                </label>
+              </div>
+
+              </div>
+              )}
+
+              {/* ── Tab: Operações ── */}
+              {modalTab === 'operacoes' && (
+              <div className="space-y-4">
+
+              {/* Max Capacity + Default People Per Table */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Lotação Máxima *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.maxCapacity}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        maxCapacity: parseInt(e.target.value),
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Capacidade total do restaurante
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Pessoas por Mesa (Padrão) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.defaultPeoplePerTable}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        defaultPeoplePerTable: parseInt(e.target.value),
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Capacidade padrão ao criar novas mesas
+                  </p>
+                </div>
+              </div>
+
+              {/* Preview da Distribuição */}
+              {formData.maxCapacity > 0 && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg
+                      className="w-4 h-4 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="text-sm font-medium text-blue-900">
+                      Preview da Distribuição
+                    </span>
                   </div>
-                )}
-              </div>
+                  <div className="text-sm text-blue-800">
+                    {(() => {
+                      const ppt = formData.defaultPeoplePerTable || 4;
+                      const totalTables = Math.ceil(
+                        formData.maxCapacity / ppt,
+                      );
+                      const totalCapacity = totalTables * ppt;
 
-              {/* Default People Per Table */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Pessoas por Mesa (Padrão) *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.defaultPeoplePerTable}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      defaultPeoplePerTable: parseInt(e.target.value),
-                    })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Capacidade padrão ao criar novas mesas
-                </p>
-              </div>
+                      return (
+                        <>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            <span className="px-2 py-1 bg-blue-200 text-blue-900 text-xs font-medium rounded-full">
+                              {totalTables} mesa{totalTables > 1 ? "s" : ""}{" "}
+                              de {ppt} pessoas
+                            </span>
+                          </div>
+                          <div className="text-xs text-blue-700 font-medium">
+                            📊 Total: {totalTables} mesa
+                            {totalTables > 1 ? "s" : ""} = {totalCapacity}{" "}
+                            lugares
+                            {totalCapacity > formData.maxCapacity && (
+                              <span className="ml-2 text-yellow-700">
+                                (+{totalCapacity - formData.maxCapacity} lugar
+                                {totalCapacity - formData.maxCapacity > 1
+                                  ? "es"
+                                  : ""}{" "}
+                                extra)
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
 
               {/* Order Cooldown Minutes */}
               <div>
@@ -3182,6 +3448,13 @@ function RestaurantManagementTab() {
                   o sistema atribui automaticamente o empregado com menos mesas ocupadas.
                 </p>
               </div>
+
+              </div>
+              )}
+
+              {/* ── Tab: Jogos ── */}
+              {modalTab === 'jogos' && (
+              <div className="space-y-4">
 
               {/* Games Configuration */}
               <div className="space-y-3 p-4 bg-purple-50 rounded-lg">
@@ -3402,41 +3675,121 @@ function RestaurantManagementTab() {
                 )}
               </div>
 
-              {/* Active Toggle */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={formData.isActive}
-                  onChange={(e) =>
-                    setFormData({ ...formData, isActive: e.target.checked })
-                  }
-                  className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
-                />
-                <label htmlFor="isActive" className="text-sm text-gray-700">
-                  Restaurante ativo
-                </label>
               </div>
+              )}
+
+              {/* ── Tab: Horários ── */}
+              {modalTab === 'horarios' && (
+              <div className="space-y-3">
+                {loadingHours ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin h-6 w-6 border-2 border-[#D4AF37] border-t-transparent rounded-full" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs text-gray-500">
+                      Define o horário de cada dia. Dias sem turnos ficam como fechados.
+                    </p>
+                    {DAYS_ORDER.map((dayOfWeek) => {
+                      const day = weekSchedule[dayOfWeek];
+                      return (
+                        <div
+                          key={dayOfWeek}
+                          className={`p-3 rounded-lg border ${
+                            day.closed
+                              ? "bg-gray-50 border-gray-200"
+                              : "bg-white border-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-900">
+                              {DAY_NAMES[dayOfWeek]}
+                            </span>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <span className={`text-xs ${day.closed ? "text-red-500 font-medium" : "text-gray-400"}`}>
+                                {day.closed ? "Fechado" : "Aberto"}
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={!day.closed}
+                                onChange={(e) => updateDay(dayOfWeek, { closed: !e.target.checked })}
+                                className="w-4 h-4 text-[#D4AF37] border-gray-300 rounded focus:ring-[#D4AF37]"
+                              />
+                            </label>
+                          </div>
+
+                          {!day.closed && (
+                            <div className="space-y-2">
+                              {day.shifts.map((shift, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-400 w-14">
+                                    Turno {idx + 1}
+                                  </span>
+                                  <input
+                                    type="time"
+                                    value={shift.opens}
+                                    onChange={(e) => updateShift(dayOfWeek, idx, 'opens', e.target.value)}
+                                    className="px-2 py-1.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                                  />
+                                  <span className="text-gray-400 text-sm">–</span>
+                                  <input
+                                    type="time"
+                                    value={shift.closes}
+                                    onChange={(e) => updateShift(dayOfWeek, idx, 'closes', e.target.value)}
+                                    className="px-2 py-1.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                                  />
+                                  {day.shifts.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeShift(dayOfWeek, idx)}
+                                      className="p-1 text-red-400 hover:text-red-600"
+                                      title="Remover turno"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                              {day.shifts.length < 3 && (
+                                <button
+                                  type="button"
+                                  onClick={() => addShift(dayOfWeek)}
+                                  className="text-xs text-[#D4AF37] hover:text-[#C4A030] font-medium"
+                                >
+                                  + Adicionar turno
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+              )}
 
               {/* Actions */}
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  disabled={creatingTables}
+                  disabled={creatingTables || savingHours}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={creatingTables}
+                  disabled={creatingTables || savingHours}
                   className="flex-1 px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {creatingTables ? (
+                  {creatingTables || savingHours ? (
                     <>
                       <div className="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full" />
-                      {editingRestaurant ? "Guardando..." : "Criando mesas..."}
+                      {savingHours ? "Guardando horários..." : editingRestaurant ? "Guardando..." : "Criando mesas..."}
                     </>
                   ) : (
                     <>{editingRestaurant ? "Guardar" : "Criar"}</>
@@ -3830,6 +4183,255 @@ function CategoriesTab() {
 }
 
 // =============================================
+// BRAND TAB COMPONENT
+// =============================================
+
+function BrandTab() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [brandName, setBrandName] = useState("");
+  const [description, setDescription] = useState("");
+  const [priceRange, setPriceRange] = useState("€€-€€€");
+  const [facebookUrl, setFacebookUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [googleReviewsUrl, setGoogleReviewsUrl] = useState("");
+  const [tripadvisorUrl, setTripadvisorUrl] = useState("");
+  const [theforkUrl, setTheforkUrl] = useState("");
+  const [zomatoUrl, setZomatoUrl] = useState("");
+  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/site-settings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data) {
+          setBrandName(data.brand_name ?? "");
+          setDescription(data.description ?? "");
+          setPriceRange(data.price_range ?? "€€-€€€");
+          setFacebookUrl(data.facebook_url ?? "");
+          setInstagramUrl(data.instagram_url ?? "");
+          setGoogleReviewsUrl(data.google_reviews_url ?? "");
+          setTripadvisorUrl(data.tripadvisor_url ?? "");
+          setTheforkUrl(data.thefork_url ?? "");
+          setZomatoUrl(data.zomato_url ?? "");
+          setGoogleMapsUrl(data.google_maps_url ?? "");
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/site-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brand_name: brandName.trim(),
+          description: description.trim() || null,
+          price_range: priceRange.trim() || null,
+          facebook_url: facebookUrl.trim() || null,
+          instagram_url: instagramUrl.trim() || null,
+          google_reviews_url: googleReviewsUrl.trim() || null,
+          tripadvisor_url: tripadvisorUrl.trim() || null,
+          thefork_url: theforkUrl.trim() || null,
+          zomato_url: zomatoUrl.trim() || null,
+          google_maps_url: googleMapsUrl.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Erro");
+      setMessage({ type: "success", text: "Definições guardadas com sucesso." });
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Erro desconhecido" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="text-gray-500 text-sm">A carregar...</div>;
+  }
+
+  return (
+    <form onSubmit={handleSave} className="space-y-6 max-w-3xl">
+      <Card className="p-6 space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Identidade da Marca</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nome da Marca *
+            </label>
+            <input
+              type="text"
+              required
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+              placeholder="Sushi in Sushi"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Nome exibido em schemas SEO, emails e toda a app
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Gama de Preços
+            </label>
+            <input
+              type="text"
+              value={priceRange}
+              onChange={(e) => setPriceRange(e.target.value)}
+              placeholder="€€-€€€"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Ex: €, €€, €€€ — usado em schema.org priceRange
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Descrição Global
+          </label>
+          <textarea
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Restaurante de sushi fusion no Porto..."
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent resize-none"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Descrição global da marca (schema.org, meta tags)
+          </p>
+        </div>
+      </Card>
+
+      <Card className="p-6 space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Redes Sociais</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Facebook</label>
+            <input
+              type="url"
+              value={facebookUrl}
+              onChange={(e) => setFacebookUrl(e.target.value)}
+              placeholder="https://www.facebook.com/sushinsushi"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
+            <input
+              type="url"
+              value={instagramUrl}
+              onChange={(e) => setInstagramUrl(e.target.value)}
+              placeholder="https://www.instagram.com/sushi_in_sushi_porto"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6 space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Reviews & Descoberta</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Incluídos no schema.org (sameAs) para ajudar motores de busca a associar perfis ao restaurante.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Google Reviews</label>
+            <input
+              type="url"
+              value={googleReviewsUrl}
+              onChange={(e) => setGoogleReviewsUrl(e.target.value)}
+              placeholder="https://g.page/r/..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">Perfil Google Business / link de avaliações</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">TripAdvisor</label>
+            <input
+              type="url"
+              value={tripadvisorUrl}
+              onChange={(e) => setTripadvisorUrl(e.target.value)}
+              placeholder="https://www.tripadvisor.com/Restaurant_Review-..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">TheFork</label>
+            <input
+              type="url"
+              value={theforkUrl}
+              onChange={(e) => setTheforkUrl(e.target.value)}
+              placeholder="https://www.thefork.pt/restaurante/..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Zomato</label>
+            <input
+              type="url"
+              value={zomatoUrl}
+              onChange={(e) => setZomatoUrl(e.target.value)}
+              placeholder="https://www.zomato.com/pt/porto/..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6 space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Localização</h3>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Google Maps URL (global)
+          </label>
+          <input
+            type="url"
+            value={googleMapsUrl}
+            onChange={(e) => setGoogleMapsUrl(e.target.value)}
+            placeholder="https://www.google.com/maps/search/..."
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            URL global. Cada restaurante pode ter o seu próprio link em Gestão de Restaurantes.
+          </p>
+        </div>
+      </Card>
+
+      {message && (
+        <p className={`text-sm ${message.type === "success" ? "text-green-600" : "text-red-600"}`}>
+          {message.text}
+        </p>
+      )}
+
+      <Button type="submit" disabled={isSaving} variant="primary">
+        {isSaving ? "A guardar..." : "Guardar Definições"}
+      </Button>
+    </form>
+  );
+}
+
+// =============================================
 // KITCHEN ZONES TAB COMPONENT
 // =============================================
 
@@ -4167,6 +4769,7 @@ export default function SettingsPage() {
     { id: "restaurants", label: "Gestao de Restaurantes" },
     { id: "categories", label: "Categorias" },
     { id: "kitchen-zones", label: "Zonas de Cozinha" },
+    { id: "brand", label: "Marca & Redes" },
   ];
 
   return (
@@ -4208,6 +4811,7 @@ export default function SettingsPage() {
         {activeTab === "restaurants" && <RestaurantManagementTab />}
         {activeTab === "categories" && <CategoriesTab />}
         {activeTab === "kitchen-zones" && <KitchenZonesTab />}
+        {activeTab === "brand" && <BrandTab />}
       </div>
     </div>
   );

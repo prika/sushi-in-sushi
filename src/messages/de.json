@@ -393,6 +393,9 @@
       "includedInRodizio": "Im Rodízio enthalten",
       "close": "Schließen",
       "addToCart": "Hinzufügen",
+      "decreaseQuantity": "Menge verringern",
+      "increaseQuantity": "Menge erhöhen",
+      "quantity": "{count} im Warenkorb",
       "allergenNames": {
         "gluten": "Gluten",
         "crustaceans": "Krebstiere",

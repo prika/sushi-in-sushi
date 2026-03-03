@@ -36,5 +36,35 @@ export default function sitemap(): MetadataRoute.Sitemap {
     });
   }
 
+  // Reservar page for each locale
+  for (const locale of locales) {
+    entries.push({
+      url: `${APP_URL}/${locale}/reservar`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.8,
+      alternates: {
+        languages: Object.fromEntries(
+          locales.map((l) => [l, `${APP_URL}/${l}/reservar`])
+        ),
+      },
+    });
+  }
+
+  // Equipa page for each locale
+  for (const locale of locales) {
+    entries.push({
+      url: `${APP_URL}/${locale}/equipa`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+      alternates: {
+        languages: Object.fromEntries(
+          locales.map((l) => [l, `${APP_URL}/${l}/equipa`])
+        ),
+      },
+    });
+  }
+
   return entries;
 }

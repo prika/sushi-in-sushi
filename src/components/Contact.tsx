@@ -4,10 +4,11 @@ import { CalendarDays, ShoppingBag, MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BlurFade } from "./ui/blur-fade";
 import { ShimmerLink } from "./ui/shimmer-button";
+import { useLocations } from "@/presentation/hooks";
 
 export function Contact() {
   const t = useTranslations("contact");
-  const tLocations = useTranslations("locations");
+  const { locations } = useLocations();
 
   return (
     <section id="contacto" className="py-24 px-6 bg-card/30">
@@ -49,23 +50,25 @@ export function Contact() {
               <span>{t("whatsappLabel")}</span>
             </div>
             <div className="flex items-center gap-2">
-              <a
-                href="https://wa.me/351912348545"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white/80 hover:text-gold transition-colors whitespace-nowrap"
-              >
-                {tLocations("circunvalacao.name")}
-              </a>
-              <span className="text-white/20" aria-hidden="true">|</span>
-              <a
-                href="https://wa.me/351924667938"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-white/80 hover:text-gold transition-colors whitespace-nowrap"
-              >
-                {tLocations("boavista.name")}
-              </a>
+              {locations
+                .filter((loc) => loc.phone)
+                .map((loc, i) => (
+                  <span key={loc.id} className="flex items-center gap-2">
+                    {i > 0 && (
+                      <span className="text-white/20" aria-hidden="true">
+                        |
+                      </span>
+                    )}
+                    <a
+                      href={`https://wa.me/${loc.phone!.replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white/80 hover:text-gold transition-colors whitespace-nowrap"
+                    >
+                      {loc.name}
+                    </a>
+                  </span>
+                ))}
             </div>
           </div>
         </BlurFade>

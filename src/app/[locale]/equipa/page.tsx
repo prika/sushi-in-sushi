@@ -188,8 +188,8 @@ export default function TeamPage() {
                       src={member.image}
                       alt={t(`members.${member.id}.name`)}
                       fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      unoptimized
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 p-3">
@@ -247,8 +247,8 @@ export default function TeamPage() {
                     src={photo.image}
                     alt={photo.alt}
                     fill
+                    sizes="(max-width: 768px) 50vw, 33vw"
                     className="object-cover hover:scale-105 transition-transform duration-500"
-                    unoptimized
                   />
                 </div>
               </BlurFade>

@@ -18,6 +18,8 @@ export function Hero() {
           src="/photos/restaurant1.jpg"
           alt=""
           fill
+          sizes="100vw"
+          quality={40}
           className="object-cover"
           priority
           role="presentation"

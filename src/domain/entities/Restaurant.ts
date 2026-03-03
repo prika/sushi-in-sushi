@@ -5,6 +5,13 @@ export interface Restaurant {
   name: string;
   slug: string; // unique identifier: "circunvalacao", "boavista", etc.
   address: string;
+  description: string | null;
+  addressLocality: string; // "Porto"
+  addressCountry: string;  // "PT"
+  googleMapsUrl: string | null;
+  phone: string | null;
+  opensAt: string; // "HH:MM"
+  closesAt: string; // "HH:MM"
   latitude: number | null;
   longitude: number | null;
   maxCapacity: number; // Total restaurant capacity
@@ -31,6 +38,13 @@ export interface CreateRestaurantData {
   name: string;
   slug: string;
   address: string;
+  description?: string | null;
+  addressLocality?: string;
+  addressCountry?: string;
+  googleMapsUrl?: string | null;
+  phone?: string | null;
+  opensAt?: string;
+  closesAt?: string;
   latitude?: number | null;
   longitude?: number | null;
   maxCapacity: number;
@@ -55,6 +69,13 @@ export interface UpdateRestaurantData {
   name?: string;
   slug?: string;
   address?: string;
+  description?: string | null;
+  addressLocality?: string;
+  addressCountry?: string;
+  googleMapsUrl?: string | null;
+  phone?: string | null;
+  opensAt?: string;
+  closesAt?: string;
   latitude?: number | null;
   longitude?: number | null;
   maxCapacity?: number;

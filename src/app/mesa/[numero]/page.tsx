@@ -1502,10 +1502,11 @@ function MesaPageContent() {
     <main className="min-h-screen flex flex-col">
       {/* Error Toast */}
       {error && (
-        <div className="fixed top-4 left-4 right-4 z-[60] bg-red-500/90 text-white px-4 py-3 rounded-xl flex items-center justify-between">
+        <div role="alert" className="fixed top-4 left-4 right-4 z-[60] bg-red-500/90 text-white px-4 py-3 rounded-xl flex items-center justify-between">
           <p className="text-sm">{error}</p>
           <button
             onClick={() => setError(null)}
+            aria-label={t("mesa.productDetail.close")}
             className="ml-2 font-bold text-xl"
           >
             ×
@@ -1515,11 +1516,12 @@ function MesaPageContent() {
 
       {/* Order Notification Banner (from other devices) */}
       {orderNotification && (
-        <div className="fixed top-4 left-4 right-4 z-[60] bg-blue-500/90 text-white px-4 py-3 rounded-xl flex items-center gap-3 animate-slide-down">
-          <span className="text-lg">🔔</span>
+        <div role="status" className="fixed top-4 left-4 right-4 z-[60] bg-blue-500/90 text-white px-4 py-3 rounded-xl flex items-center gap-3 animate-slide-down">
+          <span className="text-lg" aria-hidden="true">🔔</span>
           <p className="text-sm flex-1">{orderNotification}</p>
           <button
             onClick={() => setOrderNotification(null)}
+            aria-label={t("mesa.productDetail.close")}
             className="text-white/70 hover:text-white"
           >
             <svg
@@ -1849,10 +1851,11 @@ function MesaPageContent() {
                               matchingAllergens.length > 0;
 
                             return (
-                              <div
+                              <button
                                 key={product.id}
                                 onClick={() => setSelectedProduct(product)}
-                                className={`relative bg-gray-900 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                                aria-label={product.name}
+                                className={`relative bg-gray-900 rounded-xl overflow-hidden border-2 transition-all cursor-pointer text-left w-full ${
                                   hasAllergenWarning
                                     ? "border-red-500/70"
                                     : hasQuantity
@@ -1866,6 +1869,7 @@ function MesaPageContent() {
                                       src={product.imageUrl}
                                       alt={product.name}
                                       fill
+                                      sizes="(max-width: 768px) 50vw, 33vw"
                                       className="object-cover"
                                     />
                                   ) : (
@@ -1997,11 +2001,12 @@ function MesaPageContent() {
                                             session?.ordering_mode ===
                                             "waiter_only"
                                           }
+                                          aria-label={t("mesa.productDetail.decreaseQuantity")}
                                           className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                           −
                                         </button>
-                                        <span className="w-6 text-center font-semibold text-sm">
+                                        <span className="w-6 text-center font-semibold text-sm" aria-live="polite">
                                           {cartQty}
                                         </span>
                                         <button
@@ -2017,6 +2022,7 @@ function MesaPageContent() {
                                             session?.ordering_mode ===
                                             "waiter_only"
                                           }
+                                          aria-label={t("mesa.productDetail.increaseQuantity")}
                                           className="w-8 h-8 rounded-full bg-[#D4AF37] flex items-center justify-center text-black font-bold hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                           +
@@ -2060,7 +2066,7 @@ function MesaPageContent() {
                                     )}
                                   </div>
                                 </div>
-                              </div>
+                              </button>
                             );
                           })}
                         </div>

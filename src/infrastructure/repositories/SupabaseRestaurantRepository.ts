@@ -14,6 +14,13 @@ interface DatabaseRestaurant {
   name: string;
   slug: string;
   address: string;
+  description: string | null;
+  address_locality: string | null;
+  address_country: string | null;
+  google_maps_url: string | null;
+  phone: string | null;
+  opens_at: string | null;
+  closes_at: string | null;
   latitude: number | null;
   longitude: number | null;
   max_capacity: number;
@@ -109,6 +116,13 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
         name: data.name,
         slug: data.slug,
         address: data.address,
+        description: data.description ?? null,
+        address_locality: data.addressLocality ?? "Porto",
+        address_country: data.addressCountry ?? "PT",
+        google_maps_url: data.googleMapsUrl ?? null,
+        phone: data.phone ?? null,
+        opens_at: data.opensAt ?? "12:00",
+        closes_at: data.closesAt ?? "23:00",
         latitude: data.latitude || null,
         longitude: data.longitude || null,
         max_capacity: data.maxCapacity,
@@ -141,6 +155,13 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.slug !== undefined) updateData.slug = data.slug;
     if (data.address !== undefined) updateData.address = data.address;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.addressLocality !== undefined) updateData.address_locality = data.addressLocality;
+    if (data.addressCountry !== undefined) updateData.address_country = data.addressCountry;
+    if (data.googleMapsUrl !== undefined) updateData.google_maps_url = data.googleMapsUrl;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.opensAt !== undefined) updateData.opens_at = data.opensAt;
+    if (data.closesAt !== undefined) updateData.closes_at = data.closesAt;
     if (data.latitude !== undefined) updateData.latitude = data.latitude;
     if (data.longitude !== undefined) updateData.longitude = data.longitude;
     if (data.maxCapacity !== undefined)
@@ -213,6 +234,13 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
       name: row.name,
       slug: row.slug,
       address: row.address,
+      description: row.description ?? null,
+      addressLocality: row.address_locality ?? "Porto",
+      addressCountry: row.address_country ?? "PT",
+      googleMapsUrl: row.google_maps_url ?? null,
+      phone: row.phone ?? null,
+      opensAt: row.opens_at ?? "12:00",
+      closesAt: row.closes_at ?? "23:00",
       latitude: row.latitude,
       longitude: row.longitude,
       maxCapacity: row.max_capacity,

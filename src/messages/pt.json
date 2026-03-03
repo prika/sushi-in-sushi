@@ -392,6 +392,9 @@
       "includedInRodizio": "Incluído no Rodízio",
       "close": "Fechar",
       "addToCart": "Adicionar",
+      "decreaseQuantity": "Diminuir quantidade",
+      "increaseQuantity": "Aumentar quantidade",
+      "quantity": "{count} no carrinho",
       "allergenNames": {
         "gluten": "Glúten",
         "crustaceans": "Crustáceos",
