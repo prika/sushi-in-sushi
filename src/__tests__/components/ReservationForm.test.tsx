@@ -170,7 +170,7 @@ describe('ReservationForm', () => {
     it('renderiza checkbox de marketing consent', () => {
       render(<ReservationForm />);
 
-      expect(screen.getByLabelText('Aceito receber novidades e promoções por email')).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /Aceito receber novidades/ })).toBeInTheDocument();
     });
 
     it('renderiza botão de submit', () => {
@@ -276,7 +276,7 @@ describe('ReservationForm', () => {
     it('toggle marketing consent checkbox', () => {
       render(<ReservationForm />);
 
-      const checkbox = screen.getByLabelText('Aceito receber novidades e promoções por email');
+      const checkbox = screen.getByRole('checkbox', { name: /Aceito receber novidades/ });
       expect(checkbox).not.toBeChecked();
 
       fireEvent.click(checkbox);

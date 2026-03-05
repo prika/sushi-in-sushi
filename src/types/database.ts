@@ -500,6 +500,10 @@ export type Database = {
           is_active: boolean;
           last_login: string | null;
           created_at: string;
+          photo_url: string | null;
+          public_position: string | null;
+          display_order: number;
+          show_on_website: boolean;
         };
         Insert: {
           id?: string;
@@ -512,6 +516,10 @@ export type Database = {
           is_active?: boolean;
           last_login?: string | null;
           created_at?: string;
+          photo_url?: string | null;
+          public_position?: string | null;
+          display_order?: number;
+          show_on_website?: boolean;
         };
         Update: {
           id?: string;
@@ -524,6 +532,10 @@ export type Database = {
           is_active?: boolean;
           last_login?: string | null;
           created_at?: string;
+          photo_url?: string | null;
+          public_position?: string | null;
+          display_order?: number;
+          show_on_website?: boolean;
         };
         Relationships: [
           {
@@ -594,6 +606,7 @@ export type Database = {
           ratings_sum: number;
           avg_rating_given: number;
           allergens: string[];
+          auth_user_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -619,6 +632,7 @@ export type Database = {
           ratings_sum?: number;
           avg_rating_given?: number;
           allergens?: string[];
+          auth_user_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -644,6 +658,7 @@ export type Database = {
           ratings_sum?: number;
           avg_rating_given?: number;
           allergens?: string[];
+          auth_user_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1699,6 +1714,42 @@ export type Database = {
           google_maps_url?: string | null;
           created_at?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      staff_registration_requests: {
+        Row: {
+          id: string;
+          name: string;
+          email: string;
+          message: string | null;
+          status: "pending" | "approved" | "rejected";
+          role_id: number | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          email: string;
+          message?: string | null;
+          status?: "pending" | "approved" | "rejected";
+          role_id?: number | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          email?: string;
+          message?: string | null;
+          status?: "pending" | "approved" | "rejected";
+          role_id?: number | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };

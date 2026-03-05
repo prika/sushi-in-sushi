@@ -23,6 +23,11 @@ export interface Staff {
   isActive: boolean;
   lastLogin: Date | null;
   createdAt: Date;
+  // Team/website fields
+  photoUrl: string | null;
+  publicPosition: string | null;
+  displayOrder: number;
+  showOnWebsite: boolean;
 }
 
 export interface StaffWithRole extends Staff {
@@ -46,6 +51,11 @@ export interface UpdateStaffData {
   location?: Location | null;
   phone?: string | null;
   isActive?: boolean;
+  // Team/website fields
+  photoUrl?: string | null;
+  publicPosition?: string | null;
+  displayOrder?: number;
+  showOnWebsite?: boolean;
 }
 
 export interface StaffFilter {

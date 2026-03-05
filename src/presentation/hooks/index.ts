@@ -32,6 +32,7 @@ export * from './useSiteSettings';
 // Category and kitchen zone management hooks
 export * from './useCategories';
 export * from './useKitchenZones';
+export * from './useKitchenPrint';
 
 // Cart and order review hooks
 export * from './useCart';

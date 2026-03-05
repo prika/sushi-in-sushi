@@ -1,27 +1,25 @@
 import { APP_URL } from "@/lib/config/constants";
-
-interface MenuSchemaItem {
-  name: string;
-  description?: string;
-  price: number;
-  pieces?: number;
-  image?: string;
-}
-
-interface MenuSchemaCategory {
-  name: string;
-  items: MenuSchemaItem[];
-}
+import type { ProductWithCategory } from "@/domain/entities/Product";
 
 interface MenuSchemaProps {
-  categories: MenuSchemaCategory[];
+  products: ProductWithCategory[];
   restaurantName?: string;
 }
 
 export function MenuSchema({
-  categories,
-  restaurantName = "Circunvalação",
+  products,
+  restaurantName = "Sushi in Sushi",
 }: MenuSchemaProps) {
+  // Group products by category
+  const sectionMap = new Map<string, { name: string; items: ProductWithCategory[] }>();
+  for (const product of products) {
+    const catName = product.category.name;
+    if (!sectionMap.has(catName)) {
+      sectionMap.set(catName, { name: catName, items: [] });
+    }
+    sectionMap.get(catName)!.items.push(product);
+  }
+
   const schema = {
     "@context": "https://schema.org",
     "@type": "Menu",
@@ -29,10 +27,10 @@ export function MenuSchema({
     description: `Menu completo do restaurante ${restaurantName} no Porto.`,
     url: `${APP_URL}/pt/menu`,
     inLanguage: "pt",
-    hasMenuSection: categories.map((category) => ({
+    hasMenuSection: Array.from(sectionMap.values()).map((section) => ({
       "@type": "MenuSection",
-      name: category.name,
-      hasMenuItem: category.items.slice(0, 20).map((item) => ({
+      name: section.name,
+      hasMenuItem: section.items.slice(0, 20).map((item) => ({
         "@type": "MenuItem",
         name: item.name,
         ...(item.description ? { description: item.description } : {}),
@@ -41,7 +39,7 @@ export function MenuSchema({
           priceCurrency: "EUR",
           price: item.price.toFixed(2),
         },
-        ...(item.image ? { image: `${APP_URL}${item.image}` } : {}),
+        ...(item.imageUrl ? { image: item.imageUrl.startsWith("http") ? item.imageUrl : `${APP_URL}${item.imageUrl}` } : {}),
       })),
     })),
   };

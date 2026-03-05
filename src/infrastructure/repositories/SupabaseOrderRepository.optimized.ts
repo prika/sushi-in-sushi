@@ -81,7 +81,10 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
         product:products!inner(
           id,
           name,
-          image_url
+          image_url,
+          category:categories(
+            kitchen_zone:kitchen_zones(id, name, slug, color)
+          )
         ),
         session:sessions!inner(
           id,
@@ -167,6 +170,15 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
     const waiterAssignment = data.session?.table?.waiter_tables?.[0];
     const waiterName = waiterAssignment?.staff?.name || null;
 
+    // Extract kitchen zone from product → category → kitchen_zone
+    const kitchenZone = data.product?.category?.kitchen_zone;
+    const zone = kitchenZone ? {
+      id: kitchenZone.id,
+      name: kitchenZone.name,
+      slug: kitchenZone.slug,
+      color: kitchenZone.color,
+    } : null;
+
     return {
       id: data.id,
       sessionId: data.session_id,
@@ -192,6 +204,7 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
             location: data.session.table.location,
           }
         : null,
+      zone,
       customerName: data.session_customer_id
         ? customerMap.get(data.session_customer_id) || null
         : null,

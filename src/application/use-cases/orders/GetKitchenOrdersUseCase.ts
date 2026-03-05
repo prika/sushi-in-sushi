@@ -83,6 +83,7 @@ export class GetKitchenOrdersUseCase {
           urgencyColor: OrderService.getUrgencyColor(order, now),
           product: order.product,
           table: order.table,
+          zone: order.zone,
           customerName: order.customerName,
           waiterName: order.waiterName,
           preparedBy: order.preparedBy ?? null,

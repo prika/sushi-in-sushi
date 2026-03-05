@@ -29,6 +29,9 @@ export interface Restaurant {
   gamesPrizeProductId: number | null;
   gamesMinRoundsForPrize: number;
   gamesQuestionsPerRound: number;
+  kitchenPrintMode: 'none' | 'vendus' | 'browser';
+  zoneSplitPrinting: boolean;
+  autoPrintOnOrder: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -62,6 +65,9 @@ export interface CreateRestaurantData {
   gamesPrizeProductId?: number | null;
   gamesMinRoundsForPrize?: number;
   gamesQuestionsPerRound?: number;
+  kitchenPrintMode?: 'none' | 'vendus' | 'browser';
+  zoneSplitPrinting?: boolean;
+  autoPrintOnOrder?: boolean;
   isActive?: boolean;
 }
 
@@ -93,6 +99,9 @@ export interface UpdateRestaurantData {
   gamesPrizeProductId?: number | null;
   gamesMinRoundsForPrize?: number;
   gamesQuestionsPerRound?: number;
+  kitchenPrintMode?: 'none' | 'vendus' | 'browser';
+  zoneSplitPrinting?: boolean;
+  autoPrintOnOrder?: boolean;
   isActive?: boolean;
 }
 

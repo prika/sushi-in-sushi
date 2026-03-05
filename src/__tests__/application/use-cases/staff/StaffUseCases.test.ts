@@ -21,6 +21,10 @@ function createTestStaff(overrides: Partial<Staff> = {}): Staff {
     isActive: true,
     lastLogin: null,
     createdAt: new Date('2024-01-01T12:00:00Z'),
+    photoUrl: null,
+    publicPosition: null,
+    displayOrder: 0,
+    showOnWebsite: false,
     ...overrides,
   };
 }
@@ -59,6 +63,8 @@ function createMockStaffRepository(): IStaffRepository {
     assignTables: vi.fn(),
     getAssignedTables: vi.fn(),
     addTableAssignment: vi.fn(),
+    assignKitchenZones: vi.fn(),
+    getAssignedKitchenZones: vi.fn(),
   };
 }
 

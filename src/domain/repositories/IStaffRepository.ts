@@ -22,4 +22,6 @@ export interface IStaffRepository {
   assignTables(staffId: string, tableIds: string[]): Promise<void>;
   getAssignedTables(staffId: string): Promise<string[]>;
   addTableAssignment(staffId: string, tableId: string): Promise<void>;
+  assignKitchenZones(staffId: string, zoneIds: string[]): Promise<void>;
+  getAssignedKitchenZones(staffId: string): Promise<string[]>;
 }

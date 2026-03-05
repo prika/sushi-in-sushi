@@ -38,6 +38,9 @@ interface DatabaseRestaurant {
   games_prize_product_id: number | null;
   games_min_rounds_for_prize: number;
   games_questions_per_round: number;
+  kitchen_print_mode: string;
+  zone_split_printing: boolean;
+  auto_print_on_order: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -140,6 +143,9 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
         games_prize_product_id: data.gamesPrizeProductId ?? null,
         games_min_rounds_for_prize: data.gamesMinRoundsForPrize ?? 1,
         games_questions_per_round: data.gamesQuestionsPerRound ?? 6,
+        kitchen_print_mode: data.kitchenPrintMode ?? "none",
+        zone_split_printing: data.zoneSplitPrinting ?? true,
+        auto_print_on_order: data.autoPrintOnOrder ?? false,
         is_active: data.isActive ?? true,
       })
       .select()
@@ -193,6 +199,12 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
       updateData.games_min_rounds_for_prize = data.gamesMinRoundsForPrize;
     if (data.gamesQuestionsPerRound !== undefined)
       updateData.games_questions_per_round = data.gamesQuestionsPerRound;
+    if (data.kitchenPrintMode !== undefined)
+      updateData.kitchen_print_mode = data.kitchenPrintMode;
+    if (data.zoneSplitPrinting !== undefined)
+      updateData.zone_split_printing = data.zoneSplitPrinting;
+    if (data.autoPrintOnOrder !== undefined)
+      updateData.auto_print_on_order = data.autoPrintOnOrder;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
     const { data: updated, error } = await this.supabase
@@ -259,6 +271,9 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
       gamesPrizeProductId: row.games_prize_product_id ?? null,
       gamesMinRoundsForPrize: row.games_min_rounds_for_prize,
       gamesQuestionsPerRound: row.games_questions_per_round,
+      kitchenPrintMode: (row.kitchen_print_mode ?? "none") as Restaurant["kitchenPrintMode"],
+      zoneSplitPrinting: row.zone_split_printing ?? true,
+      autoPrintOnOrder: row.auto_print_on_order ?? false,
       isActive: row.is_active,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),

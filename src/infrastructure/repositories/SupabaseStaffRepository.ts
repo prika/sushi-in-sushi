@@ -25,6 +25,10 @@ interface DatabaseStaff {
   is_active: boolean;
   last_login: string | null;
   created_at: string;
+  photo_url: string | null;
+  public_position: string | null;
+  display_order: number;
+  show_on_website: boolean;
 }
 
 interface DatabaseRole {
@@ -134,6 +138,10 @@ export class SupabaseStaffRepository implements IStaffRepository {
     if (data.location !== undefined) updateData.location = data.location;
     if (data.phone !== undefined) updateData.phone = data.phone;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
+    if (data.photoUrl !== undefined) updateData.photo_url = data.photoUrl;
+    if (data.publicPosition !== undefined) updateData.public_position = data.publicPosition;
+    if (data.displayOrder !== undefined) updateData.display_order = data.displayOrder;
+    if (data.showOnWebsite !== undefined) updateData.show_on_website = data.showOnWebsite;
 
     const { data: updated, error } = await this.supabase
       .from('staff')
@@ -213,6 +221,37 @@ export class SupabaseStaffRepository implements IStaffRepository {
     if (error) throw new Error(error.message);
   }
 
+  async assignKitchenZones(staffId: string, zoneIds: string[]): Promise<void> {
+    // Remove existing assignments
+    await this.supabase
+      .from('staff_kitchen_zones')
+      .delete()
+      .eq('staff_id', staffId);
+
+    // Add new assignments
+    if (zoneIds.length > 0) {
+      const { error } = await this.supabase
+        .from('staff_kitchen_zones')
+        .insert(zoneIds.map(zoneId => ({
+          staff_id: staffId,
+          zone_id: zoneId,
+        })));
+
+      if (error) throw new Error(error.message);
+    }
+  }
+
+  async getAssignedKitchenZones(staffId: string): Promise<string[]> {
+    const { data, error } = await this.supabase
+      .from('staff_kitchen_zones')
+      .select('zone_id')
+      .eq('staff_id', staffId);
+
+    if (error) throw new Error(error.message);
+
+    return (data || []).map((row: { zone_id: string }) => row.zone_id);
+  }
+
   private mapToEntity(row: DatabaseStaff & { roles: DatabaseRole }): StaffWithRole {
     return {
       id: row.id,
@@ -225,6 +264,10 @@ export class SupabaseStaffRepository implements IStaffRepository {
       isActive: row.is_active,
       lastLogin: row.last_login ? new Date(row.last_login) : null,
       createdAt: new Date(row.created_at),
+      photoUrl: row.photo_url || null,
+      publicPosition: row.public_position || null,
+      displayOrder: row.display_order ?? 0,
+      showOnWebsite: row.show_on_website ?? false,
       role: {
         id: row.roles.id,
         name: row.roles.name as Role['name'],
@@ -245,6 +288,10 @@ export class SupabaseStaffRepository implements IStaffRepository {
       isActive: row.is_active,
       lastLogin: row.last_login ? new Date(row.last_login) : null,
       createdAt: new Date(row.created_at),
+      photoUrl: row.photo_url || null,
+      publicPosition: row.public_position || null,
+      displayOrder: row.display_order ?? 0,
+      showOnWebsite: row.show_on_website ?? false,
     };
   }
 }

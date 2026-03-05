@@ -51,7 +51,7 @@ export default async function ReservarPage({ params }: Props) {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-background pt-28 pb-16 px-4">
+      <main className="min-h-screen bg-background pt-28 md:pt-44 pb-16 px-4">
         <div className="max-w-lg lg:max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <span className="text-gold text-sm font-medium tracking-[0.3em] uppercase">

@@ -4,9 +4,14 @@ import { SupabaseOrderRepository } from "@/infrastructure/repositories/SupabaseO
 import { SupabaseProductRepository } from "@/infrastructure/repositories/SupabaseProductRepository";
 import { SupabaseSessionRepository } from "@/infrastructure/repositories/SupabaseSessionRepository";
 import { CreateOrderUseCase } from "@/application/use-cases/orders/CreateOrderUseCase";
+import { SupabaseRestaurantRepository } from "@/infrastructure/repositories/SupabaseRestaurantRepository";
 import { SupabaseReservationSettingsRepository } from "@/infrastructure/repositories/SupabaseReservationSettingsRepository";
 import { GetReservationSettingsUseCase } from "@/application/use-cases/reservation-settings";
+import { PrintKitchenOrderUseCase } from "@/application/use-cases/kitchen-printing";
+import { VendusKitchenPrinter } from "@/infrastructure/services/VendusKitchenPrinter";
+import { BrowserKitchenPrinter } from "@/infrastructure/services/BrowserKitchenPrinter";
 import type { CreateOrderDTO } from "@/application/dto/OrderDTO";
+import type { OrderForPrint } from "@/domain/services/KitchenPrintService";
 
 export const dynamic = "force-dynamic";
 
@@ -159,6 +164,67 @@ export async function POST(request: NextRequest) {
     // Recalculate and update session total
     const newTotal = await sessionRepository.calculateTotal(sessionId);
     await sessionRepository.update(sessionId, { totalAmount: newTotal });
+
+    // Fire-and-forget: auto-print to kitchen if enabled
+    (async () => {
+      try {
+        const restaurantRepo = new SupabaseRestaurantRepository(supabase);
+
+        // Get table info from session
+        const { data: sessionWithTable } = await supabase
+          .from("sessions")
+          .select("table:tables!inner(id, number, name, location)")
+          .eq("id", sessionId)
+          .single();
+
+        if (!sessionWithTable?.table) return;
+        const table = sessionWithTable.table as { id: string; number: number; name: string; location: string };
+
+        const restaurant = await restaurantRepo.findBySlug(table.location);
+        if (!restaurant || !restaurant.autoPrintOnOrder || restaurant.kitchenPrintMode === "none") return;
+
+        // Fetch orders with zone data
+        const orderIds = result.data.map((o) => o.id);
+        const { data: ordersWithZone } = await supabase
+          .from("orders")
+          .select(`
+            id, quantity, notes,
+            product:products!inner(
+              name,
+              category:categories(
+                kitchen_zone:kitchen_zones(id, name, slug, color)
+              )
+            )
+          `)
+          .in("id", orderIds);
+
+        if (!ordersWithZone || ordersWithZone.length === 0) return;
+
+        const ordersForPrint: OrderForPrint[] = ordersWithZone.map((o: any) => {
+          const zone = o.product?.category?.kitchen_zone;
+          return {
+            productName: o.product?.name || "Produto",
+            quantity: o.quantity,
+            notes: o.notes,
+            zone: zone ? { id: zone.id, name: zone.name, slug: zone.slug, color: zone.color } : null,
+          };
+        });
+
+        const printUseCase = new PrintKitchenOrderUseCase(
+          restaurantRepo,
+          new VendusKitchenPrinter(),
+          new BrowserKitchenPrinter(),
+        );
+
+        await printUseCase.execute({
+          locationSlug: table.location,
+          table: { name: table.name || `Mesa ${table.number}`, number: table.number },
+          orders: ordersForPrint,
+        });
+      } catch (err) {
+        console.error("[Auto-print] Kitchen print failed (non-blocking):", err);
+      }
+    })();
 
     // Return created orders in snake_case
     const orders = result.data.map((order) => ({

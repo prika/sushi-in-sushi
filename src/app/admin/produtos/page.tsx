@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { useAdminProducts, useIngredients, useProductIngredients } from "@/presentation/hooks";
+import { ProductAnalytics } from "@/components/admin/ProductAnalytics";
 import type { Product } from "@/domain/entities";
 import type {
   IngredientWithProductCount,
@@ -45,7 +46,7 @@ export default function ProdutosPage() {
   const [filterPriceRange, setFilterPriceRange] = useState<[number, number] | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [modalTab, setModalTab] = useState<"geral" | "imagens" | "precos" | "ingredientes">("geral");
-  const [pageTab, setPageTab] = useState<"produtos" | "ingredientes">("produtos");
+  const [pageTab, setPageTab] = useState<"produtos" | "ingredientes" | "analytics">("produtos");
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [generatedTranslations, setGeneratedTranslations] = useState<{
     descriptions: Record<string, string>;
@@ -521,6 +522,7 @@ export default function ProdutosPage() {
         {[
           { id: "produtos" as const, label: "Produtos" },
           { id: "ingredientes" as const, label: "Ingredientes" },
+          { id: "analytics" as const, label: "Analytics" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -536,6 +538,9 @@ export default function ProdutosPage() {
           </button>
         ))}
       </div>
+
+      {/* Analytics Tab */}
+      {pageTab === "analytics" && <ProductAnalytics />}
 
       {/* Ingredients Catalog Tab */}
       {pageTab === "ingredientes" && (

@@ -17,12 +17,14 @@ import type {
 export interface UseStaffOptions {
   autoLoad?: boolean;
   loadTableAssignments?: boolean;
+  loadKitchenZoneAssignments?: boolean;
 }
 
 export interface UseStaffResult {
   staff: StaffWithRole[];
   roles: Role[];
   tableAssignments: Record<string, string[]>;
+  kitchenZoneAssignments: Record<string, string[]>;
   isLoading: boolean;
   error: string | null;
   getById: (_id: string) => Promise<StaffWithRole | null>;
@@ -31,6 +33,8 @@ export interface UseStaffResult {
   remove: (_id: string) => Promise<boolean>;
   assignTables: (_staffId: string, _tableIds: string[]) => Promise<boolean>;
   getAssignedTables: (_staffId: string) => Promise<string[]>;
+  assignKitchenZones: (_staffId: string, _zoneIds: string[]) => Promise<boolean>;
+  getAssignedKitchenZones: (_staffId: string) => Promise<string[]>;
   refresh: () => Promise<void>;
 }
 
@@ -51,11 +55,14 @@ function mapStaffDates(s: Record<string, unknown>): Staff {
 }
 
 export function useStaff(options: UseStaffOptions = {}): UseStaffResult {
-  const { autoLoad = true, loadTableAssignments = false } = options;
+  const { autoLoad = true, loadTableAssignments = false, loadKitchenZoneAssignments = false } = options;
 
   const [staff, setStaff] = useState<StaffWithRole[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [tableAssignments, setTableAssignments] = useState<
+    Record<string, string[]>
+  >({});
+  const [kitchenZoneAssignments, setKitchenZoneAssignments] = useState<
     Record<string, string[]>
   >({});
   const [isLoading, setIsLoading] = useState(autoLoad);
@@ -104,6 +111,31 @@ export function useStaff(options: UseStaffOptions = {}): UseStaffResult {
         );
         setTableAssignments(assignments);
       }
+
+      // Load kitchen zone assignments for kitchen staff if requested
+      if (loadKitchenZoneAssignments) {
+        const zoneAssignments: Record<string, string[]> = {};
+        const kitchenStaff = staffList.filter(
+          (s) => s.role?.name === "kitchen",
+        );
+
+        await Promise.all(
+          kitchenStaff.map(async (member) => {
+            try {
+              const zonesRes = await fetch(
+                `/api/staff/${member.id}?includeKitchenZones=true`,
+              );
+              if (zonesRes.ok) {
+                const zonesData = await zonesRes.json();
+                zoneAssignments[member.id] = zonesData.assignedKitchenZones || [];
+              }
+            } catch {
+              // Ignore individual zone assignment fetch failures
+            }
+          }),
+        );
+        setKitchenZoneAssignments(zoneAssignments);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Erro ao carregar funcionários",
@@ -111,7 +143,7 @@ export function useStaff(options: UseStaffOptions = {}): UseStaffResult {
     } finally {
       setIsLoading(false);
     }
-  }, [loadTableAssignments]);
+  }, [loadTableAssignments, loadKitchenZoneAssignments]);
 
   const getById = useCallback(
     async (id: string): Promise<StaffWithRole | null> => {
@@ -250,6 +282,48 @@ export function useStaff(options: UseStaffOptions = {}): UseStaffResult {
     [],
   );
 
+  const assignKitchenZones = useCallback(
+    async (staffId: string, zoneIds: string[]): Promise<boolean> => {
+      setError(null);
+      try {
+        const res = await fetch(`/api/staff/${staffId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kitchenZoneIds: zoneIds }),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || "Erro ao atribuir zonas");
+        }
+
+        setKitchenZoneAssignments((prev) => ({
+          ...prev,
+          [staffId]: zoneIds,
+        }));
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao atribuir zonas");
+        return false;
+      }
+    },
+    [],
+  );
+
+  const getAssignedKitchenZones = useCallback(
+    async (staffId: string): Promise<string[]> => {
+      try {
+        const res = await fetch(`/api/staff/${staffId}?includeKitchenZones=true`);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.assignedKitchenZones || [];
+      } catch {
+        return [];
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     if (autoLoad) {
       fetchStaff();
@@ -260,6 +334,7 @@ export function useStaff(options: UseStaffOptions = {}): UseStaffResult {
     staff,
     roles,
     tableAssignments,
+    kitchenZoneAssignments,
     isLoading,
     error,
     getById,
@@ -268,6 +343,8 @@ export function useStaff(options: UseStaffOptions = {}): UseStaffResult {
     remove,
     assignTables,
     getAssignedTables,
+    assignKitchenZones,
+    getAssignedKitchenZones,
     refresh: fetchStaff,
   };
 }

@@ -101,9 +101,17 @@ function LoginForm() {
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm text-gray-400 mb-2">
-          Palavra-passe
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label htmlFor="password" className="text-sm text-gray-400">
+            Palavra-passe
+          </label>
+          <a
+            href="/pt/recuperar-password"
+            className="text-xs text-gray-500 hover:text-[#D4AF37] transition-colors"
+          >
+            Esqueci a palavra-passe
+          </a>
+        </div>
         <div className="relative">
           <input
             id="password"
@@ -225,14 +233,24 @@ export default function LoginPage() {
           <LoginForm />
         </Suspense>
 
-        {/* Back link */}
-        <div className="text-center mt-6">
-          <a
-            href="/"
-            className="text-gray-400 text-sm hover:text-[#D4AF37] transition-colors"
-          >
-            Voltar ao site
-          </a>
+        {/* Extra links */}
+        <div className="text-center mt-6 space-y-3">
+          <div className="border-t border-gray-800 pt-3">
+            <a
+              href="/pt/registar"
+              className="block text-gray-400 text-sm hover:text-[#D4AF37] transition-colors"
+            >
+              Ainda não estou registado
+            </a>
+          </div>
+          <div className="border-t border-gray-800 pt-3">
+            <a
+              href="/"
+              className="text-gray-600 text-sm hover:text-gray-400 transition-colors"
+            >
+              Voltar ao site
+            </a>
+          </div>
         </div>
       </div>
     </div>

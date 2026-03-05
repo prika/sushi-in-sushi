@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSound } from "@/hooks/useSound";
-import { useActivityLog, useLocations, useKitchenOrdersOptimized } from "@/presentation/hooks";
+import { useActivityLog, useLocations, useKitchenOrdersOptimized, useKitchenPrint } from "@/presentation/hooks";
 import { useToast } from "@/components/ui";
 import type { KitchenOrderDTO } from "@/application/dto/OrderDTO";
 import type { OrderStatus } from "@/domain/value-objects/OrderStatus";
@@ -59,6 +59,7 @@ export default function CozinhaPage() {
   const { logActivity } = useActivityLog();
   const { showToast } = useToast();
   const { locations } = useLocations();
+  const { printSession } = useKitchenPrint();
 
   // Build locations array with "all" option
   const locationOptions = useMemo(() => {
@@ -301,6 +302,14 @@ export default function CozinhaPage() {
     setPendingMove(null);
   };
 
+  const handlePrintOrder = useCallback(
+    (order: KitchenOrderDTO) => {
+      const location = order.table?.location || (selectedLocation !== "all" ? selectedLocation : "circunvalacao");
+      printSession(order.sessionId, location);
+    },
+    [printSession, selectedLocation],
+  );
+
   // Orders already sorted by use case (by state timestamp)
   // No need to re-sort here
   const sortedPending = byStatus.pending;
@@ -454,6 +463,7 @@ export default function CozinhaPage() {
           newOrderIds={newOrderIds}
           actionLabel="Iniciar"
           onAction={(order) => handleUpdateStatus(order, "preparing")}
+          onPrint={handlePrintOrder}
         />
 
         {/* Preparing Column */}
@@ -467,6 +477,7 @@ export default function CozinhaPage() {
           newOrderIds={newOrderIds}
           actionLabel="Pronto"
           onAction={(order) => handleUpdateStatus(order, "ready")}
+          onPrint={handlePrintOrder}
         />
 
         {/* Ready Column - conditionally rendered */}
@@ -481,6 +492,7 @@ export default function CozinhaPage() {
             newOrderIds={newOrderIds}
             actionLabel={null}
             onAction={(order) => handleUpdateStatus(order, "delivered")}
+            onPrint={handlePrintOrder}
             onToggleVisibility={toggleReadyColumn}
           />
         )}
@@ -555,6 +567,7 @@ function Column({
   newOrderIds,
   actionLabel,
   onAction,
+  onPrint,
   onToggleVisibility,
 }: {
   id: string;
@@ -566,6 +579,7 @@ function Column({
   newOrderIds: Set<string>;
   actionLabel: string | null;
   onAction: (_order: KitchenOrderDTO) => void;
+  onPrint?: (_order: KitchenOrderDTO) => void;
   onToggleVisibility?: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -638,6 +652,7 @@ function Column({
               isNew={newOrderIds.has(order.id)}
               actionLabel={actionLabel}
               onAction={onAction}
+              onPrint={onPrint}
             />
           ))
         )}
@@ -667,11 +682,13 @@ function OrderCard({
   isNew,
   actionLabel,
   onAction,
+  onPrint,
 }: {
   order: KitchenOrderDTO;
   isNew: boolean;
   actionLabel: string | null;
   onAction: (_order: KitchenOrderDTO) => void;
+  onPrint?: (_order: KitchenOrderDTO) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: order.id,
@@ -739,13 +756,27 @@ function OrderCard({
             )}
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-400">{timestamp}</p>
-          <p
-            className={`text-lg font-bold ${order.isLate ? "text-red-500" : "text-gray-300"}`}
-          >
-            {order.timeElapsedMinutes} min
-          </p>
+        <div className="flex items-center gap-2">
+          {onPrint && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onPrint(order); }}
+              className="p-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-500 hover:text-gray-300 transition-colors"
+              title="Imprimir pedidos desta mesa"
+              aria-label="Imprimir"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+            </button>
+          )}
+          <div className="text-right">
+            <p className="text-sm text-gray-400">{timestamp}</p>
+            <p
+              className={`text-lg font-bold ${order.isLate ? "text-red-500" : "text-gray-300"}`}
+            >
+              {order.timeElapsedMinutes} min
+            </p>
+          </div>
         </div>
       </div>
 
@@ -759,6 +790,15 @@ function OrderCard({
             <p className="font-semibold text-lg">
               {order.product?.name}
             </p>
+            {order.zone && (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mt-1"
+                style={{ backgroundColor: `${order.zone.color}25`, color: order.zone.color }}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: order.zone.color }} />
+                {order.zone.name}
+              </span>
+            )}
             {order.notes && (
               <p className="text-sm bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded mt-2">
                 📝 {order.notes}
@@ -850,6 +890,15 @@ function OrderCardOverlay({ order }: { order: KitchenOrderDTO }) {
             <p className="font-semibold text-lg">
               {order.product?.name}
             </p>
+            {order.zone && (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium mt-1"
+                style={{ backgroundColor: `${order.zone.color}25`, color: order.zone.color }}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: order.zone.color }} />
+                {order.zone.name}
+              </span>
+            )}
           </div>
         </div>
       </div>

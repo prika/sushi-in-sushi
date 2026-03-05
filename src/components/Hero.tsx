@@ -11,7 +11,7 @@ export function Hero() {
   const t = useTranslations("hero");
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-32 md:pt-40 pb-16">
       {/* Background image */}
       <div className="absolute inset-0">
         <Image
@@ -31,7 +31,7 @@ export function Hero() {
       {/* Content */}
       <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
         <BlurFade delay={0.1}>
-          <div className="flex items-center justify-center gap-4 mb-8">
+          <div className="flex items-center justify-center gap-4 mb-4">
             <span className="w-12 h-px bg-gold" aria-hidden="true" />
             <span className="text-gold text-sm font-medium tracking-[0.3em] uppercase">
               {t("tagline")}
@@ -41,7 +41,7 @@ export function Hero() {
         </BlurFade>
 
         <BlurFade delay={0.2}>
-          <h1 className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold leading-tight mb-6">
+          <h1 className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold leading-tight mb-4">
             {t("title")}
             <br />
             <span className="text-gradient">{t("subtitle")}</span>
@@ -49,7 +49,7 @@ export function Hero() {
         </BlurFade>
 
         <BlurFade delay={0.3}>
-          <p className="text-muted text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
+          <p className="text-muted text-lg md:text-xl max-w-2xl mx-auto mb-8 leading-relaxed">
             {t("description")}
           </p>
         </BlurFade>

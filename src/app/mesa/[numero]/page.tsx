@@ -3968,12 +3968,27 @@ function MesaPageContent() {
                     </div>
                   )}
 
-                {/* Allergen Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    {t("mesa.allergenQuestion")}
-                  </label>
-                  <div className="flex flex-wrap gap-2">
+                {/* Allergen Selection - Collapsible */}
+                <details className="group" open={customerForm.allergens.length > 0}>
+                  <summary className="flex items-center justify-between cursor-pointer py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors">
+                    <span>
+                      {t("mesa.allergenQuestion")}
+                      {customerForm.allergens.length > 0 && (
+                        <span className="ml-2 text-xs text-red-400">
+                          ({customerForm.allergens.length})
+                        </span>
+                      )}
+                    </span>
+                    <svg
+                      className="w-4 h-4 text-gray-500 transition-transform group-open:rotate-180"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </summary>
+                  <div className="flex flex-wrap gap-2 mt-2">
                     {ALL_ALLERGENS.map((allergen) => {
                       const isSelected = customerForm.allergens.includes(
                         allergen.id,
@@ -4013,7 +4028,7 @@ function MesaPageContent() {
                       {t("mesa.allergenWarning")}
                     </p>
                   )}
-                </div>
+                </details>
 
                 {/* Incomplete profile reminder - Show if some data is filled but not all */}
                 {currentCustomer &&

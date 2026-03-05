@@ -49,34 +49,15 @@ export async function PUT(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // Delete existing hours for this restaurant
-    // biome-ignore lint/suspicious/noExplicitAny: restaurant_hours not in generated types yet
-    const { error: deleteError } = await (supabase as any)
-      .from("restaurant_hours")
-      .delete()
-      .eq("restaurant_slug", slug);
+    // Atomic delete + insert via DB function (single transaction)
+    // biome-ignore lint/suspicious/noExplicitAny: upsert_restaurant_hours not in generated types yet
+    const { error: rpcError } = await (supabase as any).rpc("upsert_restaurant_hours", {
+      p_slug: slug,
+      p_hours: JSON.stringify(hours),
+    });
 
-    if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
-    }
-
-    // Insert new hours (if any)
-    if (hours.length > 0) {
-      const rows = hours.map((h: { day_of_week: number; opens_at: string; closes_at: string }) => ({
-        restaurant_slug: slug,
-        day_of_week: h.day_of_week,
-        opens_at: h.opens_at,
-        closes_at: h.closes_at,
-      }));
-
-      // biome-ignore lint/suspicious/noExplicitAny: restaurant_hours not in generated types yet
-      const { error: insertError } = await (supabase as any)
-        .from("restaurant_hours")
-        .insert(rows);
-
-      if (insertError) {
-        return NextResponse.json({ error: insertError.message }, { status: 500 });
-      }
+    if (rpcError) {
+      return NextResponse.json({ error: rpcError.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

@@ -1,98 +1,18 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BlurFade } from "@/components/ui/blur-fade";
 
-const teamMembers = [
-  {
-    id: "member0",
-    name: "Evandro",
-    role: "Gerente e Chef de Cozinha",
-    image:
-      "/photos/evandro.jpg",
-  },
-  {
-    id: "member1",
-    name: "Yessa",
-    role: "Gerente e Chef de Cozinha",
-    image:
-      "/photos/yessa.jpg",
-  },
-  {
-    id: "member2",
-    name: "Mayra",
-    role: "Chef de Cozinha",
-    image:
-      "/photos/mayra.jpg",
-  },
-  {
-    id: "member3",
-    name: "Waleska",
-    role: "Assistente de Cozinha",
-    image:
-      "/photos/waleska.jpg",
-  },
-  {
-    id: "member4",
-    name: "Vitoria",
-    role: "Assistente de Cozinha",
-    image:
-      "/photos/vitoria.jpg",
-  },
-  {
-    id: "member5",
-    name: "Line",
-    role: "Assistente de Mesa",
-    image:
-      "/photos/line.jpg",
-  },
-  {
-    id: "member6",
-    name: "Unknown",
-    role: "Assistente de Cozinha",
-    image:
-      "/photos/unknown.jpg",
-  },
-  {
-    id: "member7",
-    name: "Chloe",
-    role: "Assistente de Mesa",
-    image:
-      "/photos/chloe.jpg",
-  },
-  {
-    id: "member8",
-    name: "Rakib",
-    role: "Assistente de Cozinha",
-    image:
-      "/photos/rakib.jpg",
-  },
-  {
-    id: "member8",
-    name: "Ricky",
-    role: "Assistente de Cozinha",
-    image:
-      "/photos/ricky.jpg",
-  },
-  {
-    id: "member9",
-    name: "Unknown 2",
-    role: "Assistente de Cozinha",
-    image:
-      "/photos/unknown2.jpg",
-  },
-  {
-    id: "member10",
-    name: "Unknown 3",
-    role: "Assistente de Cozinha",
-    image:
-      "/photos/unknown3.jpg",
-  },
-  
-];
+interface TeamMemberData {
+  id: string;
+  name: string;
+  position: string;
+  photoUrl: string | null;
+}
 
 const workPhotos = [
   {
@@ -136,6 +56,14 @@ const workPhotos = [
 export default function TeamPage() {
   const t = useTranslations("team");
   const tPage = useTranslations("teamPage");
+  const [teamMembers, setTeamMembers] = useState<TeamMemberData[]>([]);
+
+  useEffect(() => {
+    fetch("/api/team-members")
+      .then((res) => res.json())
+      .then((data) => setTeamMembers(data))
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -184,20 +112,24 @@ export default function TeamPage() {
               <BlurFade key={member.id} delay={index * 0.05} inView>
                 <div className="group">
                   <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-card">
-                    <Image
-                      src={member.image}
-                      alt={t(`members.${member.id}.name`)}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
+                    {member.photoUrl ? (
+                      <Image
+                        src={member.photoUrl}
+                        alt={member.name}
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-card" />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 p-3">
                       <h3 className="font-display text-sm font-semibold text-white">
                         {member.name}
                       </h3>
                       <p className="text-gold text-xs">
-                        {member.role}
+                        {member.position}
                       </p>
                     </div>
                   </div>

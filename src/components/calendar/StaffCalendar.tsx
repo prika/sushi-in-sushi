@@ -325,13 +325,13 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Staff */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Funcionario
             </label>
             <select
               value={formData.staff_id}
               onChange={(e) => setFormData({ ...formData, staff_id: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-600 rounded-lg bg-[#2A2A2A] text-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent [color-scheme:dark]"
               required
             >
               <option value="">Selecionar funcionario</option>
@@ -346,19 +346,19 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
           {/* Date Range */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Data Inicio
               </label>
               <input
                 type="date"
                 value={formData.start_date}
                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-600 rounded-lg bg-[#2A2A2A] text-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent [color-scheme:dark]"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Data Fim
               </label>
               <input
@@ -366,7 +366,7 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
                 value={formData.end_date}
                 onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                 min={formData.start_date}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-600 rounded-lg bg-[#2A2A2A] text-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent [color-scheme:dark]"
                 required
               />
             </div>
@@ -374,13 +374,13 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
 
           {/* Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Tipo
             </label>
             <select
               value={formData.type}
               onChange={(e) => setFormData({ ...formData, type: e.target.value as StaffTimeOffType })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-600 rounded-lg bg-[#2A2A2A] text-white focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent [color-scheme:dark]"
             >
               {(Object.keys(TYPE_LABELS) as StaffTimeOffType[]).map((type) => (
                 <option key={type} value={type}>
@@ -392,7 +392,7 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
 
           {/* Reason */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Motivo (opcional)
             </label>
             <input
@@ -400,12 +400,12 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
               value={formData.reason}
               onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
               placeholder="Ex: Ferias de verao"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-600 rounded-lg bg-[#2A2A2A] text-white placeholder:text-gray-500 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             />
           </div>
 
           {formError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            <div className="p-3 bg-red-900/30 border border-red-800 rounded-lg text-red-400 text-sm">
               {formError}
             </div>
           )}
@@ -445,31 +445,31 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
 
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-500">Funcionario:</span>
-                <span className="font-medium text-gray-900">{selectedTimeOff.staff_name}</span>
+                <span className="text-gray-400">Funcionario:</span>
+                <span className="font-medium text-white">{selectedTimeOff.staff_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Periodo:</span>
-                <span className="font-medium text-gray-900">
+                <span className="text-gray-400">Periodo:</span>
+                <span className="font-medium text-white">
                   {new Date(selectedTimeOff.start_date).toLocaleDateString("pt-PT")} -{" "}
                   {new Date(selectedTimeOff.end_date).toLocaleDateString("pt-PT")}
                 </span>
               </div>
               {selectedTimeOff.reason && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Motivo:</span>
-                  <span className="font-medium text-gray-900">{selectedTimeOff.reason}</span>
+                  <span className="text-gray-400">Motivo:</span>
+                  <span className="font-medium text-white">{selectedTimeOff.reason}</span>
                 </div>
               )}
               {selectedTimeOff.approved_by_name && (
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Aprovado por:</span>
-                  <span className="font-medium text-gray-900">{selectedTimeOff.approved_by_name}</span>
+                  <span className="text-gray-400">Aprovado por:</span>
+                  <span className="font-medium text-white">{selectedTimeOff.approved_by_name}</span>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-3 justify-end pt-4 border-t">
+            <div className="flex gap-3 justify-end pt-4 border-t border-gray-700">
               <Button
                 variant="ghost"
                 onClick={() => setSelectedTimeOff(null)}

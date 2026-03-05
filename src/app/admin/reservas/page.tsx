@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui";
 import ReservationsCalendar from "@/components/calendar/ReservationsCalendar";
+import { ReservationAnalytics } from "@/components/admin/ReservationAnalytics";
 import {
   Calendar,
   Clock,
@@ -105,6 +106,7 @@ const occasionLabels: Record<string, string> = {
 };
 
 export default function ReservationsPage() {
+  const [pageView, setPageView] = useState<"reservas" | "analytics">("reservas");
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"future" | "date">("future");
@@ -340,11 +342,35 @@ export default function ReservationsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reservas</h1>
+      {/* Page-level Tabs */}
+      <div className="flex items-center gap-4 border-b border-gray-200 pb-0">
+        <button
+          onClick={() => setPageView("reservas")}
+          className={`pb-3 text-sm font-semibold border-b-2 transition-colors ${
+            pageView === "reservas"
+              ? "border-[#D4AF37] text-gray-900"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Reservas
+        </button>
+        <button
+          onClick={() => setPageView("analytics")}
+          className={`pb-3 text-sm font-semibold border-b-2 transition-colors ${
+            pageView === "analytics"
+              ? "border-[#D4AF37] text-gray-900"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Analytics
+        </button>
       </div>
 
+      {/* Analytics View */}
+      {pageView === "analytics" && <ReservationAnalytics />}
+
+      {/* Reservations View */}
+      {pageView === "reservas" && <>
       {/* Error Message */}
       {fetchError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
@@ -593,6 +619,7 @@ export default function ReservationsPage() {
           isUpdating={isUpdating}
         />
       )}
+      </>}
     </div>
   );
 }

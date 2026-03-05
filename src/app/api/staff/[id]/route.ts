@@ -35,10 +35,19 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     const includeTables = searchParams.get("includeTables") === "true";
+    const includeKitchenZones = searchParams.get("includeKitchenZones") === "true";
+
+    const extra: Record<string, unknown> = {};
 
     if (includeTables) {
-      const assignedTables = await repository.getAssignedTables(id);
-      return NextResponse.json({ ...staff, assignedTables });
+      extra.assignedTables = await repository.getAssignedTables(id);
+    }
+    if (includeKitchenZones) {
+      extra.assignedKitchenZones = await repository.getAssignedKitchenZones(id);
+    }
+
+    if (Object.keys(extra).length > 0) {
+      return NextResponse.json({ ...staff, ...extra });
     }
 
     return NextResponse.json(staff);
@@ -129,9 +138,14 @@ export async function PUT(
       await repository.assignTables(id, body.tableIds);
     }
 
+    // Handle kitchen zone assignments if provided
+    if (Array.isArray(body.kitchenZoneIds)) {
+      await repository.assignKitchenZones(id, body.kitchenZoneIds);
+    }
+
     // Update staff record (password is excluded by repository)
     // Only call update if there are actual staff fields to update
-    const { tableIds: _tableIds, password: _password, ...staffFields } = body;
+    const { tableIds: _tableIds, kitchenZoneIds: _kitchenZoneIds, password: _password, ...staffFields } = body;
     const hasStaffUpdates = Object.keys(staffFields).length > 0;
 
     if (hasStaffUpdates) {

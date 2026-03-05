@@ -24,6 +24,12 @@ CREATE TABLE IF NOT EXISTS site_settings (
   updated_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Defensive: add columns that may be missing if the table pre-existed
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS google_reviews_url TEXT;
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS tripadvisor_url TEXT;
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS thefork_url TEXT;
+ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS zomato_url TEXT;
+
 -- Trigger to auto-update updated_at
 DROP TRIGGER IF EXISTS trigger_site_settings_updated_at ON site_settings;
 CREATE TRIGGER trigger_site_settings_updated_at

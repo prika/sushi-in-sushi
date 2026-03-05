@@ -54,7 +54,7 @@ export function Modal({
       {/* Modal */}
       <div
         className={`
-          relative bg-[#1A1A1A] rounded-2xl w-full ${sizes[size]}
+          relative bg-[#1A1A1A] text-white rounded-2xl w-full ${sizes[size]}
           animate-modal-in
         `}
       >

@@ -67,6 +67,12 @@ export interface KitchenOrder extends OrderWithProduct {
     number: number;
     location: string;
   } | null;
+  zone: {
+    id: string;
+    name: string;
+    slug: string;
+    color: string;
+  } | null;
   customerName: string | null;
   waiterName: string | null;
   preparerName: string | null;

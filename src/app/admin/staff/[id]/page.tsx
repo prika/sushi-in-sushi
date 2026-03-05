@@ -3,7 +3,19 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 import { Card } from "@/components/ui";
+import { BarChartWidget, CHART_COLORS, CHART_DEFAULTS, formatCurrency } from "@/components/charts";
 import { useLocations } from "@/presentation/hooks";
 import type { StaffWithRole, Table, RoleName } from "@/types/database";
 
@@ -186,7 +198,7 @@ export default function StaffDetailPage() {
             d="M15 19l-7-7 7-7"
           />
         </svg>
-        Voltar para Funcionários
+        Voltar para Colaboradores
       </Link>
 
       {/* Staff Info Header */}
@@ -354,51 +366,91 @@ export default function StaffDetailPage() {
           </div>
         </div>
 
-        {/* Historical Metrics Table */}
+        {/* Historical Metrics Chart */}
         {historicalMetrics.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Data
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                    Pedidos
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                    Receita
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                    Tempo Médio
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {historicalMetrics.map((metric) => (
-                  <tr key={metric.date} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-900">
-                      {new Date(metric.date).toLocaleDateString("pt-PT", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                      })}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-[#D4AF37]">
-                      {metric.ordersDelivered}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-green-600">
-                      {metric.revenueGenerated.toFixed(2)}€
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-600">
-                      {metric.averageDeliveryTimeMinutes !== null
-                        ? `${metric.averageDeliveryTimeMinutes} min`
-                        : "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-6">
+            {/* Revenue + Orders dual axis chart */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-500 mb-3">Pedidos e Receita por Dia</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <ComposedChart data={historicalMetrics} margin={CHART_DEFAULTS.margin}>
+                  <CartesianGrid strokeDasharray={CHART_DEFAULTS.gridStrokeDasharray} stroke={CHART_COLORS.grid} />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 11, fill: CHART_COLORS.axis }}
+                    tickFormatter={(d: string) => {
+                      const date = new Date(d);
+                      return `${date.getDate()}/${date.getMonth() + 1}`;
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 11, fill: CHART_COLORS.axis }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 11, fill: CHART_COLORS.axis }}
+                    tickFormatter={(v: number) => `${v}€`}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: CHART_COLORS.tooltip,
+                      border: "none",
+                      borderRadius: "8px",
+                      color: "#fff",
+                      fontSize: 13,
+                    }}
+                    formatter={((value: number, name: string) => {
+                      if (name === "Receita") return [formatCurrency(value), name];
+                      return [value, name];
+                    }) as any}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar
+                    yAxisId="right"
+                    dataKey="revenueGenerated"
+                    name="Receita"
+                    fill={CHART_COLORS.gold}
+                    radius={[4, 4, 0, 0]}
+                    opacity={0.7}
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="ordersDelivered"
+                    name="Pedidos"
+                    stroke={CHART_COLORS.preparing}
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Delivery time trend */}
+            {historicalMetrics.some((m) => m.averageDeliveryTimeMinutes !== null) && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-3">Tempo Médio de Entrega</h4>
+                <BarChartWidget
+                  data={historicalMetrics
+                    .filter((m) => m.averageDeliveryTimeMinutes !== null)
+                    .map((m) => ({
+                      date: new Date(m.date).toLocaleDateString("pt-PT", { day: "numeric", month: "short" }),
+                      minutos: m.averageDeliveryTimeMinutes!,
+                    }))}
+                  xKey="date"
+                  bars={[{ key: "minutos", name: "Minutos", color: CHART_COLORS.delivered }]}
+                  height={200}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-center text-gray-500 py-8">

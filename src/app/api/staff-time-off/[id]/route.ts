@@ -7,6 +7,7 @@ import {
   DeleteStaffTimeOffUseCase,
 } from "@/application/use-cases/staff-time-off";
 import type { UpdateStaffTimeOffData } from "@/domain/entities/StaffTimeOff";
+import { sendTimeOffApprovalEmail } from "@/lib/email";
 
 // PATCH - Update time off entry
 export async function PATCH(
@@ -89,6 +90,29 @@ export async function PATCH(
         { error: "Erro ao obter ausência atualizada" },
         { status: 500 }
       );
+    }
+
+    // Send approval email if status changed to approved
+    if (body.status === "approved") {
+      const { data: staffData } = await supabase
+        .from("staff")
+        .select("email")
+        .eq("id", updatedTimeOff.staffId)
+        .single();
+
+      if (staffData?.email) {
+        sendTimeOffApprovalEmail(
+          staffData.email,
+          updatedTimeOff.staff.name,
+          updatedTimeOff.id,
+          updatedTimeOff.type,
+          updatedTimeOff.startDate,
+          updatedTimeOff.endDate,
+          updatedTimeOff.reason,
+        ).catch((err) =>
+          console.error("Failed to send time-off approval email:", err)
+        );
+      }
     }
 
     // Map to database format for backwards compatibility

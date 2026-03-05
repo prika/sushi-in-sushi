@@ -19,6 +19,8 @@ function createMockStaffRepository(): IStaffRepository {
     assignTables: vi.fn(),
     getAssignedTables: vi.fn().mockResolvedValue([]),
     addTableAssignment: vi.fn(),
+    assignKitchenZones: vi.fn(),
+    getAssignedKitchenZones: vi.fn().mockResolvedValue([]),
   };
 }
 
@@ -72,6 +74,7 @@ function createTestRestaurant(overrides: Partial<Restaurant> = {}): Restaurant {
     defaultPeoplePerTable: 4,
     autoTableAssignment: true,
     autoReservations: false,
+    autoReservationMaxPartySize: 6,
     orderCooldownMinutes: 0,
     showUpgradeAfterOrder: false,
     showUpgradeAtBill: false,
@@ -82,6 +85,9 @@ function createTestRestaurant(overrides: Partial<Restaurant> = {}): Restaurant {
     gamesPrizeProductId: null,
     gamesMinRoundsForPrize: 3,
     gamesQuestionsPerRound: 5,
+    kitchenPrintMode: 'none' as const,
+    zoneSplitPrinting: true,
+    autoPrintOnOrder: false,
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -101,6 +107,10 @@ function createTestWaiter(id: string, name: string): StaffWithRole {
     isActive: true,
     lastLogin: null,
     createdAt: new Date(),
+    photoUrl: null,
+    publicPosition: null,
+    displayOrder: 0,
+    showOnWebsite: false,
     role: { id: 3, name: 'waiter', description: 'Waiter' },
   };
 }

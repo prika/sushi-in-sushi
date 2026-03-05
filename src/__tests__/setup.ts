@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom';
 import { vi, beforeAll, afterAll, afterEach, expect } from 'vitest';
+import { webcrypto } from 'node:crypto';
+
+// Polyfill globalThis.crypto for jose (JWT library) in Node test environment
+if (!globalThis.crypto) {
+  globalThis.crypto = webcrypto as unknown as Crypto;
+}
 
 // Mock Next.js navigation
 vi.mock('next/navigation', () => ({

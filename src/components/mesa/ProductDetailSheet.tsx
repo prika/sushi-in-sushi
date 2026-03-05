@@ -321,7 +321,8 @@ export function ProductDetailSheet({
                   >
                     −
                   </button>
-                  <span className="w-8 text-center font-bold text-lg text-white" aria-live="polite" aria-label={t("mesa.productDetail.quantity", { count: cartQuantity })}>
+                  <span className="w-8 text-center font-bold text-lg text-white" role="status" aria-live="polite">
+                    <span className="sr-only">{t("mesa.productDetail.quantity", { count: cartQuantity })}: </span>
                     {cartQuantity}
                   </span>
                   <button

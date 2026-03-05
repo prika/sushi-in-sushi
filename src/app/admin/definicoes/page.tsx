@@ -2196,6 +2196,17 @@ function TableManagementTab() {
 // RESTAURANT MANAGEMENT TAB COMPONENT
 // =============================================
 
+// ── Schedule constants (extracted for stable references) ──
+type DaySchedule = { closed: boolean; shifts: { opens: string; closes: string }[] };
+const RESTAURANT_DAYS_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon→Sun
+const RESTAURANT_DAY_NAMES: Record<number, string> = {
+  0: "Domingo", 1: "Segunda-feira", 2: "Terça-feira", 3: "Quarta-feira",
+  4: "Quinta-feira", 5: "Sexta-feira", 6: "Sábado",
+};
+function makeEmptyWeek(): Record<number, DaySchedule> {
+  return Object.fromEntries(RESTAURANT_DAYS_ORDER.map((d) => [d, { closed: true, shifts: [{ opens: "12:00", closes: "15:00" }] }]));
+}
+
 function RestaurantManagementTab() {
   const { restaurants, isLoading, error, create, update, remove } =
     useRestaurants();
@@ -2204,7 +2215,7 @@ function RestaurantManagementTab() {
   });
 
   const [showModal, setShowModal] = useState(false);
-  const [modalTab, setModalTab] = useState<'geral' | 'operacoes' | 'jogos' | 'horarios'>('geral');
+  const [modalTab, setModalTab] = useState<'geral' | 'operacoes' | 'jogos' | 'horarios' | 'cozinha'>('geral');
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(
     null,
   );
@@ -2300,18 +2311,14 @@ function RestaurantManagementTab() {
     gamesPrizeProductId: "",
     gamesMinRoundsForPrize: 3,
     gamesQuestionsPerRound: 5,
+    kitchenPrintMode: "none" as "none" | "vendus" | "browser",
+    zoneSplitPrinting: true,
+    autoPrintOnOrder: false,
   });
 
   // ── Schedule state (per-day hours) ──
-  type DaySchedule = { closed: boolean; shifts: { opens: string; closes: string }[] };
-  const DAYS_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon→Sun
-  const DAY_NAMES: Record<number, string> = {
-    0: "Domingo", 1: "Segunda-feira", 2: "Terça-feira", 3: "Quarta-feira",
-    4: "Quinta-feira", 5: "Sexta-feira", 6: "Sábado",
-  };
-
-  const makeEmptyWeek = (): Record<number, DaySchedule> =>
-    Object.fromEntries(DAYS_ORDER.map((d) => [d, { closed: true, shifts: [{ opens: "12:00", closes: "15:00" }] }]));
+  const DAYS_ORDER = RESTAURANT_DAYS_ORDER;
+  const DAY_NAMES = RESTAURANT_DAY_NAMES;
 
   const [weekSchedule, setWeekSchedule] = useState<Record<number, DaySchedule>>(makeEmptyWeek);
   const [loadingHours, setLoadingHours] = useState(false);
@@ -2319,8 +2326,10 @@ function RestaurantManagementTab() {
 
   const loadHours = useCallback(async (slug: string) => {
     setLoadingHours(true);
+    setWeekSchedule(makeEmptyWeek());
     try {
-      const res = await fetch(`/api/admin/restaurant-hours?slug=${slug}`);
+      const res = await fetch(`/api/admin/restaurant-hours?slug=${encodeURIComponent(slug)}`);
+      if (!res.ok) throw new Error("Erro ao carregar horários");
       const data: { day_of_week: number; opens_at: string; closes_at: string }[] = await res.json();
       const schedule = makeEmptyWeek();
       // Group by day
@@ -2334,7 +2343,7 @@ function RestaurantManagementTab() {
       }
       setWeekSchedule(schedule);
     } catch {
-      // Keep empty schedule on error
+      // Empty schedule already set above — safe to save
     } finally {
       setLoadingHours(false);
     }
@@ -2352,11 +2361,18 @@ function RestaurantManagementTab() {
     }
     setSavingHours(true);
     try {
-      await fetch("/api/admin/restaurant-hours", {
+      const res = await fetch("/api/admin/restaurant-hours", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug, hours }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Erro ao guardar horários");
+      }
+    } catch (err) {
+      showAlert("Erro", err instanceof Error ? err.message : "Erro ao guardar horários", "error");
+      throw err;
     } finally {
       setSavingHours(false);
     }
@@ -2438,6 +2454,9 @@ function RestaurantManagementTab() {
             : "",
         gamesMinRoundsForPrize: restaurant.gamesMinRoundsForPrize,
         gamesQuestionsPerRound: restaurant.gamesQuestionsPerRound,
+        kitchenPrintMode: restaurant.kitchenPrintMode,
+        zoneSplitPrinting: restaurant.zoneSplitPrinting,
+        autoPrintOnOrder: restaurant.autoPrintOnOrder,
       });
     } else {
       setEditingRestaurant(null);
@@ -2466,6 +2485,9 @@ function RestaurantManagementTab() {
         gamesPrizeProductId: "",
         gamesMinRoundsForPrize: 3,
         gamesQuestionsPerRound: 5,
+        kitchenPrintMode: "none",
+        zoneSplitPrinting: true,
+        autoPrintOnOrder: false,
       });
     }
     setModalTab('geral');
@@ -2560,9 +2582,17 @@ function RestaurantManagementTab() {
           cancelText: "Guardar sem recriar",
           onCancel: async () => {
             setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-            await update(editingRestaurant.id, toRestaurantPayload(formData));
-            await saveHours(formData.slug);
-            setShowModal(false);
+            try {
+              await update(editingRestaurant.id, toRestaurantPayload(formData));
+              await saveHours(formData.slug);
+              setShowModal(false);
+            } catch (err) {
+              showAlert(
+                "Erro",
+                err instanceof Error ? err.message : "Erro desconhecido",
+                "error",
+              );
+            }
           },
         },
       );
@@ -2579,8 +2609,8 @@ function RestaurantManagementTab() {
         const restaurant = await create(toRestaurantPayload(formData));
 
         if (restaurant) {
-          await saveHours(formData.slug);
-          const result = await recreateTablesViaApi(formData.slug, false);
+          await saveHours(restaurant.slug);
+          const result = await recreateTablesViaApi(restaurant.slug, false);
 
           if (result.success) {
             const ppt = formData.defaultPeoplePerTable;
@@ -3044,6 +3074,7 @@ function RestaurantManagementTab() {
                 { id: 'horarios', label: 'Horários' },
                 { id: 'operacoes', label: 'Operações' },
                 { id: 'jogos', label: 'Jogos' },
+                { id: 'cozinha', label: 'Cozinha' },
               ] as const).map((tab) => (
                 <button
                   key={tab.id}
@@ -3678,6 +3709,61 @@ function RestaurantManagementTab() {
               </div>
               )}
 
+              {/* ── Tab: Cozinha (Impressão) ── */}
+              {modalTab === 'cozinha' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Modo de Impressão</label>
+                  <select
+                    value={formData.kitchenPrintMode}
+                    onChange={(e) => setFormData({ ...formData, kitchenPrintMode: e.target.value as "none" | "vendus" | "browser" })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#D4AF37]"
+                  >
+                    <option value="none">Desligado</option>
+                    <option value="vendus">Vendus (impressora térmica)</option>
+                    <option value="browser">Browser (impressão via navegador)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Controla como os pedidos são impressos para a cozinha
+                  </p>
+                </div>
+
+                {formData.kitchenPrintMode !== "none" && (
+                  <>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.zoneSplitPrinting}
+                        onChange={(e) => setFormData({ ...formData, zoneSplitPrinting: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300 text-[#D4AF37] focus:ring-[#D4AF37]"
+                      />
+                      <div>
+                        <span className="text-sm text-gray-700 font-medium">Dividir por zona</span>
+                        <p className="text-xs text-gray-500">
+                          Imprime 1 ticket por zona de cozinha (Quentes, Frios, Bar...)
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.autoPrintOnOrder}
+                        onChange={(e) => setFormData({ ...formData, autoPrintOnOrder: e.target.checked })}
+                        className="h-4 w-4 rounded border-gray-300 text-[#D4AF37] focus:ring-[#D4AF37]"
+                      />
+                      <div>
+                        <span className="text-sm text-gray-700 font-medium">Impressão automática</span>
+                        <p className="text-xs text-gray-500">
+                          Imprime automaticamente quando um novo pedido é criado
+                        </p>
+                      </div>
+                    </label>
+                  </>
+                )}
+              </div>
+              )}
+
               {/* ── Tab: Horários ── */}
               {modalTab === 'horarios' && (
               <div className="space-y-3">
@@ -4188,6 +4274,7 @@ function CategoriesTab() {
 
 function BrandTab() {
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -4219,7 +4306,7 @@ function BrandTab() {
           setGoogleMapsUrl(data.google_maps_url ?? "");
         }
       })
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -4255,6 +4342,10 @@ function BrandTab() {
 
   if (isLoading) {
     return <div className="text-gray-500 text-sm">A carregar...</div>;
+  }
+
+  if (loadError) {
+    return <div className="text-red-600 text-sm">Erro ao carregar definições de marca. Tente recarregar a página.</div>;
   }
 
   return (

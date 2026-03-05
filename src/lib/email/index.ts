@@ -9,7 +9,10 @@ import {
   getCancellationEmail,
   getDayBeforeReminderEmail,
   getSameDayReminderEmail,
+  getCustomerWelcomeEmail,
+  getTimeOffApprovalEmail,
 } from "./templates";
+import { generateGoogleCalendarURL, type CalendarEvent } from "@/lib/calendar/ics";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -409,5 +412,103 @@ export async function sendSameDayReminderEmail(reservation: Reservation, wasteFe
       error: error instanceof Error ? error.message : "Unknown error",
       emailId: null,
     };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Customer Welcome Email
+// ---------------------------------------------------------------------------
+
+export async function sendCustomerWelcomeEmail(
+  email: string,
+  name: string,
+): Promise<{ success: boolean; error: string | null }> {
+  const template = getCustomerWelcomeEmail(name);
+
+  if (!isEmailConfigured()) {
+    logEmail(email, template.subject, "Customer Welcome");
+    return { success: false, error: "Email not configured" };
+  }
+
+  try {
+    const { error } = await resend.emails.send({
+      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      to: getRecipientEmail(email),
+      subject: template.subject,
+      html: template.html,
+    });
+
+    if (error) {
+      console.error("Error sending welcome email:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.info(`✅ Welcome email sent to ${email}`);
+    return { success: true, error: null };
+  } catch (error) {
+    console.error("Error sending welcome email:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Time-Off Approval Email
+// ---------------------------------------------------------------------------
+
+const TIME_OFF_TYPE_LABELS_EMAIL: Record<string, string> = {
+  vacation: "Férias",
+  sick: "Doença",
+  personal: "Pessoal",
+  other: "Outro",
+};
+
+export async function sendTimeOffApprovalEmail(
+  email: string,
+  staffName: string,
+  timeOffId: number,
+  type: string,
+  startDate: string,
+  endDate: string,
+  reason: string | null,
+): Promise<void> {
+  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sushinsushi.pt";
+  const typeLabel = TIME_OFF_TYPE_LABELS_EMAIL[type] || type;
+
+  const calEvent: CalendarEvent = {
+    id: `timeoff-${timeOffId}`,
+    title: `${typeLabel} — ${staffName}`,
+    description: reason ? `Motivo: ${reason}` : `Ausência: ${typeLabel}`,
+    startDate,
+    endDate,
+    allDay: true,
+    location: "Sushi in Sushi",
+  };
+
+  const googleCalendarUrl = generateGoogleCalendarURL(calEvent);
+  const icsDownloadUrl = `${BASE_URL}/api/calendar/timeoff/${timeOffId}`;
+
+  const template = getTimeOffApprovalEmail(
+    staffName, email, type, startDate, endDate, reason,
+    googleCalendarUrl, icsDownloadUrl,
+  );
+
+  if (!isEmailConfigured()) {
+    console.info(`[TimeOff Approval] Email not configured. Would send to: ${email}`);
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      to: getRecipientEmail(email),
+      subject: template.subject,
+      html: template.html,
+    });
+    console.info(`[TimeOff Approval] Email sent to ${email}`);
+  } catch (err) {
+    console.error("[TimeOff Approval] Failed to send email:", err);
   }
 }

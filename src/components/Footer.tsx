@@ -19,6 +19,7 @@ export function Footer() {
   ];
 
   // Build social links dynamically — only render what's configured in site_settings
+  // WhatsApp uses the first location's phone (ordered by name ascending from DB)
   const firstPhone = locations[0]?.phone?.replace(/\D/g, "");
 
   const socialLinks = [

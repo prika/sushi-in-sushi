@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useRequireWaiter } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
-import { useActivityLog, useProductsOptimized } from "@/presentation/hooks";
+import { useActivityLog, useProductsOptimized, useKitchenPrint } from "@/presentation/hooks";
 import { useSessionOrderingMode } from "@/presentation/hooks/useSessionOrderingMode";
 import { useCart } from "@/presentation/hooks/useCart";
 import { useOrderReview } from "@/presentation/hooks/useOrderReview";
@@ -29,6 +29,7 @@ export default function WaiterMesaPage() {
   const router = useRouter();
   const { logActivity } = useActivityLog();
   const { showToast } = useToast();
+  const { printSession, isPrinting } = useKitchenPrint();
   const [table, setTable] = useState<TableWithDetails | null>(null);
   const [orders, setOrders] = useState<OrderWithProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -768,10 +769,25 @@ export default function WaiterMesaPage() {
                 {/* Ready orders alert */}
                 {readyOrders.length > 0 && (
                   <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3">
-                    <h3 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
-                      <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                      Prontos para Servir ({readyOrders.length})
-                    </h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-semibold text-green-400 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                        Prontos para Servir ({readyOrders.length})
+                      </h3>
+                      {table?.activeSession && (
+                        <button
+                          onClick={() => printSession(table.activeSession!.id, table.location || "circunvalacao")}
+                          disabled={isPrinting}
+                          className="text-xs px-2.5 py-1 rounded-lg bg-gray-700/80 hover:bg-gray-600 text-gray-300 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                          title="Imprimir para cozinha"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                          </svg>
+                          Imprimir
+                        </button>
+                      )}
+                    </div>
                     <div className="space-y-2">
                       {readyOrders.map((order) => (
                         <OrderCard key={order.id} order={order} onStatusChange={handleUpdateOrderStatus} onRequestRevert={setRevertOrderId} isRodizio={isSessionRodizio} />
@@ -1060,6 +1076,26 @@ export default function WaiterMesaPage() {
                       : "Clientes podem fazer pedidos pelo telemóvel"}
                   </p>
                 </div>
+
+                {/* Print to Kitchen */}
+                {table?.activeSession && (pendingOrders.length > 0 || preparingOrders.length > 0) && (
+                  <div className="bg-[#1a1a1a] rounded-xl p-4 border border-gray-700">
+                    <label className="text-sm text-gray-400 mb-3 block">Impressão</label>
+                    <button
+                      onClick={() => printSession(table.activeSession!.id, table.location || "circunvalacao")}
+                      disabled={isPrinting}
+                      className="w-full py-3 bg-gray-700/50 text-gray-300 font-semibold rounded-xl hover:bg-gray-700 transition-colors border border-gray-600 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      Imprimir para Cozinha
+                    </button>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      {pendingOrders.length + preparingOrders.length} pedido(s) pendentes/em preparação
+                    </p>
+                  </div>
+                )}
 
                 {/* Encerrar/Pedir Conta - bill only available when orders have been delivered */}
                 <div className="bg-[#1a1a1a] rounded-xl p-4 border border-red-500/20">

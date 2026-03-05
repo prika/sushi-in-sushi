@@ -117,7 +117,8 @@ async function fetchSchemaData() {
     const hours: HoursRow[] = hoursRes.data ?? [];
 
     return { restaurants, products, settings, closures, hours };
-  } catch {
+  } catch (error) {
+    console.error("[RestaurantSchema] Failed to fetch schema data:", error);
     return { restaurants: [], products: [], settings: null, closures: [], hours: [] };
   }
 }

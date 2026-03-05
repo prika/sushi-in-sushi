@@ -1566,3 +1566,198 @@ ${getEmailHead("Reserva Cancelada")}
     `,
   };
 }
+
+export function getCustomerWelcomeEmail(name: string) {
+  const siteUrl = BASE_URL || "https://sushinsushi.pt";
+
+  return {
+    subject: `Bem-vindo ao Sushi in Sushi! 🍣`,
+    html: `<!DOCTYPE html>
+<html lang="pt">
+${getEmailHead("Bem-vindo ao Sushi in Sushi")}
+<body style="margin:0;padding:0;font-family:${fontSans};background-color:#0a0a0a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0a0a0a;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#1a1a1a;border-radius:24px;overflow:hidden;box-shadow:0 25px 50px rgba(0,0,0,0.5);max-width:600px;">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding:55px 45px 45px;text-align:center;background:linear-gradient(180deg,#1a1a1a 0%,#0f0f0f 100%);border-bottom:2px solid #D4AF37;">
+              <img src="${LOGO_URL}" alt="Sushi in Sushi" width="220" height="auto" style="display:block;margin:0 auto 30px;" />
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto;">
+                <tr>
+                  <td style="padding:0 18px;"><span style="color:#D4AF37;font-size:32px;">✦</span></td>
+                  <td><p style="margin:0;font-family:${fontSans};color:#D4AF37;font-size:22px;letter-spacing:5px;text-transform:uppercase;font-weight:600;">Bem-vindo</p></td>
+                  <td style="padding:0 18px;"><span style="color:#D4AF37;font-size:32px;">✦</span></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Greeting -->
+          <tr>
+            <td style="padding:50px 50px 30px;">
+              <p style="margin:0 0 24px;font-family:${fontSans};color:#fff;font-size:32px;font-weight:400;">
+                Olá <strong style="font-weight:700;">${name}</strong> 👋
+              </p>
+              <p style="margin:0;font-family:${fontSans};color:#b0b0b0;font-size:18px;line-height:1.8;">
+                A sua conta no Sushi in Sushi foi criada com sucesso! Agora pode aproveitar todas as vantagens do nosso programa de fidelização.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Benefits -->
+          <tr>
+            <td style="padding:0 50px 40px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#1f1f1f;border-radius:16px;border:1px solid #333;">
+                <tr>
+                  <td style="padding:28px 35px;background:linear-gradient(90deg,#D4AF37 0%,#c9a432 100%);text-align:center;border-radius:16px 16px 0 0;">
+                    <p style="margin:0;font-family:${fontSans};color:#000;font-size:20px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">O que pode fazer</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:30px 35px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding:12px 0;font-family:${fontSans};color:#fff;font-size:16px;">🎯 &nbsp;Acumular pontos a cada visita</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:12px 0;font-family:${fontSans};color:#fff;font-size:16px;border-top:1px solid #333;">📅 &nbsp;Fazer reservas online rapidamente</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:12px 0;font-family:${fontSans};color:#fff;font-size:16px;border-top:1px solid #333;">⭐ &nbsp;Subir de tier e desbloquear vantagens</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:12px 0;font-family:${fontSans};color:#fff;font-size:16px;border-top:1px solid #333;">📊 &nbsp;Acompanhar o histórico de visitas</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding:0 50px 50px;text-align:center;">
+              <a href="${siteUrl}/pt/conta" style="display:inline-block;padding:18px 48px;background:linear-gradient(90deg,#D4AF37,#c9a432);color:#000;font-family:${fontSans};font-size:18px;font-weight:700;text-decoration:none;border-radius:50px;letter-spacing:1px;">
+                Ver a minha conta
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:30px 50px;text-align:center;border-top:1px solid #222;">
+              <p style="margin:0 0 8px;font-family:${fontSans};color:#555;font-size:13px;">Sushi in Sushi — Porto, Portugal</p>
+              <p style="margin:0;font-family:${fontSans};color:#444;font-size:12px;">Este email foi enviado porque criou uma conta no nosso site.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`,
+  };
+}
+
+const TIME_OFF_TYPE_LABELS: Record<string, string> = {
+  vacation: "Férias",
+  sick: "Doença",
+  personal: "Pessoal",
+  other: "Outro",
+};
+
+export function getTimeOffApprovalEmail(
+  staffName: string,
+  staffEmail: string,
+  timeOffType: string,
+  startDate: string,
+  endDate: string,
+  reason: string | null,
+  googleCalendarUrl: string,
+  icsDownloadUrl: string,
+) {
+  const typeLabel = TIME_OFF_TYPE_LABELS[timeOffType] || timeOffType;
+  const formattedStart = formatDate(startDate);
+  const formattedEnd = formatDate(endDate);
+  const isSameDay = startDate === endDate;
+  const periodText = isSameDay ? formattedStart : `${formattedStart} — ${formattedEnd}`;
+
+  return {
+    subject: `✅ Ausência aprovada — ${typeLabel} | Sushi in Sushi`,
+    to: staffEmail,
+    html: `<!DOCTYPE html>
+<html lang="pt">
+${getEmailHead("Ausência aprovada")}
+<body style="margin:0;padding:0;background-color:#f4f4f4;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+    <tr><td style="padding:40px 20px;">
+      <table role="presentation" width="600" align="center" cellspacing="0" cellpadding="0" style="background:#0d0d0d;border-radius:16px;overflow:hidden;max-width:600px;margin:0 auto;">
+        <!-- Header -->
+        <tr><td style="padding:40px;text-align:center;border-bottom:2px solid #22c55e;">
+          <img src="${LOGO_URL}" alt="Sushi in Sushi" width="160" height="auto" style="display:block;margin:0 auto 20px;" />
+          <p style="margin:0;font-family:${fontSans};color:#22c55e;font-size:20px;font-weight:700;letter-spacing:2px;">AUSÊNCIA APROVADA ✅</p>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="padding:40px;">
+          <p style="margin:0 0 16px;font-family:${fontSans};color:#fff;font-size:24px;">Olá <strong>${staffName}</strong>!</p>
+          <p style="margin:0 0 32px;font-family:${fontSans};color:#b0b0b0;font-size:16px;line-height:1.6;">
+            A sua ausência foi <strong style="color:#22c55e;">aprovada</strong>. Seguem os detalhes:
+          </p>
+
+          <!-- Details box -->
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#1a1a1a;border-radius:12px;overflow:hidden;margin-bottom:32px;">
+            <tr><td style="padding:20px 24px;border-bottom:1px solid #333;">
+              <span style="font-family:${fontSans};color:#888;font-size:14px;">Tipo</span><br/>
+              <span style="font-family:${fontSans};color:#fff;font-size:16px;font-weight:600;">${typeLabel}</span>
+            </td></tr>
+            <tr><td style="padding:20px 24px;${reason ? "border-bottom:1px solid #333;" : ""}">
+              <span style="font-family:${fontSans};color:#888;font-size:14px;">Período</span><br/>
+              <span style="font-family:${fontSans};color:#fff;font-size:16px;font-weight:600;">${periodText}</span>
+            </td></tr>
+            ${reason ? `<tr><td style="padding:20px 24px;">
+              <span style="font-family:${fontSans};color:#888;font-size:14px;">Motivo</span><br/>
+              <span style="font-family:${fontSans};color:#fff;font-size:16px;font-weight:600;">${reason}</span>
+            </td></tr>` : ""}
+          </table>
+
+          <!-- Calendar buttons -->
+          <p style="margin:0 0 20px;font-family:${fontSans};color:#b0b0b0;font-size:15px;text-align:center;">
+            Adicione ao seu calendário:
+          </p>
+          <table role="presentation" align="center" cellspacing="0" cellpadding="0" style="margin:0 auto 16px;">
+            <tr>
+              <td style="padding-right:12px;">
+                <table role="presentation" cellspacing="0" cellpadding="0">
+                  <tr><td style="background:#D4AF37;border-radius:50px;padding:14px 28px;">
+                    <a href="${googleCalendarUrl}" style="font-family:${fontSans};color:#000;font-size:14px;font-weight:700;text-decoration:none;white-space:nowrap;">Google Calendar →</a>
+                  </td></tr>
+                </table>
+              </td>
+              <td>
+                <table role="presentation" cellspacing="0" cellpadding="0">
+                  <tr><td style="background:#333;border-radius:50px;padding:14px 28px;border:1px solid #555;">
+                    <a href="${icsDownloadUrl}" style="font-family:${fontSans};color:#fff;font-size:14px;font-weight:700;text-decoration:none;white-space:nowrap;">Apple Calendar ↓</a>
+                  </td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:24px 40px;text-align:center;border-top:1px solid #222;">
+          <p style="margin:0;font-family:${fontSans};color:#555;font-size:12px;">Sushi in Sushi · Sistema de Gestão</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  };
+}

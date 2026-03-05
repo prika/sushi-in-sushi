@@ -49,6 +49,7 @@ function createTestKitchenOrder(overrides: Partial<KitchenOrder> = {}): KitchenO
       number: 5,
       location: 'circunvalacao',
     },
+    zone: null,
     customerName: 'João',
     waiterName: 'Maria Silva',
     preparerName: null,

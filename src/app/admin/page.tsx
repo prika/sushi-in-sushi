@@ -2,7 +2,34 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  DollarSign,
+  ShoppingBag,
+  Receipt,
+  LayoutGrid,
+  MapPin,
+} from "lucide-react";
+import { useLocations } from "@/presentation/hooks/useLocations";
+import { useDashboardAnalytics } from "@/presentation/hooks/useDashboardAnalytics";
+import { useDateRange } from "@/hooks/useDateRange";
+import {
+  DateRangePicker,
+  KpiCard,
+  ChartCard,
+  AreaChartWidget,
+  BarChartWidget,
+  DonutChartWidget,
+  CHART_COLORS,
+} from "@/components/charts";
 import { Card } from "@/components/ui";
+
+const STATUS_CONFIG: Record<string, { name: string; color: string }> = {
+  pending: { name: "Na fila", color: CHART_COLORS.pending },
+  preparing: { name: "A preparar", color: CHART_COLORS.preparing },
+  ready: { name: "Pronto para servir", color: CHART_COLORS.ready },
+  delivered: { name: "Entregue", color: CHART_COLORS.delivered },
+  cancelled: { name: "Cancelado", color: CHART_COLORS.cancelled },
+};
 
 interface OrderWithProduct {
   id: string;
@@ -13,130 +40,63 @@ interface OrderWithProduct {
   products?: { name: string } | null;
 }
 
-interface DashboardStats {
-  activeSessions: number;
-  totalSessionsToday: number;
-  pendingOrders: number;
-  preparingOrders: number;
-  readyOrders: number;
-  totalRevenue: number;
-  averageOrderValue: number;
-  tablesOccupied: number;
-  totalTables: number;
-}
-
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
-    activeSessions: 0,
-    totalSessionsToday: 0,
+  const { dateRange, setDateRange } = useDateRange("30d");
+  const [location, setLocation] = useState<string>("");
+  const { locations } = useLocations();
+
+  const { data, isLoading } = useDashboardAnalytics(
+    dateRange,
+    location || undefined
+  );
+
+  // Real-time recent orders (always live, independent of date range)
+  const [recentOrders, setRecentOrders] = useState<OrderWithProduct[]>([]);
+  const [liveStats, setLiveStats] = useState({
     pendingOrders: 0,
     preparingOrders: 0,
     readyOrders: 0,
-    totalRevenue: 0,
-    averageOrderValue: 0,
-    tablesOccupied: 0,
-    totalTables: 0,
+    deliveredOrders: 0,
+    cancelledOrders: 0,
   });
-  const [recentOrders, setRecentOrders] = useState<OrderWithProduct[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      const supabase = createClient();
+    const supabase = createClient();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const fetchLive = async () => {
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("*, products(name)")
+        .gte("created_at", today.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(10);
 
-      // Fetch all data in parallel
-      const [
-        { data: activeSessions },
-        { data: todaySessions },
-        { data: orders },
-        { data: tables },
-      ] = await Promise.all([
-        // Active sessions
-        supabase
-          .from("sessions")
-          .select("*")
-          .eq("status", "active"),
-
-        // All sessions today
-        supabase
-          .from("sessions")
-          .select("*")
-          .gte("created_at", today.toISOString()),
-
-        // Today's orders with product info
-        supabase
-          .from("orders")
-          .select("*, products(name)")
-          .gte("created_at", today.toISOString()),
-
-        // Tables count
-        supabase
-          .from("tables")
-          .select("*"),
-      ]);
-
-      // Calculate stats
-      const activeSessionsList = activeSessions || [];
       const allOrders = orders || [];
-      const tablesList = tables || [];
-
-      const pendingOrders = allOrders.filter((o) => o.status === "pending").length;
-      const preparingOrders = allOrders.filter((o) => o.status === "preparing").length;
-      const readyOrders = allOrders.filter((o) => o.status === "ready").length;
-
-      // Calculate revenue from delivered orders
-      const deliveredOrders = allOrders.filter((o) => o.status === "delivered");
-      const totalRevenue = deliveredOrders.reduce(
-        (sum, order) => sum + (order.quantity * (order.unit_price || 0)),
-        0
-      );
-
-      const averageOrderValue =
-        deliveredOrders.length > 0 ? totalRevenue / deliveredOrders.length : 0;
-
-      // Get occupied tables
-      const occupiedTableIds = new Set(activeSessionsList.map((s) => s.table_id));
-
-      setStats({
-        activeSessions: activeSessionsList.length,
-        totalSessionsToday: todaySessions?.length || 0,
-        pendingOrders,
-        preparingOrders,
-        readyOrders,
-        totalRevenue,
-        averageOrderValue,
-        tablesOccupied: occupiedTableIds.size,
-        totalTables: tablesList.length,
+      setRecentOrders(allOrders);
+      setLiveStats({
+        pendingOrders: allOrders.filter((o) => o.status === "pending").length,
+        preparingOrders: allOrders.filter((o) => o.status === "preparing").length,
+        readyOrders: allOrders.filter((o) => o.status === "ready").length,
+        deliveredOrders: allOrders.filter((o) => o.status === "delivered").length,
+        cancelledOrders: allOrders.filter((o) => o.status === "cancelled").length,
       });
-
-      // Get recent orders
-      setRecentOrders(allOrders.slice(0, 10));
-      setIsLoading(false);
     };
 
-    fetchDashboardData();
-
-    // Set up real-time subscription
-    const supabase = createClient();
+    fetchLive();
 
     const channel = supabase
       .channel("admin-dashboard")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders" },
-        () => {
-          fetchDashboardData();
-        }
+        () => fetchLive()
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sessions" },
-        () => {
-          fetchDashboardData();
-        }
+        () => fetchLive()
       )
       .subscribe();
 
@@ -145,101 +105,159 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D4AF37]" />
-      </div>
-    );
-  }
+  // Prepare chart data
+  const ordersByStatus =
+    data?.ordersByStatus.map((d) => ({
+      name: STATUS_CONFIG[d.status]?.name || d.status,
+      value: d.count,
+      color: STATUS_CONFIG[d.status]?.color || CHART_COLORS.axis,
+    })) || [];
+
+  const ordersByHour = data?.ordersByHour.filter((d) => d.count > 0) || [];
+
+  const locationBars =
+    data?.locationComparison.map((d) => ({
+      name: d.locationName,
+      Receita: Math.round(d.revenue),
+      Pedidos: d.orderCount,
+      Sessões: d.sessionCount,
+    })) || [];
+
+  const formatDateShort = (val: string) => {
+    const d = new Date(val);
+    return `${d.getDate()}/${d.getMonth() + 1}`;
+  };
 
   return (
     <div className="space-y-6">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Active Sessions */}
-        <Card variant="light">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Sessões Ativas</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.activeSessions}</p>
-              <p className="text-xs text-gray-400">{stats.totalSessionsToday} hoje</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Orders */}
-        <Card variant="light">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-yellow-100 rounded-xl">
-              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Pedidos</p>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-gray-900">
-                  {stats.pendingOrders + stats.preparingOrders}
-                </span>
-                <span className="text-xs text-gray-400">ativos</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-yellow-600">{stats.pendingOrders} pendentes</span>
-                <span className="text-orange-600">{stats.preparingOrders} a preparar</span>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Revenue */}
-        <Card variant="light">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-[#D4AF37]/20 rounded-xl">
-              <svg className="w-6 h-6 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Faturação Hoje</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.totalRevenue.toFixed(2)}€
-              </p>
-              <p className="text-xs text-gray-400">
-                Média: {stats.averageOrderValue.toFixed(2)}€/pedido
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Tables */}
-        <Card variant="light">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Mesas</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {stats.tablesOccupied}/{stats.totalTables}
-              </p>
-              <p className="text-xs text-gray-400">ocupadas</p>
-            </div>
-          </div>
-        </Card>
+      {/* Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
+        <div className="flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-gray-400" />
+          <select
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm bg-white"
+          >
+            <option value="">Todos os locais</option>
+            {locations.map((loc) => (
+              <option key={loc.slug} value={loc.slug}>
+                {loc.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Activity Section */}
+      {/* KPI Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Faturação"
+          value={data?.kpis.revenue ?? 0}
+          previousValue={data?.previousKpis.revenue}
+          format="currency"
+          icon={<DollarSign className="h-4 w-4" />}
+          isLoading={isLoading}
+        />
+        <KpiCard
+          label="Pedidos"
+          value={data?.kpis.orderCount ?? 0}
+          previousValue={data?.previousKpis.orderCount}
+          format="number"
+          icon={<ShoppingBag className="h-4 w-4" />}
+          isLoading={isLoading}
+        />
+        <KpiCard
+          label="Ticket Médio"
+          value={data?.kpis.averageTicket ?? 0}
+          previousValue={data?.previousKpis.averageTicket}
+          format="currency"
+          icon={<Receipt className="h-4 w-4" />}
+          isLoading={isLoading}
+        />
+        <KpiCard
+          label="Taxa de Ocupação"
+          value={data?.kpis.occupancyRate ?? 0}
+          previousValue={data?.previousKpis.occupancyRate}
+          format="percent"
+          icon={<LayoutGrid className="h-4 w-4" />}
+          isLoading={isLoading}
+        />
+      </div>
+
+      {/* Revenue Over Time */}
+      <ChartCard title="Faturação ao Longo do Tempo" subtitle="Receita diária de pedidos entregues">
+        {isLoading ? (
+          <div className="h-[300px] bg-gray-50 rounded animate-pulse" />
+        ) : (
+          <AreaChartWidget
+            data={(data?.revenueOverTime || []) as unknown as Record<string, unknown>[]}
+            xKey="date"
+            yKey="revenue"
+            formatY="currency"
+            xTickFormatter={formatDateShort}
+          />
+        )}
+      </ChartCard>
+
+      {/* Two column: Orders by Hour + Orders by Status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Orders */}
-        <Card variant="light" header={<h2 className="text-lg font-semibold">Pedidos Recentes</h2>}>
+        <ChartCard title="Pedidos por Hora" subtitle="Identificar picos de atividade">
+          {isLoading ? (
+            <div className="h-[300px] bg-gray-50 rounded animate-pulse" />
+          ) : (
+            <BarChartWidget
+              data={ordersByHour as unknown as Record<string, unknown>[]}
+              xKey="hour"
+              bars={[{ key: "count", name: "Pedidos", color: CHART_COLORS.gold }]}
+              xTickFormatter={(h) => `${h}h`}
+            />
+          )}
+        </ChartCard>
+
+        <ChartCard title="Pedidos por Estado" subtitle="Distribuição de estados">
+          {isLoading ? (
+            <div className="h-[300px] bg-gray-50 rounded animate-pulse" />
+          ) : (
+            <DonutChartWidget
+              data={ordersByStatus}
+              centerValue={String(data?.kpis.orderCount ?? 0)}
+              centerLabel="total"
+            />
+          )}
+        </ChartCard>
+      </div>
+
+      {/* Location Comparison */}
+      {locationBars.length > 1 && (
+        <ChartCard title="Comparação por Local" subtitle="Métricas lado a lado por restaurante">
+          <BarChartWidget
+            data={locationBars}
+            xKey="name"
+            bars={[
+              { key: "Receita", name: "Receita (€)", color: CHART_COLORS.gold },
+              { key: "Pedidos", name: "Pedidos", color: CHART_COLORS.preparing },
+              { key: "Sessões", name: "Sessões", color: CHART_COLORS.delivered },
+            ]}
+            showLegend
+          />
+        </ChartCard>
+      )}
+
+      {/* Live Activity Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Orders (real-time) */}
+        <Card
+          variant="light"
+          header={
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <h2 className="text-lg font-semibold">Pedidos Recentes</h2>
+              <span className="text-xs text-gray-400">tempo real</span>
+            </div>
+          }
+        >
           {recentOrders.length === 0 ? (
             <p className="text-gray-500 text-center py-8">Nenhum pedido hoje</p>
           ) : (
@@ -264,7 +282,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <p className="font-semibold text-gray-900">
-                    {((order.quantity * (order.unit_price || 0))).toFixed(2)}€
+                    {(order.quantity * (order.unit_price || 0)).toFixed(2)}€
                   </p>
                 </div>
               ))}
@@ -272,52 +290,36 @@ export default function AdminDashboard() {
           )}
         </Card>
 
-        {/* Quick Stats */}
-        <Card variant="light" header={<h2 className="text-lg font-semibold">Resumo do Dia</h2>}>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-green-500" />
-                <span className="text-gray-700">Pedidos Entregues</span>
-              </div>
-              <span className="font-bold text-gray-900">
-                {recentOrders.filter((o) => o.status === "delivered").length}
-              </span>
+        {/* Day Summary (real-time) */}
+        <Card
+          variant="light"
+          header={
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <h2 className="text-lg font-semibold">Resumo do Dia</h2>
+              <span className="text-xs text-gray-400">tempo real</span>
             </div>
-
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                <span className="text-gray-700">Pedidos Pendentes</span>
+          }
+        >
+          <div className="space-y-3">
+            {[
+              { label: "Entregues", value: liveStats.deliveredOrders, color: "bg-green-500" },
+              { label: "Pendentes", value: liveStats.pendingOrders, color: "bg-yellow-500" },
+              { label: "Em Preparação", value: liveStats.preparingOrders, color: "bg-orange-500" },
+              { label: "Prontos para Entrega", value: liveStats.readyOrders, color: "bg-blue-500" },
+              { label: "Cancelados", value: liveStats.cancelledOrders, color: "bg-red-500" },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${item.color}`} />
+                  <span className="text-gray-700">{item.label}</span>
+                </div>
+                <span className="font-bold text-gray-900">{item.value}</span>
               </div>
-              <span className="font-bold text-gray-900">{stats.pendingOrders}</span>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-orange-500" />
-                <span className="text-gray-700">Em Preparação</span>
-              </div>
-              <span className="font-bold text-gray-900">{stats.preparingOrders}</span>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-blue-500" />
-                <span className="text-gray-700">Prontos para Entrega</span>
-              </div>
-              <span className="font-bold text-gray-900">{stats.readyOrders}</span>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-red-500" />
-                <span className="text-gray-700">Cancelados</span>
-              </div>
-              <span className="font-bold text-gray-900">
-                {recentOrders.filter((o) => o.status === "cancelled").length}
-              </span>
-            </div>
+            ))}
           </div>
         </Card>
       </div>
