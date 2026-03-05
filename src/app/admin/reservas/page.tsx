@@ -118,6 +118,20 @@ export default function ReservationsPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Dynamic restaurant locations
+  const [restaurantLocations, setRestaurantLocations] = useState<{ slug: string; name: string }[]>([]);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("restaurants")
+      .select("slug, name")
+      .eq("is_active", true)
+      .order("name", { ascending: true })
+      .then(({ data }) => {
+        if (data?.length) setRestaurantLocations(data);
+      });
+  }, []);
+
   const fetchReservations = useCallback(async () => {
     setFetchError(null);
     const supabase = createClient();
@@ -422,8 +436,9 @@ export default function ReservationsPage() {
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
           >
             <option value="">Todos os restaurantes</option>
-            <option value="circunvalacao">Circunvalação</option>
-            <option value="boavista">Boavista</option>
+            {restaurantLocations.map((loc) => (
+              <option key={loc.slug} value={loc.slug}>{loc.name}</option>
+            ))}
           </select>
           <select
             value={statusFilter}

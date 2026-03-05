@@ -34,9 +34,9 @@ interface Reservation {
   location: string;
 }
 
-const LOCATION_LABELS: Record<string, string> = {
-  circunvalacao: "Circunvalação",
-  boavista: "Boavista",
+// Dynamic location label: capitalize slug, handle accented names
+const getLocationLabel = (slug: string): string => {
+  return slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, " ");
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -169,6 +169,15 @@ export default function ContaPage() {
   const tierLabel = CUSTOMER_TIER_LABELS[tier];
   const tierColors = CUSTOMER_TIER_COLORS[tier];
 
+  const safeFirstName = (() => {
+    const tokens = (customer.name ?? "").trim().split(/\s+/).filter(Boolean);
+    const fromName = tokens[0];
+    if (fromName) return fromName;
+    const emailUser = (customer.email ?? "").split("@")[0]?.trim();
+    if (emailUser) return emailUser;
+    return "there";
+  })();
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -178,7 +187,7 @@ export default function ContaPage() {
           {/* Header */}
           <div>
             <h1 className="font-display text-3xl md:text-4xl font-semibold text-white">
-              {t("greeting", { name: customer.name.split(" ")[0] })}
+              {t("greeting", { name: safeFirstName })}
             </h1>
             <p className="text-muted mt-1">{customer.email}</p>
           </div>
@@ -328,9 +337,14 @@ export default function ContaPage() {
                   <dt className="text-muted text-sm">{t("birthDateLabel")}</dt>
                   <dd className="text-white text-sm font-medium">
                     {customer.birth_date ? (
-                      new Date(customer.birth_date).toLocaleDateString(
-                        locale === "pt" ? "pt-PT" : locale,
-                      )
+                      (() => {
+                        const [y, m, d] = customer.birth_date
+                          .split("-")
+                          .map(Number);
+                        return new Date(y, m - 1, d).toLocaleDateString(
+                          locale === "pt" ? "pt-PT" : locale,
+                        );
+                      })()
                     ) : (
                       <span className="text-gray-600">{t("notDefined_f")}</span>
                     )}
@@ -363,12 +377,13 @@ export default function ContaPage() {
                   >
                     <div>
                       <p className="text-white text-sm font-medium">
-                        {new Date(r.reservation_date).toLocaleDateString(
+                        {new Date(`${r.reservation_date}T00:00:00Z`).toLocaleDateString(
                           locale === "pt" ? "pt-PT" : locale,
                           {
                             day: "numeric",
                             month: "long",
                             year: "numeric",
+                            timeZone: "UTC",
                           },
                         )}
                         {r.reservation_time && ` · ${r.reservation_time.slice(0, 5)}`}
@@ -376,7 +391,7 @@ export default function ContaPage() {
                       <p className="text-muted text-xs mt-0.5">
                         {r.party_size}{" "}
                         {r.party_size === 1 ? t("person") : t("people")} ·{" "}
-                        {LOCATION_LABELS[r.location] || r.location}
+                        {getLocationLabel(r.location)}
                       </p>
                     </div>
                     <span

@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import type { Reservation } from "@/types/database";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import {
   getCustomerConfirmationEmail,
   getRestaurantNotificationEmail,
@@ -11,16 +11,11 @@ import {
   getSameDayReminderEmail,
   getCustomerWelcomeEmail,
   getTimeOffApprovalEmail,
+  type LocationInfo,
 } from "./templates";
 import { generateGoogleCalendarURL, type CalendarEvent } from "@/lib/calendar/ics";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-
-// Restaurant notification emails by location
-const RESTAURANT_EMAILS: Record<string, string> = {
-  circunvalacao: process.env.RESTAURANT_EMAIL_1 || "",
-  boavista: process.env.RESTAURANT_EMAIL_2 || "",
-};
 
 const FROM_EMAIL = process.env.FROM_EMAIL;
 
@@ -35,6 +30,44 @@ const getRecipientEmail = (originalEmail: string): string => {
   }
   return originalEmail;
 };
+
+// Fetch restaurant info from DB for email templates
+async function fetchLocationInfo(slug: string): Promise<LocationInfo> {
+  try {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("restaurants")
+      .select("name, address, phone, email, latitude, longitude, google_maps_url")
+      .eq("slug", slug)
+      .single();
+
+    if (data) {
+      return {
+        name: `Sushi in Sushi - ${data.name}`,
+        address: data.address || "",
+        phone: data.phone || "",
+        email: data.email || "",
+        coordinates: {
+          lat: data.latitude || 0,
+          lng: data.longitude || 0,
+        },
+        mapsUrl: data.google_maps_url || `https://maps.google.com/?q=Sushi+in+Sushi+${encodeURIComponent(data.name)}`,
+      };
+    }
+  } catch (error) {
+    console.error("Error fetching location info:", error);
+  }
+
+  // Fallback if DB lookup fails
+  return {
+    name: "Sushi in Sushi",
+    address: "",
+    phone: "",
+    email: "",
+    coordinates: { lat: 0, lng: 0 },
+    mapsUrl: "",
+  };
+}
 
 // Helper to update reservation with email tracking info
 async function updateReservationEmailTracking(
@@ -103,14 +136,16 @@ export async function sendReservationEmails(reservation: Reservation) {
     restaurantEmail: { success: false, error: null as string | null },
   };
 
+  const locationInfo = await fetchLocationInfo(reservation.location);
+
   // Check if email is properly configured
   if (!isEmailConfigured()) {
-    const customerEmail = getCustomerConfirmationEmail(reservation);
-    const restaurantEmail = getRestaurantNotificationEmail(reservation);
+    const customerEmail = getCustomerConfirmationEmail(reservation, locationInfo);
+    const restaurantEmail = getRestaurantNotificationEmail(reservation, locationInfo);
 
     logEmail(reservation.email, customerEmail.subject, "Customer Confirmation");
     logEmail(
-      RESTAURANT_EMAILS[reservation.location],
+      locationInfo.email,
       restaurantEmail.subject,
       "Restaurant Notification",
     );
@@ -125,7 +160,7 @@ export async function sendReservationEmails(reservation: Reservation) {
 
   // Send confirmation email to customer
   try {
-    const customerEmail = getCustomerConfirmationEmail(reservation);
+    const customerEmail = getCustomerConfirmationEmail(reservation, locationInfo);
     const { data, error } = await resend.emails.send({
       from: `Sushi in Sushi <${FROM_EMAIL}>`,
       to: getRecipientEmail(reservation.email),
@@ -157,10 +192,13 @@ export async function sendReservationEmails(reservation: Reservation) {
 
   // Send notification email to restaurant
   try {
-    const restaurantEmail = getRestaurantNotificationEmail(reservation);
-    const toEmail =
-      RESTAURANT_EMAILS[reservation.location] ||
-      RESTAURANT_EMAILS.circunvalacao;
+    const restaurantEmail = getRestaurantNotificationEmail(reservation, locationInfo);
+    const toEmail = locationInfo.email;
+
+    if (!toEmail) {
+      results.restaurantEmail.error = "No restaurant email configured";
+      return results;
+    }
 
     const { error } = await resend.emails.send({
       from: `Reservas Online <${FROM_EMAIL}>`,
@@ -186,10 +224,12 @@ export async function sendReservationEmails(reservation: Reservation) {
 }
 
 export async function sendRestaurantNotificationEmail(reservation: Reservation) {
+  const locationInfo = await fetchLocationInfo(reservation.location);
+
   if (!isEmailConfigured()) {
-    const restaurantEmail = getRestaurantNotificationEmail(reservation);
+    const restaurantEmail = getRestaurantNotificationEmail(reservation, locationInfo);
     logEmail(
-      RESTAURANT_EMAILS[reservation.location],
+      locationInfo.email,
       restaurantEmail.subject,
       "Restaurant Notification",
     );
@@ -197,10 +237,12 @@ export async function sendRestaurantNotificationEmail(reservation: Reservation) 
   }
 
   try {
-    const restaurantEmail = getRestaurantNotificationEmail(reservation);
-    const toEmail =
-      RESTAURANT_EMAILS[reservation.location] ||
-      RESTAURANT_EMAILS.circunvalacao;
+    const restaurantEmail = getRestaurantNotificationEmail(reservation, locationInfo);
+    const toEmail = locationInfo.email;
+
+    if (!toEmail) {
+      return { success: false, error: "No restaurant email configured" };
+    }
 
     const { error } = await resend.emails.send({
       from: `Reservas Online <${FROM_EMAIL}>`,
@@ -226,7 +268,8 @@ export async function sendRestaurantNotificationEmail(reservation: Reservation) 
 }
 
 export async function sendReservationConfirmedEmail(reservation: Reservation) {
-  const emailTemplate = getReservationConfirmedEmail(reservation);
+  const locationInfo = await fetchLocationInfo(reservation.location);
+  const emailTemplate = getReservationConfirmedEmail(reservation, locationInfo);
 
   // Check if email is properly configured
   if (!isEmailConfigured()) {
@@ -272,7 +315,8 @@ export async function sendReservationConfirmedEmail(reservation: Reservation) {
 }
 
 export async function sendFarewellEmail(reservation: Reservation) {
-  const emailTemplate = getFarewellEmail(reservation);
+  const locationInfo = await fetchLocationInfo(reservation.location);
+  const emailTemplate = getFarewellEmail(reservation, locationInfo);
 
   // Check if email is properly configured
   if (!isEmailConfigured()) {
@@ -308,7 +352,8 @@ export async function sendFarewellEmail(reservation: Reservation) {
 }
 
 export async function sendCancellationEmail(reservation: Reservation, cancellationReason: string) {
-  const emailTemplate = getCancellationEmail(reservation, cancellationReason);
+  const locationInfo = await fetchLocationInfo(reservation.location);
+  const emailTemplate = getCancellationEmail(reservation, locationInfo, cancellationReason);
 
   // Check if email is properly configured
   if (!isEmailConfigured()) {
@@ -344,7 +389,8 @@ export async function sendCancellationEmail(reservation: Reservation, cancellati
 }
 
 export async function sendDayBeforeReminderEmail(reservation: Reservation, wasteFeePerPiece: number = 2.50) {
-  const emailTemplate = getDayBeforeReminderEmail(reservation, wasteFeePerPiece);
+  const locationInfo = await fetchLocationInfo(reservation.location);
+  const emailTemplate = getDayBeforeReminderEmail(reservation, locationInfo, wasteFeePerPiece);
 
   if (!isEmailConfigured()) {
     logEmail(reservation.email, emailTemplate.subject, "Day-Before Reminder");
@@ -380,7 +426,8 @@ export async function sendDayBeforeReminderEmail(reservation: Reservation, waste
 }
 
 export async function sendSameDayReminderEmail(reservation: Reservation, wasteFeePerPiece: number = 2.50) {
-  const emailTemplate = getSameDayReminderEmail(reservation, wasteFeePerPiece);
+  const locationInfo = await fetchLocationInfo(reservation.location);
+  const emailTemplate = getSameDayReminderEmail(reservation, locationInfo, wasteFeePerPiece);
 
   if (!isEmailConfigured()) {
     logEmail(reservation.email, emailTemplate.subject, "Same-Day Reminder");
@@ -473,7 +520,7 @@ export async function sendTimeOffApprovalEmail(
   startDate: string,
   endDate: string,
   reason: string | null,
-): Promise<void> {
+): Promise<{ success: boolean; error: string | null }> {
   const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sushinsushi.pt";
   const typeLabel = TIME_OFF_TYPE_LABELS_EMAIL[type] || type;
 
@@ -497,7 +544,7 @@ export async function sendTimeOffApprovalEmail(
 
   if (!isEmailConfigured()) {
     console.info(`[TimeOff Approval] Email not configured. Would send to: ${email}`);
-    return;
+    return { success: false, error: "Email not configured" };
   }
 
   try {
@@ -508,7 +555,9 @@ export async function sendTimeOffApprovalEmail(
       html: template.html,
     });
     console.info(`[TimeOff Approval] Email sent to ${email}`);
+    return { success: true, error: null };
   } catch (err) {
     console.error("[TimeOff Approval] Failed to send email:", err);
+    return { success: false, error: String(err) };
   }
 }

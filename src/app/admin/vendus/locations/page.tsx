@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-interface Location {
+interface Restaurant {
   id: string;
   name: string;
   slug: string;
@@ -11,8 +11,23 @@ interface Location {
   vendus_register_id: string | null;
 }
 
+interface VendusStore {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  is_active: boolean;
+}
+
+interface VendusRegister {
+  id: string;
+  name: string;
+  store_id: string;
+  is_active: boolean;
+}
+
 export default function VendusLocationsPage() {
-  const [locations, setLocations] = useState<Location[]>([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
@@ -22,19 +37,16 @@ export default function VendusLocationsPage() {
     vendus_register_id: string;
   }>({ vendus_enabled: false, vendus_store_id: "", vendus_register_id: "" });
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newLocation, setNewLocation] = useState({
-    name: "",
-    slug: "",
-    vendus_enabled: false,
-    vendus_store_id: "",
-    vendus_register_id: "",
-  });
-  const [addError, setAddError] = useState<string | null>(null);
-  const [isAdding, setIsAdding] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchLocations = useCallback(async () => {
+  // Vendus import state
+  const [vendusStores, setVendusStores] = useState<VendusStore[]>([]);
+  const [vendusRegisters, setVendusRegisters] = useState<Record<string, VendusRegister[]>>({});
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
+
+  const fetchRestaurants = useCallback(async () => {
     setIsLoading(true);
     setFetchError(null);
     try {
@@ -42,22 +54,22 @@ export default function VendusLocationsPage() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setFetchError(err.error || `Erro ${res.status}`);
-        setLocations([]);
+        setRestaurants([]);
         return;
       }
       const data = await res.json();
-      setLocations(Array.isArray(data) ? data : []);
+      setRestaurants(Array.isArray(data) ? data : []);
     } catch {
       setFetchError("Erro de ligacao ao servidor");
-      setLocations([]);
+      setRestaurants([]);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchLocations();
-  }, [fetchLocations]);
+    fetchRestaurants();
+  }, [fetchRestaurants]);
 
   useEffect(() => {
     return () => {
@@ -65,7 +77,41 @@ export default function VendusLocationsPage() {
     };
   }, []);
 
-  const handleEdit = (loc: Location) => {
+  const handleImportStores = async () => {
+    setIsImporting(true);
+    setImportError(null);
+    try {
+      const res = await fetch("/api/vendus/stores");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setImportError(err.error || `Erro ${res.status}`);
+        return;
+      }
+      const data = await res.json();
+      setVendusStores(data.stores || []);
+      setVendusRegisters(data.registers || {});
+      setShowImport(true);
+    } catch {
+      setImportError("Erro ao comunicar com Vendus");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleAssignStore = (restaurantSlug: string, store: VendusStore) => {
+    const storeRegisters = vendusRegisters[store.id] || [];
+    const firstRegister = storeRegisters[0];
+
+    setEditingSlug(restaurantSlug);
+    setFormData({
+      vendus_enabled: true,
+      vendus_store_id: store.id,
+      vendus_register_id: firstRegister?.id || "",
+    });
+    setSaveStatus(null);
+  };
+
+  const handleEdit = (loc: Restaurant) => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
@@ -88,34 +134,6 @@ export default function VendusLocationsPage() {
     setSaveStatus(null);
   };
 
-  const handleAddLocation = async () => {
-    if (!newLocation.name.trim() || !newLocation.slug.trim()) {
-      setAddError("Nome e slug obrigatorios");
-      return;
-    }
-    setAddError(null);
-    setIsAdding(true);
-    try {
-      const res = await fetch("/api/locations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newLocation),
-      });
-      if (res.ok) {
-        setShowAddForm(false);
-        setNewLocation({ name: "", slug: "", vendus_enabled: false, vendus_store_id: "", vendus_register_id: "" });
-        await fetchLocations();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setAddError(err.error || "Erro ao criar");
-      }
-    } catch {
-      setAddError("Erro de ligacao");
-    } finally {
-      setIsAdding(false);
-    }
-  };
-
   const handleSave = async (slug: string) => {
     setSaveStatus("saving");
     try {
@@ -130,7 +148,7 @@ export default function VendusLocationsPage() {
       });
       if (res.ok) {
         setSaveStatus("saved");
-        await fetchLocations();
+        await fetchRestaurants();
         saveTimeoutRef.current = setTimeout(() => {
           saveTimeoutRef.current = null;
           setSaveStatus(null);
@@ -155,14 +173,23 @@ export default function VendusLocationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Configuracao Vendus por Local
-        </h1>
-        <p className="text-gray-500">
-          Configure Store ID e Register ID para cada restaurante. A API key e
-          global (.env).
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Configuracao Vendus por Restaurante
+          </h1>
+          <p className="text-gray-500">
+            Configure Store ID e Register ID para cada restaurante. A API key e
+            global (.env).
+          </p>
+        </div>
+        <button
+          onClick={handleImportStores}
+          disabled={isImporting}
+          className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm disabled:opacity-50 cursor-pointer"
+        >
+          {isImporting ? "A importar..." : "Importar do Vendus"}
+        </button>
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
@@ -171,47 +198,157 @@ export default function VendusLocationsPage() {
           href="https://www.vendus.pt/dashboard/settings/api"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline"
+          className="underline cursor-pointer"
         >
           vendus.pt/dashboard
         </a>
         . Store ID e Register ID encontram-se nas definicoes da sua loja Vendus.
       </div>
 
+      {/* Import error */}
+      {importError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm text-red-700">{importError}</p>
+        </div>
+      )}
+
+      {/* Vendus stores import panel */}
+      {showImport && vendusStores.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-blue-900">
+              Lojas encontradas no Vendus ({vendusStores.length})
+            </h2>
+            <button
+              onClick={() => setShowImport(false)}
+              className="text-blue-600 hover:text-blue-800 text-sm cursor-pointer"
+            >
+              Fechar
+            </button>
+          </div>
+          <p className="text-sm text-blue-700">
+            Clique numa loja para associar a um restaurante.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {vendusStores.map((store) => {
+              const regs = vendusRegisters[store.id] || [];
+              const assignedTo = restaurants.find(
+                (r) => r.vendus_store_id === store.id,
+              );
+              return (
+                <div
+                  key={store.id}
+                  className={`rounded-lg border p-4 ${
+                    assignedTo
+                      ? "bg-green-50 border-green-200"
+                      : "bg-white border-blue-100"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="font-medium text-gray-900">{store.name}</p>
+                      <p className="text-xs text-gray-400 font-mono">
+                        ID: {store.id}
+                      </p>
+                    </div>
+                    {store.is_active ? (
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">
+                        Ativa
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-xs">
+                        Inativa
+                      </span>
+                    )}
+                  </div>
+                  {store.address && (
+                    <p className="text-xs text-gray-500 mb-2">{store.address}</p>
+                  )}
+                  {regs.length > 0 && (
+                    <p className="text-xs text-gray-400 mb-2">
+                      {regs.length} caixa{regs.length > 1 ? "s" : ""}:{" "}
+                      {regs.map((r) => r.name || r.id).join(", ")}
+                    </p>
+                  )}
+                  {assignedTo ? (
+                    <p className="text-xs text-green-700 font-medium">
+                      Associada a: {assignedTo.name}
+                    </p>
+                  ) : (
+                    <div className="flex gap-2 flex-wrap">
+                      {restaurants
+                        .filter((r) => !r.vendus_store_id)
+                        .map((r) => (
+                          <button
+                            key={r.id}
+                            onClick={() => handleAssignStore(r.slug, store)}
+                            className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 cursor-pointer"
+                          >
+                            Associar a {r.name}
+                          </button>
+                        ))}
+                      {restaurants.filter((r) => !r.vendus_store_id).length ===
+                        0 && (
+                        <p className="text-xs text-gray-400">
+                          Todos os restaurantes ja estao associados
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {showImport && vendusStores.length === 0 && !isImporting && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-sm text-yellow-700">
+            Nenhuma loja encontrada no Vendus. Verifique a API key e as
+            definicoes da conta.
+          </p>
+        </div>
+      )}
+
       {/* Error state */}
       {fetchError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
           <p className="text-sm text-red-700">
-            Erro ao carregar localizacoes: {fetchError}
+            Erro ao carregar restaurantes: {fetchError}
           </p>
           <button
-            onClick={fetchLocations}
-            className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200"
+            onClick={fetchRestaurants}
+            className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200 cursor-pointer"
           >
             Tentar novamente
           </button>
         </div>
       )}
 
-      {/* Locations list */}
-      {fetchError ? null : locations.length === 0 ? (
+      {/* Restaurants list */}
+      {fetchError ? null : restaurants.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-          <p className="text-gray-500 mb-2">Nenhuma localizacao encontrada.</p>
+          <p className="text-gray-500 mb-2">Nenhum restaurante encontrado.</p>
           <p className="text-gray-400 text-sm">
-            Verifique se a migracao 046 (Vendus integration) foi aplicada na base de dados.
+            Adicione restaurantes em Definicoes &gt; Gestao de Restaurantes.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {locations.map((loc) => (
+          {restaurants.map((loc) => (
             <div
               key={loc.id}
               className="bg-white rounded-xl shadow-sm border border-gray-200 p-5"
             >
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="font-semibold text-gray-900 text-lg">{loc.name}</h3>
-                  <span className="text-xs text-gray-400 font-mono">{loc.slug}</span>
+                  <h3 className="font-semibold text-gray-900 text-lg">
+                    {loc.name}
+                  </h3>
+                  <span className="text-xs text-gray-400 font-mono">
+                    {loc.slug}
+                  </span>
                 </div>
                 <div className="flex items-center gap-3">
                   {loc.vendus_enabled ? (
@@ -226,7 +363,7 @@ export default function VendusLocationsPage() {
                   {editingSlug !== loc.slug && (
                     <button
                       onClick={() => handleEdit(loc)}
-                      className="px-3 py-1.5 bg-[#D4AF37] text-black rounded-lg text-sm font-medium hover:bg-[#C4A030]"
+                      className="px-3 py-1.5 bg-[#D4AF37] text-black rounded-lg text-sm font-medium hover:bg-[#C4A030] cursor-pointer"
                     >
                       Configurar Vendus
                     </button>
@@ -239,13 +376,17 @@ export default function VendusLocationsPage() {
                   <div>
                     <span className="text-gray-500">Store ID:</span>{" "}
                     <span className="font-mono text-gray-700">
-                      {loc.vendus_store_id || <span className="text-gray-300">nao configurado</span>}
+                      {loc.vendus_store_id || (
+                        <span className="text-gray-300">nao configurado</span>
+                      )}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-500">Register ID:</span>{" "}
                     <span className="font-mono text-gray-700">
-                      {loc.vendus_register_id || <span className="text-gray-300">nao configurado</span>}
+                      {loc.vendus_register_id || (
+                        <span className="text-gray-300">nao configurado</span>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -260,7 +401,10 @@ export default function VendusLocationsPage() {
                         type="text"
                         value={formData.vendus_store_id}
                         onChange={(e) =>
-                          setFormData((p) => ({ ...p, vendus_store_id: e.target.value }))
+                          setFormData((p) => ({
+                            ...p,
+                            vendus_store_id: e.target.value,
+                          }))
                         }
                         placeholder="Ex: 12345"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-mono"
@@ -273,142 +417,91 @@ export default function VendusLocationsPage() {
                       <label className="block text-xs font-medium text-gray-500 mb-1">
                         Register ID (Caixa)
                       </label>
-                      <input
-                        type="text"
-                        value={formData.vendus_register_id}
-                        onChange={(e) =>
-                          setFormData((p) => ({ ...p, vendus_register_id: e.target.value }))
-                        }
-                        placeholder="Ex: 67890"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-mono"
-                      />
+                      {/* Show dropdown if we have registers for the selected store */}
+                      {formData.vendus_store_id &&
+                      vendusRegisters[formData.vendus_store_id]?.length > 0 ? (
+                        <select
+                          value={formData.vendus_register_id}
+                          onChange={(e) =>
+                            setFormData((p) => ({
+                              ...p,
+                              vendus_register_id: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-mono cursor-pointer"
+                        >
+                          <option value="">Selecionar caixa...</option>
+                          {vendusRegisters[formData.vendus_store_id].map(
+                            (reg) => (
+                              <option key={reg.id} value={reg.id}>
+                                {reg.name || `Caixa ${reg.id}`}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={formData.vendus_register_id}
+                          onChange={(e) =>
+                            setFormData((p) => ({
+                              ...p,
+                              vendus_register_id: e.target.value,
+                            }))
+                          }
+                          placeholder="Ex: 67890"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-mono"
+                        />
+                      )}
                       <p className="text-xs text-gray-400 mt-1">
                         Vendus Dashboard &gt; Definicoes &gt; Caixas
                       </p>
                     </div>
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.vendus_enabled}
                       onChange={(e) =>
-                        setFormData((p) => ({ ...p, vendus_enabled: e.target.checked }))
+                        setFormData((p) => ({
+                          ...p,
+                          vendus_enabled: e.target.checked,
+                        }))
                       }
-                      className="rounded border-gray-300"
+                      className="rounded border-gray-300 cursor-pointer"
                     />
-                    Ativar integracao Vendus para este local
+                    Ativar integracao Vendus para este restaurante
                   </label>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleSave(loc.slug)}
                       disabled={saveStatus === "saving"}
-                      className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm disabled:opacity-50"
+                      className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm disabled:opacity-50 cursor-pointer"
                     >
                       {saveStatus === "saving" ? "A guardar..." : "Guardar"}
                     </button>
                     <button
                       onClick={handleCancel}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm cursor-pointer"
                     >
                       Cancelar
                     </button>
                     {saveStatus === "saved" && (
                       <span className="text-sm text-green-600">Guardado!</span>
                     )}
-                    {saveStatus && saveStatus !== "saving" && saveStatus !== "saved" && (
-                      <span className="text-sm text-red-600">{saveStatus}</span>
-                    )}
+                    {saveStatus &&
+                      saveStatus !== "saving" &&
+                      saveStatus !== "saved" && (
+                        <span className="text-sm text-red-600">
+                          {saveStatus}
+                        </span>
+                      )}
                   </div>
                 </div>
               )}
             </div>
           ))}
         </div>
-      )}
-
-      {/* Add Location */}
-      {!fetchError && (
-        <>
-          {!showAddForm ? (
-            <button
-              onClick={() => { setShowAddForm(true); setAddError(null); }}
-              className="px-4 py-2 border border-dashed border-gray-300 text-gray-500 rounded-lg hover:bg-gray-50 hover:border-gray-400 text-sm w-full"
-            >
-              + Adicionar novo local
-            </button>
-          ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-3">
-              <h3 className="font-semibold text-gray-900">Novo Local</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Nome</label>
-                  <input
-                    type="text"
-                    value={newLocation.name}
-                    onChange={(e) => setNewLocation((p) => ({ ...p, name: e.target.value }))}
-                    placeholder="Ex: Circunvalacao"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Slug</label>
-                  <input
-                    type="text"
-                    value={newLocation.slug}
-                    onChange={(e) => setNewLocation((p) => ({ ...p, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))}
-                    placeholder="Ex: circunvalacao"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Store ID</label>
-                  <input
-                    type="text"
-                    value={newLocation.vendus_store_id}
-                    onChange={(e) => setNewLocation((p) => ({ ...p, vendus_store_id: e.target.value }))}
-                    placeholder="ID da loja no Vendus"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Register ID</label>
-                  <input
-                    type="text"
-                    value={newLocation.vendus_register_id}
-                    onChange={(e) => setNewLocation((p) => ({ ...p, vendus_register_id: e.target.value }))}
-                    placeholder="ID da caixa no Vendus"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
-                  />
-                </div>
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={newLocation.vendus_enabled}
-                  onChange={(e) => setNewLocation((p) => ({ ...p, vendus_enabled: e.target.checked }))}
-                  className="rounded"
-                />
-                Vendus ativo
-              </label>
-              {addError && <p className="text-sm text-red-600">{addError}</p>}
-              <div className="flex gap-2">
-                <button
-                  onClick={handleAddLocation}
-                  disabled={isAdding}
-                  className="px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isAdding ? "A criar..." : "Criar"}
-                </button>
-                <button
-                  onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
-        </>
       )}
     </div>
   );

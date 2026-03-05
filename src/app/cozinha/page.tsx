@@ -142,7 +142,7 @@ export default function CozinhaPage() {
     newOrderIds,
     updateStatus,
   } = useKitchenOrdersOptimized({
-    location: selectedLocation === "all" ? undefined : (selectedLocation as "circunvalacao" | "boavista"),
+    location: selectedLocation === "all" ? undefined : selectedLocation,
     userId: currentUser?.id,
     autoRefetch: true,
     refetchInterval: 10000, // 10s background refetch (React Query)
@@ -304,7 +304,7 @@ export default function CozinhaPage() {
 
   const handlePrintOrder = useCallback(
     (order: KitchenOrderDTO) => {
-      const location = order.table?.location || (selectedLocation !== "all" ? selectedLocation : "circunvalacao");
+      const location = order.table?.location || (selectedLocation !== "all" ? selectedLocation : "");
       printSession(order.sessionId, location);
     },
     [printSession, selectedLocation],

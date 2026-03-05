@@ -199,15 +199,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate location
-    if (!["circunvalacao", "boavista"].includes(location)) {
+    const supabase = createAdminClient();
+
+    // Validate location against DB
+    const { data: restaurant } = await supabase
+      .from("restaurants")
+      .select("id")
+      .eq("slug", location)
+      .eq("is_active", true)
+      .single();
+
+    if (!restaurant) {
       return NextResponse.json(
         { error: "Localização inválida" },
         { status: 400 }
       );
     }
-
-    const supabase = createAdminClient();
     const reservationRepository = new SupabaseReservationRepository(supabase);
     const closureRepository = new SupabaseRestaurantClosureRepository(supabase);
     const createReservation = new CreateReservationUseCase(reservationRepository, closureRepository);

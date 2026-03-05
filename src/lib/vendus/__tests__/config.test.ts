@@ -61,7 +61,7 @@ afterEach(() => {
 // SUPABASE MOCK
 // =============================================
 
-function createLocationsMock(locationData: Record<string, unknown> | null) {
+function createRestaurantsMock(locationData: Record<string, unknown> | null) {
   return {
     from: () => ({
       select: () => ({
@@ -96,10 +96,10 @@ describe("getVendusConfig", () => {
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 
-  it("returns null when location not found in DB", async () => {
+  it("returns null when restaurant not found in DB", async () => {
     process.env.VENDUS_API_KEY = "test-key";
     vi.mocked(createAdminClient).mockReturnValue(
-      createLocationsMock(null) as never,
+      createRestaurantsMock(null) as never,
     );
 
     const result = await getVendusConfig("unknown-location");
@@ -110,7 +110,7 @@ describe("getVendusConfig", () => {
   it("returns null when vendus_enabled is false", async () => {
     process.env.VENDUS_API_KEY = "test-key";
     vi.mocked(createAdminClient).mockReturnValue(
-      createLocationsMock({
+      createRestaurantsMock({
         vendus_store_id: "store-1",
         vendus_register_id: "reg-1",
         vendus_enabled: false,
@@ -125,7 +125,7 @@ describe("getVendusConfig", () => {
   it("returns null when vendus_store_id is null", async () => {
     process.env.VENDUS_API_KEY = "test-key";
     vi.mocked(createAdminClient).mockReturnValue(
-      createLocationsMock({
+      createRestaurantsMock({
         vendus_store_id: null,
         vendus_register_id: "reg-1",
         vendus_enabled: true,
@@ -140,7 +140,7 @@ describe("getVendusConfig", () => {
   it("returns null when vendus_register_id is null", async () => {
     process.env.VENDUS_API_KEY = "test-key";
     vi.mocked(createAdminClient).mockReturnValue(
-      createLocationsMock({
+      createRestaurantsMock({
         vendus_store_id: "store-1",
         vendus_register_id: null,
         vendus_enabled: true,
@@ -155,7 +155,7 @@ describe("getVendusConfig", () => {
   it("returns full config when all data present", async () => {
     process.env.VENDUS_API_KEY = "my-api-key";
     vi.mocked(createAdminClient).mockReturnValue(
-      createLocationsMock({
+      createRestaurantsMock({
         vendus_store_id: "store-42",
         vendus_register_id: "reg-7",
         vendus_enabled: true,
@@ -202,7 +202,7 @@ describe("getConfiguredLocations", () => {
     expect(createAdminClient).not.toHaveBeenCalled();
   });
 
-  it("returns slugs from locations with vendus enabled", async () => {
+  it("returns slugs from restaurants with vendus enabled", async () => {
     process.env.VENDUS_API_KEY = "test-key";
 
     const mockSupabase = {
@@ -229,7 +229,7 @@ describe("getConfiguredLocations", () => {
     expect(result).toEqual(["circunvalacao", "boavista"]);
   });
 
-  it("returns empty array when no locations configured", async () => {
+  it("returns empty array when no restaurants configured", async () => {
     process.env.VENDUS_API_KEY = "test-key";
 
     const mockSupabase = {

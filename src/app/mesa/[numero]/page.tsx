@@ -84,7 +84,7 @@ function MesaPageContent() {
   const supabase = createClient();
 
   const mesaNumero = params.numero as string;
-  const localizacao = searchParams.get("loc") || "circunvalacao";
+  const localizacao = searchParams.get("loc") || "";
 
   // Core state
   const [step, setStep] = useState<Step>("welcome");

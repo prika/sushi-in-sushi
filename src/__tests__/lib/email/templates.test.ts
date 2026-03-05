@@ -12,7 +12,26 @@ import {
   getDayBeforeReminderEmail,
   getSameDayReminderEmail,
   getCancellationEmail,
+  type LocationInfo,
 } from '@/lib/email/templates';
+
+const mockLocationCircunvalacao: LocationInfo = {
+  name: 'Sushi in Sushi - Circunvalação',
+  address: 'Rua da Circunvalação 1234, Porto',
+  phone: '+351 220 123 456',
+  email: 'circunvalacao@sushinsushi.pt',
+  coordinates: { lat: 41.1579, lng: -8.6291 },
+  mapsUrl: 'https://maps.google.com/?q=Sushi+in+Sushi+Circunvalação+Porto',
+};
+
+const mockLocationBoavista: LocationInfo = {
+  name: 'Sushi in Sushi - Boavista',
+  address: 'Avenida da Boavista 5678, Porto',
+  phone: '+351 220 654 321',
+  email: 'boavista@sushinsushi.pt',
+  coordinates: { lat: 41.1621, lng: -8.6455 },
+  mapsUrl: 'https://maps.google.com/?q=Sushi+in+Sushi+Boavista+Porto',
+};
 
 const mockReservation: Reservation = {
   id: 'res-1',
@@ -84,7 +103,7 @@ describe('Email Templates', () => {
   // =========================================================================
   describe('getCustomerConfirmationEmail', () => {
     it('should return an object with subject and html properties', () => {
-      const result = getCustomerConfirmationEmail(mockReservation);
+      const result = getCustomerConfirmationEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result).toHaveProperty('subject');
       expect(result).toHaveProperty('html');
@@ -93,7 +112,7 @@ describe('Email Templates', () => {
     });
 
     it('should include the date in the subject', () => {
-      const result = getCustomerConfirmationEmail(mockReservation);
+      const result = getCustomerConfirmationEmail(mockReservation, mockLocationCircunvalacao);
 
       // The subject uses formatDate which produces a Portuguese locale date
       expect(result.subject).toContain('Reserva Recebida');
@@ -101,19 +120,19 @@ describe('Email Templates', () => {
     });
 
     it('should include the customer first_name in html', () => {
-      const result = getCustomerConfirmationEmail(mockReservation);
+      const result = getCustomerConfirmationEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).toContain('Joao');
     });
 
     it('should include the location name in html', () => {
-      const result = getCustomerConfirmationEmail(mockReservation);
+      const result = getCustomerConfirmationEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).toContain('Circunvala');
     });
 
     it('should include party_size in html', () => {
-      const result = getCustomerConfirmationEmail(mockReservation);
+      const result = getCustomerConfirmationEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).toContain('4 pessoas');
     });
@@ -124,14 +143,14 @@ describe('Email Templates', () => {
   // =========================================================================
   describe('getRestaurantNotificationEmail', () => {
     it('should return an object with subject and html properties', () => {
-      const result = getRestaurantNotificationEmail(mockReservation);
+      const result = getRestaurantNotificationEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result).toHaveProperty('subject');
       expect(result).toHaveProperty('html');
     });
 
     it('should include customer name and time in subject', () => {
-      const result = getRestaurantNotificationEmail(mockReservation);
+      const result = getRestaurantNotificationEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.subject).toContain('Joao');
       expect(result.subject).toContain('Silva');
@@ -139,20 +158,20 @@ describe('Email Templates', () => {
     });
 
     it('should include customer email and phone in html', () => {
-      const result = getRestaurantNotificationEmail(mockReservation);
+      const result = getRestaurantNotificationEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).toContain('joao@test.com');
       expect(result.html).toContain('+351912345678');
     });
 
     it('should include party_size in html', () => {
-      const result = getRestaurantNotificationEmail(mockReservation);
+      const result = getRestaurantNotificationEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).toContain('4');
     });
 
     it('should include occasion label when occasion is set', () => {
-      const result = getRestaurantNotificationEmail(reservationWithOccasion);
+      const result = getRestaurantNotificationEmail(reservationWithOccasion, mockLocationCircunvalacao);
 
       expect(result.html).toContain('Anivers');
     });
@@ -163,26 +182,26 @@ describe('Email Templates', () => {
   // =========================================================================
   describe('getReservationConfirmedEmail', () => {
     it('should return an object with subject and html properties', () => {
-      const result = getReservationConfirmedEmail(mockReservation);
+      const result = getReservationConfirmedEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result).toHaveProperty('subject');
       expect(result).toHaveProperty('html');
     });
 
     it('should include "Confirmada" in the subject', () => {
-      const result = getReservationConfirmedEmail(mockReservation);
+      const result = getReservationConfirmedEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.subject).toContain('Confirmada');
     });
 
     it('should include customer first_name in html', () => {
-      const result = getReservationConfirmedEmail(mockReservation);
+      const result = getReservationConfirmedEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).toContain('Joao');
     });
 
     it('should include the reservation date in html', () => {
-      const result = getReservationConfirmedEmail(mockReservation);
+      const result = getReservationConfirmedEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).toContain('2026');
     });
@@ -193,20 +212,20 @@ describe('Email Templates', () => {
   // =========================================================================
   describe('getFarewellEmail', () => {
     it('should return an object with subject and html properties', () => {
-      const result = getFarewellEmail(mockReservation);
+      const result = getFarewellEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result).toHaveProperty('subject');
       expect(result).toHaveProperty('html');
     });
 
     it('should include "Obrigado" in the subject', () => {
-      const result = getFarewellEmail(mockReservation);
+      const result = getFarewellEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.subject).toContain('Obrigado');
     });
 
     it('should include customer first_name in html', () => {
-      const result = getFarewellEmail(mockReservation);
+      const result = getFarewellEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).toContain('Joao');
     });
@@ -217,32 +236,32 @@ describe('Email Templates', () => {
   // =========================================================================
   describe('getDayBeforeReminderEmail', () => {
     it('should return an object with subject and html properties', () => {
-      const result = getDayBeforeReminderEmail(mockReservation);
+      const result = getDayBeforeReminderEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result).toHaveProperty('subject');
       expect(result).toHaveProperty('html');
     });
 
     it('should include "Lembrete" in the subject', () => {
-      const result = getDayBeforeReminderEmail(mockReservation);
+      const result = getDayBeforeReminderEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.subject).toContain('Lembrete');
     });
 
     it('should include the reservation date in the subject', () => {
-      const result = getDayBeforeReminderEmail(mockReservation);
+      const result = getDayBeforeReminderEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.subject).toContain('2026');
     });
 
     it('should include customer first_name in html', () => {
-      const result = getDayBeforeReminderEmail(mockReservation);
+      const result = getDayBeforeReminderEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).toContain('Joao');
     });
 
     it('should include waste fee info when reservation is rodizio', () => {
-      const result = getDayBeforeReminderEmail(rodizioReservation);
+      const result = getDayBeforeReminderEmail(rodizioReservation, mockLocationCircunvalacao);
 
       // Default waste fee is 2.50, displayed as "2,50" in Portuguese format
       expect(result.html).toContain('2,50');
@@ -250,7 +269,7 @@ describe('Email Templates', () => {
     });
 
     it('should not include waste fee info when reservation is not rodizio', () => {
-      const result = getDayBeforeReminderEmail(mockReservation);
+      const result = getDayBeforeReminderEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).not.toContain('Anti-Desperd');
     });
@@ -261,27 +280,27 @@ describe('Email Templates', () => {
   // =========================================================================
   describe('getSameDayReminderEmail', () => {
     it('should return an object with subject and html properties', () => {
-      const result = getSameDayReminderEmail(mockReservation);
+      const result = getSameDayReminderEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result).toHaveProperty('subject');
       expect(result).toHaveProperty('html');
     });
 
     it('should reference urgency in the subject', () => {
-      const result = getSameDayReminderEmail(mockReservation);
+      const result = getSameDayReminderEmail(mockReservation, mockLocationCircunvalacao);
 
       // Subject: "Daqui a 2 horas! A sua reserva no Sushi in Sushi"
       expect(result.subject).toContain('2 horas');
     });
 
     it('should include customer first_name in html', () => {
-      const result = getSameDayReminderEmail(mockReservation);
+      const result = getSameDayReminderEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).toContain('Joao');
     });
 
     it('should include waste fee info when reservation is rodizio', () => {
-      const result = getSameDayReminderEmail(rodizioReservation, 3.00);
+      const result = getSameDayReminderEmail(rodizioReservation, mockLocationCircunvalacao, 3.00);
 
       // Custom waste fee 3.00 displayed as "3,00"
       expect(result.html).toContain('3,00');
@@ -294,33 +313,33 @@ describe('Email Templates', () => {
   // =========================================================================
   describe('getCancellationEmail', () => {
     it('should return an object with subject and html properties', () => {
-      const result = getCancellationEmail(mockReservation, 'Restaurante sem disponibilidade');
+      const result = getCancellationEmail(mockReservation, mockLocationCircunvalacao, 'Restaurante sem disponibilidade');
 
       expect(result).toHaveProperty('subject');
       expect(result).toHaveProperty('html');
     });
 
     it('should include "Cancelada" in the subject', () => {
-      const result = getCancellationEmail(mockReservation, 'Motivo qualquer');
+      const result = getCancellationEmail(mockReservation, mockLocationCircunvalacao, 'Motivo qualquer');
 
       expect(result.subject).toContain('Cancelada');
     });
 
     it('should include the cancellation reason in html', () => {
       const reason = 'Restaurante sem disponibilidade';
-      const result = getCancellationEmail(mockReservation, reason);
+      const result = getCancellationEmail(mockReservation, mockLocationCircunvalacao, reason);
 
       expect(result.html).toContain(reason);
     });
 
     it('should include customer first_name in html', () => {
-      const result = getCancellationEmail(mockReservation, 'Motivo');
+      const result = getCancellationEmail(mockReservation, mockLocationCircunvalacao, 'Motivo');
 
       expect(result.html).toContain('Joao');
     });
 
     it('should include the reservation date in html', () => {
-      const result = getCancellationEmail(mockReservation, 'Motivo');
+      const result = getCancellationEmail(mockReservation, mockLocationCircunvalacao, 'Motivo');
 
       expect(result.html).toContain('2026');
     });
@@ -331,14 +350,14 @@ describe('Email Templates', () => {
   // =========================================================================
   describe('Location handling', () => {
     it('should use Boavista address info for boavista location', () => {
-      const result = getCustomerConfirmationEmail(boavistaReservation);
+      const result = getCustomerConfirmationEmail(boavistaReservation, mockLocationBoavista);
 
       expect(result.html).toContain('Boavista');
       expect(result.html).toContain('Avenida da Boavista');
     });
 
     it('should use Circunvalacao address info for circunvalacao location', () => {
-      const result = getCustomerConfirmationEmail(mockReservation);
+      const result = getCustomerConfirmationEmail(mockReservation, mockLocationCircunvalacao);
 
       expect(result.html).toContain('Circunvala');
       expect(result.html).toContain('Rua da Circunvala');

@@ -134,7 +134,6 @@ export type Database = {
           vendus_sync_status: string;
           created_at: string;
           updated_at: string;
-          location_id: string | null;
           service_modes: string[];
           service_prices: Record<string, number>;
         };
@@ -158,7 +157,6 @@ export type Database = {
           vendus_sync_status?: string;
           created_at?: string;
           updated_at?: string;
-          location_id?: string | null;
           service_modes?: string[];
           service_prices?: Record<string, number>;
         };
@@ -182,7 +180,6 @@ export type Database = {
           vendus_sync_status?: string;
           created_at?: string;
           updated_at?: string;
-          location_id?: string | null;
           service_modes?: string[];
           service_prices?: Record<string, number>;
         };
@@ -1030,7 +1027,6 @@ export type Database = {
           entity_type: string;
           entity_id: string | null;
           vendus_id: string | null;
-          location_id: string | null;
           status: string;
           records_processed: number;
           records_created: number;
@@ -1052,7 +1048,6 @@ export type Database = {
           entity_type: string;
           entity_id?: string | null;
           vendus_id?: string | null;
-          location_id?: string | null;
           status: string;
           records_processed?: number;
           records_created?: number;
@@ -1074,7 +1069,6 @@ export type Database = {
           entity_type?: string;
           entity_id?: string | null;
           vendus_id?: string | null;
-          location_id?: string | null;
           status?: string;
           records_processed?: number;
           records_created?: number;
@@ -1098,48 +1092,6 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
-      };
-      locations: {
-        Row: {
-          id: string;
-          name: string;
-          slug: string;
-          address: string | null;
-          phone: string | null;
-          is_active: boolean;
-          vendus_store_id: string | null;
-          vendus_register_id: string | null;
-          vendus_enabled: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          slug: string;
-          address?: string | null;
-          phone?: string | null;
-          is_active?: boolean;
-          vendus_store_id?: string | null;
-          vendus_register_id?: string | null;
-          vendus_enabled?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          slug?: string;
-          address?: string | null;
-          phone?: string | null;
-          is_active?: boolean;
-          vendus_store_id?: string | null;
-          vendus_register_id?: string | null;
-          vendus_enabled?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
       };
       payment_methods: {
         Row: {
@@ -1175,7 +1127,7 @@ export type Database = {
         Row: {
           id: string;
           session_id: string | null;
-          location_id: string | null;
+          restaurant_id: string | null;
           vendus_id: string | null;
           vendus_document_number: string | null;
           vendus_document_type: string;
@@ -1205,7 +1157,7 @@ export type Database = {
         Insert: {
           id?: string;
           session_id?: string | null;
-          location_id?: string | null;
+          restaurant_id?: string | null;
           vendus_id?: string | null;
           vendus_document_number?: string | null;
           vendus_document_type?: string;
@@ -1235,7 +1187,7 @@ export type Database = {
         Update: {
           id?: string;
           session_id?: string | null;
-          location_id?: string | null;
+          restaurant_id?: string | null;
           vendus_id?: string | null;
           vendus_document_number?: string | null;
           vendus_document_type?: string;
@@ -1271,10 +1223,10 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "invoices_location_id_fkey";
-            columns: ["location_id"];
+            foreignKeyName: "invoices_restaurant_id_fkey";
+            columns: ["restaurant_id"];
             isOneToOne: false;
-            referencedRelation: "locations";
+            referencedRelation: "restaurants";
             referencedColumns: ["id"];
           },
           {
@@ -1306,7 +1258,6 @@ export type Database = {
           operation: string;
           entity_type: string;
           entity_id: string;
-          location_id: string | null;
           payload: Json;
           attempts: number;
           max_attempts: number;
@@ -1321,7 +1272,6 @@ export type Database = {
           operation: string;
           entity_type: string;
           entity_id: string;
-          location_id?: string | null;
           payload: Json;
           attempts?: number;
           max_attempts?: number;
@@ -1336,7 +1286,6 @@ export type Database = {
           operation?: string;
           entity_type?: string;
           entity_id?: string;
-          location_id?: string | null;
           payload?: Json;
           attempts?: number;
           max_attempts?: number;
@@ -1581,6 +1530,7 @@ export type Database = {
           address_country: string | null;
           google_maps_url: string | null;
           phone: string | null;
+          email: string | null;
           opens_at: string | null;
           closes_at: string | null;
           latitude: number | null;
@@ -1602,6 +1552,13 @@ export type Database = {
           is_active: boolean;
           created_at: string;
           updated_at: string;
+          vendus_enabled: boolean;
+          vendus_store_id: string | null;
+          vendus_register_id: string | null;
+          auto_reservation_max_party_size: number;
+          kitchen_print_mode: string;
+          zone_split_printing: boolean;
+          auto_print_on_order: boolean;
         };
         Insert: {
           id?: string;
@@ -1613,6 +1570,7 @@ export type Database = {
           address_country?: string | null;
           google_maps_url?: string | null;
           phone?: string | null;
+          email?: string | null;
           opens_at?: string | null;
           closes_at?: string | null;
           latitude?: number | null;
@@ -1634,6 +1592,13 @@ export type Database = {
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
+          vendus_enabled?: boolean;
+          vendus_store_id?: string | null;
+          vendus_register_id?: string | null;
+          auto_reservation_max_party_size?: number;
+          kitchen_print_mode?: string;
+          zone_split_printing?: boolean;
+          auto_print_on_order?: boolean;
         };
         Update: {
           id?: string;
@@ -1645,6 +1610,7 @@ export type Database = {
           address_country?: string | null;
           google_maps_url?: string | null;
           phone?: string | null;
+          email?: string | null;
           opens_at?: string | null;
           closes_at?: string | null;
           latitude?: number | null;
@@ -1666,6 +1632,13 @@ export type Database = {
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
+          vendus_enabled?: boolean;
+          vendus_store_id?: string | null;
+          vendus_register_id?: string | null;
+          auto_reservation_max_party_size?: number;
+          kitchen_print_mode?: string;
+          zone_split_printing?: boolean;
+          auto_print_on_order?: boolean;
         };
         Relationships: [];
       };
@@ -2360,7 +2333,7 @@ export type PaymentMethodInsert = Omit<PaymentMethod, "id" | "created_at"> & {
 export type Invoice = {
   id: string;
   session_id: string | null;
-  location_id: string | null;
+  restaurant_id: string | null;
   vendus_id: string | null;
   vendus_document_number: string | null;
   vendus_document_type: VendusDocumentType;
@@ -2417,7 +2390,6 @@ export type VendusSyncLog = {
   entity_type: string;
   entity_id: string | null;
   vendus_id: string | null;
-  location_id: string | null;
   status: VendusSyncLogStatus;
   records_processed: number;
   records_created: number;
@@ -2444,7 +2416,6 @@ export type VendusRetryQueue = {
   operation: string;
   entity_type: string;
   entity_id: string;
-  location_id: string | null;
   payload: Record<string, unknown>;
   attempts: number;
   max_attempts: number;

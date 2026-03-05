@@ -104,7 +104,7 @@ function createInvoiceSupabaseMock(config: {
   session?: Record<string, unknown> | null;
   sessionError?: boolean;
   paymentMethod?: { vendus_id: string | null; slug: string } | null;
-  location?: { id: string } | null;
+  restaurant?: { id: string } | null;
   insertedInvoice?: { id: string } | null;
   insertInvoiceError?: boolean;
   onSyncLogInsert?: () => void;
@@ -151,13 +151,13 @@ function createInvoiceSupabaseMock(config: {
       };
     }
 
-    if (table === "locations") {
+    if (table === "restaurants") {
       return {
         select: () => ({
           eq: () => ({
             single: () =>
               Promise.resolve({
-                data: config.location ?? { id: "loc-1" },
+                data: config.restaurant ?? { id: "rest-1" },
                 error: null,
               }),
           }),
@@ -944,7 +944,7 @@ describe("voidInvoice", () => {
 
   it("returns error when invoice has no vendus_id", async () => {
     const supabase = createInvoiceSupabaseMock({
-      invoice: { id: "inv-1", vendus_id: null, locations: { slug: "circ" } },
+      invoice: { id: "inv-1", vendus_id: null, restaurants: { slug: "circ" } },
     });
     vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
@@ -954,9 +954,9 @@ describe("voidInvoice", () => {
     expect(result.error).toContain("nao encontrada");
   });
 
-  it("returns error when location slug missing", async () => {
+  it("returns error when restaurant slug missing", async () => {
     const supabase = createInvoiceSupabaseMock({
-      invoice: { id: "inv-1", vendus_id: "v-1", locations: null },
+      invoice: { id: "inv-1", vendus_id: "v-1", restaurants: null },
     });
     vi.mocked(createAdminClient).mockReturnValue(supabase as never);
 
@@ -971,7 +971,7 @@ describe("voidInvoice", () => {
       invoice: {
         id: "inv-1",
         vendus_id: "v-1",
-        locations: { slug: "circunvalacao" },
+        restaurants: { slug: "circunvalacao" },
       },
     });
     vi.mocked(createAdminClient).mockReturnValue(supabase as never);
@@ -991,7 +991,7 @@ describe("voidInvoice", () => {
         id: "inv-1",
         vendus_id: "v-123",
         vendus_document_number: "FS 2024/5",
-        locations: { slug: "circunvalacao" },
+        restaurants: { slug: "circunvalacao" },
       },
       onInvoiceUpdate: (data) => (updatedData = data),
     });
@@ -1026,7 +1026,7 @@ describe("voidInvoice", () => {
       invoice: {
         id: "inv-1",
         vendus_id: "v-123",
-        locations: { slug: "circunvalacao" },
+        restaurants: { slug: "circunvalacao" },
       },
     });
 
@@ -1048,7 +1048,7 @@ describe("voidInvoice", () => {
       invoice: {
         id: "inv-1",
         vendus_id: "v-123",
-        locations: { slug: "circunvalacao" },
+        restaurants: { slug: "circunvalacao" },
       },
     });
 
@@ -1087,7 +1087,7 @@ describe("getInvoicePdf", () => {
       invoice: {
         pdf_url: "https://cached.pdf",
         vendus_id: "v-1",
-        locations: { slug: "circ" },
+        restaurants: { slug: "circ" },
       },
     });
 
@@ -1111,7 +1111,7 @@ describe("getInvoicePdf", () => {
       invoice: {
         pdf_url: null,
         vendus_id: "v-42",
-        locations: { slug: "circunvalacao" },
+        restaurants: { slug: "circunvalacao" },
       },
     });
 
@@ -1125,9 +1125,9 @@ describe("getInvoicePdf", () => {
     expect(vendusClient.get).toHaveBeenCalledWith("/documents/v-42/pdf");
   });
 
-  it("returns error when no location or vendus_id", async () => {
+  it("returns error when no restaurant or vendus_id", async () => {
     const supabase = createInvoiceSupabaseMock({
-      invoice: { pdf_url: null, vendus_id: null, locations: null },
+      invoice: { pdf_url: null, vendus_id: null, restaurants: null },
     });
 
     vi.mocked(createAdminClient).mockReturnValue(supabase as never);
@@ -1145,7 +1145,7 @@ describe("getInvoicePdf", () => {
       invoice: {
         pdf_url: null,
         vendus_id: "v-42",
-        locations: { slug: "circunvalacao" },
+        restaurants: { slug: "circunvalacao" },
       },
     });
 
@@ -1169,7 +1169,7 @@ describe("getInvoicePdf", () => {
       invoice: {
         pdf_url: null,
         vendus_id: "v-42",
-        locations: { slug: "circunvalacao" },
+        restaurants: { slug: "circunvalacao" },
       },
     });
 
@@ -1191,7 +1191,7 @@ describe("getInvoicePdf", () => {
       invoice: {
         pdf_url: null,
         vendus_id: "v-42",
-        locations: { slug: "circunvalacao" },
+        restaurants: { slug: "circunvalacao" },
       },
     });
 
@@ -1448,12 +1448,12 @@ describe("processRetryQueue", () => {
             }),
           };
         }
-        if (table === "locations") {
+        if (table === "restaurants") {
           return {
             select: () => ({
               eq: () => ({
                 single: () =>
-                  Promise.resolve({ data: { id: "loc-1" }, error: null }),
+                  Promise.resolve({ data: { id: "rest-1" }, error: null }),
               }),
             }),
           };
@@ -1569,12 +1569,12 @@ describe("processRetryQueue", () => {
             }),
           };
         }
-        if (table === "locations") {
+        if (table === "restaurants") {
           return {
             select: () => ({
               eq: () => ({
                 single: () =>
-                  Promise.resolve({ data: { id: "loc-1" }, error: null }),
+                  Promise.resolve({ data: { id: "rest-1" }, error: null }),
               }),
             }),
           };
@@ -1699,12 +1699,12 @@ describe("processRetryQueue", () => {
             }),
           };
         }
-        if (table === "locations") {
+        if (table === "restaurants") {
           return {
             select: () => ({
               eq: () => ({
                 single: () =>
-                  Promise.resolve({ data: { id: "loc-1" }, error: null }),
+                  Promise.resolve({ data: { id: "rest-1" }, error: null }),
               }),
             }),
           };
@@ -1821,9 +1821,9 @@ describe("processRetryQueue", () => {
     ).toBe(true);
   });
 
-  it("uses null fallback for locationId in addToRetryQueue when location is not found", async () => {
-    // When location is not found (null), location?.id = undefined.
-    // In addToRetryQueue, locationId ?? null converts undefined to null.
+  it("uses null fallback for restaurantId in addToRetryQueue when restaurant is not found", async () => {
+    // When restaurant is not found (null), restaurant?.id = undefined.
+    // In addToRetryQueue, restaurantId ?? null converts undefined to null.
     // To reach addToRetryQueue, Vendus must throw a retryable error.
     const { VendusApiError: MockError } = await import("../client");
     const retryInserts: unknown[] = [];
@@ -1864,7 +1864,7 @@ describe("processRetryQueue", () => {
             }),
           };
         }
-        if (table === "locations") {
+        if (table === "restaurants") {
           return {
             select: () => ({
               eq: () => ({
@@ -1930,10 +1930,10 @@ describe("processRetryQueue", () => {
     });
 
     expect(result.success).toBe(false);
-    // The retry queue insert should have location_id: null (from undefined ?? null)
+    // The retry queue insert should have restaurant_id: null (from undefined ?? null)
     expect(retryInserts.length).toBeGreaterThan(0);
     const inserted = retryInserts[0] as Record<string, unknown>;
-    expect(inserted.location_id).toBeNull();
+    expect(inserted.restaurant_id).toBeNull();
   });
 
   it("skips unknown operation types in retry processing", async () => {

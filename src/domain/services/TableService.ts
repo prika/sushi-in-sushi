@@ -133,12 +133,10 @@ export class TableService {
    * Agrupa mesas por localização
    */
   static groupByLocation(tables: Table[]): Record<Location, Table[]> {
-    const groups: Record<Location, Table[]> = {
-      circunvalacao: [],
-      boavista: [],
-    };
+    const groups: Record<Location, Table[]> = {};
 
     tables.forEach((table) => {
+      if (!groups[table.location]) groups[table.location] = [];
       groups[table.location].push(table);
     });
 
@@ -167,13 +165,10 @@ export class TableService {
    * Conta mesas por localização
    */
   static countByLocation(tables: Table[]): Record<Location, number> {
-    const counts: Record<Location, number> = {
-      circunvalacao: 0,
-      boavista: 0,
-    };
+    const counts: Record<Location, number> = {};
 
     tables.forEach((table) => {
-      counts[table.location]++;
+      counts[table.location] = (counts[table.location] || 0) + 1;
     });
 
     return counts;

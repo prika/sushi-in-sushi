@@ -37,8 +37,9 @@ CREATE POLICY "public_insert_staff_requests"
   FOR INSERT
   WITH CHECK (true);
 
--- Only authenticated users can read (admin will use service role)
+-- Only authenticated users can read/update/delete (service role bypasses RLS)
 CREATE POLICY "admin_all_staff_requests"
   ON staff_registration_requests
   FOR ALL
-  USING (true);
+  USING (auth.role() = 'authenticated')
+  WITH CHECK (auth.role() = 'authenticated');

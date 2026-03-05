@@ -149,10 +149,7 @@ export function useTableManagement(
     occupied: [],
     inactive: [],
   });
-  const [byLocation, setByLocation] = useState<Record<Location, TableDTO[]>>({
-    circunvalacao: [],
-    boavista: [],
-  });
+  const [byLocation, setByLocation] = useState<Record<Location, TableDTO[]>>({});
   const [statistics, setStatistics] = useState<TableStatisticsDTO>({
     total: 0,
     available: 0,
@@ -222,11 +219,12 @@ export function useTableManagement(
         inactive: tableDTOs.filter((t) => t.status === "inactive"),
       };
 
-      // Agrupar por localização
-      const byLoc: Record<Location, TableDTO[]> = {
-        circunvalacao: tableDTOs.filter((t) => t.location === "circunvalacao"),
-        boavista: tableDTOs.filter((t) => t.location === "boavista"),
-      };
+      // Agrupar por localização (dinâmico)
+      const byLoc: Record<Location, TableDTO[]> = {};
+      tableDTOs.forEach((t) => {
+        if (!byLoc[t.location]) byLoc[t.location] = [];
+        byLoc[t.location].push(t);
+      });
 
       // Calcular estatísticas
       const activeTables =

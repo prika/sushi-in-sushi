@@ -157,6 +157,34 @@ export interface VendusPaymentMethod {
 }
 
 // =============================================
+// STORE & REGISTER TYPES
+// =============================================
+
+export interface VendusStore {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  is_active: boolean;
+}
+
+export interface VendusStoresResponse {
+  stores: VendusStore[];
+}
+
+export interface VendusRegister {
+  id: string;
+  name: string;
+  store_id: string;
+  is_active: boolean;
+}
+
+export interface VendusRegistersResponse {
+  registers: VendusRegister[];
+}
+
+// =============================================
 // API LIST RESPONSES
 // =============================================
 

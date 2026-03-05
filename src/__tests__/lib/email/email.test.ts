@@ -1,12 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Declare mocks via vi.hoisted so they are available inside vi.mock factories
-const { mockSend, mockEq, mockUpdate, mockFrom } = vi.hoisted(() => {
+const { mockSend, mockEq, mockUpdate, mockFrom, mockAdminFrom } = vi.hoisted(() => {
   const mockSend = vi.fn();
   const mockEq = vi.fn().mockResolvedValue({ error: null });
   const mockUpdate = vi.fn(() => ({ eq: mockEq }));
   const mockFrom = vi.fn(() => ({ update: mockUpdate }));
-  return { mockSend, mockEq, mockUpdate, mockFrom };
+
+  // Admin client chain for fetchLocationInfo: from().select().eq().single()
+  const mockAdminSingle = vi.fn().mockResolvedValue({
+    data: { name: "Circunvalação", address: "Rua da Circunvalação 1234", phone: "+351220123456", email: "circ@test.com", latitude: 41.15, longitude: -8.62, google_maps_url: "https://maps.google.com" },
+  });
+  const mockAdminEq = vi.fn(() => ({ single: mockAdminSingle }));
+  const mockAdminSelect = vi.fn(() => ({ eq: mockAdminEq }));
+  const mockAdminFrom = vi.fn(() => ({ select: mockAdminSelect }));
+
+  return { mockSend, mockEq, mockUpdate, mockFrom, mockAdminFrom };
 });
 
 // Mock Resend
@@ -50,9 +59,10 @@ vi.mock("@/lib/email/templates", () => ({
   })),
 }));
 
-// Mock Supabase for email tracking
+// Mock Supabase for email tracking (createClient) and location lookup (createAdminClient)
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(() => Promise.resolve({ from: mockFrom })),
+  createAdminClient: vi.fn(() => ({ from: mockAdminFrom })),
 }));
 
 import type { Reservation } from "@/types/database";

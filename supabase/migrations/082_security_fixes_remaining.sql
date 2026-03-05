@@ -34,33 +34,33 @@ END $$;
 --    must stay open — anon key needs access.
 -- ============================================================
 
--- payment_methods: admin-only
+-- payment_methods: admin-only (staff.auth_user_id = auth.uid() and role = admin)
 DROP POLICY IF EXISTS "Admin can manage payment methods" ON public.payment_methods;
 CREATE POLICY "Admin can manage payment methods"
   ON public.payment_methods FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  USING (is_current_user_admin())
+  WITH CHECK (is_current_user_admin());
 
 -- products: admin write (public read exists separately)
 DROP POLICY IF EXISTS "Admin can manage products" ON public.products;
 CREATE POLICY "Admin can manage products"
   ON public.products FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  USING (is_current_user_admin())
+  WITH CHECK (is_current_user_admin());
 
 -- restaurant_hours: admin-only write
 DROP POLICY IF EXISTS "restaurant_hours_admin_write" ON public.restaurant_hours;
 CREATE POLICY "restaurant_hours_admin_write"
   ON public.restaurant_hours FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  USING (is_current_user_admin())
+  WITH CHECK (is_current_user_admin());
 
 -- site_settings: admin-only write
 DROP POLICY IF EXISTS "site_settings_admin_write" ON public.site_settings;
 CREATE POLICY "site_settings_admin_write"
   ON public.site_settings FOR ALL
-  USING (auth.role() = 'authenticated')
-  WITH CHECK (auth.role() = 'authenticated');
+  USING (is_current_user_admin())
+  WITH CHECK (is_current_user_admin());
 
 -- staff_registration_requests: admin manage (public insert stays open for registration form)
 DROP POLICY IF EXISTS "admin_all_staff_requests" ON public.staff_registration_requests;

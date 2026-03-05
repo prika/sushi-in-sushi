@@ -373,7 +373,7 @@ export default function WaiterMesaPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sessionId,
-            locationSlug: table.location || "circunvalacao",
+            locationSlug: table.location || "",
             paymentMethodId: billingPaymentMethodId,
             paidAmount: total,
             customerNif: nif,
@@ -776,7 +776,7 @@ export default function WaiterMesaPage() {
                       </h3>
                       {table?.activeSession && (
                         <button
-                          onClick={() => printSession(table.activeSession!.id, table.location || "circunvalacao")}
+                          onClick={() => printSession(table.activeSession!.id, table.location || "")}
                           disabled={isPrinting}
                           className="text-xs px-2.5 py-1 rounded-lg bg-gray-700/80 hover:bg-gray-600 text-gray-300 transition-colors flex items-center gap-1.5 disabled:opacity-50"
                           title="Imprimir para cozinha"
@@ -1082,7 +1082,7 @@ export default function WaiterMesaPage() {
                   <div className="bg-[#1a1a1a] rounded-xl p-4 border border-gray-700">
                     <label className="text-sm text-gray-400 mb-3 block">Impressão</label>
                     <button
-                      onClick={() => printSession(table.activeSession!.id, table.location || "circunvalacao")}
+                      onClick={() => printSession(table.activeSession!.id, table.location || "")}
                       disabled={isPrinting}
                       className="w-full py-3 bg-gray-700/50 text-gray-300 font-semibold rounded-xl hover:bg-gray-700 transition-colors border border-gray-600 flex items-center justify-center gap-2 disabled:opacity-50"
                     >

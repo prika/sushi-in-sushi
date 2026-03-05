@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const tableNumber = searchParams.get("tableNumber");
-    const location = searchParams.get("location") || "circunvalacao";
+    let location = searchParams.get("location") || "";
 
     if (!tableNumber) {
       return NextResponse.json(
@@ -23,6 +23,18 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createAdminClient();
+
+    // Fallback: fetch first active restaurant slug if not provided
+    if (!location) {
+      const { data: firstRestaurant } = await supabase
+        .from("restaurants")
+        .select("slug")
+        .eq("is_active", true)
+        .order("name", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      location = firstRestaurant?.slug || "";
+    }
 
     // Find table by number and location
     const { data: tableData } = await supabase

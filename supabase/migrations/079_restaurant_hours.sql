@@ -29,7 +29,9 @@ CREATE POLICY "restaurant_hours_public_read"
 
 DROP POLICY IF EXISTS "restaurant_hours_admin_write" ON restaurant_hours;
 CREATE POLICY "restaurant_hours_admin_write"
-  ON restaurant_hours FOR ALL USING (true);
+  ON restaurant_hours FOR ALL
+  USING (is_current_user_admin())
+  WITH CHECK (is_current_user_admin());
 
 -- ─── Circunvalação: Tue–Sat 12:00–15:00 + 18:00–22:00 ──────────────────────
 

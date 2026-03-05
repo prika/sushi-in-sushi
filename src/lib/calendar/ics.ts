@@ -66,15 +66,11 @@ function generateVEvent(event: CalendarEvent): string {
     lines.push(
       `DTSTART;TZID=Europe/Lisbon:${formatDateTimeICS(event.startDate, event.startTime)}`
     );
-    // Default 2h duration for reservations
-    const [h, m] = event.startTime.split(":").map(Number);
-    let endH = h + 2;
-    let endDate = event.startDate;
-    if (endH >= 24) {
-      endH -= 24;
-      endDate = addOneDay(event.startDate);
-    }
-    const endTime = `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    // Default 2h duration for reservations — use Date to handle midnight rollover
+    const startDt = new Date(`${event.startDate}T${event.startTime}:00`);
+    const endDt = new Date(startDt.getTime() + 2 * 60 * 60 * 1000);
+    const endDate = `${endDt.getFullYear()}-${String(endDt.getMonth() + 1).padStart(2, "0")}-${String(endDt.getDate()).padStart(2, "0")}`;
+    const endTime = `${String(endDt.getHours()).padStart(2, "0")}:${String(endDt.getMinutes()).padStart(2, "0")}`;
     lines.push(
       `DTEND;TZID=Europe/Lisbon:${formatDateTimeICS(endDate, endTime)}`
     );
@@ -163,14 +159,10 @@ export function generateGoogleCalendarURL(event: CalendarEvent): string {
     params.set("dates", `${start}/${end}`);
   } else if (event.startTime) {
     const start = formatDateTimeICS(event.startDate, event.startTime);
-    const [h, m] = event.startTime.split(":").map(Number);
-    let endH = h + 2;
-    let endDate = event.startDate;
-    if (endH >= 24) {
-      endH -= 24;
-      endDate = addOneDay(event.startDate);
-    }
-    const endTime = `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const startDt = new Date(`${event.startDate}T${event.startTime}:00`);
+    const endDt = new Date(startDt.getTime() + 2 * 60 * 60 * 1000);
+    const endDate = `${endDt.getFullYear()}-${String(endDt.getMonth() + 1).padStart(2, "0")}-${String(endDt.getDate()).padStart(2, "0")}`;
+    const endTime = `${String(endDt.getHours()).padStart(2, "0")}:${String(endDt.getMinutes()).padStart(2, "0")}`;
     const end = formatDateTimeICS(endDate, endTime);
     params.set("dates", `${start}/${end}`);
   }

@@ -32,6 +32,10 @@ export interface Restaurant {
   kitchenPrintMode: 'none' | 'vendus' | 'browser';
   zoneSplitPrinting: boolean;
   autoPrintOnOrder: boolean;
+  vendusStoreId: string | null;
+  vendusRegisterId: string | null;
+  email: string | null;
+  vendusEnabled: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -68,6 +72,10 @@ export interface CreateRestaurantData {
   kitchenPrintMode?: 'none' | 'vendus' | 'browser';
   zoneSplitPrinting?: boolean;
   autoPrintOnOrder?: boolean;
+  vendusStoreId?: string | null;
+  vendusRegisterId?: string | null;
+  email?: string | null;
+  vendusEnabled?: boolean;
   isActive?: boolean;
 }
 
@@ -102,6 +110,10 @@ export interface UpdateRestaurantData {
   kitchenPrintMode?: 'none' | 'vendus' | 'browser';
   zoneSplitPrinting?: boolean;
   autoPrintOnOrder?: boolean;
+  vendusStoreId?: string | null;
+  vendusRegisterId?: string | null;
+  email?: string | null;
+  vendusEnabled?: boolean;
   isActive?: boolean;
 }
 

@@ -41,6 +41,10 @@ interface DatabaseRestaurant {
   kitchen_print_mode: string;
   zone_split_printing: boolean;
   auto_print_on_order: boolean;
+  email: string | null;
+  vendus_store_id: string | null;
+  vendus_register_id: string | null;
+  vendus_enabled: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -146,6 +150,10 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
         kitchen_print_mode: data.kitchenPrintMode ?? "none",
         zone_split_printing: data.zoneSplitPrinting ?? true,
         auto_print_on_order: data.autoPrintOnOrder ?? false,
+        email: data.email ?? null,
+        vendus_store_id: data.vendusStoreId ?? null,
+        vendus_register_id: data.vendusRegisterId ?? null,
+        vendus_enabled: data.vendusEnabled ?? false,
         is_active: data.isActive ?? true,
       })
       .select()
@@ -205,6 +213,13 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
       updateData.zone_split_printing = data.zoneSplitPrinting;
     if (data.autoPrintOnOrder !== undefined)
       updateData.auto_print_on_order = data.autoPrintOnOrder;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.vendusStoreId !== undefined)
+      updateData.vendus_store_id = data.vendusStoreId;
+    if (data.vendusRegisterId !== undefined)
+      updateData.vendus_register_id = data.vendusRegisterId;
+    if (data.vendusEnabled !== undefined)
+      updateData.vendus_enabled = data.vendusEnabled;
     if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
     const { data: updated, error } = await this.supabase
@@ -274,6 +289,10 @@ export class SupabaseRestaurantRepository implements IRestaurantRepository {
       kitchenPrintMode: (row.kitchen_print_mode ?? "none") as Restaurant["kitchenPrintMode"],
       zoneSplitPrinting: row.zone_split_printing ?? true,
       autoPrintOnOrder: row.auto_print_on_order ?? false,
+      email: row.email ?? null,
+      vendusStoreId: row.vendus_store_id ?? null,
+      vendusRegisterId: row.vendus_register_id ?? null,
+      vendusEnabled: row.vendus_enabled ?? false,
       isActive: row.is_active,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),

@@ -101,7 +101,7 @@ export async function PATCH(
         .single();
 
       if (staffData?.email) {
-        sendTimeOffApprovalEmail(
+        const { success, error } = await sendTimeOffApprovalEmail(
           staffData.email,
           updatedTimeOff.staff.name,
           updatedTimeOff.id,
@@ -109,9 +109,10 @@ export async function PATCH(
           updatedTimeOff.startDate,
           updatedTimeOff.endDate,
           updatedTimeOff.reason,
-        ).catch((err) =>
-          console.error("Failed to send time-off approval email:", err)
         );
+        if (!success && error) {
+          console.error("Failed to send time-off approval email:", error);
+        }
       }
     }
 

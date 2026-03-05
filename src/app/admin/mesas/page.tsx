@@ -23,12 +23,12 @@ export default function MesasPage() {
   const [formData, setFormData] = useState({
     number: 1,
     name: "",
-    location: "circunvalacao",
+    location: "",
     is_active: true,
   });
 
   // Map tab state
-  const [selectedLocation, setSelectedLocation] = useState<string>("circunvalacao");
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [selectedTableForDetail, setSelectedTableForDetail] = useState<TableDTO | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
@@ -42,7 +42,7 @@ export default function MesasPage() {
     reactivateTable,
     requestBill,
     closeSession,
-  } = useTableManagement({ location: selectedLocation as "circunvalacao" | "boavista", refreshInterval: 15000 });
+  } = useTableManagement({ location: selectedLocation || undefined, refreshInterval: 15000 });
 
   // Locations hook for dynamic dropdowns
   const { locations } = useLocations();
@@ -51,6 +51,13 @@ export default function MesasPage() {
   const getLocationLabel = (slug: string) => {
     return locations.find(loc => loc.slug === slug)?.name || slug;
   };
+
+  // Set default location from DB
+  useEffect(() => {
+    if (locations.length > 0 && !selectedLocation) {
+      setSelectedLocation(locations[0].slug);
+    }
+  }, [locations, selectedLocation]);
 
   useEffect(() => {
     fetchTables();
@@ -61,7 +68,7 @@ export default function MesasPage() {
     if (showQRModal && selectedTableForQR && qrCanvasRef.current) {
       const url = buildTableOrderURLByNumber(
         selectedTableForQR.number,
-        selectedTableForQR.location as "circunvalacao" | "boavista"
+        selectedTableForQR.location,
       );
       generateQRCodeToCanvas(qrCanvasRef.current, url, { width: 250 });
     }
@@ -137,7 +144,7 @@ export default function MesasPage() {
       setFormData({
         number: nextNumber,
         name: `Mesa ${nextNumber}`,
-        location: "circunvalacao",
+        location: locations[0]?.slug || "",
         is_active: true,
       });
     }
@@ -412,8 +419,12 @@ export default function MesasPage() {
     );
   }
 
-  const circunvalacaoTables = tables.filter(t => t.location === "circunvalacao");
-  const boavistaTables = tables.filter(t => t.location === "boavista");
+  // Group tables by location dynamically
+  const tablesByLocation: Record<string, (Table & { waiter_name?: string | null })[]> = {};
+  tables.forEach((t) => {
+    if (!tablesByLocation[t.location]) tablesByLocation[t.location] = [];
+    tablesByLocation[t.location].push(t);
+  });
 
   const TableCard = ({ table }: { table: Table & { waiter_name?: string | null } }) => {
     // Status badge configuration
@@ -641,71 +652,46 @@ export default function MesasPage() {
           <p className="text-sm text-gray-500">Ativas</p>
           <p className="text-2xl font-bold text-green-600">{tables.filter(t => t.is_active).length}</p>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-          <p className="text-sm text-gray-500">Circunvalação</p>
-          <p className="text-2xl font-bold text-blue-600">{circunvalacaoTables.length}</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-          <p className="text-sm text-gray-500">Boavista</p>
-          <p className="text-2xl font-bold text-purple-600">{boavistaTables.length}</p>
-        </div>
+        {locations.map((loc) => (
+          <div key={loc.slug} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+            <p className="text-sm text-gray-500">{loc.name}</p>
+            <p className="text-2xl font-bold text-blue-600">{(tablesByLocation[loc.slug] || []).length}</p>
+          </div>
+        ))}
       </div>
 
       {/* Tables by Location */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Circunvalação */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="bg-blue-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="font-semibold text-blue-900">Circunvalação</h2>
-            <button
-              onClick={() => handlePrintAllQRs("circunvalacao")}
-              className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              Imprimir todos
-            </button>
-          </div>
-          <div className="p-4">
-            {circunvalacaoTables.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">Nenhuma mesa</p>
-            ) : (
-              <div className="grid grid-cols-3 gap-3">
-                {circunvalacaoTables.map((table) => (
-                  <TableCard key={table.id} table={table} />
-                ))}
+        {locations.map((loc) => {
+          const locTables = tablesByLocation[loc.slug] || [];
+          return (
+            <div key={loc.slug} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-blue-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 className="font-semibold text-blue-900">{loc.name}</h2>
+                <button
+                  onClick={() => handlePrintAllQRs(loc.slug)}
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Imprimir todos
+                </button>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Boavista */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="bg-purple-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="font-semibold text-purple-900">Boavista</h2>
-            <button
-              onClick={() => handlePrintAllQRs("boavista")}
-              className="text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              Imprimir todos
-            </button>
-          </div>
-          <div className="p-4">
-            {boavistaTables.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">Nenhuma mesa</p>
-            ) : (
-              <div className="grid grid-cols-3 gap-3">
-                {boavistaTables.map((table) => (
-                  <TableCard key={table.id} table={table} />
-                ))}
+              <div className="p-4">
+                {locTables.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">Nenhuma mesa</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3">
+                    {locTables.map((table) => (
+                      <TableCard key={table.id} table={table} />
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          );
+        })}
       </div>
         </>
       )}
@@ -835,7 +821,7 @@ export default function MesasPage() {
               <div className="text-xs text-gray-400 mb-6 break-all px-4">
                 {buildTableOrderURLByNumber(
                   selectedTableForQR.number,
-                  selectedTableForQR.location as "circunvalacao" | "boavista"
+                  selectedTableForQR.location,
                 )}
               </div>
 
@@ -849,7 +835,7 @@ export default function MesasPage() {
                 <button
                   onClick={() => window.open(buildTableOrderURLByNumber(
                     selectedTableForQR.number,
-                    selectedTableForQR.location as "circunvalacao" | "boavista"
+                    selectedTableForQR.location,
                   ), "_blank")}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >

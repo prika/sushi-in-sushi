@@ -22,9 +22,8 @@ interface ReservationItem {
   tables_assigned: boolean;
 }
 
-const locationLabels: Record<string, string> = {
-  circunvalacao: "Circunvalação",
-  boavista: "Boavista",
+const getLocationLabel = (slug: string): string => {
+  return slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, " ");
 };
 
 const customerReasons = getReasonsForSource("customer");
@@ -375,7 +374,7 @@ export default function CancelarReservaPage() {
                             <span className="text-gray-600">|</span>
                             <span>{r.party_size} {t("people")}</span>
                             <span className="text-gray-600">|</span>
-                            <span>{locationLabels[r.location] || r.location}</span>
+                            <span>{getLocationLabel(r.location)}</span>
                           </div>
                           {!canCancel && (
                             <p className="text-xs text-red-400 mt-2">
@@ -408,7 +407,7 @@ export default function CancelarReservaPage() {
                     <span className="text-gray-600">|</span>
                     <span>{selectedReservation.party_size} {t("people")}</span>
                     <span className="text-gray-600">|</span>
-                    <span>{locationLabels[selectedReservation.location] || selectedReservation.location}</span>
+                    <span>{getLocationLabel(selectedReservation.location)}</span>
                   </div>
                   <p className="text-sm text-gray-500">
                     {selectedReservation.is_rodizio ? t("rodizio") : t("alaCarte")}

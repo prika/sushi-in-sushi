@@ -58,7 +58,9 @@ CREATE POLICY "site_settings_public_read"
 
 DROP POLICY IF EXISTS "site_settings_admin_write" ON site_settings;
 CREATE POLICY "site_settings_admin_write"
-  ON site_settings FOR ALL USING (true);
+  ON site_settings FOR ALL
+  USING (is_current_user_admin())
+  WITH CHECK (is_current_user_admin());
 
 -- ─── New restaurant branding columns ────────────────────────────────────────
 

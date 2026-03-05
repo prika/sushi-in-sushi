@@ -74,9 +74,9 @@ export async function createInvoice(
       .eq("id", paymentMethodId)
       .single();
 
-    // Get location ID
-    const { data: location } = await supabase
-      .from("locations")
+    // Get restaurant ID
+    const { data: restaurant } = await supabase
+      .from("restaurants")
       .select("id")
       .eq("slug", locationSlug)
       .single();
@@ -176,7 +176,7 @@ export async function createInvoice(
       .from("invoices")
       .insert({
         session_id: sessionId,
-        location_id: location?.id,
+        restaurant_id: restaurant?.id,
         vendus_id: String(vendusResponse.id),
         vendus_document_number: vendusResponse.document_number,
         vendus_document_type: documentType,
@@ -209,7 +209,7 @@ export async function createInvoice(
       entity_type: "invoice",
       entity_id: invoice?.id ?? null,
       vendus_id: String(vendusResponse.id),
-      location_id: location?.id,
+      restaurant_id: restaurant?.id,
       status: "success",
       initiated_by: issuedBy,
     });
@@ -230,8 +230,8 @@ export async function createInvoice(
     console.error("[Vendus] Invoice creation failed:", errorMessage);
 
     // Log error
-    const { data: location } = await supabase
-      .from("locations")
+    const { data: errRestaurant } = await supabase
+      .from("restaurants")
       .select("id")
       .eq("slug", locationSlug)
       .single();
@@ -241,7 +241,7 @@ export async function createInvoice(
       direction: "push",
       entity_type: "invoice",
       entity_id: sessionId,
-      location_id: location?.id,
+      restaurant_id: errRestaurant?.id,
       status: "error",
       error_message: errorMessage,
       initiated_by: issuedBy,
@@ -253,7 +253,7 @@ export async function createInvoice(
         operation: "invoice_create",
         entityType: "invoice",
         entityId: sessionId,
-        locationId: location?.id,
+        restaurantId: errRestaurant?.id,
         payload: options as unknown as Record<string, unknown>,
       });
     }
@@ -279,7 +279,7 @@ export async function voidInvoice(
   // Get invoice details
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("*, locations:location_id(slug)")
+    .select("*, restaurants:restaurant_id(slug)")
     .eq("id", invoiceId)
     .single();
 
@@ -291,7 +291,7 @@ export async function voidInvoice(
   }
 
   const locationSlug =
-    (invoice.locations as { slug: string } | null)?.slug;
+    (invoice.restaurants as { slug: string } | null)?.slug;
 
   if (!locationSlug) {
     return { success: false, error: "Localizacao da fatura em falta" };
@@ -357,7 +357,7 @@ export async function getInvoicePdf(invoiceId: string): Promise<GetPdfResult> {
 
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("pdf_url, vendus_id, locations:location_id(slug)")
+    .select("pdf_url, vendus_id, restaurants:restaurant_id(slug)")
     .eq("id", invoiceId)
     .single();
 
@@ -372,7 +372,7 @@ export async function getInvoicePdf(invoiceId: string): Promise<GetPdfResult> {
 
   // Fetch PDF from Vendus if not cached
   const locationSlug =
-    (invoice.locations as { slug: string } | null)?.slug;
+    (invoice.restaurants as { slug: string } | null)?.slug;
 
   if (!locationSlug || !invoice.vendus_id) {
     return { success: false, error: "Nao foi possivel obter o PDF" };
@@ -480,7 +480,7 @@ async function addToRetryQueue(params: {
   operation: string;
   entityType: string;
   entityId: string;
-  locationId?: string;
+  restaurantId?: string;
   payload: Record<string, unknown>;
 }): Promise<void> {
   const supabase = createAdminClient();
@@ -507,7 +507,7 @@ async function addToRetryQueue(params: {
     operation: params.operation,
     entity_type: params.entityType,
     entity_id: params.entityId,
-    location_id: params.locationId ?? null,
+    restaurant_id: params.restaurantId ?? null,
     payload: JSON.parse(JSON.stringify(params.payload)),
     next_retry_at: new Date(Date.now() + 60000).toISOString(),
   });

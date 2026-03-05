@@ -47,12 +47,19 @@ async function getMenuData() {
   return { menuCategories, products };
 }
 
-const restaurants = [
-  { id: "circunvalacao", name: "Circunvalação" },
-  { id: "boavista", name: "Boavista" },
-];
-
 export default async function MenuPage() {
+  const supabase = await createClient();
+  const { data: restaurantRows } = await supabase
+    .from("restaurants")
+    .select("slug, name")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  const restaurants = (restaurantRows || []).map((r) => ({
+    id: r.slug,
+    name: r.name,
+  }));
+
   const { menuCategories, products } = await getMenuData();
 
   return (

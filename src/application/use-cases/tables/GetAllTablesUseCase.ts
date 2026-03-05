@@ -82,11 +82,12 @@ export class GetAllTablesUseCase {
         inactive: tableDTOs.filter((t) => t.status === 'inactive'),
       };
 
-      // Agrupar por localização
-      const byLocation: Record<Location, TableDTO[]> = {
-        circunvalacao: tableDTOs.filter((t) => t.location === 'circunvalacao'),
-        boavista: tableDTOs.filter((t) => t.location === 'boavista'),
-      };
+      // Agrupar por localização (dinâmico)
+      const byLocation: Record<Location, TableDTO[]> = {};
+      tableDTOs.forEach((t) => {
+        if (!byLocation[t.location]) byLocation[t.location] = [];
+        byLocation[t.location].push(t);
+      });
 
       // Estatísticas
       const statistics = TableService.getStatistics(tables);

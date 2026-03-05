@@ -825,9 +825,10 @@ function WeeklyClosuresTab() {
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
             >
-              <option value="">Ambas localizacoes</option>
-              <option value="circunvalacao">Circunvalacao</option>
-              <option value="boavista">Boavista</option>
+              <option value="">Todas as localizações</option>
+              {locations.map((loc) => (
+                <option key={loc.slug} value={loc.slug}>{loc.name}</option>
+              ))}
             </select>
           </div>
 
@@ -1238,12 +1239,12 @@ function TableManagementTab() {
   const [formData, setFormData] = useState({
     number: 1,
     name: "",
-    location: locations[0]?.slug || "circunvalacao",
+    location: locations[0]?.slug || "",
     is_active: true,
   });
 
   const [selectedLocation, _setSelectedLocation] = useState<string>(
-    locations[0]?.slug || "circunvalacao",
+    locations[0]?.slug || "",
   );
   const [_selectedTableForDetail, setSelectedTableForDetail] =
     useState<TableDTO | null>(null);
@@ -1257,7 +1258,7 @@ function TableManagementTab() {
   const {
     tables: mapTables,
   } = useTableManagement({
-    location: selectedLocation as "circunvalacao" | "boavista",
+    location: selectedLocation,
     refreshInterval: 15000,
   });
 
@@ -1269,7 +1270,7 @@ function TableManagementTab() {
     if (showQRModal && selectedTableForQR && qrCanvasRef.current) {
       const url = buildTableOrderURLByNumber(
         selectedTableForQR.number,
-        selectedTableForQR.location as "circunvalacao" | "boavista",
+        selectedTableForQR.location,
       );
       generateQRCodeToCanvas(qrCanvasRef.current, url, { width: 250 });
     }
@@ -1351,7 +1352,7 @@ function TableManagementTab() {
       setFormData({
         number: nextNumber,
         name: `Mesa ${nextNumber}`,
-        location: "circunvalacao",
+        location: locations[0]?.slug || "",
         is_active: true,
       });
     }
@@ -2150,7 +2151,7 @@ function TableManagementTab() {
               <div className="text-xs text-gray-400 mb-6 break-all px-4">
                 {buildTableOrderURLByNumber(
                   selectedTableForQR.number,
-                  selectedTableForQR.location as "circunvalacao" | "boavista",
+                  selectedTableForQR.location,
                 )}
               </div>
 
@@ -2166,9 +2167,7 @@ function TableManagementTab() {
                     window.open(
                       buildTableOrderURLByNumber(
                         selectedTableForQR.number,
-                        selectedTableForQR.location as
-                          | "circunvalacao"
-                          | "boavista",
+                        selectedTableForQR.location,
                       ),
                       "_blank",
                     )
@@ -3126,7 +3125,7 @@ function RestaurantManagementTab() {
                       slug: e.target.value.toLowerCase(),
                     })
                   }
-                  placeholder="ex: circunvalacao, boavista"
+                  placeholder="ex: nome-do-restaurante"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
                   pattern="[a-z0-9\-]+"
                   required

@@ -2254,6 +2254,14 @@ export type Database = {
           show_upgrade_at_bill: boolean
           slug: string
           updated_at: string | null
+          email: string | null
+          vendus_enabled: boolean
+          vendus_register_id: string | null
+          vendus_store_id: string | null
+          auto_reservation_max_party_size: number
+          kitchen_print_mode: string
+          zone_split_printing: boolean
+          auto_print_on_order: boolean
         }
         Insert: {
           address: string
@@ -2279,6 +2287,14 @@ export type Database = {
           show_upgrade_at_bill?: boolean
           slug: string
           updated_at?: string | null
+          email?: string | null
+          vendus_enabled?: boolean
+          vendus_register_id?: string | null
+          vendus_store_id?: string | null
+          auto_reservation_max_party_size?: number
+          kitchen_print_mode?: string
+          zone_split_printing?: boolean
+          auto_print_on_order?: boolean
         }
         Update: {
           address?: string
@@ -2304,6 +2320,14 @@ export type Database = {
           show_upgrade_at_bill?: boolean
           slug?: string
           updated_at?: string | null
+          email?: string | null
+          vendus_enabled?: boolean
+          vendus_register_id?: string | null
+          vendus_store_id?: string | null
+          auto_reservation_max_party_size?: number
+          kitchen_print_mode?: string
+          zone_split_printing?: boolean
+          auto_print_on_order?: boolean
         }
         Relationships: [
           {

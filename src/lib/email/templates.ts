@@ -1,37 +1,18 @@
-import type { Reservation, Location } from "@/types/database";
+import type { Reservation } from "@/types/database";
 
 // Base URL for assets (logo, etc.) - should be your production domain
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL;
 const LOGO_URL = `${BASE_URL}/logo.png`;
 
-const locationDetails: Record<
-  Location,
-  {
-    name: string;
-    address: string;
-    phone: string;
-    email: string;
-    coordinates: { lat: number; lng: number };
-    mapsUrl: string;
-  }
-> = {
-  circunvalacao: {
-    name: "Sushi in Sushi - Circunvalação",
-    address: "Rua da Circunvalação 1234, Porto",
-    phone: "+351 220 123 456",
-    email: "circunvalacao@sushinsushi.pt",
-    coordinates: { lat: 41.1579, lng: -8.6291 },
-    mapsUrl: "https://maps.google.com/?q=Sushi+in+Sushi+Circunvalação+Porto",
-  },
-  boavista: {
-    name: "Sushi in Sushi - Boavista",
-    address: "Avenida da Boavista 5678, Porto",
-    phone: "+351 220 654 321",
-    email: "boavista@sushinsushi.pt",
-    coordinates: { lat: 41.1621, lng: -8.6455 },
-    mapsUrl: "https://maps.google.com/?q=Sushi+in+Sushi+Boavista+Porto",
-  },
-};
+/** Restaurant location info passed to email templates (fetched from DB) */
+export interface LocationInfo {
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  coordinates: { lat: number; lng: number };
+  mapsUrl: string;
+}
 
 // Generate static map URL (using free service that doesn't require API key)
 const getStaticMapUrl = (lat: number, lng: number) => {
@@ -73,8 +54,7 @@ const getEmailHead = (title: string) => `
 const fontSans =
   "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
-export function getCustomerConfirmationEmail(reservation: Reservation) {
-  const location = locationDetails[reservation.location];
+export function getCustomerConfirmationEmail(reservation: Reservation, location: LocationInfo) {
 
   return {
     subject: `🍣 Reserva Recebida - ${formatDate(reservation.reservation_date)}`,
@@ -324,8 +304,7 @@ ${getEmailHead("Confirmação de Reserva")}
   };
 }
 
-export function getRestaurantNotificationEmail(reservation: Reservation) {
-  const location = locationDetails[reservation.location];
+export function getRestaurantNotificationEmail(reservation: Reservation, location: LocationInfo) {
 
   return {
     subject: `🔔 Nova Reserva - ${reservation.first_name} ${reservation.last_name} - ${formatDate(reservation.reservation_date)} ${reservation.reservation_time}`,
@@ -560,8 +539,7 @@ ${getEmailHead("Nova Reserva")}
   };
 }
 
-export function getReservationConfirmedEmail(reservation: Reservation) {
-  const location = locationDetails[reservation.location];
+export function getReservationConfirmedEmail(reservation: Reservation, location: LocationInfo) {
 
   return {
     subject: `✅ Reserva Confirmada - ${formatDate(reservation.reservation_date)}`,
@@ -730,8 +708,7 @@ ${getEmailHead("Reserva Confirmada")}
   };
 }
 
-export function getFarewellEmail(reservation: Reservation) {
-  const location = locationDetails[reservation.location];
+export function getFarewellEmail(reservation: Reservation, location: LocationInfo) {
 
   return {
     subject: `🙏 Obrigado pela sua visita - Sushi in Sushi`,
@@ -987,8 +964,7 @@ function getRodizioWastePolicy(feePerPiece: number = 2.50): string {
   `;
 }
 
-export function getDayBeforeReminderEmail(reservation: Reservation, wasteFeePerPiece: number = 2.50) {
-  const location = locationDetails[reservation.location];
+export function getDayBeforeReminderEmail(reservation: Reservation, location: LocationInfo, wasteFeePerPiece: number = 2.50) {
   const rodizioSection = reservation.is_rodizio ? getRodizioWastePolicy(wasteFeePerPiece) : '';
 
   return {
@@ -1194,8 +1170,7 @@ ${getEmailHead("Lembrete de Reserva")}
   };
 }
 
-export function getSameDayReminderEmail(reservation: Reservation, wasteFeePerPiece: number = 2.50) {
-  const location = locationDetails[reservation.location];
+export function getSameDayReminderEmail(reservation: Reservation, location: LocationInfo, wasteFeePerPiece: number = 2.50) {
   const rodizioSection = reservation.is_rodizio ? getRodizioWastePolicy(wasteFeePerPiece) : '';
 
   return {
@@ -1357,8 +1332,7 @@ ${getEmailHead("Lembrete - Daqui a 2 horas")}
   };
 }
 
-export function getCancellationEmail(reservation: Reservation, cancellationReason: string) {
-  const location = locationDetails[reservation.location];
+export function getCancellationEmail(reservation: Reservation, location: LocationInfo, cancellationReason: string) {
 
   return {
     subject: `Reserva Cancelada - ${formatDate(reservation.reservation_date)}`,

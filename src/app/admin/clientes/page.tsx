@@ -591,7 +591,7 @@ function FidelizadosTab() {
     name: "",
     phone: "",
     birthDate: "",
-    preferredLocation: "" as "circunvalacao" | "boavista" | "",
+    preferredLocation: "",
     marketingConsent: false,
   });
 
@@ -623,10 +623,7 @@ function FidelizadosTab() {
         name: customer.name,
         phone: customer.phone || "",
         birthDate: customer.birthDate || "",
-        preferredLocation: (customer.preferredLocation || "") as
-          | "circunvalacao"
-          | "boavista"
-          | "",
+        preferredLocation: customer.preferredLocation || "",
         marketingConsent: customer.marketingConsent,
       });
     } else {
@@ -1349,10 +1346,7 @@ function FidelizadosTab() {
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      preferredLocation: e.target.value as
-                        | "circunvalacao"
-                        | "boavista"
-                        | "",
+                      preferredLocation: e.target.value,
                     })
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"

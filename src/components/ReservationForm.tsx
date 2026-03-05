@@ -25,7 +25,7 @@ interface CustomerProfile {
 
 export function ReservationForm({
   onSuccess,
-  defaultLocation = "circunvalacao",
+  defaultLocation,
 }: ReservationFormProps) {
   const t = useTranslations("reservationForm");
   const tR = useTranslations("reservation");
@@ -45,7 +45,7 @@ export function ReservationForm({
     reservation_date: "",
     reservation_time: "",
     party_size: 2,
-    location: defaultLocation,
+    location: defaultLocation || "",
     is_rodizio: true,
     special_requests: "",
     occasion: "",
@@ -67,6 +67,26 @@ export function ReservationForm({
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [loginError, setLoginError] = useState("");
+
+  // Dynamic restaurant locations
+  const [restaurantLocations, setRestaurantLocations] = useState<{ slug: string; name: string }[]>([]);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("restaurants")
+      .select("slug, name")
+      .eq("is_active", true)
+      .order("name", { ascending: true })
+      .then(({ data }) => {
+        if (data?.length) {
+          setRestaurantLocations(data);
+          // Set default location from DB if none was provided
+          if (!defaultLocation) {
+            setFormData((prev) => ({ ...prev, location: data[0].slug }));
+          }
+        }
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const occasions: { value: ReservationOccasion | ""; labelKey: string }[] = [
     { value: "", labelKey: "selectOptional" },
@@ -200,7 +220,7 @@ export function ReservationForm({
         reservation_date: "",
         reservation_time: "",
         party_size: 2,
-        location: defaultLocation,
+        location: defaultLocation || "",
         is_rodizio: true,
         special_requests: "",
         occasion: "",
@@ -602,8 +622,9 @@ export function ReservationForm({
                   }
                   className="w-full px-4 py-3 bg-card border border-white/10 rounded-lg text-white placeholder-gray-500 focus:border-gold focus:ring-1 focus:ring-gold outline-none transition-colors"
                 >
-                  <option value="circunvalacao">Circunvalação</option>
-                  <option value="boavista">Boavista</option>
+                  {restaurantLocations.map((loc) => (
+                    <option key={loc.slug} value={loc.slug}>{loc.name}</option>
+                  ))}
                 </select>
               </div>
             </div>

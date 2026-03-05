@@ -1,48 +1,12 @@
 /**
  * Vendus POS Configuration
  *
- * Configuração vem da tabela locations (admin) + API key em env.
- * Store ID e Register ID são configurados por localização no admin.
+ * Configuração vem da tabela restaurants (admin) + API key em env.
+ * Store ID e Register ID são configurados por restaurante no admin.
  */
 
 import { createAdminClient } from "@/lib/supabase/server";
 import type { VendusConfig } from "./types";
-
-// Tabela locations não está nos tipos gerados; usar cast para query dinâmica
-function fromLocations(supabase: ReturnType<typeof createAdminClient>) {
-  type LocationsQuery = {
-    select: (_c: string) => {
-      eq: (
-        _col: string,
-        _val: unknown,
-      ) => {
-        single: () => Promise<{
-          data: {
-            vendus_store_id: string | null;
-            vendus_register_id: string | null;
-            vendus_enabled: boolean | null;
-          } | null;
-        }>;
-        not: (
-          _col: string,
-          _op: string,
-          _val: unknown,
-        ) => {
-          not: (
-            _col: string,
-            _op: string,
-            _val: unknown,
-          ) => {
-            order: (_col: string) => Promise<{ data: { slug: string }[] }>;
-          };
-        };
-      };
-    };
-  };
-  return (supabase as unknown as { from: (_: string) => LocationsQuery }).from(
-    "locations",
-  );
-}
 
 // =============================================
 // API CONFIGURATION
@@ -104,8 +68,8 @@ export const SYNC_OPERATIONS = {
 // =============================================
 
 /**
- * Obtém configuração Vendus para uma localização.
- * Store ID e Register ID vêm da tabela locations (configurado no admin).
+ * Obtém configuração Vendus para um restaurante.
+ * Store ID e Register ID vêm da tabela restaurants (configurado no admin).
  * API key vem de VENDUS_API_KEY (env).
  */
 export async function getVendusConfig(
@@ -117,23 +81,24 @@ export async function getVendusConfig(
   }
 
   const supabase = createAdminClient();
-  const { data: location } = await fromLocations(supabase)
+  const { data: restaurant } = await supabase
+    .from("restaurants")
     .select("vendus_store_id, vendus_register_id, vendus_enabled")
     .eq("slug", locationSlug)
     .single();
 
   if (
-    !location?.vendus_enabled ||
-    !location?.vendus_store_id ||
-    !location?.vendus_register_id
+    !restaurant?.vendus_enabled ||
+    !restaurant?.vendus_store_id ||
+    !restaurant?.vendus_register_id
   ) {
     return null;
   }
 
   return {
     apiKey,
-    storeId: location.vendus_store_id,
-    registerId: location.vendus_register_id,
+    storeId: restaurant.vendus_store_id,
+    registerId: restaurant.vendus_register_id,
     baseUrl: VENDUS_API_BASE_URL,
     timeout: VENDUS_DEFAULTS.timeout,
     retryAttempts: VENDUS_DEFAULTS.retryAttempts,
@@ -157,7 +122,7 @@ export function isVendusReadOnly(): boolean {
 }
 
 /**
- * Obtém slugs das localizações com Vendus configurado (da tabela locations).
+ * Obtém slugs dos restaurantes com Vendus configurado.
  */
 export async function getConfiguredLocations(): Promise<string[]> {
   if (!process.env.VENDUS_API_KEY) {
@@ -165,14 +130,15 @@ export async function getConfiguredLocations(): Promise<string[]> {
   }
 
   const supabase = createAdminClient();
-  const { data: locations } = await fromLocations(supabase)
+  const { data: restaurants } = await supabase
+    .from("restaurants")
     .select("slug")
     .eq("vendus_enabled", true)
     .not("vendus_store_id", "is", null)
     .not("vendus_register_id", "is", null)
     .order("name");
 
-  return (locations || []).map((l: { slug: string }) => l.slug);
+  return (restaurants || []).map((r: { slug: string }) => r.slug);
 }
 
 /**

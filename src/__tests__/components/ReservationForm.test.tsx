@@ -51,6 +51,22 @@ const translations: Record<string, Record<string, string>> = {
   },
 };
 
+// Mock Supabase client for dynamic restaurant locations
+vi.mock('@/lib/supabase/client', () => {
+  const mockOrder = vi.fn().mockResolvedValue({
+    data: [
+      { slug: 'circunvalacao', name: 'Circunvalação' },
+      { slug: 'boavista', name: 'Boavista' },
+    ],
+  });
+  const mockEqActive = vi.fn(() => ({ order: mockOrder }));
+  const mockSelectRestaurants = vi.fn(() => ({ eq: mockEqActive }));
+  const mockFromRestaurants = vi.fn(() => ({ select: mockSelectRestaurants }));
+  return {
+    createClient: vi.fn(() => ({ from: mockFromRestaurants })),
+  };
+});
+
 // Mock fetch globally
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -60,6 +76,13 @@ function getFutureDate(daysAhead: number = 1): string {
   const date = new Date();
   date.setDate(date.getDate() + daysAhead);
   return date.toISOString().split('T')[0];
+}
+
+// Helper to wait for locations to load
+async function waitForLocationsToLoad() {
+  await waitFor(() => {
+    expect(screen.getByRole('option', { name: 'Circunvalação' })).toBeInTheDocument();
+  });
 }
 
 // Helper to fill all required form fields
@@ -125,12 +148,14 @@ describe('ReservationForm', () => {
       expect(screen.getByText('Hora *')).toBeInTheDocument();
     });
 
-    it('renderiza seletor de localização com opções corretas', () => {
+    it('renderiza seletor de localização com opções corretas', async () => {
       render(<ReservationForm />);
 
       expect(screen.getByText('Restaurante *')).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: 'Circunvalação' })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: 'Boavista' })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: 'Circunvalação' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Boavista' })).toBeInTheDocument();
+      });
     });
 
     it('renderiza botões de tipo de serviço (Rodízio/À Carta)', () => {
@@ -179,16 +204,16 @@ describe('ReservationForm', () => {
       expect(screen.getByRole('button', { name: 'Confirmar Reserva' })).toBeInTheDocument();
     });
 
-    it('usa localização padrão quando fornecida', () => {
+    it('usa localização padrão quando fornecida', async () => {
       render(<ReservationForm defaultLocation="boavista" />);
 
-      // Find the location select by looking for the one with Circunvalação/Boavista options
-      const selects = screen.getAllByRole('combobox');
-      const locationSelect = selects.find(select =>
-        select.querySelector('option[value="circunvalacao"]')
-      )!;
-
-      expect(locationSelect).toHaveValue('boavista');
+      await waitFor(() => {
+        const selects = screen.getAllByRole('combobox');
+        const locationSelect = selects.find(select =>
+          select.querySelector('option[value="circunvalacao"]')
+        )!;
+        expect(locationSelect).toHaveValue('boavista');
+      });
     });
   });
 
@@ -257,11 +282,14 @@ describe('ReservationForm', () => {
   });
 
   describe('Interações - Localização', () => {
-    it('altera localização quando selecionada', () => {
+    it('altera localização quando selecionada', async () => {
       render(<ReservationForm />);
 
+      await waitFor(() => {
+        expect(screen.getByRole('option', { name: 'Circunvalação' })).toBeInTheDocument();
+      });
+
       const selects = screen.getAllByRole('combobox');
-      // First select that contains Circunvalação option is location
       const locationSelect = selects.find(select =>
         select.querySelector('option[value="circunvalacao"]')
       )!;
@@ -354,6 +382,7 @@ describe('ReservationForm', () => {
       const onSuccessMock = vi.fn();
       render(<ReservationForm onSuccess={onSuccessMock} />);
 
+      await waitForLocationsToLoad();
       // Fill all required fields
       fillRequiredFields();
 
@@ -398,6 +427,7 @@ describe('ReservationForm', () => {
 
       render(<ReservationForm />);
 
+      await waitForLocationsToLoad();
       // Fill all required fields
       fillRequiredFields();
 
@@ -433,6 +463,7 @@ describe('ReservationForm', () => {
 
       render(<ReservationForm />);
 
+      await waitForLocationsToLoad();
       // Fill all required fields
       fillRequiredFields();
 
@@ -468,6 +499,7 @@ describe('ReservationForm', () => {
 
       render(<ReservationForm />);
 
+      await waitForLocationsToLoad();
       // Fill all required fields
       fillRequiredFields();
 
@@ -516,6 +548,7 @@ describe('ReservationForm', () => {
 
       render(<ReservationForm />);
 
+      await waitForLocationsToLoad();
       // Fill all required fields
       fillRequiredFields();
 
@@ -553,6 +586,7 @@ describe('ReservationForm', () => {
 
       render(<ReservationForm />);
 
+      await waitForLocationsToLoad();
       // Fill all required fields
       fillRequiredFields();
 

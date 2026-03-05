@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * PATCH /api/locations/[slug]
- * Update location (Vendus config)
+ * Update restaurant Vendus config
  */
 export async function PATCH(
   request: NextRequest,
@@ -39,10 +39,10 @@ export async function PATCH(
 
     const supabase = createAdminClient();
     const { data, error } = await supabase
-      .from("locations")
+      .from("restaurants")
       .update(updateData)
       .eq("slug", slug)
-      .select()
+      .select("id, name, slug, vendus_enabled, vendus_store_id, vendus_register_id")
       .single();
 
     if (error) {
