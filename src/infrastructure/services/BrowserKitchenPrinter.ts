@@ -20,7 +20,7 @@ export class BrowserKitchenPrinter implements IKitchenPrinter {
    * Generate print HTML for a single ticket
    * This returns the HTML — the API route sends it to the client for window.print()
    */
-  async printTicket(ticket: KitchenPrintTicket, _locationSlug: string): Promise<PrintResult & { html?: string }> {
+  async printTicket(ticket: KitchenPrintTicket, _locationSlug: string): Promise<PrintResult> {
     try {
       const html = BrowserKitchenPrinter.generateTicketHtml(ticket);
       return { success: true, html };
@@ -29,7 +29,7 @@ export class BrowserKitchenPrinter implements IKitchenPrinter {
     }
   }
 
-  async printTickets(tickets: KitchenPrintTicket[], _locationSlug: string): Promise<PrintResult & { html?: string }> {
+  async printTickets(tickets: KitchenPrintTicket[], _locationSlug: string): Promise<PrintResult> {
     try {
       const htmlParts = tickets.map((t) => BrowserKitchenPrinter.generateTicketHtml(t));
       const html = htmlParts.join('<div style="page-break-after: always;"></div>');

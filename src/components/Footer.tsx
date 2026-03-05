@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import { Instagram, Facebook, MessageCircle } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useSiteSettings, useLocations } from "@/presentation/hooks";
 
 export function Footer() {
   const t = useTranslations("footer");
   const tNav = useTranslations("navigation");
+  const locale = useLocale();
   const { settings } = useSiteSettings();
   const { locations } = useLocations();
 
@@ -44,14 +45,14 @@ export function Footer() {
     <footer className="py-16 px-6 border-t border-white/5">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col items-center mb-12">
-          <div className="relative h-20 w-48 mb-4">
+          <a href={`/${locale}`} aria-label="Sushi in Sushi — Home" className="relative h-20 w-48 mb-4 block">
             <Image
               src="/logo.png"
               alt={settings?.brand_name ?? "Sushi in Sushi"}
               fill
               className="object-contain"
             />
-          </div>
+          </a>
           <p className="text-gray-400 text-sm tracking-wider uppercase">
             {t("tagline")}
           </p>

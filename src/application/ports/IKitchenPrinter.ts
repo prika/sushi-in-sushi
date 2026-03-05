@@ -8,6 +8,7 @@ import type { KitchenPrintTicket } from '@/domain/services/KitchenPrintService';
 export interface PrintResult {
   success: boolean;
   error?: string;
+  html?: string;
 }
 
 export interface IKitchenPrinter {

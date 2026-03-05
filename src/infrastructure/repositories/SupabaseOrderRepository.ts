@@ -285,6 +285,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
             location: order.session.table.location,
           }
         : null,
+      zone: null,
       customerName: order.session_customer_id
         ? customerMap.get(order.session_customer_id) || null
         : null,

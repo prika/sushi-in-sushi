@@ -14,17 +14,23 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 
 ## 🎉 Estado Atual do Projeto
 
-### Última Atualização: 2026-03-01
+### Última Atualização: 2026-03-05
 
-**Alterações Recentes:**
-- ✅ **Sistema de Customer Tiers** - 5 tiers progressivos (Novo→Identificado→Cliente→Regular→VIP) com critérios comportamentais
-- ✅ **Reserva → Cliente Automático** - Reserva cria customer (Tier 2), visita concluída incrementa visitCount (→ Tier 3)
-- ✅ **Migration 075** - `reservations.customer_id` FK para `customers`, ligação bidirecional reserva↔cliente
-- ✅ **Session Customers no Admin** - Tab "Sessão" em `/admin/clientes` com dados de jogos, scores e prémios
-- ✅ **Alerta de Reservas para Empregados** - Waiter alertado X min antes de reservas confirmadas (configurável no admin, default 60min)
-- ✅ **Atribuição de Mesas para Reservas** - Modal com grelha de mesas: principal (dourado) + adicionais (azul, modo reservado)
+**Alterações Recentes (Março 2026):**
+- ✅ **Customer Auth** - Registo, login, conta, recuperação/redefinição de password (`/entrar`, `/registar`, `/conta`, `/recuperar-password`, `/redefinir-password`)
+- ✅ **Dashboard Analytics** - KPIs, gráficos de receita, analytics de produtos/reservas/clientes com date range picker
+- ✅ **Kitchen Print System** - Impressão de pedidos via browser ou Vendus POS, com domain service `KitchenPrintService`
+- ✅ **Staff Calendar/Agenda** - Página `/admin/agenda` com calendário de folgas, férias e fechos, exportação ICS
+- ✅ **Menu Landing Page** - Novo componente `MenuContent` com cards estilo homepage, hover overlay com descrição, layout staggered
+- ✅ **RLS Security Hardening** - Migrations 088-090: write access restrito a admin em 15+ tabelas via `is_current_user_admin()`
+- ✅ **Atomic Restaurant Hours** - Migration 089: `upsert_restaurant_hours` PL/pgSQL function via RPC
+- ✅ **ICS Calendar** - Exportação de calendário com fix de midnight overflow
+- ✅ **ReservationForm Improvements** - Locked fields só para valores não-vazios, auth bootstrap com error handling
+
+**Alterações Anteriores:**
+- ✅ **Sistema de Customer Tiers** - 5 tiers progressivos (Novo→Identificado→Cliente→Regular→VIP)
 - ✅ **Vendus Invoice Multi-Modo** - Faturas usam `vendus_ids[orderingMode]` correto por modo de serviço
-- ✅ **Dashboard Waiter Reestruturado** - Tabs Ativas/Disponíveis, reservas próximas, chamadas desaparecem ao concluir
+- ✅ **Dashboard Waiter Reestruturado** - Tabs Ativas/Disponíveis, reservas próximas
 
 Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 
@@ -33,10 +39,10 @@ Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 ### ✅ Clean Architecture - 100% Implementada
 
 **O projeto implementou com sucesso a Clean Architecture completa:**
-- ✅ **12 entidades** de domínio completas (incluindo Restaurant)
-- ✅ **13 repositórios** (interfaces + implementações Supabase)
-- ✅ **55+ use cases** totalmente testados
-- ✅ **4 domain services** com lógica de negócio isolada
+- ✅ **13 entidades** de domínio completas (incluindo DashboardAnalytics)
+- ✅ **14 repositórios** (interfaces + implementações Supabase)
+- ✅ **57+ use cases** totalmente testados
+- ✅ **5 domain services** com lógica de negócio isolada (incluindo KitchenPrintService)
 - ✅ **Dependency Injection** via DependencyContext
 - ✅ **Result Pattern** para tratamento de erros tipado
 
@@ -106,8 +112,9 @@ Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 
 ### 📈 Próximos Passos Recomendados
 
-1. **Performance Optimization** - React Query + cache + paginação
-2. **E2E Tests** - Playwright para fluxos críticos
+1. **E2E Tests** - Playwright para fluxos críticos
+2. **Performance** - Paginação server-side para listas grandes (pedidos, clientes)
+3. **PWA** - Service worker para modo offline da cozinha/waiter
 
 ## Stack Tecnológica
 
@@ -210,6 +217,9 @@ npx supabase db reset
 - `staff_time_off` - Férias e folgas dos funcionários
 - `reservation_tables` - Junção reserva→mesas (principal + adicionais para junção física)
 - `reservation_settings` - Configurações de reservas (lembretes, desperdício, alerta waiter)
+- `restaurant_hours` - Horários por dia da semana por restaurante (upsert via RPC `upsert_restaurant_hours`)
+- `kitchen_zones` - Zonas de cozinha para split printing
+- `team_members` - Staff display no site público (via `staff.show_on_website`)
 
 ### SQL Scripts de Utilidade
 Scripts em `supabase/scripts/`:
@@ -258,6 +268,13 @@ Scripts em `supabase/scripts/`:
 - `/admin/*` - Requer role admin
 - `/cozinha` - Requer role admin ou kitchen
 - `/waiter/*` - Requer role admin ou waiter
+
+### Rotas de Customer Auth
+- `/[locale]/entrar` - Login de clientes (Supabase Auth)
+- `/[locale]/registar` - Registo de clientes
+- `/[locale]/conta` - Área de conta do cliente (reservas, perfil)
+- `/[locale]/recuperar-password` - Pedido de reset de password
+- `/[locale]/redefinir-password` - Redefinir password (via link email)
 
 ## Convenções de Código
 
@@ -321,6 +338,7 @@ O projeto segue **Clean Architecture** com separação rigorosa de responsabilid
 - `Customer` - Clientes do programa de fidelização
 - `StaffTimeOff` - Ausências e férias de funcionários
 - `ReservationSettings` - Configurações de reservas
+- `DashboardAnalytics` - Dados agregados para analytics do dashboard
 
 **Repository Interfaces** (`/domain/repositories/`):
 - `IRestaurantRepository` - **NOVO** CRUD de restaurantes + validação de slug único
@@ -336,6 +354,7 @@ O projeto segue **Clean Architecture** com separação rigorosa de responsabilid
 - `ICustomerRepository` - Clientes
 - `IStaffTimeOffRepository` - Ausências de funcionários
 - `IReservationSettingsRepository` - Configurações
+- `IDashboardAnalyticsRepository` - Dados agregados para analytics
 
 **Value Objects** (`/domain/value-objects/`):
 - `OrderStatus`, `SessionStatus`, `TableStatus`, `ReservationStatus`
@@ -346,6 +365,7 @@ O projeto segue **Clean Architecture** com separação rigorosa de responsabilid
 - `OrderService` - Cálculo de urgência, validação de status
 - `SessionService` - Regras de transição de estados
 - `TableService` - Validação de disponibilidade
+- `KitchenPrintService` - Formatação de pedidos para impressão (browser/Vendus)
 - `CustomerTierService` - Computação de tier, insights comportamentais, upgrade prompts
 
 ---
@@ -680,6 +700,10 @@ const result = await useCase.execute();
 
 ### Estilo
 - Tailwind CSS para styling
+- **cursor-pointer obrigatório** em todos os elementos clicáveis (botões, links, tabs, cards interativos). Usar `cursor-pointer` explicitamente — não assumir que o browser o aplica automaticamente
+- Tema escuro com gold como cor de destaque (`text-gold`, `bg-gold`, `border-gold/30`)
+- `bg-card` para fundos de cartões, `text-muted` para texto secundário
+- `font-display` para títulos, `font-sans` para corpo
 
 ## Funcionalidades em Tempo Real
 
@@ -876,3 +900,31 @@ A página `/admin/clientes` tem duas tabs:
   - Mostra dados de jogos: respostas, scores, prémios
   - Tier computado dinamicamente via `computeCustomerTier()` (não usa tier guardado)
   - APIs: `GET /api/admin/session-customers` (lista) e `GET /api/admin/session-customers/[id]` (detalhe)
+
+### RLS Security Model (Migrations 081-090)
+
+**Padrão de segurança:**
+- **Admin-only writes** via `is_current_user_admin()` em: products, categories, ingredients, product_ingredients, payment_methods, kitchen_zones, locations, restaurant_hours, customers, daily_metrics, site_settings, staff_time_off, vendus_retry_queue, vendus_sync_log, storage (team-photos)
+- **Staff read** via `(select auth.role()) = 'authenticated'` em todas as tabelas acima
+- **Anon read** via `FOR SELECT TO anon USING (true)` em: products, categories, ingredients, product_ingredients, payment_methods, kitchen_zones, locations, restaurant_hours, site_settings
+- **Location-based** via `can_access_location()` em: orders (SELECT/UPDATE), sessions (SELECT/UPDATE), tables (SELECT)
+- **Admin writes go through API routes** com `createAdminClient()` (service role, bypasses RLS) — as policies são defense-in-depth
+- **Waiter write access** mantido em: table_status_history (INSERT), reservation_tables (INSERT/DELETE)
+
+### Dashboard Analytics
+
+- **Página:** `/admin` (dashboard principal)
+- **API routes:** `/api/admin/dashboard-analytics`, `/api/admin/product-analytics`, `/api/admin/reservation-analytics`, `/api/admin/customer-analytics`
+- **Use case:** `GetDashboardAnalyticsUseCase` com `IDashboardAnalyticsRepository`
+- **Componentes:** `ProductAnalytics`, `ReservationAnalytics`, `CustomerAnalyticsSection`
+- **Charts:** Recharts com componentes wrapper em `/components/charts/` (AreaChart, BarChart, DonutChart, HorizontalBar, KpiCard, DateRangePicker)
+
+### Kitchen Print System
+
+- **Domain:** `KitchenPrintService` — formata pedidos para impressão
+- **Ports:** `IKitchenPrinter` — interface para browser e Vendus
+- **Implementações:** `BrowserKitchenPrinter` (window.print), `VendusKitchenPrinter` (API POS)
+- **Use case:** `PrintKitchenOrderUseCase`
+- **Hook:** `useKitchenPrint()` — integrado na página `/cozinha`
+- **API:** `POST /api/kitchen/print`
+- **Settings:** `kitchenPrintMode` (none/browser/vendus), `zoneSplitPrinting`, `autoPrintOnOrder` em `/admin/definicoes`

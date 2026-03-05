@@ -84,29 +84,32 @@ function CategorySection({
 
       {/* Staggered product grid */}
       <div className="max-w-5xl mx-auto px-4 md:px-0">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-5 md:gap-x-8 lg:gap-x-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-3 md:gap-x-4 lg:gap-x-5 gap-y-4 md:gap-y-6">
           {category.products.map((product, productIndex) => {
             const pattern = CARD_PATTERNS[productIndex % CARD_PATTERNS.length];
 
             return (
-              <BlurFade
+              <div
                 key={product.id}
-                delay={productIndex * 0.04}
-                inView
-                inViewMargin="-10px"
                 className={cn(
+                  "relative z-0 [&:hover]:z-50",
                   pattern.offsetY,
                   pattern.rotate,
-                  // On mobile, remove vertical offsets
                   "max-sm:!mt-0",
                 )}
               >
-                <ProductCard
-                  product={product}
-                  locale={locale}
-                  piecesLabel={t("pieces")}
-                />
-              </BlurFade>
+                <BlurFade
+                  delay={productIndex * 0.04}
+                  inView
+                  inViewMargin="-10px"
+                >
+                  <ProductCard
+                    product={product}
+                    locale={locale}
+                    piecesLabel={t("pieces")}
+                  />
+                </BlurFade>
+              </div>
             );
           })}
         </div>
@@ -128,44 +131,78 @@ function ProductCard({
     product.descriptions[locale] || product.description || null;
 
   return (
-    <div className="group mb-6 md:mb-8">
-      {/* Product image or placeholder */}
-      <div className="relative overflow-hidden rounded-sm bg-white/5 aspect-[3/4]">
-        {product.imageUrl ? (
-          <>
-            <Image
-              src={product.imageUrl}
-              alt={product.name}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
-              className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-          </>
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-white/[0.03] to-white/[0.08]">
-            <span className="font-display text-white/10 text-lg text-center px-3 leading-tight select-none">
-              {product.name}
-            </span>
-          </div>
-        )}
+    <div className="group relative">
+      {/* Static card — reserves space in the grid */}
+      <div className="bg-card rounded-lg border border-white/5 overflow-hidden">
+        <div className="relative aspect-square overflow-hidden">
+          {product.imageUrl ? (
+            <>
+              <Image
+                src={product.imageUrl}
+                alt={product.name}
+                fill
+                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
+            </>
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-white/[0.03] to-white/[0.08]">
+              <span className="font-display text-white/10 text-lg text-center px-3 leading-tight select-none">
+                {product.name}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="p-4 text-center">
+          <h3 className="font-display text-sm md:text-base font-semibold">
+            {product.name}
+          </h3>
+          {product.quantity > 1 && (
+            <p className="text-xs text-gold/60 tracking-wider mt-1">
+              {product.quantity} {piecesLabel}
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Product info */}
-      <div className="mt-3 space-y-1">
-        <h3 className="font-display text-sm md:text-base text-white font-light tracking-wide">
-          {product.name}
-        </h3>
-        {description && (
-          <p className="text-xs text-gray-400 font-sans leading-relaxed line-clamp-2">
-            {description}
-          </p>
-        )}
-        {product.quantity > 1 && (
-          <p className="text-xs text-gold/60 font-sans tracking-wider">
-            {product.quantity} {piecesLabel}
-          </p>
-        )}
+      {/* Hover overlay — anchored top/left/right, grows downward freely */}
+      <div className="absolute top-0 left-0 right-0 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-300 ease-out origin-top group-hover:scale-[1.06] group-hover:shadow-2xl group-hover:shadow-black/40 rounded-lg overflow-hidden bg-card border border-gold/30">
+        <div className="relative aspect-square overflow-hidden">
+          {product.imageUrl ? (
+            <>
+              <Image
+                src={product.imageUrl}
+                alt={product.name}
+                fill
+                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                className="object-cover scale-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
+            </>
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-white/[0.03] to-white/[0.08]">
+              <span className="font-display text-white/10 text-lg text-center px-3 leading-tight select-none">
+                {product.name}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="p-4 text-center">
+          <h3 className="font-display text-sm md:text-base font-semibold text-gold">
+            {product.name}
+          </h3>
+          {product.quantity > 1 && (
+            <p className="text-xs text-gold/60 tracking-wider mt-1">
+              {product.quantity} {piecesLabel}
+            </p>
+          )}
+          {description && (
+            <p className="text-muted text-xs leading-relaxed mt-2">
+              {description}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
