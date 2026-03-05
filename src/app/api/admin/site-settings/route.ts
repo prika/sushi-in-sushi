@@ -42,7 +42,7 @@ export async function PATCH(request: Request) {
       "brand_name", "description", "price_range",
       "facebook_url", "instagram_url",
       "google_reviews_url", "tripadvisor_url", "thefork_url", "zomato_url",
-      "google_maps_url",
+      "google_maps_url", "gtm_id",
     ];
     const updateData: Record<string, unknown> = {};
     for (const key of allowed) {

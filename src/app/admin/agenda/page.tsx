@@ -679,7 +679,7 @@ export default function AgendaPage() {
         {selectedEvent?.type === "timeoff" && selectedEvent.rawTimeOff && (() => {
           const to = selectedEvent.rawTimeOff!;
           return (
-            <div className="space-y-4">
+            <div className="space-y-4 bg-zinc-800/60 rounded-xl p-4 -mx-2">
               <div className="flex items-center gap-3">
                 {selectedEvent.staffPhotoUrl ? (
                   <Image
@@ -704,25 +704,25 @@ export default function AgendaPage() {
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Periodo:</span>
+                  <span className="text-gray-300">Periodo:</span>
                   <span className="text-white font-medium">
                     {new Date(to.start_date).toLocaleDateString("pt-PT")} — {new Date(to.end_date).toLocaleDateString("pt-PT")}
                   </span>
                 </div>
                 {to.reason && (
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Motivo:</span>
+                    <span className="text-gray-300">Motivo:</span>
                     <span className="text-white font-medium">{to.reason}</span>
                   </div>
                 )}
                 {to.approved_by_name && (
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Aprovado por:</span>
+                    <span className="text-gray-300">Aprovado por:</span>
                     <span className="text-white font-medium">{to.approved_by_name}</span>
                   </div>
                 )}
               </div>
-              <div className="flex gap-3 justify-end pt-2 border-t border-gray-700">
+              <div className="flex gap-3 justify-end pt-2 border-t border-gray-600">
                 <Button variant="ghost" onClick={() => setSelectedEvent(null)}>Fechar</Button>
                 <Button variant="danger" onClick={() => handleDeleteTimeOff(to.id)}>Remover</Button>
               </div>

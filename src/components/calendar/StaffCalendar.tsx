@@ -436,7 +436,7 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
         title="Detalhes da Ausencia"
       >
         {selectedTimeOff && (
-          <div className="space-y-4">
+          <div className="space-y-4 bg-zinc-800/60 rounded-xl p-4 -mx-2">
             <div className="flex items-center gap-3">
               <div className={`px-3 py-1 rounded-full text-sm font-medium ${TYPE_COLORS[selectedTimeOff.type].bg} ${TYPE_COLORS[selectedTimeOff.type].text}`}>
                 {TYPE_LABELS[selectedTimeOff.type]}
@@ -445,11 +445,11 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
 
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-400">Funcionario:</span>
+                <span className="text-gray-300">Funcionario:</span>
                 <span className="font-medium text-white">{selectedTimeOff.staff_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Periodo:</span>
+                <span className="text-gray-300">Periodo:</span>
                 <span className="font-medium text-white">
                   {new Date(selectedTimeOff.start_date).toLocaleDateString("pt-PT")} -{" "}
                   {new Date(selectedTimeOff.end_date).toLocaleDateString("pt-PT")}
@@ -457,19 +457,19 @@ export default function StaffCalendar({ staffList }: StaffCalendarProps) {
               </div>
               {selectedTimeOff.reason && (
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Motivo:</span>
+                  <span className="text-gray-300">Motivo:</span>
                   <span className="font-medium text-white">{selectedTimeOff.reason}</span>
                 </div>
               )}
               {selectedTimeOff.approved_by_name && (
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Aprovado por:</span>
+                  <span className="text-gray-300">Aprovado por:</span>
                   <span className="font-medium text-white">{selectedTimeOff.approved_by_name}</span>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-3 justify-end pt-4 border-t border-gray-700">
+            <div className="flex gap-3 justify-end pt-4 border-t border-gray-600">
               <Button
                 variant="ghost"
                 onClick={() => setSelectedTimeOff(null)}

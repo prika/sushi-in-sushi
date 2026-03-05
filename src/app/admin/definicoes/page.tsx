@@ -4287,6 +4287,7 @@ function BrandTab() {
   const [theforkUrl, setTheforkUrl] = useState("");
   const [zomatoUrl, setZomatoUrl] = useState("");
   const [googleMapsUrl, setGoogleMapsUrl] = useState("");
+  const [gtmId, setGtmId] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/site-settings")
@@ -4303,6 +4304,7 @@ function BrandTab() {
           setTheforkUrl(data.thefork_url ?? "");
           setZomatoUrl(data.zomato_url ?? "");
           setGoogleMapsUrl(data.google_maps_url ?? "");
+          setGtmId(data.gtm_id ?? "");
         }
       })
       .catch(() => setLoadError(true))
@@ -4328,6 +4330,7 @@ function BrandTab() {
           thefork_url: theforkUrl.trim() || null,
           zomato_url: zomatoUrl.trim() || null,
           google_maps_url: googleMapsUrl.trim() || null,
+          gtm_id: gtmId.trim() || null,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Erro");
@@ -4505,6 +4508,72 @@ function BrandTab() {
           <p className="text-xs text-gray-500 mt-1">
             URL global. Cada restaurante pode ter o seu próprio link em Gestão de Restaurantes.
           </p>
+        </div>
+      </Card>
+
+      <Card className="p-6 space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Google Tag Manager</h3>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            GTM Container ID
+          </label>
+          <input
+            type="text"
+            value={gtmId}
+            onChange={(e) => setGtmId(e.target.value)}
+            placeholder="GTM-XXXXXXX"
+            pattern="GTM-[A-Z0-9]+"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Carregado apenas nas paginas publicas. Deixar vazio para desativar.
+          </p>
+        </div>
+
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-gray-800">Como configurar</h4>
+          <ol className="text-xs text-gray-600 space-y-2 list-decimal list-inside">
+            <li>
+              Acede ao{" "}
+              <a
+                href="https://tagmanager.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#D4AF37] underline hover:text-[#b8962f] cursor-pointer"
+              >
+                Google Tag Manager
+              </a>{" "}
+              e cria uma conta/container (tipo: Web)
+            </li>
+            <li>Copia o Container ID (formato GTM-XXXXXXX) e cola no campo acima</li>
+            <li>Guarda as definicoes e o script sera carregado automaticamente</li>
+          </ol>
+
+          <h4 className="text-sm font-semibold text-gray-800 pt-2">Verificar instalacao</h4>
+          <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
+            <li>Abre uma pagina publica (ex: /pt) e vai a DevTools → Network → filtra &quot;gtm.js&quot;</li>
+            <li>
+              Ou instala a extensao{" "}
+              <a
+                href="https://chromewebstore.google.com/detail/tag-assistant-legacy-by-g/kejbdjndbnbjgmefkgdddjlddpfpoomq"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#D4AF37] underline hover:text-[#b8962f] cursor-pointer"
+              >
+                Tag Assistant
+              </a>{" "}
+              no Chrome
+            </li>
+          </ul>
+
+          <h4 className="text-sm font-semibold text-gray-800 pt-2">O que podes gerir no GTM</h4>
+          <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
+            <li>Google Analytics 4 (GA4) — metricas de trafego e comportamento</li>
+            <li>Meta Pixel (Facebook/Instagram) — tracking de conversoes e remarketing</li>
+            <li>Google Ads — conversoes e remarketing</li>
+            <li>Eventos personalizados — cliques, scroll, formularios</li>
+          </ul>
         </div>
       </Card>
 

@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import { APP_URL } from "@/lib/config/constants";
+import { GoogleTagManager } from "@/components/seo/GoogleTagManager";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -128,6 +129,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   return (
     <div className={`${cormorant.variable} ${inter.variable} font-sans`}>
+      <GoogleTagManager />
       <NextIntlClientProvider messages={messages}>
         {children}
       </NextIntlClientProvider>
