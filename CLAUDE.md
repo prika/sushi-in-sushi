@@ -294,6 +294,29 @@ Scripts em `supabase/scripts/`:
 - Infrastructure: `import { SupabaseOrderRepository } from '@/infrastructure/repositories'`
 - Presentation: `import { useKitchenOrders } from '@/presentation/hooks'`
 
+### Princípios Técnicos Obrigatórios
+
+**Proibido valores hardcoded:**
+- Nunca usar valores hardcoded (strings, números, URLs, IDs, configurações) diretamente no código
+- Extrair para constantes, enums, configuração de ambiente, ou base de dados
+- Ao encontrar valores hardcoded existentes no código, corrigir proativamente movendo para constantes/config
+- Exemplos: slugs de restaurantes, limites numéricos, labels de UI, endpoints — tudo deve vir de constantes ou config
+
+**Minimizar re-renders — Evitar `useEffect`:**
+- **Não usar `useEffect`** para derivar estado — usar `useMemo` ou computar diretamente no render
+- **Não usar `useEffect` para sincronizar estado** — preferir estado derivado ou `useSyncExternalStore`
+- **Não usar `useEffect` para responder a eventos** — usar event handlers diretamente
+- **Não usar `useEffect` para fetch de dados** — usar React Query, SWR, ou Server Components
+- `useEffect` só é aceitável para: subscrições externas (Supabase realtime), setup/teardown de listeners DOM, e integração com bibliotecas não-React
+- Ao encontrar `useEffect` desnecessários no código existente, refatorar para padrões corretos
+- Preferir Server Components (Next.js App Router) sempre que possível para evitar estado client-side
+
+**Padrões React preferidos:**
+- `useMemo` / `useCallback` para computações caras e referências estáveis
+- Estado derivado em vez de estado sincronizado (não duplicar dados em múltiplos `useState`)
+- React Query (`useQuery`/`useMutation`) para server state em vez de `useState` + `useEffect`
+- Composição de componentes em vez de prop drilling profundo
+
 ### Clean Architecture (SOLID)
 
 O projeto segue **Clean Architecture** com separação rigorosa de responsabilidades em 4 camadas:
