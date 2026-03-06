@@ -44,6 +44,8 @@ interface SiteSettingsRow {
   thefork_url: string | null;
   zomato_url: string | null;
   google_maps_url: string | null;
+  logo_url: string | null;
+  og_image_url: string | null;
 }
 
 interface ClosureRow {
@@ -95,7 +97,7 @@ async function fetchSchemaData() {
 
       (supabase as any)
         .from("site_settings")
-        .select("brand_name, description, price_range, facebook_url, instagram_url, google_reviews_url, tripadvisor_url, thefork_url, zomato_url, google_maps_url")
+        .select("brand_name, description, price_range, facebook_url, instagram_url, google_reviews_url, tripadvisor_url, thefork_url, zomato_url, google_maps_url, logo_url, og_image_url")
         .eq("id", 1)
         .single(),
 
@@ -262,12 +264,12 @@ export async function RestaurantSchema() {
 
   const menuSections = buildMenuSections(products);
 
-  // Brand data — fall back to sensible defaults if DB not yet populated
-  const brandName = settings?.brand_name ?? "Sushi in Sushi";
-  const brandDescription =
-    settings?.description ??
-    "Restaurante de sushi fusion no Porto. Rodízio, à carta, delivery e takeaway.";
-  const priceRange = settings?.price_range ?? "€€-€€€";
+  // Brand data — all required fields are NOT NULL in DB
+  const brandName = settings?.brand_name ?? "";
+  const brandDescription = settings?.description ?? "";
+  const priceRange = settings?.price_range ?? "";
+  const logoUrl = `${APP_URL}${settings?.logo_url ?? "/logo.png"}`;
+  const ogImageUrl = `${APP_URL}${settings?.og_image_url ?? "/logo.png"}`;
 
   // sameAs: social media + review/discovery platforms
   const sameAs: string[] = [];
@@ -307,17 +309,17 @@ export async function RestaurantSchema() {
     name: brandName,
     description: brandDescription,
     url: APP_URL,
-    logo: `${APP_URL}/logo.png`,
+    logo: logoUrl,
     image: [
       {
         "@type": "ImageObject",
-        url: `${APP_URL}/restaurant-hero.jpg`,
-        width: 840,
+        url: ogImageUrl,
+        width: 1200,
         height: 630,
       },
       {
         "@type": "ImageObject",
-        url: `${APP_URL}/logo.png`,
+        url: logoUrl,
         width: 500,
         height: 500,
       },

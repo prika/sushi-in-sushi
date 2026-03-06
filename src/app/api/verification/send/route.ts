@@ -17,6 +17,7 @@ const TEST_EMAIL_OVERRIDE = process.env.TEST_EMAIL_OVERRIDE;
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
+
     const body = await request.json();
     const { sessionCustomerId, verificationType, contactValue } = body;
 
@@ -111,6 +112,10 @@ export async function POST(request: NextRequest) {
       // Continue anyway - this is not critical
     }
 
+    // Fetch brand name dynamically
+    const { data: _settings } = await (supabase as any).from("site_settings").select("brand_name").eq("id", 1).single();
+    const brandName = _settings?.brand_name ?? "";
+
     // Send verification code
     if (verificationType === 'email') {
       try {
@@ -125,7 +130,7 @@ export async function POST(request: NextRequest) {
         await resend.emails.send({
           from: process.env.FROM_EMAIL || 'noreply@sushiinsushi.pt',
           to: recipientEmail,
-          subject: '🍣 Código de Verificação - Sushi in Sushi',
+          subject: `🍣 Código de Verificação - ${brandName}`,
           html: `
             <!DOCTYPE html>
             <html>
@@ -149,7 +154,7 @@ export async function POST(request: NextRequest) {
                       <tr>
                         <td style="background: linear-gradient(135deg, #D4AF37 0%, #F4E5B8 100%); padding: 40px 30px; text-align: center;">
                           <h1 style="margin: 0; color: #1a1a1a; font-size: 28px; font-weight: bold;">
-                            🍣 Sushi in Sushi
+                            🍣 ${brandName}
                           </h1>
                           <p style="margin: 10px 0 0 0; color: #2a2a2a; font-size: 16px;">
                             Verificação de Identidade
@@ -223,7 +228,7 @@ export async function POST(request: NextRequest) {
                             Se não solicitou este código, pode ignorar este email com segurança.
                           </p>
                           <p style="margin: 0; color: #999; font-size: 12px;">
-                            © ${new Date().getFullYear()} Sushi in Sushi. Todos os direitos reservados.
+                            © ${new Date().getFullYear()} ${brandName}. Todos os direitos reservados.
                           </p>
                         </td>
                       </tr>
@@ -278,7 +283,7 @@ export async function POST(request: NextRequest) {
 
       try {
         await twilioClient.messages.create({
-          body: `Sushi in Sushi - O seu código de verificação é: ${token}. Válido por 15 minutos.`,
+          body: `${brandName} - O seu código de verificação é: ${token}. Válido por 15 minutos.`,
           from: process.env.TWILIO_PHONE_NUMBER || '',
           to: contactValue,
         });

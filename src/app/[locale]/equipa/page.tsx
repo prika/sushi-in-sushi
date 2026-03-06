@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BlurFade } from "@/components/ui/blur-fade";
+import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 
 interface TeamMemberData {
   id: string;
@@ -56,6 +57,7 @@ const workPhotos = [
 export default function TeamPage() {
   const t = useTranslations("team");
   const tPage = useTranslations("teamPage");
+  const { settings } = useSiteSettings();
   const [teamMembers, setTeamMembers] = useState<TeamMemberData[]>([]);
 
   useEffect(() => {
@@ -79,8 +81,8 @@ export default function TeamPage() {
           </Link>
           <div className="relative h-12 w-32">
             <Image
-              src="/logo.png"
-              alt="Sushi in Sushi"
+              src={settings?.logo_url || "/logo.png"}
+              alt={settings?.brand_name ?? ""}
               fill
               className="object-contain"
             />
@@ -152,7 +154,7 @@ export default function TeamPage() {
             <div className="relative aspect-[16/9] md:aspect-[2/1] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
               <Image
                 src="/team/team1.jpg"
-                alt="Equipa Sushi in Sushi"
+                alt={`Equipa ${settings?.brand_name ?? ""}`}
                 fill
                 className="object-cover"
                 priority

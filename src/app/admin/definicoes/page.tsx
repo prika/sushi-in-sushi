@@ -24,6 +24,7 @@ import {
   useProductsOptimized,
   useCategories,
   useKitchenZones,
+  useSiteSettings,
 } from "@/presentation/hooks";
 import type {
   Restaurant,
@@ -62,8 +63,7 @@ type TabId =
   | "tables"
   | "restaurants"
   | "categories"
-  | "kitchen-zones"
-  | "brand";
+  | "kitchen-zones";
 
 // =============================================
 // NOTIFICATIONS TAB COMPONENT
@@ -1224,6 +1224,7 @@ function ExportTab() {
 
 function TableManagementTab() {
   const { locations } = useLocations();
+  const { settings } = useSiteSettings();
 
   const [tables, setTables] = useState<
     (Table & { waiter_name?: string | null })[]
@@ -2132,7 +2133,7 @@ function TableManagementTab() {
           >
             <div className="p-6">
               <div className="text-4xl mb-2">🍣</div>
-              <h3 className="text-xl font-bold mb-4">Sushi in Sushi</h3>
+              <h3 className="text-xl font-bold mb-4">{settings?.brand_name ?? ""}</h3>
 
               <div className="bg-gray-50 rounded-xl p-4 mb-4 inline-block">
                 <canvas ref={qrCanvasRef} style={{ width: 200, height: 200 }} />
@@ -4268,329 +4269,6 @@ function CategoriesTab() {
 }
 
 // =============================================
-// BRAND TAB COMPONENT
-// =============================================
-
-function BrandTab() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  const [brandName, setBrandName] = useState("");
-  const [description, setDescription] = useState("");
-  const [priceRange, setPriceRange] = useState("€€-€€€");
-  const [facebookUrl, setFacebookUrl] = useState("");
-  const [instagramUrl, setInstagramUrl] = useState("");
-  const [googleReviewsUrl, setGoogleReviewsUrl] = useState("");
-  const [tripadvisorUrl, setTripadvisorUrl] = useState("");
-  const [theforkUrl, setTheforkUrl] = useState("");
-  const [zomatoUrl, setZomatoUrl] = useState("");
-  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
-  const [gtmId, setGtmId] = useState("");
-
-  useEffect(() => {
-    fetch("/api/admin/site-settings")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data) {
-          setBrandName(data.brand_name ?? "");
-          setDescription(data.description ?? "");
-          setPriceRange(data.price_range ?? "€€-€€€");
-          setFacebookUrl(data.facebook_url ?? "");
-          setInstagramUrl(data.instagram_url ?? "");
-          setGoogleReviewsUrl(data.google_reviews_url ?? "");
-          setTripadvisorUrl(data.tripadvisor_url ?? "");
-          setTheforkUrl(data.thefork_url ?? "");
-          setZomatoUrl(data.zomato_url ?? "");
-          setGoogleMapsUrl(data.google_maps_url ?? "");
-          setGtmId(data.gtm_id ?? "");
-        }
-      })
-      .catch(() => setLoadError(true))
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setMessage(null);
-    try {
-      const res = await fetch("/api/admin/site-settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          brand_name: brandName.trim(),
-          description: description.trim() || null,
-          price_range: priceRange.trim() || null,
-          facebook_url: facebookUrl.trim() || null,
-          instagram_url: instagramUrl.trim() || null,
-          google_reviews_url: googleReviewsUrl.trim() || null,
-          tripadvisor_url: tripadvisorUrl.trim() || null,
-          thefork_url: theforkUrl.trim() || null,
-          zomato_url: zomatoUrl.trim() || null,
-          google_maps_url: googleMapsUrl.trim() || null,
-          gtm_id: gtmId.trim() || null,
-        }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error ?? "Erro");
-      setMessage({ type: "success", text: "Definições guardadas com sucesso." });
-    } catch (err) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : "Erro desconhecido" });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  if (isLoading) {
-    return <div className="text-gray-500 text-sm">A carregar...</div>;
-  }
-
-  if (loadError) {
-    return <div className="text-red-600 text-sm">Erro ao carregar definições de marca. Tente recarregar a página.</div>;
-  }
-
-  return (
-    <form onSubmit={handleSave} className="space-y-6 max-w-3xl">
-      <Card className="p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Identidade da Marca</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nome da Marca *
-            </label>
-            <input
-              type="text"
-              required
-              value={brandName}
-              onChange={(e) => setBrandName(e.target.value)}
-              placeholder="Sushi in Sushi"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Nome exibido em schemas SEO, emails e toda a app
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Gama de Preços
-            </label>
-            <input
-              type="text"
-              value={priceRange}
-              onChange={(e) => setPriceRange(e.target.value)}
-              placeholder="€€-€€€"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Ex: €, €€, €€€ — usado em schema.org priceRange
-            </p>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Descrição Global
-          </label>
-          <textarea
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Restaurante de sushi fusion no Porto..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent resize-none"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Descrição global da marca (schema.org, meta tags)
-          </p>
-        </div>
-      </Card>
-
-      <Card className="p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Redes Sociais</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Facebook</label>
-            <input
-              type="url"
-              value={facebookUrl}
-              onChange={(e) => setFacebookUrl(e.target.value)}
-              placeholder="https://www.facebook.com/sushinsushi"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
-            <input
-              type="url"
-              value={instagramUrl}
-              onChange={(e) => setInstagramUrl(e.target.value)}
-              placeholder="https://www.instagram.com/sushi_in_sushi_porto"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-            />
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-6 space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">Reviews & Descoberta</h3>
-          <p className="text-xs text-gray-500 mt-1">
-            Incluídos no schema.org (sameAs) para ajudar motores de busca a associar perfis ao restaurante.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Google Reviews</label>
-            <input
-              type="url"
-              value={googleReviewsUrl}
-              onChange={(e) => setGoogleReviewsUrl(e.target.value)}
-              placeholder="https://g.page/r/..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-            />
-            <p className="text-xs text-gray-500 mt-1">Perfil Google Business / link de avaliações</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">TripAdvisor</label>
-            <input
-              type="url"
-              value={tripadvisorUrl}
-              onChange={(e) => setTripadvisorUrl(e.target.value)}
-              placeholder="https://www.tripadvisor.com/Restaurant_Review-..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">TheFork</label>
-            <input
-              type="url"
-              value={theforkUrl}
-              onChange={(e) => setTheforkUrl(e.target.value)}
-              placeholder="https://www.thefork.pt/restaurante/..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Zomato</label>
-            <input
-              type="url"
-              value={zomatoUrl}
-              onChange={(e) => setZomatoUrl(e.target.value)}
-              placeholder="https://www.zomato.com/pt/porto/..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-            />
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Localização</h3>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Google Maps URL (global)
-          </label>
-          <input
-            type="url"
-            value={googleMapsUrl}
-            onChange={(e) => setGoogleMapsUrl(e.target.value)}
-            placeholder="https://www.google.com/maps/search/..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            URL global. Cada restaurante pode ter o seu próprio link em Gestão de Restaurantes.
-          </p>
-        </div>
-      </Card>
-
-      <Card className="p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Google Tag Manager</h3>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            GTM Container ID
-          </label>
-          <input
-            type="text"
-            value={gtmId}
-            onChange={(e) => setGtmId(e.target.value)}
-            placeholder="GTM-XXXXXXX"
-            pattern="GTM-[A-Z0-9]+"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Carregado apenas nas paginas publicas. Deixar vazio para desativar.
-          </p>
-        </div>
-
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-          <h4 className="text-sm font-semibold text-gray-800">Como configurar</h4>
-          <ol className="text-xs text-gray-600 space-y-2 list-decimal list-inside">
-            <li>
-              Acede ao{" "}
-              <a
-                href="https://tagmanager.google.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#D4AF37] underline hover:text-[#b8962f] cursor-pointer"
-              >
-                Google Tag Manager
-              </a>{" "}
-              e cria uma conta/container (tipo: Web)
-            </li>
-            <li>Copia o Container ID (formato GTM-XXXXXXX) e cola no campo acima</li>
-            <li>Guarda as definicoes e o script sera carregado automaticamente</li>
-          </ol>
-
-          <h4 className="text-sm font-semibold text-gray-800 pt-2">Verificar instalacao</h4>
-          <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
-            <li>Abre uma pagina publica (ex: /pt) e vai a DevTools → Network → filtra &quot;gtm.js&quot;</li>
-            <li>
-              Ou instala a extensao{" "}
-              <a
-                href="https://chromewebstore.google.com/detail/tag-assistant-legacy-by-g/kejbdjndbnbjgmefkgdddjlddpfpoomq"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#D4AF37] underline hover:text-[#b8962f] cursor-pointer"
-              >
-                Tag Assistant
-              </a>{" "}
-              no Chrome
-            </li>
-          </ul>
-
-          <h4 className="text-sm font-semibold text-gray-800 pt-2">O que podes gerir no GTM</h4>
-          <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
-            <li>Google Analytics 4 (GA4) — metricas de trafego e comportamento</li>
-            <li>Meta Pixel (Facebook/Instagram) — tracking de conversoes e remarketing</li>
-            <li>Google Ads — conversoes e remarketing</li>
-            <li>Eventos personalizados — cliques, scroll, formularios</li>
-          </ul>
-        </div>
-      </Card>
-
-      {message && (
-        <p className={`text-sm ${message.type === "success" ? "text-green-600" : "text-red-600"}`}>
-          {message.text}
-        </p>
-      )}
-
-      <Button type="submit" disabled={isSaving} variant="primary">
-        {isSaving ? "A guardar..." : "Guardar Definições"}
-      </Button>
-    </form>
-  );
-}
-
-// =============================================
 // KITCHEN ZONES TAB COMPONENT
 // =============================================
 
@@ -4928,7 +4606,6 @@ export default function SettingsPage() {
     { id: "restaurants", label: "Gestao de Restaurantes" },
     { id: "categories", label: "Categorias" },
     { id: "kitchen-zones", label: "Zonas de Cozinha" },
-    { id: "brand", label: "Marca & Redes" },
   ];
 
   return (
@@ -4970,7 +4647,6 @@ export default function SettingsPage() {
         {activeTab === "restaurants" && <RestaurantManagementTab />}
         {activeTab === "categories" && <CategoriesTab />}
         {activeTab === "kitchen-zones" && <KitchenZonesTab />}
-        {activeTab === "brand" && <BrandTab />}
       </div>
     </div>
   );

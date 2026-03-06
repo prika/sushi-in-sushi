@@ -5,6 +5,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { Card, Button } from "@/components/ui";
 import { APP_URL } from "@/lib/config/constants";
+import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 
 interface TableData {
   id: string;
@@ -15,6 +16,8 @@ interface TableData {
 }
 
 export default function QRCodesPage() {
+  const { settings } = useSiteSettings();
+  const brandName = settings?.brand_name ?? "";
   const [tables, setTables] = useState<TableData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTable, setSelectedTable] = useState<TableData | null>(null);
@@ -74,7 +77,7 @@ export default function QRCodesPage() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>QR Codes - Sushi in Sushi</title>
+          <title>QR Codes - ${brandName}</title>
           <style>
             @page {
               size: A6 portrait;
@@ -144,7 +147,7 @@ export default function QRCodesPage() {
               (table) => `
             <div class="qr-card">
               <div class="logo">🍣</div>
-              <div class="restaurant-name">Sushi in Sushi</div>
+              <div class="restaurant-name">${brandName}</div>
               <img class="qr-image" src="${getQRCodeUrl(table, 200)}" alt="QR Code Mesa ${table.number}" />
               <div class="table-label">Mesa</div>
               <div class="table-number">${table.number}</div>
@@ -198,7 +201,7 @@ export default function QRCodesPage() {
         </head>
         <body>
           <div class="logo">🍣</div>
-          <div class="restaurant-name">Sushi in Sushi</div>
+          <div class="restaurant-name">${brandName}</div>
           <img class="qr-image" src="${getQRCodeUrl(table, 300)}" alt="QR Code" />
           <div class="table-label">Mesa</div>
           <div class="table-number">${table.number}</div>
@@ -303,7 +306,7 @@ export default function QRCodesPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-4xl mb-2">🍣</div>
-            <h3 className="text-xl font-bold mb-4">Sushi in Sushi</h3>
+            <h3 className="text-xl font-bold mb-4">{brandName}</h3>
 
             <Image
               src={getQRCodeUrl(selectedTable, 300)}

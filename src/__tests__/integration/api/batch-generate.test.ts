@@ -27,9 +27,15 @@ const { _mockUpdate, _mockEq, _mockSelect, mockCreate, mockFrom } = vi.hoisted(
   }
 );
 
+const siteSettingsChain = {
+  select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { brand_name: 'Sushi in Sushi' } }) }) }),
+};
 vi.mock("@/lib/supabase/server", () => ({
   createAdminClient: () => ({
-    from: mockFrom,
+    from: (table: string) => {
+      if (table === "site_settings") return siteSettingsChain;
+      return mockFrom(table);
+    },
   }),
 }));
 

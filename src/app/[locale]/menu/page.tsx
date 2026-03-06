@@ -3,6 +3,7 @@ import { SupabaseProductRepository } from "@/infrastructure/repositories/Supabas
 import { SupabaseCategoryRepository } from "@/infrastructure/repositories/SupabaseCategoryRepository";
 import { MenuContent } from "@/components/menu/MenuContent";
 import { MenuSchema } from "@/components/seo/MenuSchema";
+import { getSiteMetadata } from "@/lib/metadata";
 import type { ProductWithCategory } from "@/domain/entities/Product";
 
 
@@ -61,10 +62,11 @@ export default async function MenuPage() {
   }));
 
   const { menuCategories, products } = await getMenuData();
+  const meta = await getSiteMetadata();
 
   return (
     <>
-      <MenuSchema products={products} />
+      <MenuSchema products={products} restaurantName={meta.brandName} />
       <MenuContent categories={menuCategories} restaurants={restaurants} />
     </>
   );

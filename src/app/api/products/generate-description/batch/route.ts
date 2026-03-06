@@ -20,7 +20,8 @@ interface ProductResult {
   seoDescriptions: Record<string, string>;
 }
 
-const SYSTEM_PROMPT = `You are a professional SEO copywriter for Sushi in Sushi, an upscale Japanese fusion restaurant in Porto, Portugal.
+function buildSystemPrompt(brandName: string) {
+  return `You are a professional SEO copywriter for ${brandName}, an upscale Japanese fusion restaurant in Porto, Portugal.
 
 Your task is to generate compelling descriptions and SEO metadata for MULTIPLE products at once, in 6 languages.
 
@@ -48,6 +49,7 @@ Respond in valid JSON with this exact structure (one entry per product, keyed by
 }
 
 IMPORTANT: Use the exact product names as keys in the JSON response.`;
+}
 
 /**
  * POST /api/products/generate-description/batch
@@ -87,6 +89,10 @@ export async function POST(request: NextRequest) {
     const effectiveBatchSize = Math.min(Math.max(batchSize, 5), 25);
 
     const supabase = createAdminClient();
+
+    // Fetch brand name for prompt context
+    const { data: _settings } = await (supabase as any).from("site_settings").select("brand_name").eq("id", 1).single();
+    const brandName = _settings?.brand_name ?? "";
 
     // Fetch products
     let query = supabase
@@ -191,7 +197,7 @@ export async function POST(request: NextRequest) {
       const batch = batches[batchIdx];
 
       try {
-        const batchResults = await processBatch(anthropic, batch);
+        const batchResults = await processBatch(anthropic, batch, brandName);
 
         // Save results to DB
         for (const product of batch) {
@@ -277,7 +283,8 @@ export async function POST(request: NextRequest) {
  */
 async function processBatch(
   anthropic: Anthropic,
-  products: ProductInfo[]
+  products: ProductInfo[],
+  brandName: string
 ): Promise<Record<string, ProductResult>> {
   // Build a numbered list of products for the prompt
   const productLines = products.map((p, i) => {
@@ -295,7 +302,7 @@ async function processBatch(
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 4096 * Math.min(Math.ceil(products.length / 5), 4), // Scale tokens with batch size
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(brandName),
     messages: [{ role: "user", content: userPrompt }],
   });
 

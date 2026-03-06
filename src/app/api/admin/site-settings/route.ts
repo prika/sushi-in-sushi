@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
 
@@ -39,10 +40,13 @@ export async function PATCH(request: Request) {
 
     // Only allow known fields
     const allowed = [
-      "brand_name", "description", "price_range",
+      "brand_name", "description", "descriptions", "price_range",
       "facebook_url", "instagram_url",
       "google_reviews_url", "tripadvisor_url", "thefork_url", "zomato_url",
       "google_maps_url", "gtm_id",
+      "meta_titles", "meta_descriptions", "meta_og_descriptions", "meta_keywords",
+      "page_meta",
+      "logo_url", "favicon_url", "apple_touch_icon_url", "og_image_url",
     ];
     const updateData: Record<string, unknown> = {};
     for (const key of allowed) {
@@ -61,6 +65,8 @@ export async function PATCH(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    revalidateTag("site-metadata");
 
     return NextResponse.json(data);
   } catch (error) {

@@ -15,7 +15,8 @@ interface GenerateRequest {
 
 const LOCALES = ["pt", "en", "fr", "de", "it", "es"] as const;
 
-const SYSTEM_PROMPT = `You are a professional SEO copywriter for Sushi in Sushi, an upscale Japanese fusion restaurant in Porto, Portugal.
+function buildSystemPrompt(brandName: string) {
+  return `You are a professional SEO copywriter for ${brandName}, an upscale Japanese fusion restaurant in Porto, Portugal.
 
 Your task is to generate compelling, professional product descriptions and SEO metadata in 6 languages simultaneously.
 
@@ -38,6 +39,7 @@ Respond in valid JSON with this exact structure:
   "seoTitles": {"pt": "...", "en": "...", "fr": "...", "de": "...", "it": "...", "es": "..."},
   "seoDescriptions": {"pt": "...", "en": "...", "fr": "...", "de": "...", "it": "...", "es": "..."}
 }`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,6 +52,11 @@ export async function POST(request: NextRequest) {
     }
 
     const anthropic = new Anthropic({ apiKey });
+
+    // Fetch brand name for prompt context
+    const supabase = createAdminClient();
+    const { data: _settings } = await (supabase as any).from("site_settings").select("brand_name").eq("id", 1).single();
+    const brandName = _settings?.brand_name ?? "";
 
     const body: GenerateRequest = await request.json();
     const { productId, name, description, ingredients, categoryName, price, pieces, imageUrl } = body;
@@ -106,7 +113,7 @@ export async function POST(request: NextRequest) {
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 2000,
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(brandName),
       messages: [{ role: "user", content }],
     });
 

@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 
 function LoginForm() {
   const router = useRouter();
@@ -202,6 +203,7 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const { settings } = useSiteSettings();
   return (
     <div className="min-h-screen bg-[#0D0D0D] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
@@ -209,15 +211,15 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="w-20 h-20 relative mx-auto mb-4">
             <Image
-              src="/logo.png"
-              alt="Sushi in Sushi"
+              src={settings?.logo_url || "/logo.png"}
+              alt={settings?.brand_name ?? ""}
               fill
               className="object-contain"
               priority
             />
           </div>
-          <h1 className="text-xl font-light tracking-[0.2em] text-[#D4AF37]">
-            SUSHI IN SUSHI
+          <h1 className="text-xl font-light tracking-[0.2em] text-[#D4AF37] uppercase">
+            {settings?.brand_name ?? ""}
           </h1>
           <p className="text-gray-400 text-sm mt-2">Área Restrita</p>
         </div>

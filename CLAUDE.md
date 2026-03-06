@@ -17,6 +17,10 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 ### Última Atualização: 2026-03-05
 
 **Alterações Recentes (Março 2026):**
+- ✅ **Dynamic Site Configuration** - Todos os dados do site (brand name, logo, favicon, OG image, metadata SEO por locale, GTM) configuráveis via admin panel. Zero hardcoded brand references em código de produção.
+- ✅ **Google Tag Manager** - GTM Container ID configurável no admin, carregado apenas em páginas públicas (`[locale]/*`)
+- ✅ **Dynamic Metadata SEO** - Títulos, descrições, keywords e OG descriptions por locale via JSONB em `site_settings`
+- ✅ **Dynamic Branding** - Logo, favicon, Apple Touch Icon e OG image configuráveis, usados em todo o site (Header, Footer, auth pages, mesa, emails, Schema.org)
 - ✅ **Customer Auth** - Registo, login, conta, recuperação/redefinição de password (`/entrar`, `/registar`, `/conta`, `/recuperar-password`, `/redefinir-password`)
 - ✅ **Dashboard Analytics** - KPIs, gráficos de receita, analytics de produtos/reservas/clientes com date range picker
 - ✅ **Kitchen Print System** - Impressão de pedidos via browser ou Vendus POS, com domain service `KitchenPrintService`
@@ -220,6 +224,7 @@ npx supabase db reset
 - `restaurant_hours` - Horários por dia da semana por restaurante (upsert via RPC `upsert_restaurant_hours`)
 - `kitchen_zones` - Zonas de cozinha para split printing
 - `team_members` - Staff display no site público (via `staff.show_on_website`)
+- `site_settings` - Configuração global do site (singleton id=1): `brand_name`, `description`, `price_range`, URLs de redes sociais, `gtm_id`, `logo_url`, `favicon_url`, `apple_touch_icon_url`, `og_image_url`, metadata SEO JSONB por locale (`meta_titles`, `meta_descriptions`, `meta_og_descriptions`, `meta_keywords`), `page_meta` JSONB (títulos e descrições por sub-página e locale)
 
 ### SQL Scripts de Utilidade
 Scripts em `supabase/scripts/`:
@@ -295,6 +300,16 @@ Scripts em `supabase/scripts/`:
 - Presentation: `import { useKitchenOrders } from '@/presentation/hooks'`
 
 ### Princípios Técnicos Obrigatórios
+
+**Documentação sempre atualizada:**
+- Ao completar qualquer desenvolvimento novo (feature, refactor, fix significativo, migration, nova entidade/use case), **atualizar obrigatoriamente**:
+  - `CLAUDE.md` — Secções relevantes (Estado Atual, tabelas, entidades, use cases, rotas, etc.)
+  - `docs/RECENT_CHANGES.md` — Adicionar entrada com data e descrição da alteração
+  - `MEMORY.md` (auto-memory) — Atualizar se o desenvolvimento afeta padrões, convenções ou arquitetura
+- A atualização da documentação faz parte da tarefa — não está concluída até a documentação refletir as mudanças
+- Manter a secção "Última Atualização" em CLAUDE.md com a data correta
+- Ao adicionar novas tabelas, colunas, ou migrações, documentar na secção "Base de Dados"
+- Ao adicionar novos componentes, hooks ou rotas, documentar nas secções respetivas
 
 **Proibido valores hardcoded:**
 - Nunca usar valores hardcoded (strings, números, URLs, IDs, configurações) diretamente no código
@@ -941,6 +956,17 @@ A página `/admin/clientes` tem duas tabs:
 - **Use case:** `GetDashboardAnalyticsUseCase` com `IDashboardAnalyticsRepository`
 - **Componentes:** `ProductAnalytics`, `ReservationAnalytics`, `CustomerAnalyticsSection`
 - **Charts:** Recharts com componentes wrapper em `/components/charts/` (AreaChart, BarChart, DonutChart, HorizontalBar, KpiCard, DateRangePicker)
+
+### Dynamic Site Configuration & Branding
+
+- **Tabela:** `site_settings` (singleton id=1) — central config store para todo o site
+- **Server-side:** `getSiteMetadata()` em `src/lib/metadata/index.ts` — `unstable_cache` (24h, tag `site-metadata`)
+- **Client-side:** `useSiteSettings()` hook para componentes React
+- **Cache invalidation:** `revalidateTag("site-metadata")` no PATCH de `/api/admin/site-settings`
+- **GTM:** `src/components/seo/GoogleTagManager.tsx` — server component, carregado apenas em `[locale]/layout.tsx`
+- **Schema.org:** `RestaurantSchema.tsx` usa `logo_url` e `og_image_url` dinâmicos
+- **Emails:** `BRAND_NAME` var em templates, `initBrandName()` antes de gerar HTML
+- **Princípio:** Zero hardcoded brand references — tudo vem da BD com NOT NULL + DEFAULT
 
 ### Kitchen Print System
 

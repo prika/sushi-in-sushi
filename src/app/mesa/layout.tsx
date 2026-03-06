@@ -1,23 +1,27 @@
 import type { Metadata, Viewport } from "next";
 import { MesaProviders } from "@/components/mesa/MesaProviders";
+import { getSiteMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
-  title: "Sushi in Sushi - Pedido na Mesa",
-  description: "Faça o seu pedido diretamente da mesa",
-  manifest: "/manifest.json",
-  robots: { index: false, follow: false },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Sushi in Sushi",
-  },
-  formatDetection: {
-    telephone: false,
-  },
-  other: {
-    "mobile-web-app-capable": "yes",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = await getSiteMetadata();
+  return {
+    title: `${meta.brandName} - Pedido na Mesa`,
+    description: "Faça o seu pedido diretamente da mesa",
+    manifest: "/manifest.json",
+    robots: { index: false, follow: false },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: meta.brandName,
+    },
+    formatDetection: {
+      telephone: false,
+    },
+    other: {
+      "mobile-web-app-capable": "yes",
+    },
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",

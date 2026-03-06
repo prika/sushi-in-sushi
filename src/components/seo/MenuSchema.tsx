@@ -3,12 +3,12 @@ import type { ProductWithCategory } from "@/domain/entities/Product";
 
 interface MenuSchemaProps {
   products: ProductWithCategory[];
-  restaurantName?: string;
+  restaurantName: string;
 }
 
 export function MenuSchema({
   products,
-  restaurantName = "Sushi in Sushi",
+  restaurantName,
 }: MenuSchemaProps) {
   // Group products by category
   const sectionMap = new Map<string, { name: string; items: ProductWithCategory[] }>();

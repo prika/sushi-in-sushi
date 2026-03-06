@@ -22,7 +22,14 @@ const { mockUpdate, mockEq, mockCreate } = vi.hoisted(() => {
 
 vi.mock('@/lib/supabase/server', () => ({
   createAdminClient: () => ({
-    from: () => ({ update: mockUpdate }),
+    from: (table: string) => {
+      if (table === 'site_settings') {
+        return {
+          select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { brand_name: 'Sushi in Sushi' } }) }) }),
+        };
+      }
+      return { update: mockUpdate };
+    },
   }),
 }));
 

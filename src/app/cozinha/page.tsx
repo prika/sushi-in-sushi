@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSound } from "@/hooks/useSound";
-import { useActivityLog, useLocations, useKitchenOrdersOptimized, useKitchenPrint } from "@/presentation/hooks";
+import { useActivityLog, useLocations, useKitchenOrdersOptimized, useKitchenPrint, useSiteSettings } from "@/presentation/hooks";
 import { useToast } from "@/components/ui";
 import type { KitchenOrderDTO } from "@/application/dto/OrderDTO";
 import type { OrderStatus } from "@/domain/value-objects/OrderStatus";
@@ -60,6 +60,7 @@ export default function CozinhaPage() {
   const { showToast } = useToast();
   const { locations } = useLocations();
   const { printSession } = useKitchenPrint();
+  const { settings } = useSiteSettings();
 
   // Build locations array with "all" option
   const locationOptions = useMemo(() => {
@@ -338,7 +339,7 @@ export default function CozinhaPage() {
             <h1 className="text-xl font-bold">
               Cozinha{currentUser ? ` - ${currentUser.name}` : ""}
             </h1>
-            <p className="text-sm text-gray-400">Sushi in Sushi</p>
+            <p className="text-sm text-gray-400">{settings?.brand_name ?? ""}</p>
           </div>
         </div>
 

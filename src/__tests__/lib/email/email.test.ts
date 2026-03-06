@@ -9,7 +9,7 @@ const { mockSend, mockEq, mockUpdate, mockFrom, mockAdminFrom } = vi.hoisted(() 
 
   // Admin client chain for fetchLocationInfo: from().select().eq().single()
   const mockAdminSingle = vi.fn().mockResolvedValue({
-    data: { name: "Circunvalação", address: "Rua da Circunvalação 1234", phone: "+351220123456", email: "circ@test.com", latitude: 41.15, longitude: -8.62, google_maps_url: "https://maps.google.com" },
+    data: { name: "Circunvalação", address: "Rua da Circunvalação 1234", phone: "+351220123456", email: "circ@test.com", latitude: 41.15, longitude: -8.62, google_maps_url: "https://maps.google.com", brand_name: "Sushi in Sushi" },
   });
   const mockAdminEq = vi.fn(() => ({ single: mockAdminSingle }));
   const mockAdminSelect = vi.fn(() => ({ eq: mockAdminEq }));
@@ -57,6 +57,8 @@ vi.mock("@/lib/email/templates", () => ({
     subject: "Lembrete Hoje",
     html: "<p>today</p>",
   })),
+  initLogoUrl: vi.fn(() => Promise.resolve()),
+  initBrandName: vi.fn(() => Promise.resolve()),
 }));
 
 // Mock Supabase for email tracking (createClient) and location lookup (createAdminClient)

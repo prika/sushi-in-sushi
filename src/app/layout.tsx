@@ -3,16 +3,21 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/presentation/providers";
 import { getLocale } from "next-intl/server";
+import { getSiteMetadata } from "@/lib/metadata";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: {
-    default: "Sushi in Sushi",
-    template: "%s | Sushi in Sushi",
-  },
-  description: "Restaurante de sushi no Porto. Rodízio, à carta, delivery e takeaway.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const meta = await getSiteMetadata();
+
+  return {
+    title: {
+      default: meta.brandName,
+      template: `%s | ${meta.brandName}`,
+    },
+    description: meta.description,
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",

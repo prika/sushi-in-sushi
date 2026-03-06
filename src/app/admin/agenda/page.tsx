@@ -9,6 +9,7 @@ import {
   useReservations,
   useStaff,
   useLocations,
+  useSiteSettings,
   type StaffTimeOffFormData,
 } from "@/presentation/hooks";
 import { downloadICS, type CalendarEvent } from "@/lib/calendar/ics";
@@ -99,6 +100,7 @@ function isDateInRange(dateStr: string, startDate: string, endDate: string): boo
 // =============================================
 
 export default function AgendaPage() {
+  const { settings } = useSiteSettings();
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -388,7 +390,7 @@ export default function AgendaPage() {
           endDate: e.endDate || e.date,
           startTime: e.time || undefined,
           allDay: !e.time,
-          location: "Sushi in Sushi",
+          location: settings?.brand_name ?? "",
         });
       }
     }

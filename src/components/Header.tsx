@@ -8,6 +8,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { createClient } from "@/lib/supabase/client";
+import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 
 const locales = [
   { code: "pt", flag: "🇵🇹" },
@@ -28,6 +29,9 @@ export function Header() {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
+  const { settings } = useSiteSettings();
+  const logoUrl = settings?.logo_url || "/logo.png";
+  const brandName = settings?.brand_name ?? "";
   const [scrollY, setScrollY] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [customerName, setCustomerName] = useState<string | null>(null);
@@ -225,7 +229,7 @@ export function Header() {
             {/* Center Logo — fades into top bar on scroll */}
             <a
               href={`/${locale}`}
-              aria-label="Sushi in Sushi — Home"
+              aria-label={`${brandName} — Home`}
               className="absolute left-1/2 -translate-x-1/2 h-[85px] w-[320px]"
               style={{
                 opacity: topBarExtrasOpacity,
@@ -233,8 +237,8 @@ export function Header() {
               }}
             >
               <Image
-                src="/logo.png"
-                alt="Sushi in Sushi"
+                src={logoUrl}
+                alt={brandName}
                 fill
                 className="object-contain"
                 priority
@@ -314,13 +318,13 @@ export function Header() {
             {/* Center Logo — scroll-driven resize */}
             <a
               href={`/${locale}`}
-              aria-label="Sushi in Sushi — Home"
+              aria-label={`${brandName} — Home`}
               className="relative"
               style={{ height: dLogoH, width: dLogoW }}
             >
               <Image
-                src="/logo.png"
-                alt="Sushi in Sushi"
+                src={logoUrl}
+                alt={brandName}
                 fill
                 className="object-contain"
                 priority
@@ -351,13 +355,13 @@ export function Header() {
           <div className="md:hidden flex items-center justify-between py-2">
             <a
               href={`/${locale}`}
-              aria-label="Sushi in Sushi — Home"
+              aria-label={`${brandName} — Home`}
               className="relative"
               style={{ height: mLogoH, width: mLogoW }}
             >
               <Image
-                src="/logo.png"
-                alt="Sushi in Sushi"
+                src={logoUrl}
+                alt={brandName}
                 fill
                 className="object-contain"
                 priority

@@ -7,11 +7,12 @@ import type { TableDTO } from "@/application/use-cases/tables/GetAllTablesUseCas
 import { generateQRCodeToCanvas, buildTableOrderURLByNumber } from "@/lib/qrcode";
 import { TableMap } from "@/components/admin/TableMap";
 import { TableDetailModal } from "@/components/admin/TableDetailModal";
-import { useTableManagement, useLocations } from "@/presentation/hooks";
+import { useTableManagement, useLocations, useSiteSettings } from "@/presentation/hooks";
 
 type TabType = "config" | "map";
 
 export default function MesasPage() {
+  const { settings } = useSiteSettings();
   const [activeTab, setActiveTab] = useState<TabType>("map");
   const [tables, setTables] = useState<(Table & { waiter_name?: string | null })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -805,7 +806,7 @@ export default function MesasPage() {
           >
             <div className="p-6">
               <div className="text-4xl mb-2">🍣</div>
-              <h3 className="text-xl font-bold mb-4">Sushi in Sushi</h3>
+              <h3 className="text-xl font-bold mb-4">{settings?.brand_name ?? ""}</h3>
 
               <div className="bg-gray-50 rounded-xl p-4 mb-4 inline-block">
                 <canvas

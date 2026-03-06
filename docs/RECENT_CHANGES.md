@@ -1,5 +1,81 @@
 # Alterações Recentes - Sushi in Sushi
 
+## 📅 Data: 2026-03-05
+
+### Dynamic Site Configuration & Brand Removal
+
+**Objectivo:** Tornar todo o conteúdo do site dinâmico via `site_settings` (singleton id=1), eliminando valores hardcoded de brand name, logo, metadata e imagens.
+
+**Novos campos em `site_settings`:**
+- `gtm_id` TEXT — Google Tag Manager Container ID
+- `meta_titles` JSONB — Títulos por locale `{"pt":"...","en":"...",...}`
+- `meta_descriptions` JSONB — Descrições meta por locale
+- `meta_og_descriptions` JSONB — Descrições Open Graph por locale
+- `meta_keywords` JSONB — Keywords por locale (array por idioma)
+- `og_image_url` TEXT NOT NULL DEFAULT '/logo.png'
+- `logo_url` TEXT NOT NULL DEFAULT '/logo.png'
+- `favicon_url` TEXT NOT NULL DEFAULT '/favicon.png'
+- `apple_touch_icon_url` TEXT NOT NULL DEFAULT '/apple-touch-icon.png'
+
+**Ficheiros novos:**
+- `src/lib/metadata/index.ts` — `getSiteMetadata()` com `unstable_cache` (24h, tag `site-metadata`)
+- `src/components/seo/GoogleTagManager.tsx` — Server component para GTM dinâmico
+
+**Ficheiros modificados (metadata):**
+- `src/app/[locale]/layout.tsx` — `generateMetadata` totalmente dinâmico via `getSiteMetadata()`
+- `src/app/layout.tsx` — `generateMetadata` dinâmico (brand_name no title template)
+- `src/app/[locale]/menu/layout.tsx` — Títulos sem brand suffix (usa parent template)
+- `src/app/[locale]/reservar/page.tsx` — Idem + descrições com brand dinâmico
+- `src/app/[locale]/equipa/layout.tsx` — Idem
+- `src/app/login/layout.tsx` — `generateMetadata` async com brand dinâmico
+- `src/app/mesa/layout.tsx` — `generateMetadata` async com brand dinâmico
+
+**Ficheiros modificados (brand name dinâmico):**
+- `src/components/Header.tsx` — `brandName` via `useSiteSettings`, alt/aria-label dinâmicos
+- `src/components/Footer.tsx` — alt/aria-label dinâmicos
+- `src/app/admin/layout.tsx` — Sidebar brand via `useSiteSettings`
+- `src/app/cozinha/page.tsx` — Brand name dinâmico
+- `src/app/login/page.tsx` — Brand name e alt dinâmicos
+- `src/app/mesa/[numero]/page.tsx` — Brand name e alt dinâmicos
+- `src/app/mesa/verify/page.tsx` — Brand name dinâmico (VerifyContent)
+- `src/app/[locale]/entrar/page.tsx` — Brand name e alt dinâmicos
+- `src/app/[locale]/registar/page.tsx` — Idem
+- `src/app/[locale]/recuperar-password/page.tsx` — Idem
+- `src/app/[locale]/redefinir-password/page.tsx` — Idem
+- `src/app/[locale]/equipa/page.tsx` — Idem
+- `src/app/admin/qrcodes/page.tsx` — Brand dinâmico em QR cards e print
+- `src/app/admin/mesas/page.tsx` — Brand dinâmico em QR modal
+- `src/app/admin/definicoes/page.tsx` — Brand dinâmico em QR modal + campos SEO/imagens no admin
+- `src/app/admin/agenda/page.tsx` — Brand dinâmico em ICS export
+
+**Ficheiros modificados (emails):**
+- `src/lib/email/index.ts` — `getBrandName()` cached, `from:` dinâmico, `ensureDynamicAssets()`
+- `src/lib/email/templates.ts` — `BRAND_NAME` var + `initBrandName()`, todas as 30+ referências substituídas
+
+**Ficheiros modificados (outros):**
+- `src/components/seo/RestaurantSchema.tsx` — `logo_url` e `og_image_url` de settings
+- `src/components/seo/MenuSchema.tsx` — `restaurantName` obrigatório (sem default)
+- `src/app/[locale]/menu/page.tsx` — Passa `restaurantName` do `getSiteMetadata()`
+- `src/app/api/admin/site-settings/route.ts` — Novos campos no `allowed` + `revalidateTag`
+- `src/app/api/verification/send/route.ts` — Brand dinâmico em emails e SMS
+- `src/app/api/reservation-cancel/send-code/route.ts` — Brand dinâmico
+- `src/app/api/products/generate-description/route.ts` — Brand dinâmico no AI prompt
+- `src/app/api/products/generate-description/batch/route.ts` — Idem
+- `src/app/api/calendar/timeoff/[id]/route.ts` — Brand dinâmico em ICS
+- `src/presentation/hooks/useSiteSettings.ts` — Interface expandida com campos de imagens
+- `next.config.js` — CSP headers para GTM
+
+**Metadata de sub-paginas (`page_meta`):**
+- `page_meta` JSONB column — titulos e descricoes por pagina (menu, reservar, equipa) e locale
+- Sub-page layouts leem de `meta.pageMeta?.{page}` em vez de maps hardcoded
+- Admin panel: card "Metadata de Paginas" com inputs por pagina/locale
+- API: `page_meta` no array `allowed` do PATCH
+
+**SQL migration consolidada:**
+- `supabase/migrations/094_site_settings_dynamic_branding.sql` — Todos os campos + seed de `page_meta`
+
+---
+
 ## 📅 Data: 2026-03-01 (Atualização 2)
 
 ### 🎯 Funcionalidades Implementadas

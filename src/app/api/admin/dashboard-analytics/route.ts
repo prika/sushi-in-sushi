@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { verifyAuth } from '@/lib/auth';
 import { SupabaseDashboardAnalyticsRepository } from '@/infrastructure/repositories/SupabaseDashboardAnalyticsRepository';
 import { GetDashboardAnalyticsUseCase } from '@/application/use-cases/dashboard-analytics/GetDashboardAnalyticsUseCase';
-import { getPreviousPeriod } from '@/components/charts/DateRangePicker';
+import { getPreviousPeriod } from '@/lib/date-range';
 
 export const dynamic = 'force-dynamic';
 

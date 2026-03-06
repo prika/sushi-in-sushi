@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 
 // Force dynamic rendering for this page
 export const dynamic = 'force-dynamic';
@@ -30,6 +31,8 @@ function LoadingFallback() {
 function VerifyContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { settings } = useSiteSettings();
+  const brandName = settings?.brand_name ?? "";
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
 
@@ -99,7 +102,7 @@ function VerifyContent() {
       <div className="max-w-md w-full bg-[#2a2a2a] rounded-2xl shadow-2xl border border-[#D4AF37]/20 overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-[#D4AF37] to-[#F4E5B8] p-6 text-center">
-          <h1 className="text-2xl font-bold text-[#1a1a1a]">🍣 Sushi in Sushi</h1>
+          <h1 className="text-2xl font-bold text-[#1a1a1a]">{brandName}</h1>
           <p className="text-sm text-[#2a2a2a] mt-1">Verificação de Email</p>
         </div>
 

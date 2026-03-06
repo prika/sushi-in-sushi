@@ -1,8 +1,55 @@
 import type { Reservation } from "@/types/database";
+import { createClient } from "@/lib/supabase/server";
 
 // Base URL for assets (logo, etc.) - should be your production domain
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL;
-const LOGO_URL = `${BASE_URL}/logo.png`;
+
+// Cached logo URL (fetched once per server process)
+let _cachedLogoUrl: string | null = null;
+
+export async function getLogoUrl(): Promise<string> {
+  if (_cachedLogoUrl) return _cachedLogoUrl;
+  const supabase = await createClient();
+  // biome-ignore lint/suspicious/noExplicitAny: site_settings not in generated types yet
+  const { data } = await (supabase as any)
+    .from("site_settings")
+    .select("logo_url")
+    .eq("id", 1)
+    .single();
+  _cachedLogoUrl = `${BASE_URL}${data.logo_url}`;
+  return _cachedLogoUrl;
+}
+
+/** Call before generating templates to ensure LOGO_URL is up to date */
+export async function initLogoUrl(): Promise<void> {
+  LOGO_URL = await getLogoUrl();
+}
+
+// Used by all templates below — initialized by initLogoUrl() before use
+let LOGO_URL = `${BASE_URL}/logo.png`;
+
+// Cached brand name (fetched once per server process)
+let _cachedBrandName: string | null = null;
+
+async function fetchBrandName(): Promise<string> {
+  if (_cachedBrandName) return _cachedBrandName;
+  const supabase = await createClient();
+  const { data } = await (supabase as any)
+    .from("site_settings")
+    .select("brand_name")
+    .eq("id", 1)
+    .single();
+  const name = data?.brand_name ?? "";
+  _cachedBrandName = name;
+  return name;
+}
+
+/** Call before generating templates to ensure BRAND_NAME is up to date */
+export async function initBrandName(): Promise<void> {
+  BRAND_NAME = await fetchBrandName();
+}
+
+let BRAND_NAME = "";
 
 /** Restaurant location info passed to email templates (fetched from DB) */
 export interface LocationInfo {
@@ -71,7 +118,7 @@ ${getEmailHead("Confirmação de Reserva")}
           <!-- Header with Logo and Decorative Elements -->
           <tr>
             <td style="padding: 55px 45px 45px; text-align: center; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-bottom: 2px solid #D4AF37;">
-              <img src="${LOGO_URL}" alt="Sushi in Sushi" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
+              <img src="${LOGO_URL}" alt="${BRAND_NAME}" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
                 <tr>
                   <td style="padding: 0 18px;">
@@ -238,7 +285,7 @@ ${getEmailHead("Confirmação de Reserva")}
                 <!-- Address & Contact -->
                 <tr>
                   <td style="padding: 30px 35px; text-align: center;">
-                    <p style="margin: 0 0 8px; font-family: ${fontSans}; color: #D4AF37; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">${location.name.replace("Sushi in Sushi - ", "")}</p>
+                    <p style="margin: 0 0 8px; font-family: ${fontSans}; color: #D4AF37; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">${location.name.replace(`${BRAND_NAME} - `, "")}</p>
                     <p style="margin: 0 0 25px; font-family: ${fontSans}; color: #fff; font-size: 20px; line-height: 1.5;">${location.address}</p>
 
                     <!-- Contact Buttons Row -->
@@ -283,7 +330,7 @@ ${getEmailHead("Confirmação de Reserva")}
           <!-- Footer -->
           <tr>
             <td style="padding: 40px 50px; background: linear-gradient(180deg, #151515 0%, #0a0a0a 100%); text-align: center; border-top: 2px solid #D4AF37;">
-              <p style="margin: 0 0 12px; font-family: ${fontSans}; color: #D4AF37; font-size: 28px; font-weight: 700;">Sushi in Sushi</p>
+              <p style="margin: 0 0 12px; font-family: ${fontSans}; color: #D4AF37; font-size: 28px; font-weight: 700;">${BRAND_NAME}</p>
               <p style="margin: 0 0 25px; font-family: ${fontSans}; color: #666; font-size: 18px;">A autêntica experiência japonesa no Porto</p>
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
                 <tr>
@@ -318,7 +365,7 @@ ${getEmailHead("Nova Reserva")}
     <!-- Header -->
     <tr>
       <td style="padding: 40px 45px; background: linear-gradient(135deg, #D4AF37 0%, #b8962e 100%); text-align: center;">
-        <img src="${LOGO_URL}" alt="Sushi in Sushi" width="180" height="auto" style="display: block; margin: 0 auto 25px;" />
+        <img src="${LOGO_URL}" alt="${BRAND_NAME}" width="180" height="auto" style="display: block; margin: 0 auto 25px;" />
         <h1 style="margin: 0; font-family: ${fontSans}; font-size: 34px; color: #000; font-weight: 700; letter-spacing: 1px;">🔔 Nova Reserva Recebida</h1>
       </td>
     </tr>
@@ -437,7 +484,7 @@ ${getEmailHead("Nova Reserva")}
                       <tr>
                         <td style="width: 55px;"><span style="font-size: 36px;">📍</span></td>
                         <td style="font-family: ${fontSans}; color: #6b7280; font-size: 22px;">Restaurante</td>
-                        <td style="text-align: right; font-family: ${fontSans}; color: #111827; font-size: 24px; font-weight: 700;">${location.name.replace("Sushi in Sushi - ", "")}</td>
+                        <td style="text-align: right; font-family: ${fontSans}; color: #111827; font-size: 24px; font-weight: 700;">${location.name.replace(`${BRAND_NAME} - `, "")}</td>
                       </tr>
                     </table>
                   </td>
@@ -528,7 +575,7 @@ ${getEmailHead("Nova Reserva")}
     <!-- Footer -->
     <tr>
       <td style="padding: 30px 45px; background-color: #1f2937; text-align: center;">
-        <p style="margin: 0; font-family: ${fontSans}; color: #D4AF37; font-size: 22px; font-weight: 600;">Sushi in Sushi</p>
+        <p style="margin: 0; font-family: ${fontSans}; color: #D4AF37; font-size: 22px; font-weight: 600;">${BRAND_NAME}</p>
         <p style="margin: 10px 0 0; font-family: ${fontSans}; color: #9ca3af; font-size: 16px;">Sistema de Gestão de Reservas</p>
       </td>
     </tr>
@@ -556,7 +603,7 @@ ${getEmailHead("Reserva Confirmada")}
           <!-- Header with Success Badge -->
           <tr>
             <td style="padding: 55px 45px 45px; text-align: center; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-bottom: 2px solid #22c55e;">
-              <img src="${LOGO_URL}" alt="Sushi in Sushi" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
+              <img src="${LOGO_URL}" alt="${BRAND_NAME}" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 50px; padding: 18px 40px;">
                 <tr>
                   <td>
@@ -660,7 +707,7 @@ ${getEmailHead("Reserva Confirmada")}
                 <!-- Address & Contact -->
                 <tr>
                   <td style="padding: 30px 35px; text-align: center;">
-                    <p style="margin: 0 0 8px; font-family: ${fontSans}; color: #D4AF37; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">${location.name.replace("Sushi in Sushi - ", "")}</p>
+                    <p style="margin: 0 0 8px; font-family: ${fontSans}; color: #D4AF37; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">${location.name.replace(`${BRAND_NAME} - `, "")}</p>
                     <p style="margin: 0 0 25px; font-family: ${fontSans}; color: #fff; font-size: 20px; line-height: 1.5;">${location.address}</p>
 
                     <!-- Contact Buttons Row -->
@@ -711,7 +758,7 @@ ${getEmailHead("Reserva Confirmada")}
 export function getFarewellEmail(reservation: Reservation, location: LocationInfo) {
 
   return {
-    subject: `🙏 Obrigado pela sua visita - Sushi in Sushi`,
+    subject: `🙏 Obrigado pela sua visita - ${BRAND_NAME}`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -725,7 +772,7 @@ ${getEmailHead("Obrigado pela sua visita")}
           <!-- Header with Thank You Message -->
           <tr>
             <td style="padding: 60px 50px; text-align: center; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-bottom: 2px solid #D4AF37;">
-              <img src="${LOGO_URL}" alt="Sushi in Sushi" width="220" height="auto" style="display: block; margin: 0 auto 35px;" />
+              <img src="${LOGO_URL}" alt="${BRAND_NAME}" width="220" height="auto" style="display: block; margin: 0 auto 35px;" />
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
                 <tr>
                   <td style="padding: 0 20px;">
@@ -744,7 +791,7 @@ ${getEmailHead("Obrigado pela sua visita")}
                 Olá <strong style="font-weight: 700;">${reservation.first_name}</strong>! 💛
               </p>
               <p style="margin: 0 0 20px; font-family: ${fontSans}; color: #b0b0b0; font-size: 24px; line-height: 1.8; text-align: center;">
-                Foi um prazer recebê-lo no <strong style="color: #D4AF37;">Sushi in Sushi</strong>!
+                Foi um prazer recebê-lo no <strong style="color: #D4AF37;">${BRAND_NAME}</strong>!
               </p>
               <p style="margin: 0; font-family: ${fontSans}; color: #888; font-size: 22px; line-height: 1.8; text-align: center;">
                 Esperamos que a sua experiência tenha sido memorável e que tenha desfrutado dos nossos pratos. A sua opinião é muito importante para nós!
@@ -801,7 +848,7 @@ ${getEmailHead("Obrigado pela sua visita")}
                       <tr>
                         <td style="padding: 12px 0; border-top: 1px solid #333;">
                           <span style="font-family: ${fontSans}; color: #888; font-size: 18px;">Restaurante:</span>
-                          <span style="float: right; font-family: ${fontSans}; color: #fff; font-size: 20px; font-weight: 600;">${location.name.replace("Sushi in Sushi - ", "")}</span>
+                          <span style="float: right; font-family: ${fontSans}; color: #fff; font-size: 20px; font-weight: 600;">${location.name.replace(`${BRAND_NAME} - `, "")}</span>
                         </td>
                       </tr>
                       <tr>
@@ -857,7 +904,7 @@ ${getEmailHead("Obrigado pela sua visita")}
                 <!-- Address & Contact -->
                 <tr>
                   <td style="padding: 25px 35px; text-align: center;">
-                    <p style="margin: 0 0 6px; font-family: ${fontSans}; color: #D4AF37; font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">${location.name.replace("Sushi in Sushi - ", "")}</p>
+                    <p style="margin: 0 0 6px; font-family: ${fontSans}; color: #D4AF37; font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">${location.name.replace(`${BRAND_NAME} - `, "")}</p>
                     <p style="margin: 0 0 20px; font-family: ${fontSans}; color: #fff; font-size: 18px;">${location.address}</p>
 
                     <p style="margin: 0 0 15px; font-family: ${fontSans}; color: #666; font-size: 16px;">Para nova reserva:</p>
@@ -909,7 +956,7 @@ ${getEmailHead("Obrigado pela sua visita")}
           <!-- Footer -->
           <tr>
             <td style="padding: 40px 50px; background: linear-gradient(180deg, #151515 0%, #0a0a0a 100%); text-align: center; border-top: 2px solid #D4AF37;">
-              <p style="margin: 0 0 12px; font-family: ${fontSans}; color: #D4AF37; font-size: 28px; font-weight: 700;">Sushi in Sushi</p>
+              <p style="margin: 0 0 12px; font-family: ${fontSans}; color: #D4AF37; font-size: 28px; font-weight: 700;">${BRAND_NAME}</p>
               <p style="margin: 0 0 20px; font-family: ${fontSans}; color: #666; font-size: 18px;">A autêntica experiência japonesa no Porto</p>
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
                 <tr>
@@ -982,7 +1029,7 @@ ${getEmailHead("Lembrete de Reserva")}
           <!-- Header -->
           <tr>
             <td style="padding: 55px 45px 45px; text-align: center; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-bottom: 2px solid #D4AF37;">
-              <img src="${LOGO_URL}" alt="Sushi in Sushi" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
+              <img src="${LOGO_URL}" alt="${BRAND_NAME}" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
                 <tr>
                   <td style="padding: 0 18px;">
@@ -1006,7 +1053,7 @@ ${getEmailHead("Lembrete de Reserva")}
                 Olá <strong style="font-weight: 700;">${reservation.first_name}</strong>! 👋
               </p>
               <p style="margin: 0; font-family: ${fontSans}; color: #b0b0b0; font-size: 22px; line-height: 1.8;">
-                Queremos lembrar que a sua reserva no <strong style="color: #D4AF37;">Sushi in Sushi</strong> é <strong style="color: #fff;">amanhã</strong>! Estamos ansiosos por recebê-lo.
+                Queremos lembrar que a sua reserva no <strong style="color: #D4AF37;">${BRAND_NAME}</strong> é <strong style="color: #fff;">amanhã</strong>! Estamos ansiosos por recebê-lo.
               </p>
             </td>
           </tr>
@@ -1106,7 +1153,7 @@ ${getEmailHead("Lembrete de Reserva")}
                 </tr>
                 <tr>
                   <td style="padding: 30px 35px; text-align: center;">
-                    <p style="margin: 0 0 8px; font-family: ${fontSans}; color: #D4AF37; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">${location.name.replace("Sushi in Sushi - ", "")}</p>
+                    <p style="margin: 0 0 8px; font-family: ${fontSans}; color: #D4AF37; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">${location.name.replace(`${BRAND_NAME} - `, "")}</p>
                     <p style="margin: 0 0 25px; font-family: ${fontSans}; color: #fff; font-size: 20px; line-height: 1.5;">${location.address}</p>
                     <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                       <tr>
@@ -1150,7 +1197,7 @@ ${getEmailHead("Lembrete de Reserva")}
           <tr>
             <td style="padding: 40px 50px; background: linear-gradient(180deg, #151515 0%, #0a0a0a 100%); text-align: center; border-top: 2px solid #D4AF37;">
               <p style="margin: 0 0 12px; font-family: ${fontSans}; color: #D4AF37; font-size: 28px; font-weight: 700;">Até amanhã!</p>
-              <p style="margin: 0 0 25px; font-family: ${fontSans}; color: #666; font-size: 18px;">Sushi in Sushi - A autêntica experiência japonesa</p>
+              <p style="margin: 0 0 25px; font-family: ${fontSans}; color: #666; font-size: 18px;">${BRAND_NAME} - A autêntica experiência japonesa</p>
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
                 <tr>
                   <td style="padding: 0 10px;"><span style="font-size: 28px;">🍣</span></td>
@@ -1174,7 +1221,7 @@ export function getSameDayReminderEmail(reservation: Reservation, location: Loca
   const rodizioSection = reservation.is_rodizio ? getRodizioWastePolicy(wasteFeePerPiece) : '';
 
   return {
-    subject: `⏰ Daqui a 2 horas! A sua reserva no Sushi in Sushi`,
+    subject: `⏰ Daqui a 2 horas! A sua reserva no ${BRAND_NAME}`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -1188,7 +1235,7 @@ ${getEmailHead("Lembrete - Daqui a 2 horas")}
           <!-- Header with Urgent Badge -->
           <tr>
             <td style="padding: 55px 45px 45px; text-align: center; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-bottom: 2px solid #f59e0b;">
-              <img src="${LOGO_URL}" alt="Sushi in Sushi" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
+              <img src="${LOGO_URL}" alt="${BRAND_NAME}" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 50px; padding: 18px 40px;">
                 <tr>
                   <td>
@@ -1206,7 +1253,7 @@ ${getEmailHead("Lembrete - Daqui a 2 horas")}
                 Olá <strong style="font-weight: 700;">${reservation.first_name}</strong>! 🎉
               </p>
               <p style="margin: 0; font-family: ${fontSans}; color: #b0b0b0; font-size: 22px; line-height: 1.8;">
-                A sua experiência gastronómica no <strong style="color: #D4AF37;">Sushi in Sushi</strong> começa em breve! Não se atrase - a mesa está reservada para si.
+                A sua experiência gastronómica no <strong style="color: #D4AF37;">${BRAND_NAME}</strong> começa em breve! Não se atrase - a mesa está reservada para si.
               </p>
             </td>
           </tr>
@@ -1250,7 +1297,7 @@ ${getEmailHead("Lembrete - Daqui a 2 horas")}
                             <tr>
                               <td style="width: 50px;"><span style="font-size: 30px;">📍</span></td>
                               <td style="font-family: ${fontSans}; color: #888; font-size: 18px;">Local</td>
-                              <td style="text-align: right; font-family: ${fontSans}; color: #fff; font-size: 20px; font-weight: 600;">${location.name.replace("Sushi in Sushi - ", "")}</td>
+                              <td style="text-align: right; font-family: ${fontSans}; color: #fff; font-size: 20px; font-weight: 600;">${location.name.replace(`${BRAND_NAME} - `, "")}</td>
                             </tr>
                           </table>
                         </td>
@@ -1349,7 +1396,7 @@ ${getEmailHead("Reserva Cancelada")}
           <!-- Header with Logo -->
           <tr>
             <td style="padding: 55px 45px 45px; text-align: center; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-bottom: 2px solid #8B0000;">
-              <img src="${LOGO_URL}" alt="Sushi in Sushi" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
+              <img src="${LOGO_URL}" alt="${BRAND_NAME}" width="220" height="auto" style="display: block; margin: 0 auto 30px;" />
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
                 <tr>
                   <td style="padding: 0 18px;">
@@ -1423,7 +1470,7 @@ ${getEmailHead("Reserva Cancelada")}
                         </td>
                         <td width="50%" style="padding: 12px 0;">
                           <p style="margin: 0 0 4px; font-family: ${fontSans}; color: #888; font-size: 14px;">Localização</p>
-                          <p style="margin: 0; font-family: ${fontSans}; color: #fff; font-size: 18px; font-weight: 600;">${location.name.replace("Sushi in Sushi - ", "")}</p>
+                          <p style="margin: 0; font-family: ${fontSans}; color: #fff; font-size: 18px; font-weight: 600;">${location.name.replace(`${BRAND_NAME} - `, "")}</p>
                         </td>
                       </tr>
                     </table>
@@ -1474,7 +1521,7 @@ ${getEmailHead("Reserva Cancelada")}
                 <!-- Address & Contact -->
                 <tr>
                   <td style="padding: 25px 35px; text-align: center;">
-                    <p style="margin: 0 0 6px; font-family: ${fontSans}; color: #D4AF37; font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">${location.name.replace("Sushi in Sushi - ", "")}</p>
+                    <p style="margin: 0 0 6px; font-family: ${fontSans}; color: #D4AF37; font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">${location.name.replace(`${BRAND_NAME} - `, "")}</p>
                     <p style="margin: 0 0 20px; font-family: ${fontSans}; color: #fff; font-size: 18px;">${location.address}</p>
 
                     <p style="margin: 0 0 15px; font-family: ${fontSans}; color: #666; font-size: 16px;">Para nova reserva:</p>
@@ -1526,7 +1573,7 @@ ${getEmailHead("Reserva Cancelada")}
           <!-- Footer -->
           <tr>
             <td style="padding: 40px 50px; background: linear-gradient(180deg, #151515 0%, #0a0a0a 100%); text-align: center; border-top: 2px solid #D4AF37;">
-              <p style="margin: 0 0 12px; font-family: ${fontSans}; color: #D4AF37; font-size: 28px; font-weight: 700;">Sushi in Sushi</p>
+              <p style="margin: 0 0 12px; font-family: ${fontSans}; color: #D4AF37; font-size: 28px; font-weight: 700;">${BRAND_NAME}</p>
               <p style="margin: 0 0 20px; font-family: ${fontSans}; color: #666; font-size: 18px;">A autêntica experiência japonesa no Porto</p>
               <p style="margin: 0; font-family: ${fontSans}; color: #555; font-size: 14px;">Pedimos novamente desculpa pelo transtorno.</p>
             </td>
@@ -1545,10 +1592,10 @@ export function getCustomerWelcomeEmail(name: string) {
   const siteUrl = BASE_URL || "https://sushinsushi.pt";
 
   return {
-    subject: `Bem-vindo ao Sushi in Sushi! 🍣`,
+    subject: `Bem-vindo ao ${BRAND_NAME}! 🍣`,
     html: `<!DOCTYPE html>
 <html lang="pt">
-${getEmailHead("Bem-vindo ao Sushi in Sushi")}
+${getEmailHead(`Bem-vindo ao ${BRAND_NAME}`)}
 <body style="margin:0;padding:0;font-family:${fontSans};background-color:#0a0a0a;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0a0a0a;">
     <tr>
@@ -1558,7 +1605,7 @@ ${getEmailHead("Bem-vindo ao Sushi in Sushi")}
           <!-- Header -->
           <tr>
             <td style="padding:55px 45px 45px;text-align:center;background:linear-gradient(180deg,#1a1a1a 0%,#0f0f0f 100%);border-bottom:2px solid #D4AF37;">
-              <img src="${LOGO_URL}" alt="Sushi in Sushi" width="220" height="auto" style="display:block;margin:0 auto 30px;" />
+              <img src="${LOGO_URL}" alt="${BRAND_NAME}" width="220" height="auto" style="display:block;margin:0 auto 30px;" />
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto;">
                 <tr>
                   <td style="padding:0 18px;"><span style="color:#D4AF37;font-size:32px;">✦</span></td>
@@ -1576,7 +1623,7 @@ ${getEmailHead("Bem-vindo ao Sushi in Sushi")}
                 Olá <strong style="font-weight:700;">${name}</strong> 👋
               </p>
               <p style="margin:0;font-family:${fontSans};color:#b0b0b0;font-size:18px;line-height:1.8;">
-                A sua conta no Sushi in Sushi foi criada com sucesso! Agora pode aproveitar todas as vantagens do nosso programa de fidelização.
+                A sua conta no ${BRAND_NAME} foi criada com sucesso! Agora pode aproveitar todas as vantagens do nosso programa de fidelização.
               </p>
             </td>
           </tr>
@@ -1624,7 +1671,7 @@ ${getEmailHead("Bem-vindo ao Sushi in Sushi")}
           <!-- Footer -->
           <tr>
             <td style="padding:30px 50px;text-align:center;border-top:1px solid #222;">
-              <p style="margin:0 0 8px;font-family:${fontSans};color:#555;font-size:13px;">Sushi in Sushi — Porto, Portugal</p>
+              <p style="margin:0 0 8px;font-family:${fontSans};color:#555;font-size:13px;">${BRAND_NAME} — Porto, Portugal</p>
               <p style="margin:0;font-family:${fontSans};color:#444;font-size:12px;">Este email foi enviado porque criou uma conta no nosso site.</p>
             </td>
           </tr>
@@ -1662,7 +1709,7 @@ export function getTimeOffApprovalEmail(
   const periodText = isSameDay ? formattedStart : `${formattedStart} — ${formattedEnd}`;
 
   return {
-    subject: `✅ Ausência aprovada — ${typeLabel} | Sushi in Sushi`,
+    subject: `✅ Ausência aprovada — ${typeLabel} | ${BRAND_NAME}`,
     to: staffEmail,
     html: `<!DOCTYPE html>
 <html lang="pt">
@@ -1673,7 +1720,7 @@ ${getEmailHead("Ausência aprovada")}
       <table role="presentation" width="600" align="center" cellspacing="0" cellpadding="0" style="background:#0d0d0d;border-radius:16px;overflow:hidden;max-width:600px;margin:0 auto;">
         <!-- Header -->
         <tr><td style="padding:40px;text-align:center;border-bottom:2px solid #22c55e;">
-          <img src="${LOGO_URL}" alt="Sushi in Sushi" width="160" height="auto" style="display:block;margin:0 auto 20px;" />
+          <img src="${LOGO_URL}" alt="${BRAND_NAME}" width="160" height="auto" style="display:block;margin:0 auto 20px;" />
           <p style="margin:0;font-family:${fontSans};color:#22c55e;font-size:20px;font-weight:700;letter-spacing:2px;">AUSÊNCIA APROVADA ✅</p>
         </td></tr>
 
@@ -1726,7 +1773,7 @@ ${getEmailHead("Ausência aprovada")}
 
         <!-- Footer -->
         <tr><td style="padding:24px 40px;text-align:center;border-top:1px solid #222;">
-          <p style="margin:0;font-family:${fontSans};color:#555;font-size:12px;">Sushi in Sushi · Sistema de Gestão</p>
+          <p style="margin:0;font-family:${fontSans};color:#555;font-size:12px;">${BRAND_NAME} · Sistema de Gestão</p>
         </td></tr>
       </table>
     </td></tr>

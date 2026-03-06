@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
+import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 
 export default function RedefinirPasswordPage() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function RedefinirPasswordPage() {
   const locale = (params?.locale as string) || "pt";
   const t = useTranslations("redefinirPassword");
 
+  const { settings } = useSiteSettings();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -96,16 +98,16 @@ export default function RedefinirPasswordPage() {
           <Link href={`/${locale}`}>
             <div className="w-20 h-20 relative mx-auto mb-4">
               <Image
-                src="/logo.png"
-                alt="Sushi in Sushi"
+                src={settings?.logo_url || "/logo.png"}
+                alt={settings?.brand_name ?? ""}
                 fill
                 className="object-contain"
                 priority
               />
             </div>
           </Link>
-          <h1 className="font-display text-2xl font-semibold text-gold tracking-[0.1em]">
-            SUSHI IN SUSHI
+          <h1 className="font-display text-2xl font-semibold text-gold tracking-[0.1em] uppercase">
+            {settings?.brand_name ?? ""}
           </h1>
           <p className="text-muted text-sm mt-2">{t("title")}</p>
         </div>

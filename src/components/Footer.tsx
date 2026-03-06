@@ -45,10 +45,10 @@ export function Footer() {
     <footer className="py-16 px-6 border-t border-white/5">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col items-center mb-12">
-          <a href={`/${locale}`} aria-label="Sushi in Sushi — Home" className="relative h-20 w-48 mb-4 block">
+          <a href={`/${locale}`} aria-label={`${settings?.brand_name ?? ""} — Home`} className="relative h-20 w-48 mb-4 block">
             <Image
-              src="/logo.png"
-              alt={settings?.brand_name ?? "Sushi in Sushi"}
+              src={settings?.logo_url || "/logo.png"}
+              alt={settings?.brand_name ?? ""}
               fill
               className="object-contain"
             />

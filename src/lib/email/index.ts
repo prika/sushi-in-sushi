@@ -11,6 +11,8 @@ import {
   getSameDayReminderEmail,
   getCustomerWelcomeEmail,
   getTimeOffApprovalEmail,
+  initLogoUrl,
+  initBrandName,
   type LocationInfo,
 } from "./templates";
 import { generateGoogleCalendarURL, type CalendarEvent } from "@/lib/calendar/ics";
@@ -21,6 +23,30 @@ const FROM_EMAIL = process.env.FROM_EMAIL;
 
 // Test email override - when set, ALL emails are sent to this address
 const TEST_EMAIL_OVERRIDE = process.env.TEST_EMAIL_OVERRIDE;
+
+// Ensure templates use the dynamic logo URL and brand name from site_settings
+async function ensureDynamicAssets() {
+  await Promise.all([initLogoUrl(), initBrandName()]);
+}
+
+// Cached brand name from site_settings
+let _cachedBrandName: string | null = null;
+async function getBrandName(): Promise<string> {
+  if (_cachedBrandName) return _cachedBrandName;
+  try {
+    const supabase = createAdminClient();
+    const { data } = await (supabase as any)
+      .from("site_settings")
+      .select("brand_name")
+      .eq("id", 1)
+      .single();
+    const name = data?.brand_name ?? "";
+    _cachedBrandName = name;
+    return name;
+  } catch {
+    return "";
+  }
+}
 
 // Helper to get the actual recipient email (respects test override)
 const getRecipientEmail = (originalEmail: string): string => {
@@ -41,9 +67,10 @@ async function fetchLocationInfo(slug: string): Promise<LocationInfo> {
       .eq("slug", slug)
       .single();
 
+    const brandName = await getBrandName();
     if (data) {
       return {
-        name: `Sushi in Sushi - ${data.name}`,
+        name: `${brandName} - ${data.name}`,
         address: data.address || "",
         phone: data.phone || "",
         email: data.email || "",
@@ -51,7 +78,7 @@ async function fetchLocationInfo(slug: string): Promise<LocationInfo> {
           lat: data.latitude || 0,
           lng: data.longitude || 0,
         },
-        mapsUrl: data.google_maps_url || `https://maps.google.com/?q=Sushi+in+Sushi+${encodeURIComponent(data.name)}`,
+        mapsUrl: data.google_maps_url || `https://maps.google.com/?q=${encodeURIComponent(brandName)}+${encodeURIComponent(data.name)}`,
       };
     }
   } catch (error) {
@@ -59,8 +86,9 @@ async function fetchLocationInfo(slug: string): Promise<LocationInfo> {
   }
 
   // Fallback if DB lookup fails
+  const brandName = await getBrandName();
   return {
-    name: "Sushi in Sushi",
+    name: brandName,
     address: "",
     phone: "",
     email: "",
@@ -131,6 +159,7 @@ const logEmail = (to: string, subject: string, type: string) => {
 };
 
 export async function sendReservationEmails(reservation: Reservation) {
+  await ensureDynamicAssets();
   const results = {
     customerEmail: { success: false, error: null as string | null },
     restaurantEmail: { success: false, error: null as string | null },
@@ -162,7 +191,7 @@ export async function sendReservationEmails(reservation: Reservation) {
   try {
     const customerEmail = getCustomerConfirmationEmail(reservation, locationInfo);
     const { data, error } = await resend.emails.send({
-      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      from: `${await getBrandName()} <${FROM_EMAIL}>`,
       to: getRecipientEmail(reservation.email),
       subject: customerEmail.subject,
       html: customerEmail.html,
@@ -224,6 +253,7 @@ export async function sendReservationEmails(reservation: Reservation) {
 }
 
 export async function sendRestaurantNotificationEmail(reservation: Reservation) {
+  await ensureDynamicAssets();
   const locationInfo = await fetchLocationInfo(reservation.location);
 
   if (!isEmailConfigured()) {
@@ -268,6 +298,7 @@ export async function sendRestaurantNotificationEmail(reservation: Reservation) 
 }
 
 export async function sendReservationConfirmedEmail(reservation: Reservation) {
+  await ensureDynamicAssets();
   const locationInfo = await fetchLocationInfo(reservation.location);
   const emailTemplate = getReservationConfirmedEmail(reservation, locationInfo);
 
@@ -282,7 +313,7 @@ export async function sendReservationConfirmedEmail(reservation: Reservation) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      from: `${await getBrandName()} <${FROM_EMAIL}>`,
       to: getRecipientEmail(reservation.email),
       subject: emailTemplate.subject,
       html: emailTemplate.html,
@@ -315,6 +346,7 @@ export async function sendReservationConfirmedEmail(reservation: Reservation) {
 }
 
 export async function sendFarewellEmail(reservation: Reservation) {
+  await ensureDynamicAssets();
   const locationInfo = await fetchLocationInfo(reservation.location);
   const emailTemplate = getFarewellEmail(reservation, locationInfo);
 
@@ -329,7 +361,7 @@ export async function sendFarewellEmail(reservation: Reservation) {
 
   try {
     const { error } = await resend.emails.send({
-      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      from: `${await getBrandName()} <${FROM_EMAIL}>`,
       to: getRecipientEmail(reservation.email),
       subject: emailTemplate.subject,
       html: emailTemplate.html,
@@ -352,6 +384,7 @@ export async function sendFarewellEmail(reservation: Reservation) {
 }
 
 export async function sendCancellationEmail(reservation: Reservation, cancellationReason: string) {
+  await ensureDynamicAssets();
   const locationInfo = await fetchLocationInfo(reservation.location);
   const emailTemplate = getCancellationEmail(reservation, locationInfo, cancellationReason);
 
@@ -366,7 +399,7 @@ export async function sendCancellationEmail(reservation: Reservation, cancellati
 
   try {
     const { error } = await resend.emails.send({
-      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      from: `${await getBrandName()} <${FROM_EMAIL}>`,
       to: getRecipientEmail(reservation.email),
       subject: emailTemplate.subject,
       html: emailTemplate.html,
@@ -389,6 +422,7 @@ export async function sendCancellationEmail(reservation: Reservation, cancellati
 }
 
 export async function sendDayBeforeReminderEmail(reservation: Reservation, wasteFeePerPiece: number = 2.50) {
+  await ensureDynamicAssets();
   const locationInfo = await fetchLocationInfo(reservation.location);
   const emailTemplate = getDayBeforeReminderEmail(reservation, locationInfo, wasteFeePerPiece);
 
@@ -402,7 +436,7 @@ export async function sendDayBeforeReminderEmail(reservation: Reservation, waste
 
   try {
     const { data, error } = await resend.emails.send({
-      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      from: `${await getBrandName()} <${FROM_EMAIL}>`,
       to: getRecipientEmail(reservation.email),
       subject: emailTemplate.subject,
       html: emailTemplate.html,
@@ -426,6 +460,7 @@ export async function sendDayBeforeReminderEmail(reservation: Reservation, waste
 }
 
 export async function sendSameDayReminderEmail(reservation: Reservation, wasteFeePerPiece: number = 2.50) {
+  await ensureDynamicAssets();
   const locationInfo = await fetchLocationInfo(reservation.location);
   const emailTemplate = getSameDayReminderEmail(reservation, locationInfo, wasteFeePerPiece);
 
@@ -439,7 +474,7 @@ export async function sendSameDayReminderEmail(reservation: Reservation, wasteFe
 
   try {
     const { data, error } = await resend.emails.send({
-      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      from: `${await getBrandName()} <${FROM_EMAIL}>`,
       to: getRecipientEmail(reservation.email),
       subject: emailTemplate.subject,
       html: emailTemplate.html,
@@ -470,6 +505,7 @@ export async function sendCustomerWelcomeEmail(
   email: string,
   name: string,
 ): Promise<{ success: boolean; error: string | null }> {
+  await ensureDynamicAssets();
   const template = getCustomerWelcomeEmail(name);
 
   if (!isEmailConfigured()) {
@@ -479,7 +515,7 @@ export async function sendCustomerWelcomeEmail(
 
   try {
     const { error } = await resend.emails.send({
-      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      from: `${await getBrandName()} <${FROM_EMAIL}>`,
       to: getRecipientEmail(email),
       subject: template.subject,
       html: template.html,
@@ -521,6 +557,7 @@ export async function sendTimeOffApprovalEmail(
   endDate: string,
   reason: string | null,
 ): Promise<{ success: boolean; error: string | null }> {
+  await ensureDynamicAssets();
   const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sushinsushi.pt";
   const typeLabel = TIME_OFF_TYPE_LABELS_EMAIL[type] || type;
 
@@ -531,7 +568,7 @@ export async function sendTimeOffApprovalEmail(
     startDate,
     endDate,
     allDay: true,
-    location: "Sushi in Sushi",
+    location: await getBrandName(),
   };
 
   const googleCalendarUrl = generateGoogleCalendarURL(calEvent);
@@ -549,7 +586,7 @@ export async function sendTimeOffApprovalEmail(
 
   try {
     await resend.emails.send({
-      from: `Sushi in Sushi <${FROM_EMAIL}>`,
+      from: `${await getBrandName()} <${FROM_EMAIL}>`,
       to: getRecipientEmail(email),
       subject: template.subject,
       html: template.html,

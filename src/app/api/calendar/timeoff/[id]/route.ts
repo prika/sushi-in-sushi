@@ -32,6 +32,14 @@ export async function GET(
 
     const supabase = createAdminClient();
 
+    // Fetch brand name for calendar event
+    const { data: settingsData } = await (supabase as any)
+      .from("site_settings")
+      .select("brand_name")
+      .eq("id", 1)
+      .single();
+    const brandName = settingsData?.brand_name ?? "";
+
     const { data: timeOff, error: toError } = await (supabase as any)
       .from("staff_time_off")
       .select("*")
@@ -61,7 +69,7 @@ export async function GET(
       startDate: timeOff.start_date,
       endDate: timeOff.end_date,
       allDay: true,
-      location: "Sushi in Sushi",
+      location: brandName,
     };
 
     const icsContent = generateICS([event]);

@@ -459,8 +459,22 @@ Ver detalhes completos em [VENDUS_SYNC.md](VENDUS_SYNC.md#testes).
 
 ---
 
+---
+
+## Testes E2E e de Carga
+
+Para testes de fluxo completo (E2E com Playwright) e testes de carga (k6), ver o plano detalhado em:
+
+**[PLANO_TESTES_E2E_CARGA.md](PLANO_TESTES_E2E_CARGA.md)**
+
+Cobre 9 fluxos E2E (pedido completo, reservas, sessao mesa, waiter/kitchen workflow, admin, customer auth, pagamento, realtime) e 5 cenarios de carga (hora ponta, realtime subscriptions, dashboard, reservas simultaneas, auth concorrente).
+
+---
+
 ## Recursos
 
 - [Vitest Documentation](https://vitest.dev/)
 - [React Testing Library - Hooks](https://react-hooks-testing-library.com/)
 - [Testing Library Best Practices](https://kentcdodds.com/blog/common-mistakes-with-react-testing-library)
+- [Playwright Documentation](https://playwright.dev/)
+- [k6 Documentation](https://k6.io/docs/)

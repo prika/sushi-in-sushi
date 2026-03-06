@@ -13,6 +13,10 @@ export interface SiteSettings {
   thefork_url: string | null;
   zomato_url: string | null;
   google_maps_url: string | null;
+  logo_url: string | null;
+  favicon_url: string | null;
+  apple_touch_icon_url: string | null;
+  og_image_url: string | null;
 }
 
 export function useSiteSettings() {

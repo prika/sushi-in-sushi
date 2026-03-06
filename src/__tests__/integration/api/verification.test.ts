@@ -11,9 +11,16 @@ import { NextRequest } from 'next/server';
 // Mock Supabase
 const mockSupabaseFrom = vi.fn();
 const mockSupabaseRpc = vi.fn();
+const siteSettingsChain = {
+  select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { brand_name: 'Sushi in Sushi' } }) }) }),
+};
+const tableAwareFrom = (table: string) => {
+  if (table === 'site_settings') return siteSettingsChain;
+  return mockSupabaseFrom(table);
+};
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => Promise.resolve({
-    from: mockSupabaseFrom,
+    from: tableAwareFrom,
     rpc: mockSupabaseRpc,
   })),
 }));

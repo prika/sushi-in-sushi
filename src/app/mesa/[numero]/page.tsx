@@ -34,6 +34,7 @@ import { type TableLeaderInfo } from "@/components/mesa/SwipeRatingGame";
 import { GameHub } from "@/components/mesa/GameHub";
 import { ProductDetailSheet } from "@/components/mesa/ProductDetailSheet";
 import { ALLERGEN_EMOJI_MAP, ALL_ALLERGENS } from "@/lib/constants/allergens";
+import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 import type { GamesMode } from "@/domain/value-objects/GameConfig";
 
 type Step = "welcome" | "active";
@@ -82,6 +83,7 @@ function MesaPageContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const supabase = createClient();
+  const { settings } = useSiteSettings();
 
   const mesaNumero = params.numero as string;
   const localizacao = searchParams.get("loc") || "";
@@ -1578,16 +1580,16 @@ function MesaPageContent() {
           <div className="flex items-center gap-4 mb-6">
             <div className="w-14 h-14 relative">
               <Image
-                src="/logo.png"
-                alt="Sushi in Sushi"
+                src={settings?.logo_url || "/logo.png"}
+                alt={settings?.brand_name ?? ""}
                 fill
                 className="object-contain"
                 priority
               />
             </div>
             <div className="text-left">
-              <h1 className="text-lg font-light tracking-[0.2em] text-[#D4AF37]">
-                SUSHI IN SUSHI
+              <h1 className="text-lg font-light tracking-[0.2em] text-[#D4AF37] uppercase">
+                {settings?.brand_name ?? ""}
               </h1>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 uppercase">

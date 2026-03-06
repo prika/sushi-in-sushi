@@ -27,6 +27,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
 
+    // Fetch brand name dynamically
+    const { data: _settings } = await (supabase as any).from("site_settings").select("brand_name").eq("id", 1).single();
+    const brandName = _settings?.brand_name ?? "";
+
     // Check if there are any upcoming reservations for this email
     const today = new Date().toISOString().split("T")[0];
     const { data: reservations } = await supabase
@@ -97,10 +101,10 @@ export async function POST(request: NextRequest) {
     if (FROM_EMAIL) {
       try {
         await resend.emails.send({
-          from: `Sushi in Sushi <${FROM_EMAIL}>`,
+          from: `${brandName} <${FROM_EMAIL}>`,
           to: getRecipientEmail(email),
           subject: "Código de Verificação - Cancelamento de Reserva",
-          html: buildVerificationEmail(token),
+          html: buildVerificationEmail(token, brandName),
         });
       } catch (emailError) {
         console.error("Error sending verification email:", emailError);
@@ -120,7 +124,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function buildVerificationEmail(token: string): string {
+function buildVerificationEmail(token: string, brandName: string): string {
   return `
 <!DOCTYPE html>
 <html>
@@ -131,7 +135,7 @@ function buildVerificationEmail(token: string): string {
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:500px;background-color:#1a1a1a;border-radius:24px;overflow:hidden;border:1px solid #333;">
   <!-- Header -->
   <tr><td style="background:linear-gradient(135deg,#D4AF37 0%,#B8941F 100%);padding:30px;text-align:center;">
-    <h1 style="margin:0;color:#1a1a1a;font-size:20px;font-weight:700;">Sushi in Sushi</h1>
+    <h1 style="margin:0;color:#1a1a1a;font-size:20px;font-weight:700;">${brandName}</h1>
     <p style="margin:8px 0 0;color:rgba(26,26,26,0.7);font-size:13px;">Código de Verificação</p>
   </td></tr>
   <!-- Content -->
