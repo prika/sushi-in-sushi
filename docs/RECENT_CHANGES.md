@@ -2,6 +2,39 @@
 
 ## 📅 Data: 2026-03-06
 
+### Marketing Intelligence - Fase 1: Estrategia de Marketing
+
+**Objectivo:** Implementar a tab "Estrategia" no admin SEO com objetivos estrategicos (26 objetivos em 6 categorias) e questionario de contexto do negocio. Esta e a base para futuras sugestoes AI e segmentacao.
+
+**Mudancas:**
+- Migration `097_business_strategy.sql` — Tabela singleton `business_strategy` com RLS
+- API route `GET/PATCH /api/admin/business-strategy` — CRUD com auth admin
+- Componente `src/app/admin/seo/StrategyTab.tsx` — Interface completa:
+  - 6 categorias de objetivos (Aquisicao, Retencao, Reservas, Reputacao, Operacional, Revenue)
+  - 26 objetivos com checkboxes, prioridade 1-5, e notas por objetivo
+  - Questionario: publico-alvo, tom de comunicacao, tipo cozinha, diferencial competitivo
+  - Campos: faixa etaria, capacidade almoco/jantar, preco medio, orcamento marketing
+  - Canais ativos com prioridade (principal/secundario)
+  - Concorrentes diretos (tag-style input)
+  - Datas-chave do ano (com flag "anual")
+- Tab "Estrategia" adicionada a `/admin/seo` (lazy-loaded)
+
+**Plano completo:** `docs/PLANO_MARKETING_INTELLIGENCE.md` (8 fases, da auditoria de dados ao dashboard preditivo)
+
+### GTM DataLayer Events & Reservation Source
+
+**GTM Events:**
+- Hook `useGTMEvent()` + funcao `pushGTMEvent()` em `src/presentation/hooks/useGTMEvent.ts`
+- Eventos: `reservation_started`, `reservation_completed`, `menu_view`, `qr_scan`, `order_placed`, `login`, `signup`
+- Type-safe via `GTMEventMap`, so dispara se GTM carregado
+
+**Reservation Source:**
+- Migration `098_reservation_source.sql` — `source TEXT DEFAULT 'website'` em reservations
+- Tipo `ReservationSource` no domain (website/phone/walkin/thefork/instagram/google/other)
+- Admin: dropdown editavel no detalhe + badge nos cards
+
+---
+
 ### Presentation Layer Consolidation
 
 **Objectivo:** Eliminar diretórios legados (`src/components/`, `src/hooks/`, `src/contexts/`) e consolidar toda a camada de apresentação React em `src/presentation/`, alinhando com a Clean Architecture.

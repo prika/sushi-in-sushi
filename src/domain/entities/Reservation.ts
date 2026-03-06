@@ -6,6 +6,7 @@ import { Location } from '../value-objects/Location';
 
 export type ReservationStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
 export type ReservationOccasion = 'birthday' | 'anniversary' | 'business' | 'other';
+export type ReservationSource = 'website' | 'phone' | 'walkin' | 'thefork' | 'instagram' | 'google' | 'other';
 
 export interface Reservation {
   id: string;
@@ -31,6 +32,7 @@ export interface Reservation {
   customerId: string | null;
   sessionId: string | null;
   seatedAt: Date | null;
+  source: ReservationSource;
   marketingConsent: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -48,6 +50,7 @@ export interface CreateReservationData {
   isRodizio?: boolean;
   specialRequests?: string | null;
   occasion?: ReservationOccasion | null;
+  source?: ReservationSource;
   marketingConsent?: boolean;
 }
 

@@ -41,8 +41,8 @@ Sabemos:
 ## 2. Arquitetura de 8 Fases
 
 ```
-Fase 0: Auditoria e Recolha de Dados (inventario + gaps + setup externo)
-Fase 1: Objetivos Estrategicos (checklist + questionario)
+Fase 0: Auditoria e Recolha de Dados — CONCLUIDA (este documento)
+Fase 1: Objetivos Estrategicos (checklist + questionario) ← COMECAR AQUI
 Fase 2: Segmentacao de Audiencia (segmentos dinamicos baseados em dados reais)
 Fase 3: Motor de Sugestoes AI (contextualizado com objetivos + segmentos + metricas)
 Fase 4: Campanhas & Automacoes (email/sms flows baseados em segmentos)
@@ -53,9 +53,9 @@ Fase 7: Intelligence Dashboard (preditivo, tendencias, anomalias)
 
 ---
 
-## 2.1 Fase 0 — Auditoria e Recolha de Dados
+## 2.1 Fase 0 — Auditoria e Recolha de Dados (CONCLUIDA)
 
-> Antes de construir inteligencia, garantimos que recolhemos TUDO o que precisamos.
+> Inventario completo de todos os dados disponiveis, gaps identificados, e instrucoes de setup para fontes externas.
 
 ### A. Dados Ja Disponiveis (recolha ativa)
 
@@ -306,21 +306,30 @@ Se o restaurante fizer publicidade paga:
 
 ### D. Resumo de Gaps e Prioridades
 
-| Prioridade | Acao | Esforco | Impacto |
-|------------|------|---------|---------|
-| **P0** | Configurar GA4 no GTM existente | 15 min no GTM | Desbloqueia trafego, bounce rate, fontes |
-| **P0** | Adicionar dataLayer events no codigo | 2-3h dev | Desbloqueia conversion tracking |
-| **P1** | Migration: `source` em reservations | 30 min | Atribuicao de canal imediata |
-| **P1** | Migration: `payment_method` em sessions | 30 min | Segmento por pagamento |
-| **P1** | Migration: `email_unsubscribed` em customers | 30 min | Compliance RGPD para campanhas |
-| **P2** | Migration: `customer_feedback` (NPS) | 1h | Segmento por satisfacao |
-| **P2** | Migration: `promo_code` em sessions | 30 min | ROI de campanhas futuras |
-| **P2** | Setup Instagram Business + Meta App | 1-2h | Dados sociais para Fase 6 |
-| **P3** | Setup GA4 Data API (service account) | 1h | Leitura programatica para Fase 6 |
-| **P3** | Setup Google Business Profile API | 1h | Reviews automaticos para Fase 6 |
-| **P3** | Meta Pixel no GTM | 15 min | Tracking de ads (so se fizer ads) |
+| Prioridade | Acao | Esforco | Impacto | Bloqueia |
+|------------|------|---------|---------|----------|
+| **P1** | Migration: `source` em reservations | 30 min | Atribuicao de canal imediata | Segmentacao por canal (Fase 2) |
+| **P1** | Migration: `payment_method` em sessions | 30 min | Segmento por pagamento | Segmentacao por pagamento (Fase 2) |
+| **P1** | Migration: `email_unsubscribed` em customers | 30 min | Compliance RGPD para campanhas | Campanhas email (Fase 4) |
+| **P2** | Migration: `customer_feedback` (NPS) | 1h | Segmento por satisfacao | Segmento NPS (Fase 2, enriquecimento) |
+| **P2** | Migration: `promo_code` em sessions | 30 min | ROI de campanhas futuras | Tracking ROI (Fase 4) |
+| **P2** | Configurar GA4 no GTM existente | 15 min no GTM | Trafego, bounce rate, fontes | Insights externos (Fase 6) |
+| **P2** | Adicionar dataLayer events no codigo | 2-3h dev | Conversion tracking no site | Insights externos (Fase 6) |
+| **P2** | Setup Instagram Business + Meta App | 1-2h | Dados sociais | Insights externos (Fase 6) |
+| **P3** | Setup GA4 Data API (service account) | 1h | Leitura programatica GA4 | Fase 6 (leitura automatica) |
+| **P3** | Setup Google Business Profile API | 1h | Reviews automaticos | Fase 6 (reviews) |
+| **P3** | Meta Pixel no GTM | 15 min | Tracking de ads | So se fizer ads |
 
-**Nota:** P0 e P1 devem ser feitos ANTES de comecar a Fase 1. P2 pode ser paralelo. P3 e necessario so na Fase 6.
+**O que NAO bloqueia as Fases 1-3:**
+- GA4, Instagram, Google Business — so sao necessarios na Fase 6 (Insights Externos)
+- Fases 1-3 (Objetivos + Segmentacao + Sugestoes AI) funcionam inteiramente com **dados internos ja existentes**: `customers`, `orders`, `sessions`, `reservations`, `email_events`, `products`, `daily_metrics`
+- As migrations P1 enriquecem a segmentacao mas nao a bloqueiam — podem ser feitas em paralelo com a Fase 1
+
+**Recomendacao de execucao:**
+1. Comecar Fase 1 (Objetivos) imediatamente — zero dependencias
+2. Fazer migrations P1 em paralelo (3x 30min)
+3. Fase 2 (Segmentacao) ja funciona com dados existentes; P1 migrations adicionam campos bonus
+4. P2/P3 quando chegarmos a Fase 6
 
 ---
 
@@ -1138,6 +1147,30 @@ src/app/api/admin/
 ---
 
 ## 11. Fases de Implementacao (Revista)
+
+### Fase 0 — Auditoria e Recolha de Dados (~2 sessoes)
+
+**Concluido:**
+- [ ] Configurar GA4 no GTM (criar propriedade, adicionar tag, publicar container) — MANUAL no painel GTM
+- [x] Implementar `useGTMEvent()` hook para dataLayer events — `src/presentation/hooks/useGTMEvent.ts`
+- [x] Adicionar eventos: reservation_started, reservation_completed, menu_view, qr_scan, order_placed, login, signup
+- [x] Migration: `ADD COLUMN source TEXT DEFAULT 'website'` em `reservations` — `098_reservation_source.sql`
+- [x] UI: dropdown de fonte no detalhe da reserva (admin) + badge nos cards + tipo `ReservationSource` no domain
+
+**P1 — Necessario para segmentacao:**
+- [ ] Migration: `ADD COLUMN payment_method TEXT` em `sessions`
+- [ ] Migration: `ADD COLUMN email_unsubscribed BOOLEAN DEFAULT FALSE` + `unsubscribed_at` em `customers`
+- [ ] Migration: `ADD COLUMN acquisition_source TEXT` em `customers`
+- [ ] Migration: `ADD COLUMN last_email_sent_at TIMESTAMPTZ` + `email_sends_count` em `customers`
+
+**P2 — Necessario para campanhas:**
+- [ ] Migration: `CREATE TABLE customer_feedback` (NPS: customer_id, session_id, nps_score 0-10, comment)
+- [ ] Migration: `ADD COLUMN promo_code TEXT` + `discount_amount DECIMAL` em `sessions`
+
+**P3 — Necessario para Fase 6 (externo):**
+- [ ] Documentar: Como criar Service Account Google Cloud para GA4 Data API
+- [ ] Documentar: Como configurar Instagram Business + Meta App + Long-Lived Token
+- [ ] Documentar: Como ativar Google Business Profile API
 
 ### Fase 1 — Objetivos Estrategicos (~3 sessoes)
 - [ ] Migration: `business_strategy`

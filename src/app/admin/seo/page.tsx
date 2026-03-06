@@ -1,18 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Card, Button } from "@/presentation/components/ui";
 import Image from "next/image";
 
+const StrategyTab = lazy(() => import("./StrategyTab"));
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-type SubTab = "brand" | "metadata" | "images" | "gtm";
+type SubTab = "brand" | "metadata" | "images" | "gtm" | "strategy";
 
 const SUB_TABS: { id: SubTab; label: string }[] = [
   { id: "brand", label: "Marca & Redes" },
   { id: "metadata", label: "Metadata SEO" },
   { id: "images", label: "Imagens & Branding" },
   { id: "gtm", label: "Google Tag Manager" },
+  { id: "strategy", label: "Estrategia" },
 ];
 
 const LOCALES = ["pt", "en", "fr", "de", "it", "es"] as const;
@@ -675,14 +678,27 @@ export default function SeoPage() {
           </div>
         )}
 
-        {/* Save */}
-        {message && (
-          <p className={`text-sm ${message.type === "success" ? "text-green-600" : "text-red-600"}`}>{message.text}</p>
+        {/* Save (for brand/metadata/images/gtm tabs) */}
+        {activeTab !== "strategy" && (
+          <>
+            {message && (
+              <p className={`text-sm ${message.type === "success" ? "text-green-600" : "text-red-600"}`}>{message.text}</p>
+            )}
+            <Button type="submit" disabled={isSaving} variant="primary">
+              {isSaving ? "A guardar..." : "Guardar Definicoes"}
+            </Button>
+          </>
         )}
-        <Button type="submit" disabled={isSaving} variant="primary">
-          {isSaving ? "A guardar..." : "Guardar Definicoes"}
-        </Button>
       </form>
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* STRATEGY TAB (separate from site-settings form) */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {activeTab === "strategy" && (
+        <Suspense fallback={<div className="text-gray-500 text-sm p-4">A carregar estrategia...</div>}>
+          <StrategyTab />
+        </Suspense>
+      )}
     </div>
   );
 }

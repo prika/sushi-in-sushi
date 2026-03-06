@@ -7,6 +7,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
+import { pushGTMEvent } from "@/presentation/hooks/useGTMEvent";
 
 export default function RegistarPage() {
   const router = useRouter();
@@ -66,6 +67,7 @@ export default function RegistarPage() {
         password: form.password,
       });
 
+      pushGTMEvent("signup");
       router.push(`/${locale}/conta`);
     } catch {
       setError(t("errorGeneral"));

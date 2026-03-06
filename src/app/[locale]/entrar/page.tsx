@@ -7,6 +7,7 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
+import { pushGTMEvent } from "@/presentation/hooks/useGTMEvent";
 
 export default function EntrarPage() {
   const router = useRouter();
@@ -50,6 +51,7 @@ export default function EntrarPage() {
         return;
       }
 
+      pushGTMEvent("login", { method: "email" });
       router.push(`/${locale}/conta`);
     } catch {
       setError(t("errorGeneral"));

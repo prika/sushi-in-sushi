@@ -227,6 +227,7 @@ describe('SupabaseReservationRepository', () => {
         occasion: null,
         marketing_consent: false,
         status: 'pending',
+        source: 'website',
       });
     });
 

@@ -154,6 +154,20 @@ export async function PATCH(
     const supabase = createAdminClient();
     const repository = new SupabaseReservationRepository(supabase);
 
+    // Handle source update (simple metadata field, not a status change)
+    if (body.source !== undefined && !body.status) {
+      // biome-ignore lint/suspicious/noExplicitAny: reservations.source not in generated types yet
+      const { error } = await (supabase as any)
+        .from("reservations")
+        .update({ source: body.source })
+        .eq("id", id);
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ success: true });
+    }
+
     // Handle status changes with specialized use-cases
     const status = body.status;
 

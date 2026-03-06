@@ -51,3 +51,6 @@ export * from './useProductIngredients';
 // Games hooks
 export * from './useGameSession';
 export * from './useGameConfig';
+
+// GTM / Analytics
+export * from './useGTMEvent';

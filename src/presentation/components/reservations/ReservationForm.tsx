@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useReservation, type ReservationFormData } from "@/presentation/hooks/useReservation";
 import type { Location, ReservationOccasion } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
+import { useGTMEvent } from "@/presentation/hooks/useGTMEvent";
 
 // =============================================
 // COMPONENT
@@ -202,6 +203,13 @@ export function ReservationForm({
     location: formData.location,
   });
 
+  const pushEvent = useGTMEvent();
+
+  // Track reservation form open
+  useEffect(() => {
+    pushEvent("reservation_started", { location: defaultLocation || undefined });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -210,6 +218,11 @@ export function ReservationForm({
     const result = await createReservation(formData);
 
     if (result.success) {
+      pushEvent("reservation_completed", {
+        party_size: formData.party_size,
+        location: formData.location || undefined,
+        is_rodizio: formData.is_rodizio,
+      });
       setSuccess(true);
       onSuccess?.();
       setFormData({

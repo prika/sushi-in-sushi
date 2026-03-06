@@ -8,6 +8,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { BlurFade } from "@/presentation/components/ui/blur-fade";
+import { pushGTMEvent } from "@/presentation/hooks/useGTMEvent";
 
 interface MenuProduct {
   id: string;
@@ -211,6 +212,11 @@ function ProductCard({
 export function MenuContent({ categories, restaurants }: MenuContentProps) {
   const t = useTranslations("menu");
   const locale = useLocale();
+
+  // Track menu page view
+  useEffect(() => {
+    pushGTMEvent("menu_view", { locale });
+  }, [locale]);
 
   return (
     <div className="min-h-screen bg-background pb-24">

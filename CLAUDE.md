@@ -17,6 +17,9 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 ### Última Atualização: 2026-03-06
 
 **Alterações Recentes (Março 2026):**
+- ✅ **Marketing Intelligence - Fase 1** - Tab "Estrategia" em `/admin/seo` com 26 objetivos (6 categorias), questionario de contexto, tabela `business_strategy` (singleton). Base para sugestoes AI e segmentacao futuras.
+- ✅ **GTM DataLayer Events** - Hook `useGTMEvent()` com 7 eventos type-safe (reservation, menu, QR scan, order, login, signup). Instrumentacao em ReservationForm, MenuContent, mesa/[numero], entrar, registar.
+- ✅ **Reservation Source Attribution** - Coluna `source` em reservations (website/phone/walkin/thefork/instagram/google/other), dropdown editavel no admin, badge nos cards.
 - ✅ **Presentation Layer Consolidation** - Eliminados diretórios legados (`components/`, `hooks/`, `contexts/`). Todos os componentes React, hooks e contexts vivem agora em `src/presentation/`. Componentes organizados em subpastas semânticas: `layout/`, `homepage/`, `orders/`, `products/`, `reservations/`, `tables/`, `admin/`, `charts/`, `mesa/`, `calendar/`, `seo/`, `menu/`, `auth/`, `ui/`.
 - ✅ **Dynamic Site Configuration** - Todos os dados do site (brand name, logo, favicon, OG image, metadata SEO por locale, GTM) configuráveis via admin panel. Zero hardcoded brand references em código de produção.
 - ✅ **Google Tag Manager** - GTM Container ID configurável no admin, carregado apenas em páginas públicas (`[locale]/*`)
@@ -238,6 +241,7 @@ npx supabase db reset
 - `kitchen_zones` - Zonas de cozinha para split printing
 - `team_members` - Staff display no site público (via `staff.show_on_website`)
 - `site_settings` - Configuração global do site (singleton id=1): `brand_name`, `description`, `price_range`, URLs de redes sociais, `gtm_id`, `logo_url`, `favicon_url`, `apple_touch_icon_url`, `og_image_url`, metadata SEO JSONB por locale (`meta_titles`, `meta_descriptions`, `meta_og_descriptions`, `meta_keywords`), `page_meta` JSONB (títulos e descrições por sub-página e locale)
+- `business_strategy` - Estrategia de marketing (singleton id=1): `objectives` JSONB (array de {id, priority, notes}), `target_audience`, `communication_tone`, `competitive_edge`, `age_range_min/max`, `key_dates` JSONB, `marketing_budget_monthly`, `active_channels` JSONB, `competitors`, `cuisine_types`, `capacity_lunch/dinner`, `avg_price_min/max`
 
 ### SQL Scripts de Utilidade
 Scripts em `supabase/scripts/`:

@@ -128,6 +128,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
         special_requests: data.specialRequests || null,
         occasion: data.occasion || null,
         marketing_consent: data.marketingConsent ?? false,
+        source: data.source ?? 'website',
         status: 'pending',
       })
       .select()
@@ -292,6 +293,7 @@ export class SupabaseReservationRepository implements IReservationRepository {
       customerId: row.customer_id,
       sessionId: row.session_id,
       seatedAt: row.seated_at ? new Date(row.seated_at) : null,
+      source: (row.source as Reservation['source']) || 'website',
       marketingConsent: row.marketing_consent,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),

@@ -46,6 +46,7 @@ interface Reservation {
   cancellation_reason: string | null;
   cancelled_by: 'admin' | 'customer' | null;
   cancellation_source: 'site' | 'phone' | null;
+  source: string;
   table_id: string | null;
   table_number?: number | null;
   tables_assigned?: boolean;
@@ -75,6 +76,16 @@ interface Reservation {
   same_day_reminder_opened_at: string | null;
   same_day_reminder_status: EmailStatus | null;
 }
+
+const RESERVATION_SOURCE_LABELS: Record<string, string> = {
+  website: "Website",
+  phone: "Telefone",
+  walkin: "Walk-in",
+  thefork: "TheFork",
+  instagram: "Instagram",
+  google: "Google",
+  other: "Outro",
+};
 
 const emailStatusConfig: Record<string, { icon: string; label: string; color: string }> = {
   sent: { icon: "📤", label: "Enviado", color: "text-blue-600" },
@@ -631,6 +642,16 @@ export default function ReservationsPage() {
           reservation={selectedReservation}
           onClose={() => setSelectedReservation(null)}
           onUpdateStatus={updateReservationStatus}
+          onSourceChange={async (id, source) => {
+            try {
+              await fetch(`/api/reservations/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ source }),
+              });
+              fetchReservations();
+            } catch { /* silently fail */ }
+          }}
           isUpdating={isUpdating}
         />
       )}
@@ -694,6 +715,14 @@ function ReservationCard({
           <span className="capitalize">{reservation.location}</span>
           <span className="text-gray-400">•</span>
           <span>{reservation.is_rodizio ? "Rodízio" : "À Carta"}</span>
+          {reservation.source && reservation.source !== "website" && (
+            <>
+              <span className="text-gray-400">•</span>
+              <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium">
+                {RESERVATION_SOURCE_LABELS[reservation.source] ?? reservation.source}
+              </span>
+            </>
+          )}
         </div>
         {/* Assigned Tables & Waiter */}
         {reservation.assigned_tables && reservation.assigned_tables.length > 0 && (
@@ -759,6 +788,7 @@ function ReservationModal({
   reservation,
   onClose,
   onUpdateStatus,
+  onSourceChange,
   isUpdating,
 }: {
   reservation: Reservation;
@@ -769,6 +799,7 @@ function ReservationModal({
     _reason?: string,
     _source?: string
   ) => Promise<void>;
+  onSourceChange: (_id: string, _source: string) => void;
   isUpdating: boolean;
 }) {
   const [cancelReasonId, setCancelReasonId] = useState("");
@@ -875,11 +906,25 @@ function ReservationModal({
             </div>
           </div>
 
-          {/* Service Type */}
-          <div className="p-3 bg-[#D4AF37]/10 rounded-lg">
-            <p className="text-sm font-medium text-[#D4AF37]">
-              {reservation.is_rodizio ? "Rodízio" : "À Carta"}
-            </p>
+          {/* Service Type & Source */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 p-3 bg-[#D4AF37]/10 rounded-lg">
+              <p className="text-sm font-medium text-[#D4AF37]">
+                {reservation.is_rodizio ? "Rodízio" : "À Carta"}
+              </p>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs text-gray-500 mb-1">Fonte</label>
+              <select
+                value={reservation.source ?? "website"}
+                onChange={(e) => onSourceChange(reservation.id, e.target.value)}
+                className="cursor-pointer w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+              >
+                {Object.entries(RESERVATION_SOURCE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Assigned Tables & Waiter */}
@@ -1101,8 +1146,14 @@ function ReservationModal({
             </div>
           </div>
 
-          {/* Timestamps */}
+          {/* Source & Timestamps */}
           <div className="text-xs text-gray-400 space-y-1">
+            {reservation.source && (
+              <p>
+                Fonte:{" "}
+                <span className="text-gray-600 font-medium">{RESERVATION_SOURCE_LABELS[reservation.source] ?? reservation.source}</span>
+              </p>
+            )}
             <p>
               Criada:{" "}
               {new Date(reservation.created_at).toLocaleString("pt-PT")}

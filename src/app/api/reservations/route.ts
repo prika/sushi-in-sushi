@@ -118,6 +118,7 @@ export async function GET(request: NextRequest) {
       cancellation_reason: reservation.cancellationReason,
       session_id: reservation.sessionId,
       seated_at: reservation.seatedAt?.toISOString() || null,
+      source: reservation.source,
       marketing_consent: reservation.marketingConsent,
       created_at: reservation.createdAt.toISOString(),
       updated_at: reservation.updatedAt.toISOString(),
@@ -232,6 +233,7 @@ export async function POST(request: NextRequest) {
       isRodizio: body.isRodizio ?? body.is_rodizio ?? true,
       specialRequests: (body.specialRequests || body.special_requests)?.trim() || null,
       occasion: body.occasion || null,
+      source: body.source ?? 'website',
       marketingConsent: body.marketingConsent ?? body.marketing_consent ?? false,
     };
 

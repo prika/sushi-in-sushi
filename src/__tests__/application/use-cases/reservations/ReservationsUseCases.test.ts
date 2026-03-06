@@ -33,8 +33,12 @@ function createTestReservation(overrides: Partial<Reservation> = {}): Reservatio
     confirmedAt: null,
     cancelledAt: null,
     cancellationReason: null,
+    cancelledBy: null,
+    cancellationSource: null,
+    customerId: null,
     sessionId: null,
     seatedAt: null,
+    source: 'website',
     marketingConsent: false,
     createdAt: new Date('2024-01-01T12:00:00Z'),
     updatedAt: new Date('2024-01-01T12:00:00Z'),
@@ -665,5 +669,69 @@ describe('DeleteReservationUseCase', () => {
     const result = await useCase.execute('reservation-1');
 
     expect(result.success).toBe(false);
+  });
+});
+
+// ─── ReservationSource Tests ─────────────────────────────────────────────────
+
+describe('ReservationSource - channel attribution', () => {
+  it('deve criar reserva com source padrão (website)', () => {
+    const reservation = createTestReservation();
+    expect(reservation.source).toBe('website');
+  });
+
+  it('deve criar reserva com source personalizado', () => {
+    const reservation = createTestReservation({ source: 'phone' });
+    expect(reservation.source).toBe('phone');
+  });
+
+  it('deve aceitar todos os valores válidos de source', () => {
+    const sources = ['website', 'phone', 'walkin', 'thefork', 'instagram', 'google', 'other'] as const;
+    for (const source of sources) {
+      const reservation = createTestReservation({ source });
+      expect(reservation.source).toBe(source);
+    }
+  });
+
+  it('deve criar reserva via CreateReservationUseCase com source', async () => {
+    const mockRepository = createMockReservationRepository();
+    const mockClosureRepository = createMockClosureRepository();
+    const useCase = new CreateReservationUseCase(mockRepository, mockClosureRepository);
+
+    const createdReservation = createTestReservation({ source: 'thefork' });
+    vi.mocked(mockClosureRepository.checkClosure).mockResolvedValue(false);
+    vi.mocked(mockRepository.create).mockResolvedValue(createdReservation);
+
+    const result = await useCase.execute({
+      firstName: 'João',
+      lastName: 'Silva',
+      email: 'joao@teste.com',
+      phone: '+351912345678',
+      reservationDate: '2024-02-15',
+      reservationTime: '19:00',
+      partySize: 4,
+      location: 'circunvalacao',
+      source: 'thefork',
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.source).toBe('thefork');
+    }
+  });
+
+  it('deve preservar source ao obter reserva por ID', async () => {
+    const mockRepository = createMockReservationRepository();
+    const useCase = new GetReservationByIdUseCase(mockRepository);
+
+    const reservation = createTestReservation({ source: 'instagram' });
+    vi.mocked(mockRepository.findById).mockResolvedValue(reservation);
+
+    const result = await useCase.execute('reservation-1');
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.source).toBe('instagram');
+    }
   });
 });

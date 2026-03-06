@@ -35,6 +35,7 @@ import { GameHub } from "@/presentation/components/mesa/GameHub";
 import { ProductDetailSheet } from "@/presentation/components/mesa/ProductDetailSheet";
 import { ALLERGEN_EMOJI_MAP, ALL_ALLERGENS } from "@/lib/constants/allergens";
 import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
+import { useGTMEvent } from "@/presentation/hooks/useGTMEvent";
 import type { GamesMode } from "@/domain/value-objects/GameConfig";
 
 type Step = "welcome" | "active";
@@ -85,8 +86,14 @@ function MesaPageContent() {
   const supabase = createClient();
   const { settings } = useSiteSettings();
 
+  const pushEvent = useGTMEvent();
   const mesaNumero = params.numero as string;
   const localizacao = searchParams.get("loc") || "";
+
+  // Track QR scan on mount
+  useEffect(() => {
+    pushEvent("qr_scan", { table_number: mesaNumero, location: localizacao || undefined });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Core state
   const [step, setStep] = useState<Step>("welcome");
@@ -1291,6 +1298,11 @@ function MesaPageContent() {
         });
       }
 
+      pushEvent("order_placed", {
+        items_count: cartItemsCount,
+        is_rodizio: orderType === "rodizio",
+      });
+
       clearCart();
 
       // Show success message
@@ -1319,6 +1331,8 @@ function MesaPageContent() {
     currentCustomer?.id,
     currentCustomer?.display_name,
     deviceId,
+    orderType,
+    pushEvent,
     t,
   ]);
 
