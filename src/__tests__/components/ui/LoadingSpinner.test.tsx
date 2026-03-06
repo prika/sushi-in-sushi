@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '../../helpers/test-utils';
 import React from 'react';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { LoadingSpinner } from '@/presentation/components/ui/LoadingSpinner';
 
 describe('LoadingSpinner', () => {
   describe('Renderização básica', () => {

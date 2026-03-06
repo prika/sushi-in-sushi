@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
-import { Card, Button } from "@/components/ui";
+import { Card, Button } from "@/presentation/components/ui";
 import { APP_URL } from "@/lib/config/constants";
 import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 

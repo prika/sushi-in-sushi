@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useToast } from "@/components/ui";
+import { useToast } from "@/presentation/components/ui";
 import { QuizGame } from "./QuizGame";
 import { PreferenceGame } from "./PreferenceGame";
 import { SwipeRatingGame, type TableLeaderInfo, type OrderItem } from "./SwipeRatingGame";

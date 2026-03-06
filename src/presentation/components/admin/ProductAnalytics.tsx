@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useDateRange } from '@/hooks/useDateRange';
+import { useDateRange } from '@/presentation/hooks/useDateRange';
 import {
   ResponsiveContainer,
   ScatterChart,
@@ -25,7 +25,7 @@ import {
   CHART_COLORS,
   CHART_DEFAULTS,
   formatCurrency,
-} from '@/components/charts';
+} from '@/presentation/components/charts';
 import { DollarSign, ShoppingBag, Star, Receipt } from 'lucide-react';
 
 interface ProductAnalyticsData {

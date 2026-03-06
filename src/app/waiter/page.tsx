@@ -7,10 +7,10 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useRequireWaiter } from "@/contexts/AuthContext";
+import { useRequireWaiter } from "@/presentation/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import { useLocations } from "@/presentation/hooks";
-import { useToast } from "@/components/ui/Toast";
+import { useToast } from "@/presentation/components/ui/Toast";
 import type {
   Session,
   Table,

@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Card } from "@/components/ui";
-import ReservationsCalendar from "@/components/calendar/ReservationsCalendar";
-import { ReservationAnalytics } from "@/components/admin/ReservationAnalytics";
+import { Card } from "@/presentation/components/ui";
+import ReservationsCalendar from "@/presentation/components/calendar/ReservationsCalendar";
+import { ReservationAnalytics } from "@/presentation/components/admin/ReservationAnalytics";
 import {
   Calendar,
   Clock,

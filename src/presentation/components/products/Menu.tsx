@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { BlurFade } from "./ui/blur-fade";
+import { BlurFade } from "../ui/blur-fade";
 
 const menuItems = [
   {

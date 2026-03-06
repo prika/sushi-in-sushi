@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useDateRange } from '@/hooks/useDateRange';
+import { useDateRange } from '@/presentation/hooks/useDateRange';
 import {
   DateRangePicker,
   ChartCard,
@@ -10,7 +10,7 @@ import {
   AreaChartWidget,
   BarChartWidget,
   CHART_COLORS,
-} from '@/components/charts';
+} from '@/presentation/components/charts';
 
 const TIER_COLORS = [
   CHART_COLORS.tier1,

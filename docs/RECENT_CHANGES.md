@@ -1,5 +1,37 @@
 # Alterações Recentes - Sushi in Sushi
 
+## 📅 Data: 2026-03-06
+
+### Presentation Layer Consolidation
+
+**Objectivo:** Eliminar diretórios legados (`src/components/`, `src/hooks/`, `src/contexts/`) e consolidar toda a camada de apresentação React em `src/presentation/`, alinhando com a Clean Architecture.
+
+**Mudanças estruturais:**
+- `src/components/*` migrado para `src/presentation/components/` com subpastas semânticas
+- `src/hooks/*` (4 ficheiros) consolidado em `src/presentation/hooks/`
+- `src/contexts/*` (2 ficheiros) consolidado em `src/presentation/contexts/`
+- Diretórios legados eliminados
+
+**Nova organização de `src/presentation/components/`:**
+- `ui/` — Primitivos UI (Button, Modal, Card, Badge, Toast, Skeleton, etc.)
+- `layout/` — Header, Footer, LanguageSwitcher
+- `homepage/` — Hero, About, Gallery, Reviews, VideoSection, Locations, Contact, Team
+- `orders/` — OrderStatusBadge, SessionSummary
+- `products/` — ProductCard, CategoryTabs, Menu
+- `reservations/` — ReservationForm
+- `tables/` — TableSelector
+- `admin/` — TableMap, TableDetailModal, Analytics sections
+- `charts/` — Recharts wrappers
+- `mesa/` — QR code mesa experience (games, carousel, providers)
+- `calendar/` — StaffCalendar, ReservationsCalendar
+- `seo/` — RestaurantSchema, MenuSchema, GoogleTagManager
+- `menu/` — MenuContent
+- `auth/` — SessionTimeoutWarning
+
+**Imports atualizados:** ~69 imports em ~46 ficheiros, zero referências legadas restantes.
+
+---
+
 ## 📅 Data: 2026-03-05
 
 ### Dynamic Site Configuration & Brand Removal

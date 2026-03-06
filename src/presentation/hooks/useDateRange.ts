@@ -6,7 +6,7 @@ import {
   DatePreset,
   getDateRangeFromPreset,
   getPreviousPeriod,
-} from '@/components/charts/DateRangePicker';
+} from '@/presentation/components/charts/DateRangePicker';
 
 export function useDateRange(initialPreset: DatePreset = '30d') {
   const [dateRange, setDateRange] = useState<DateRange>(() =>

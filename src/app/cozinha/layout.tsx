@@ -1,6 +1,6 @@
 "use client";
 
-import { SessionTimeoutWarning } from "@/components/auth/SessionTimeoutWarning";
+import { SessionTimeoutWarning } from "@/presentation/components/auth/SessionTimeoutWarning";
 
 export default function CozinhaLayout({
   children,

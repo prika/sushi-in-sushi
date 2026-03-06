@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { MesaProviders } from "@/components/mesa/MesaProviders";
+import { MesaProviders } from "@/presentation/components/mesa/MesaProviders";
 import { getSiteMetadata } from "@/lib/metadata";
 
 export async function generateMetadata(): Promise<Metadata> {

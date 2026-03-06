@@ -188,4 +188,4 @@ export { ORDER_STATUS_CONFIG } from "./api";
 export type { TokenPayload } from "@/lib/auth/token";
 
 // LoginResult and AuthContextType are defined in AuthContext
-// Import from there if needed: import type { LoginResult } from '@/contexts/AuthContext'
+// Import from there if needed: import type { LoginResult } from '@/presentation/contexts/AuthContext'

@@ -3,11 +3,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { CalendarHeart, ExternalLink } from "lucide-react";
-import { Header } from "@/components/Header";
+import { Header } from "@/presentation/components/layout/Header";
 import { useTranslations, useLocale } from "next-intl";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { BlurFade } from "@/components/ui/blur-fade";
+import { BlurFade } from "@/presentation/components/ui/blur-fade";
 
 interface MenuProduct {
   id: string;

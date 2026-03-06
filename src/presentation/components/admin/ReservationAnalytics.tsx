@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useLocations } from '@/presentation/hooks/useLocations';
-import { useDateRange } from '@/hooks/useDateRange';
+import { useDateRange } from '@/presentation/hooks/useDateRange';
 import {
   DateRangePicker,
   KpiCard,
@@ -11,7 +11,7 @@ import {
   BarChartWidget,
   DonutChartWidget,
   CHART_COLORS,
-} from '@/components/charts';
+} from '@/presentation/components/charts';
 import {
   CalendarDays,
   CheckCircle2,

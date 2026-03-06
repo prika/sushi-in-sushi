@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BlurFade } from "./ui/blur-fade";
+import { BlurFade } from "../ui/blur-fade";
 import { cn } from "@/lib/utils";
 
 interface VideoSectionProps {

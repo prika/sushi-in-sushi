@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Card, Button } from "@/components/ui";
+import { Card, Button } from "@/presentation/components/ui";
 import type { SessionStatus, OrderStatus } from "@/types/database";
 
 type PeriodType = "today" | "week" | "month" | "custom";

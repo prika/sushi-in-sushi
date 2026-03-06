@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { useSound } from "@/hooks/useSound";
+import { useSound } from "@/presentation/hooks/useSound";
 import { useActivityLog, useLocations, useKitchenOrdersOptimized, useKitchenPrint, useSiteSettings } from "@/presentation/hooks";
-import { useToast } from "@/components/ui";
+import { useToast } from "@/presentation/components/ui";
 import type { KitchenOrderDTO } from "@/application/dto/OrderDTO";
 import type { OrderStatus } from "@/domain/value-objects/OrderStatus";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ConfirmDialog } from "@/presentation/components/ui/ConfirmDialog";
 import {
   DndContext,
   DragOverlay,

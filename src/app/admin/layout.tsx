@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { SessionTimeoutWarning } from "@/components/auth/SessionTimeoutWarning";
+import { SessionTimeoutWarning } from "@/presentation/components/auth/SessionTimeoutWarning";
 import { isDev } from "@/lib/supabase/env";
 import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 

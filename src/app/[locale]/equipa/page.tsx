@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BlurFade } from "@/components/ui/blur-fade";
+import { BlurFade } from "@/presentation/components/ui/blur-fade";
 import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 
 interface TeamMemberData {

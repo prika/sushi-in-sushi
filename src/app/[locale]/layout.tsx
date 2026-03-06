@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import { APP_URL } from "@/lib/config/constants";
-import { GoogleTagManager } from "@/components/seo/GoogleTagManager";
+import { GoogleTagManager } from "@/presentation/components/seo/GoogleTagManager";
 import { getSiteMetadata } from "@/lib/metadata";
 
 const cormorant = Cormorant_Garamond({

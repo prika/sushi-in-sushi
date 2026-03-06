@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
+import { Header } from "@/presentation/components/layout/Header";
+import { Footer } from "@/presentation/components/layout/Footer";
 import {
   computeCustomerTier,
   CUSTOMER_TIER_LABELS,

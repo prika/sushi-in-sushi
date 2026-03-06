@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '../../helpers/test-utils';
 import React from 'react';
-import { OrderStatusBadge } from '@/components/OrderStatusBadge';
+import { OrderStatusBadge } from '@/presentation/components/orders/OrderStatusBadge';
 
 describe('OrderStatusBadge', () => {
   const baseCreatedAt = new Date().toISOString();

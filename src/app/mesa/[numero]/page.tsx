@@ -27,12 +27,12 @@ import type {
   SessionCustomer,
   SessionCustomerInsert,
 } from "@/types/database";
-import { useMesaLocale } from "@/contexts/MesaLocaleContext";
+import { useMesaLocale } from "@/presentation/contexts/MesaLocaleContext";
 import { getLocalized } from "@/lib/i18n/getLocalized";
-import { MesaLanguageSwitcher } from "@/components/mesa/MesaLanguageSwitcher";
-import { type TableLeaderInfo } from "@/components/mesa/SwipeRatingGame";
-import { GameHub } from "@/components/mesa/GameHub";
-import { ProductDetailSheet } from "@/components/mesa/ProductDetailSheet";
+import { MesaLanguageSwitcher } from "@/presentation/components/mesa/MesaLanguageSwitcher";
+import { type TableLeaderInfo } from "@/presentation/components/mesa/SwipeRatingGame";
+import { GameHub } from "@/presentation/components/mesa/GameHub";
+import { ProductDetailSheet } from "@/presentation/components/mesa/ProductDetailSheet";
 import { ALLERGEN_EMOJI_MAP, ALL_ALLERGENS } from "@/lib/constants/allergens";
 import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 import type { GamesMode } from "@/domain/value-objects/GameConfig";

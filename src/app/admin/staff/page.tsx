@@ -29,12 +29,12 @@ import {
   Users,
   Trash2,
 } from "lucide-react";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ConfirmDialog } from "@/presentation/components/ui/ConfirmDialog";
 import { useStaff } from "@/presentation/hooks/useStaff";
 import { useTableManagement } from "@/presentation/hooks/useTableManagement";
 import { useKitchenZones } from "@/presentation/hooks/useKitchenZones";
 import { useLocations } from "@/presentation/hooks";
-import { ChartCard, DonutChartWidget, CHART_COLORS } from "@/components/charts";
+import { ChartCard, DonutChartWidget, CHART_COLORS } from "@/presentation/components/charts";
 import type { StaffWithRole } from "@/domain/entities/Staff";
 import type { Location } from "@/types/database";
 

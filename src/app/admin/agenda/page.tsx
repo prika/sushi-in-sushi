@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import Image from "next/image";
-import { Button, Modal } from "@/components/ui";
+import { Button, Modal } from "@/presentation/components/ui";
 import {
   useStaffTimeOff,
   useClosures,

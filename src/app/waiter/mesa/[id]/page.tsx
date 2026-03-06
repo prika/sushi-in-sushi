@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { useRequireWaiter } from "@/contexts/AuthContext";
+import { useRequireWaiter } from "@/presentation/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 import { useActivityLog, useProductsOptimized, useKitchenPrint } from "@/presentation/hooks";
 import { useSessionOrderingMode } from "@/presentation/hooks/useSessionOrderingMode";
@@ -11,8 +11,8 @@ import { useCart } from "@/presentation/hooks/useCart";
 import { useOrderReview } from "@/presentation/hooks/useOrderReview";
 import { CartService } from "@/domain/services/CartService";
 import { ORDERING_MODE_LABELS, ORDERING_MODE_ICONS, type OrderingMode } from "@/domain/value-objects/OrderingMode";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/presentation/components/ui/ConfirmDialog";
+import { useToast } from "@/presentation/components/ui/Toast";
 import type { Table, Session, OrderWithProduct, WaiterCall } from "@/types/database";
 
 type WaiterTab = "dashboard" | "menu" | "definicoes" | "chamadas";

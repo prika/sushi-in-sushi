@@ -3,12 +3,12 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { useAdminProducts, useIngredients, useProductIngredients } from "@/presentation/hooks";
-import { ProductAnalytics } from "@/components/admin/ProductAnalytics";
+import { ProductAnalytics } from "@/presentation/components/admin/ProductAnalytics";
 import type { Product } from "@/domain/entities";
 import type {
   IngredientWithProductCount,
 } from "@/domain/entities/Ingredient";
-import { AlertModal, ConfirmDialog } from "@/components/ui";
+import { AlertModal, ConfirmDialog } from "@/presentation/components/ui";
 import { ALL_ALLERGENS } from "@/lib/constants/allergens";
 
 type ProductStats = { orderCountByProductId: Record<string, number> };

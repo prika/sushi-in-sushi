@@ -4,8 +4,8 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BlurFade } from "./ui/blur-fade";
-import { ShimmerLink } from "./ui/shimmer-button";
+import { BlurFade } from "../ui/blur-fade";
+import { ShimmerLink } from "../ui/shimmer-button";
 
 export function Hero() {
   const t = useTranslations("hero");

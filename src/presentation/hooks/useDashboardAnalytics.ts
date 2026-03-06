@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { DashboardAnalytics } from '@/domain/entities/DashboardAnalytics';
-import { DateRange } from '@/components/charts/DateRangePicker';
+import { DateRange } from '@/presentation/components/charts/DateRangePicker';
 
 async function fetchDashboardAnalytics(
   dateRange: DateRange,

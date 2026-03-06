@@ -5,8 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { Table, TableStatus } from "@/types/database";
 import type { TableDTO } from "@/application/use-cases/tables/GetAllTablesUseCase";
 import { generateQRCodeToCanvas, buildTableOrderURLByNumber } from "@/lib/qrcode";
-import { TableMap } from "@/components/admin/TableMap";
-import { TableDetailModal } from "@/components/admin/TableDetailModal";
+import { TableMap } from "@/presentation/components/admin/TableMap";
+import { TableDetailModal } from "@/presentation/components/admin/TableDetailModal";
 import { useTableManagement, useLocations, useSiteSettings } from "@/presentation/hooks";
 
 type TabType = "config" | "map";

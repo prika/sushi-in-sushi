@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useToast } from '@/components/ui/Toast';
+import { useToast } from '@/presentation/components/ui/Toast';
 import { openPrintWindow } from '@/lib/print';
 
 export function useKitchenPrint() {

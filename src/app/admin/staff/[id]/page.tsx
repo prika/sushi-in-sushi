@@ -14,8 +14,8 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { Card } from "@/components/ui";
-import { BarChartWidget, CHART_COLORS, CHART_DEFAULTS, formatCurrency } from "@/components/charts";
+import { Card } from "@/presentation/components/ui";
+import { BarChartWidget, CHART_COLORS, CHART_DEFAULTS, formatCurrency } from "@/presentation/components/charts";
 import { useLocations } from "@/presentation/hooks";
 import type { StaffWithRole, Table, RoleName } from "@/types/database";
 

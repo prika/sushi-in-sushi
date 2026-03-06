@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useCustomers } from "@/presentation/hooks/useCustomers";
 import { useLocations } from "@/presentation/hooks";
-import { CustomerAnalyticsSection } from "@/components/admin/CustomerAnalyticsSection";
+import { CustomerAnalyticsSection } from "@/presentation/components/admin/CustomerAnalyticsSection";
 import type { Customer, CustomerWithHistory } from "@/domain/entities/Customer";
 import { CustomerTierService } from "@/domain/services/CustomerTierService";
 import { type CustomerTier, CUSTOMER_TIER_LABELS, CUSTOMER_TIER_COLORS, getProfileCompleteness, computeCustomerTier } from "@/domain/value-objects/CustomerTier";

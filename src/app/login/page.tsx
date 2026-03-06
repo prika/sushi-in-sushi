@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/presentation/contexts/AuthContext";
 import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 
 function LoginForm() {

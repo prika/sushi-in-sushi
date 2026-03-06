@@ -1,32 +1,32 @@
 import dynamic from "next/dynamic";
 import { setRequestLocale } from "next-intl/server";
-import { Header } from "@/components/Header";
-import { Hero } from "@/components/Hero";
-import { RestaurantSchema } from "@/components/seo/RestaurantSchema";
+import { Header } from "@/presentation/components/layout/Header";
+import { Hero } from "@/presentation/components/homepage/Hero";
+import { RestaurantSchema } from "@/presentation/components/seo/RestaurantSchema";
 
 const Menu = dynamic(() =>
-  import("@/components/Menu").then((m) => ({ default: m.Menu })),
+  import("@/presentation/components/products/Menu").then((m) => ({ default: m.Menu })),
 );
 const About = dynamic(() =>
-  import("@/components/About").then((m) => ({ default: m.About })),
+  import("@/presentation/components/homepage/About").then((m) => ({ default: m.About })),
 );
 const Team = dynamic(() =>
-  import("@/components/Team").then((m) => ({ default: m.Team })),
+  import("@/presentation/components/homepage/Team").then((m) => ({ default: m.Team })),
 );
 const Gallery = dynamic(() =>
-  import("@/components/Gallery").then((m) => ({ default: m.Gallery })),
+  import("@/presentation/components/homepage/Gallery").then((m) => ({ default: m.Gallery })),
 );
 const Reviews = dynamic(() =>
-  import("@/components/Reviews").then((m) => ({ default: m.Reviews })),
+  import("@/presentation/components/homepage/Reviews").then((m) => ({ default: m.Reviews })),
 );
 const Locations = dynamic(() =>
-  import("@/components/Locations").then((m) => ({ default: m.Locations })),
+  import("@/presentation/components/homepage/Locations").then((m) => ({ default: m.Locations })),
 );
 const Contact = dynamic(() =>
-  import("@/components/Contact").then((m) => ({ default: m.Contact })),
+  import("@/presentation/components/homepage/Contact").then((m) => ({ default: m.Contact })),
 );
 const Footer = dynamic(() =>
-  import("@/components/Footer").then((m) => ({ default: m.Footer })),
+  import("@/presentation/components/layout/Footer").then((m) => ({ default: m.Footer })),
 );
 
 type Props = {

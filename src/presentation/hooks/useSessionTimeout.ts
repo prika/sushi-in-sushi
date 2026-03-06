@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useRef, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/presentation/contexts/AuthContext";
 
 // =============================================
 // CONFIGURATION

@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '../../helpers/test-utils';
 import React from 'react';
-import { CategoryTabs } from '@/components/CategoryTabs';
+import { CategoryTabs } from '@/presentation/components/products/CategoryTabs';
 
 const mockCategories = [
   { id: 'cat-1', name: 'Sushi', slug: 'sushi', icon: '🍣' },

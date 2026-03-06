@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '../../helpers/test-utils';
 import React from 'react';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { ConfirmDialog } from '@/presentation/components/ui/ConfirmDialog';
 
 describe('ConfirmDialog', () => {
   const defaultProps = {

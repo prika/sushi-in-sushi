@@ -18,7 +18,7 @@ import {
   EmptyOrders,
   EmptySearch,
   EmptyProducts,
-} from '@/components/ui/EmptyState';
+} from '@/presentation/components/ui/EmptyState';
 
 describe('EmptyState', () => {
   it('renders title', () => {
@@ -150,7 +150,7 @@ describe('EmptyProducts', () => {
 // ===================================================================
 // Toast
 // ===================================================================
-import { ToastProvider, useToast } from '@/components/ui/Toast';
+import { ToastProvider, useToast } from '@/presentation/components/ui/Toast';
 
 // Helper component to trigger toasts in tests
 function ToastTrigger({
@@ -280,7 +280,7 @@ import {
   TableSkeleton,
   CategoryTabsSkeleton,
   SessionCardSkeleton,
-} from '@/components/ui/Skeleton';
+} from '@/presentation/components/ui/Skeleton';
 
 describe('Skeleton', () => {
   it('renders with default props', () => {
@@ -425,7 +425,7 @@ describe('SessionCardSkeleton', () => {
 // ===================================================================
 // AlertModal
 // ===================================================================
-import { AlertModal } from '@/components/ui/AlertModal';
+import { AlertModal } from '@/presentation/components/ui/AlertModal';
 
 describe('AlertModal', () => {
   const defaultProps = {

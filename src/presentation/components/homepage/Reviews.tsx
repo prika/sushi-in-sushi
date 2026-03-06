@@ -2,7 +2,7 @@
 
 import { Star, Quote } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BlurFade } from "./ui/blur-fade";
+import { BlurFade } from "../ui/blur-fade";
 
 function StarRating({ rating, ariaLabel }: { rating: number; ariaLabel: string }) {
   return (

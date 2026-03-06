@@ -14,9 +14,10 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 
 ## 🎉 Estado Atual do Projeto
 
-### Última Atualização: 2026-03-05
+### Última Atualização: 2026-03-06
 
 **Alterações Recentes (Março 2026):**
+- ✅ **Presentation Layer Consolidation** - Eliminados diretórios legados (`components/`, `hooks/`, `contexts/`). Todos os componentes React, hooks e contexts vivem agora em `src/presentation/`. Componentes organizados em subpastas semânticas: `layout/`, `homepage/`, `orders/`, `products/`, `reservations/`, `tables/`, `admin/`, `charts/`, `mesa/`, `calendar/`, `seo/`, `menu/`, `auth/`, `ui/`.
 - ✅ **Dynamic Site Configuration** - Todos os dados do site (brand name, logo, favicon, OG image, metadata SEO por locale, GTM) configuráveis via admin panel. Zero hardcoded brand references em código de produção.
 - ✅ **Google Tag Manager** - GTM Container ID configurável no admin, carregado apenas em páginas públicas (`[locale]/*`)
 - ✅ **Dynamic Metadata SEO** - Títulos, descrições, keywords e OG descriptions por locale via JSONB em `site_settings`
@@ -154,10 +155,25 @@ src/
 │   ├── realtime/            # Handlers de real-time
 │   └── services/            # Implementações de serviços (ApiActivityLogger)
 │
-├── presentation/            # Camada de Apresentação (React)
-│   ├── contexts/            # DependencyContext (injeção de dependências)
-│   ├── hooks/               # Hooks refatorados (useKitchenOrders, useProducts)
-│   └── providers/           # Providers para o layout
+├── presentation/            # Camada de Apresentação (React) — TUDO React vive aqui
+│   ├── components/          # Todos os componentes React
+│   │   ├── ui/              # Primitivos UI (Button, Modal, Card, Badge, Toast, Skeleton)
+│   │   ├── layout/          # Header, Footer, LanguageSwitcher
+│   │   ├── homepage/        # Hero, About, Gallery, Reviews, VideoSection, Locations, Contact, Team
+│   │   ├── orders/          # OrderStatusBadge, SessionSummary
+│   │   ├── products/        # ProductCard, CategoryTabs, Menu
+│   │   ├── reservations/    # ReservationForm
+│   │   ├── tables/          # TableSelector
+│   │   ├── admin/           # TableMap, TableDetailModal, Analytics sections
+│   │   ├── charts/          # Recharts wrappers (AreaChart, BarChart, Donut, KPI, DateRangePicker)
+│   │   ├── mesa/            # QR code mesa experience (games, carousel, providers)
+│   │   ├── calendar/        # StaffCalendar, ReservationsCalendar
+│   │   ├── seo/             # RestaurantSchema, MenuSchema, GoogleTagManager
+│   │   ├── menu/            # MenuContent
+│   │   └── auth/            # SessionTimeoutWarning
+│   ├── contexts/            # DependencyContext, AuthContext, MesaLocaleContext
+│   ├── hooks/               # Todos os hooks (useKitchenOrders, useProducts, useSound, etc.)
+│   └── providers/           # Providers para o layout (QueryProvider)
 │
 ├── app/                     # Next.js App Router
 │   ├── [locale]/            # Páginas públicas com i18n
@@ -167,11 +183,8 @@ src/
 │   ├── mesa/[numero]/       # Pedidos via QR code
 │   └── api/                 # API Routes
 │
-├── components/              # Componentes React (legado - migrar gradualmente)
-├── hooks/                   # Hooks legados (usar presentation/hooks para novos)
 ├── lib/                     # Utilitários e clientes
-├── types/                   # TypeScript types (legado)
-├── contexts/                # React Context (legado)
+├── types/                   # TypeScript types
 └── messages/                # Traduções i18n
 ```
 
@@ -297,7 +310,10 @@ Scripts em `supabase/scripts/`:
 - Domain: `import { Order } from '@/domain/entities'`
 - Application: `import { GetKitchenOrdersUseCase } from '@/application/use-cases'`
 - Infrastructure: `import { SupabaseOrderRepository } from '@/infrastructure/repositories'`
-- Presentation: `import { useKitchenOrders } from '@/presentation/hooks'`
+- Hooks: `import { useKitchenOrders } from '@/presentation/hooks'`
+- Components: `import { Button } from '@/presentation/components/ui'`
+- Layout: `import { Header } from '@/presentation/components/layout/Header'`
+- Contexts: `import { useAuth } from '@/presentation/contexts/AuthContext'`
 
 ### Princípios Técnicos Obrigatórios
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Card, Button } from "@/components/ui";
+import { Card, Button } from "@/presentation/components/ui";
 import Image from "next/image";
 
 // ─── Constants ───────────────────────────────────────────────────────────────

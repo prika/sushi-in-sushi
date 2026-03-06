@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Card, Button, Modal, AlertModal, ConfirmDialog } from "@/components/ui";
+import { Card, Button, Modal, AlertModal, ConfirmDialog } from "@/presentation/components/ui";
 import type {
   ReservationSettings,
   RestaurantClosure,

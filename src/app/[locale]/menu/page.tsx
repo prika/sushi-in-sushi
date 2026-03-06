@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { SupabaseProductRepository } from "@/infrastructure/repositories/SupabaseProductRepository";
 import { SupabaseCategoryRepository } from "@/infrastructure/repositories/SupabaseCategoryRepository";
-import { MenuContent } from "@/components/menu/MenuContent";
-import { MenuSchema } from "@/components/seo/MenuSchema";
+import { MenuContent } from "@/presentation/components/menu/MenuContent";
+import { MenuSchema } from "@/presentation/components/seo/MenuSchema";
 import { getSiteMetadata } from "@/lib/metadata";
 import type { ProductWithCategory } from "@/domain/entities/Product";
 

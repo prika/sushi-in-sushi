@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { setRequestLocale, getTranslations } from "next-intl/server";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-import { ReservationForm } from "@/components/ReservationForm";
+import { Header } from "@/presentation/components/layout/Header";
+import { Footer } from "@/presentation/components/layout/Footer";
+import { ReservationForm } from "@/presentation/components/reservations/ReservationForm";
 import Link from "next/link";
 import { APP_URL } from "@/lib/config/constants";
 import { getSiteMetadata } from "@/lib/metadata";

@@ -2,8 +2,8 @@
 
 import { CalendarDays, ShoppingBag, MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BlurFade } from "./ui/blur-fade";
-import { ShimmerLink } from "./ui/shimmer-button";
+import { BlurFade } from "../ui/blur-fade";
+import { ShimmerLink } from "../ui/shimmer-button";
 import { useLocations } from "@/presentation/hooks";
 
 export function Contact() {

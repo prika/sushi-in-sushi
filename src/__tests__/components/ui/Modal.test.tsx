@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '../../helpers/test-utils';
 import React from 'react';
-import { Modal } from '@/components/ui/Modal';
+import { Modal } from '@/presentation/components/ui/Modal';
 
 describe('Modal', () => {
   const defaultProps = {

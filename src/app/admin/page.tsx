@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useLocations } from "@/presentation/hooks/useLocations";
 import { useDashboardAnalytics } from "@/presentation/hooks/useDashboardAnalytics";
-import { useDateRange } from "@/hooks/useDateRange";
+import { useDateRange } from "@/presentation/hooks/useDateRange";
 import {
   DateRangePicker,
   KpiCard,
@@ -20,8 +20,8 @@ import {
   BarChartWidget,
   DonutChartWidget,
   CHART_COLORS,
-} from "@/components/charts";
-import { Card } from "@/components/ui";
+} from "@/presentation/components/charts";
+import { Card } from "@/presentation/components/ui";
 
 const STATUS_CONFIG: Record<string, { name: string; color: string }> = {
   pending: { name: "Na fila", color: CHART_COLORS.pending },

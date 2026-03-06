@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '../helpers/test-utils';
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { ReservationForm } from '@/components/ReservationForm';
+import { ReservationForm } from '@/presentation/components/reservations/ReservationForm';
 
 // Portuguese translations for namespaces used by ReservationForm
 const translations: Record<string, Record<string, string>> = {

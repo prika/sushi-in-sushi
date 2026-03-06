@@ -4,7 +4,7 @@
  * Note: Auth types (TokenPayload, LoginResult, AuthContextType) are defined in:
  * - @/lib/auth/token (TokenPayload)
  * - @/lib/auth/login (LoginResult)
- * - @/contexts/AuthContext (AuthContextType, LoginResult with MFA)
+ * - @/presentation/contexts/AuthContext (AuthContextType, LoginResult with MFA)
  *
  * Note: QRCodeOptions is defined in @/lib/qrcode
  */

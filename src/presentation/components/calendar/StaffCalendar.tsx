@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Modal } from "@/components/ui";
+import { Button, Modal } from "@/presentation/components/ui";
 import { useStaffTimeOff, useLocations, type StaffTimeOffFormData } from "@/presentation/hooks";
 import type { StaffTimeOffWithStaff, StaffTimeOffType, Staff } from "@/types/database";
 

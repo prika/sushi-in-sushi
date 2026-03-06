@@ -2,7 +2,7 @@
 
 import { MapPin, Phone, Clock, Navigation, MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BlurFade } from "./ui/blur-fade";
+import { BlurFade } from "../ui/blur-fade";
 import { useLocations } from "@/presentation/hooks";
 
 function formatHours(opensAt: string, closesAt: string): string {

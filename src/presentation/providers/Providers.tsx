@@ -9,8 +9,8 @@
 
 import { ReactNode } from "react";
 import { DependencyProvider } from "../contexts/DependencyContext";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ToastProvider } from "@/components/ui/Toast";
+import { AuthProvider } from "@/presentation/contexts/AuthContext";
+import { ToastProvider } from "@/presentation/components/ui/Toast";
 import { QueryProvider } from "./QueryProvider";
 
 interface ProvidersProps {

@@ -11,7 +11,7 @@
 import { useState, useCallback } from "react";
 import { useDependencies } from "../contexts/DependencyContext";
 import { OrderingMode } from "@/domain/value-objects/OrderingMode";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/presentation/contexts/AuthContext";
 
 export interface UseSessionOrderingModeResult {
   /**

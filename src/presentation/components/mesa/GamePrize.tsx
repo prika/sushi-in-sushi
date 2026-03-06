@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { generateQRCodeDataURL } from "@/lib/qrcode";
-import { useToast } from "@/components/ui";
+import { useToast } from "@/presentation/components/ui";
 import type { GamePrize as GamePrizeEntity } from "@/domain/entities/GamePrize";
 
 export interface GamePrizeProps {

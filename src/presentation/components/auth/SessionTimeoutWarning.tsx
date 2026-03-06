@@ -1,8 +1,8 @@
 "use client";
 
-import { useSessionTimeout } from "@/hooks/useSessionTimeout";
-import { Modal } from "@/components/ui/Modal";
-import { Button } from "@/components/ui/Button";
+import { useSessionTimeout } from "@/presentation/hooks/useSessionTimeout";
+import { Modal } from "@/presentation/components/ui/Modal";
+import { Button } from "@/presentation/components/ui/Button";
 
 // =============================================
 // CONFIGURATION

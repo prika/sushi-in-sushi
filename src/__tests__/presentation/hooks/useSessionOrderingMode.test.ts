@@ -9,7 +9,7 @@ import type { OrderingMode } from '@/domain/value-objects/OrderingMode';
 import type { Session } from '@/domain/entities/Session';
 
 // Mock dependencies before imports
-vi.mock('@/contexts/AuthContext', () => ({
+vi.mock('@/presentation/contexts/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
 
@@ -18,7 +18,7 @@ vi.mock('@/presentation/contexts/DependencyContext', () => ({
 }));
 
 import { useSessionOrderingMode } from '@/presentation/hooks/useSessionOrderingMode';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/presentation/contexts/AuthContext';
 import { useDependencies } from '@/presentation/contexts/DependencyContext';
 
 // Mock use case
