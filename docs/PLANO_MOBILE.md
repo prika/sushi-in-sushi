@@ -27,6 +27,7 @@
 6. [Custos](#6-custos)
 7. [Cronograma](#7-cronograma)
 8. [Riscos e Mitigacoes](#8-riscos-e-mitigacoes)
+9. [Comunicacao Offline e Alternativas de Rede](#9-comunicacao-offline-e-alternativas-de-rede)
 
 ---
 
@@ -618,5 +619,215 @@ npx expo start --dev-client
 ```
 
 ---
+
+---
+
+## 9. Comunicacao Offline e Alternativas de Rede
+
+### 9.1 Visao Geral
+
+A arquitetura do projeto ja inclui suporte offline na web (Service Worker + IndexedDB + Background Sync). Para as apps nativas, existem opcoes adicionais de comunicacao que nao dependem de internet.
+
+### 9.2 Arquitetura Offline Atual (Web)
+
+```
+[Browser] ─── fetch() falha ───> [OfflineQueue (IndexedDB)]
+                                        │
+                                        ├── Service Worker Background Sync
+                                        │   (replay automatico quando online)
+                                        │
+                                        └── Manual retry (botao "enviar agora")
+```
+
+**Componentes implementados:**
+- `public/sw.js` — Service Worker com Background Sync, cache strategies
+- `src/infrastructure/offline/OfflineQueue.ts` — Fila com `StorageAdapter` interface (swappable)
+- `src/infrastructure/offline/offlineFetch.ts` — Drop-in `fetch()` replacement
+- `src/presentation/hooks/useOfflineQueue.ts` — Hook React (useSyncExternalStore)
+- `src/presentation/components/ui/OfflineBanner.tsx` — Indicador visual offline
+- `src/app/offline/page.tsx` — Pagina fallback offline
+
+**StorageAdapter pattern:**
+```typescript
+// Web: IndexedDBStorageAdapter (implementado)
+// React Native: AsyncStorageAdapter ou SQLiteAdapter (a implementar)
+export interface StorageAdapter {
+  getAll(): Promise<QueuedRequest[]>;
+  add(request: QueuedRequest): Promise<void>;
+  remove(id: string): Promise<void>;
+  clear(): Promise<void>;
+  count(): Promise<number>;
+}
+```
+
+### 9.3 Opcoes de Comunicacao Local (Sem Internet)
+
+Para cenarios onde o WiFi do restaurante falha completamente, existem protocolos de comunicacao local entre dispositivos.
+
+#### 9.3.1 Bluetooth Low Energy (BLE)
+
+**Cenario:** Tablet da cozinha e telemovel do waiter comunicam via BLE quando WiFi cai.
+
+| Aspeto | Detalhe |
+|--------|---------|
+| **Range** | ~10-30m (suficiente num restaurante) |
+| **Latencia** | ~50-100ms |
+| **Throughput** | ~1 Mbps (mais que suficiente para JSON) |
+| **Biblioteca RN** | `react-native-ble-plx` |
+| **iOS** | Core Bluetooth (background mode disponivel) |
+| **Android** | Bluetooth LE API (Level 18+) |
+
+**Implementacao sugerida:**
+```
+[App Waiter (BLE Central)] ←──BLE──→ [App Kitchen (BLE Peripheral)]
+         │                                      │
+         └── Envia pedido como JSON ────────────┘
+         └── Recebe confirmacao ────────────────┘
+```
+
+**Limitacoes:** Requer pairing manual; nao funciona em background no iOS sem entitlements especificos.
+
+#### 9.3.2 Wi-Fi Aware (Neighbor Awareness Networking)
+
+**Cenario:** Dispositivos Android descobrem-se e comunicam via Wi-Fi Direct sem router.
+
+| Aspeto | Detalhe |
+|--------|---------|
+| **Range** | ~50-100m |
+| **Latencia** | ~10-30ms |
+| **Throughput** | ~250 Mbps |
+| **Requisitos** | Android 8.0+ com hardware Wi-Fi Aware |
+| **Biblioteca RN** | Modulo nativo customizado (nao ha lib pronta) |
+| **iOS** | Nao suportado |
+
+**Nota:** Bom para Android-only (tablets de cozinha), mas requer hardware recente e modulo nativo.
+
+#### 9.3.3 Apple Multipeer Connectivity
+
+**Cenario:** Dispositivos Apple comunicam via combinacao automatica de WiFi/BLE/WiFi Direct.
+
+| Aspeto | Detalhe |
+|--------|---------|
+| **Range** | ~30-50m |
+| **Latencia** | ~10-50ms |
+| **Throughput** | Ate ~100 Mbps |
+| **Biblioteca RN** | `react-native-multipeer` (pouca manutencao) |
+| **iOS** | Framework nativo `MultipeerConnectivity` |
+| **Android** | Nao suportado |
+
+**Ideal se:** Restaurante usa apenas dispositivos Apple (iPads na cozinha, iPhones para waiters).
+
+#### 9.3.4 Google Nearby Connections
+
+**Cenario:** Framework cross-platform da Google para comunicacao P2P.
+
+| Aspeto | Detalhe |
+|--------|---------|
+| **Range** | ~30-100m |
+| **Protocolos** | BLE + WiFi Hotspot + NFC (automatico) |
+| **Biblioteca RN** | `react-native-nearby-connections` (experimental) |
+| **iOS** | Sim (via Google Play Services equivalent) |
+| **Android** | Sim (requer Google Play Services) |
+
+**Vantagem:** Multiplataforma, abstrai BLE/WiFi, discovery automatico.
+**Desvantagem:** Depende de Google Play Services; libs RN imaturas.
+
+#### 9.3.5 Local MQTT Broker (Raspberry Pi)
+
+**Cenario:** Raspberry Pi no restaurante corre broker MQTT local. Todos os dispositivos publicam/subscrevem via MQTT sobre WiFi local (ou hotspot do RPi).
+
+| Aspeto | Detalhe |
+|--------|---------|
+| **Range** | Rede local do restaurante |
+| **Latencia** | ~5-10ms (LAN) |
+| **Throughput** | Ilimitado (LAN) |
+| **Custo** | ~€40 (Raspberry Pi 4) |
+| **Biblioteca RN** | `react-native-paho-mqtt` ou `mqtt.js` |
+| **Broker** | Mosquitto (open-source, configuracao minima) |
+
+```
+[App Waiter] ──MQTT──> [Raspberry Pi (Mosquitto)] ──MQTT──> [App Kitchen]
+                               │
+                               └── Syncs com Supabase quando internet regressa
+```
+
+**Vantagens:**
+- Funciona sem internet (WiFi local ou hotspot do RPi)
+- Latencia ultra-baixa (~5ms)
+- Pub/sub nativo (topics: `orders/new`, `orders/status`, `calls/new`)
+- Barato e fiavel
+- Sync bidirecional com Supabase quando internet volta
+
+**Recomendado como solucao enterprise para restaurantes que precisam de uptime 100%.**
+
+### 9.4 Recomendacao por App
+
+| App | Offline Storage | Comunicacao Local | Prioridade |
+|-----|-----------------|-------------------|------------|
+| **Mesa (Cliente)** | AsyncStorage + React Query persistence | Nenhuma (depende de WiFi) | Baixa |
+| **Waiter** | SQLite + OfflineQueue (StorageAdapter) | BLE para Kitchen, MQTT se disponivel | Media |
+| **Kitchen** | SQLite + OfflineQueue (StorageAdapter) | BLE Peripheral, MQTT subscriber | Alta |
+
+### 9.5 Implementacao Faseada
+
+**Fase 1 (MVP - incluida nas apps):**
+- `AsyncStorageAdapter` para `OfflineQueue` (drop-in replacement para IndexedDB)
+- React Query `persistQueryClient` para cache de menu/produtos offline
+- Indicador visual de estado offline (reutilizar pattern do `OfflineBanner`)
+- Retry automatico com exponential backoff
+
+**Fase 2 (Resiliencia - apos lancamento):**
+- BLE bridge entre App Waiter e App Kitchen
+- Pedidos ficam na fila local do waiter, chegam a cozinha via BLE
+- Sync com Supabase quando internet regressa
+
+**Fase 3 (Enterprise - opcional):**
+- Raspberry Pi com Mosquitto no restaurante
+- MQTT bridge para todos os dispositivos
+- Modo "LAN-only" sem internet (rede local do RPi)
+- Dashboard de status da rede local
+
+### 9.6 StorageAdapter para React Native
+
+```typescript
+// packages/infrastructure/src/offline/AsyncStorageAdapter.ts
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { StorageAdapter, QueuedRequest } from "./OfflineQueue";
+
+const QUEUE_KEY = "sushi-offline-queue";
+
+export class AsyncStorageAdapter implements StorageAdapter {
+  async getAll(): Promise<QueuedRequest[]> {
+    const raw = await AsyncStorage.getItem(QUEUE_KEY);
+    if (!raw) return [];
+    const items: QueuedRequest[] = JSON.parse(raw);
+    return items.sort((a, b) => a.priority - b.priority);
+  }
+
+  async add(request: QueuedRequest): Promise<void> {
+    const items = await this.getAll();
+    const idx = items.findIndex((i) => i.id === request.id);
+    if (idx >= 0) items[idx] = request;
+    else items.push(request);
+    await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(items));
+  }
+
+  async remove(id: string): Promise<void> {
+    const items = await this.getAll();
+    await AsyncStorage.setItem(
+      QUEUE_KEY,
+      JSON.stringify(items.filter((i) => i.id !== id)),
+    );
+  }
+
+  async clear(): Promise<void> {
+    await AsyncStorage.removeItem(QUEUE_KEY);
+  }
+
+  async count(): Promise<number> {
+    return (await this.getAll()).length;
+  }
+}
+```
 
 > **Pre-requisitos:** [Stripe](PLANO_STRIPE_PAGAMENTO_MESA.md) → [Feature Flags + PWA](PLANO_FEATURE_FLAGS_PWA.md) → [Modularizacao](PLANO_MODULARIZACAO.md) → Este plano.

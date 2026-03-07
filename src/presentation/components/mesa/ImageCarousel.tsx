@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import { getOptimizedImageUrl, IMAGE_SIZES } from "@/lib/image";
 
 interface ImageCarouselProps {
   images: string[];
@@ -46,7 +47,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
   if (images.length === 1) {
     return (
       <div className="relative w-full aspect-[4/3] bg-gray-800">
-        <Image src={images[0]} alt={alt} fill className="object-cover" />
+        <Image src={getOptimizedImageUrl(images[0], IMAGE_SIZES.detail)} alt={alt} fill className="object-cover" />
       </div>
     );
   }
@@ -65,7 +66,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
             className="flex-shrink-0 w-full aspect-[4/3] relative snap-center bg-gray-800"
           >
             <Image
-              src={url}
+              src={getOptimizedImageUrl(url, IMAGE_SIZES.detail)}
               alt={`${alt} ${i + 1}`}
               fill
               className="object-cover"

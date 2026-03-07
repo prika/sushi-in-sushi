@@ -12,6 +12,8 @@ import { DependencyProvider } from "../contexts/DependencyContext";
 import { AuthProvider } from "@/presentation/contexts/AuthContext";
 import { ToastProvider } from "@/presentation/components/ui/Toast";
 import { QueryProvider } from "./QueryProvider";
+import { ServiceWorkerRegistrar } from "@/presentation/components/ServiceWorkerRegistrar";
+import { OfflineBanner } from "@/presentation/components/ui/OfflineBanner";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -25,7 +27,11 @@ export function Providers({ children }: ProvidersProps) {
     <QueryProvider>
       <DependencyProvider>
         <AuthProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <OfflineBanner />
+            <ServiceWorkerRegistrar />
+            {children}
+          </ToastProvider>
         </AuthProvider>
       </DependencyProvider>
     </QueryProvider>

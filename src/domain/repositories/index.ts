@@ -24,3 +24,4 @@ export * from './IKitchenMetricsRepository';
 export * from './IKitchenZoneRepository';
 export * from './IIngredientRepository';
 export * from './IProductIngredientRepository';
+export * from './IPaymentMethodRepository';

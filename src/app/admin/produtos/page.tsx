@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
+import { getOptimizedImageUrl, IMAGE_SIZES } from "@/lib/image";
 import { useAdminProducts, useIngredients, useProductIngredients } from "@/presentation/hooks";
 import { ProductAnalytics } from "@/presentation/components/admin/ProductAnalytics";
 import type { Product } from "@/domain/entities";
@@ -870,11 +871,10 @@ export default function ProdutosPage() {
                       <div className="cursor-pointer" onClick={() => handleOpenModal(product, "imagens")}>
                         <div className="relative w-10 h-10 rounded overflow-hidden bg-gray-100 shrink-0">
                           <Image
-                            src={product.imageUrl ?? product.imageUrls?.[0] ?? ""}
+                            src={getOptimizedImageUrl(product.imageUrl ?? product.imageUrls?.[0] ?? "", IMAGE_SIZES.adminPreview)}
                             alt=""
                             fill
                             className="object-cover"
-                            unoptimized
                             sizes="40px"
                           />
                         </div>
@@ -988,11 +988,10 @@ export default function ProdutosPage() {
               {(product.imageUrl || (product.imageUrls?.length ?? 0) > 0) ? (
                 <div className="h-32 bg-gray-100 relative cursor-pointer" onClick={() => handleOpenModal(product, "imagens")}>
                   <Image
-                    src={product.imageUrl ?? product.imageUrls?.[0] ?? ""}
+                    src={getOptimizedImageUrl(product.imageUrl ?? product.imageUrls?.[0] ?? "", IMAGE_SIZES.thumbnail)}
                     alt={product.name}
                     fill
                     className="object-cover"
-                    unoptimized
                   />
                   <div className="absolute top-2 left-2 flex gap-1">
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full shadow-sm ${
@@ -1344,11 +1343,10 @@ export default function ProdutosPage() {
                           className="relative group inline-block w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-100"
                         >
                           <Image
-                            src={url}
+                            src={getOptimizedImageUrl(url, IMAGE_SIZES.adminPreview)}
                             alt=""
                             fill
                             className="object-cover"
-                            unoptimized
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = "none";
                             }}

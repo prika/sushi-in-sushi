@@ -25,6 +25,7 @@ import {
   useCategories,
   useKitchenZones,
   useSiteSettings,
+  usePaymentMethods,
 } from "@/presentation/hooks";
 import type {
   Restaurant,
@@ -41,6 +42,11 @@ import type {
   CreateKitchenZoneData,
   UpdateKitchenZoneData,
 } from "@/domain/entities/KitchenZone";
+import type {
+  PaymentMethod,
+  CreatePaymentMethodData,
+  UpdatePaymentMethodData,
+} from "@/domain/entities/PaymentMethod";
 
 // =============================================
 // CONSTANTS
@@ -63,7 +69,8 @@ type TabId =
   | "tables"
   | "restaurants"
   | "categories"
-  | "kitchen-zones";
+  | "kitchen-zones"
+  | "payment-methods";
 
 // =============================================
 // NOTIFICATIONS TAB COMPONENT
@@ -4592,6 +4599,341 @@ function KitchenZonesTab() {
 }
 
 // =============================================
+// PAYMENT METHODS TAB COMPONENT
+// =============================================
+
+function PaymentMethodsTab() {
+  const { methods, isLoading, error, create, update, remove } =
+    usePaymentMethods();
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null);
+
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: "success" | "error" | "warning" | "info";
+  }>({ isOpen: false, title: "", message: "", variant: "info" });
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: "danger" | "warning" | "info";
+    confirmText: string;
+    cancelText: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    variant: "warning",
+    confirmText: "Confirmar",
+    cancelText: "Cancelar",
+    onConfirm: () => {},
+  });
+
+  const [formData, setFormData] = useState({
+    name: "",
+    slug: "",
+    vendusId: "",
+    sortOrder: 0,
+    isActive: true,
+  });
+
+  const generateSlug = (name: string) =>
+    name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  const handleOpenModal = (method?: PaymentMethod) => {
+    if (method) {
+      setEditingMethod(method);
+      setFormData({
+        name: method.name,
+        slug: method.slug,
+        vendusId: method.vendusId || "",
+        sortOrder: method.sortOrder,
+        isActive: method.isActive,
+      });
+    } else {
+      setEditingMethod(null);
+      setFormData({ name: "", slug: "", vendusId: "", sortOrder: 0, isActive: true });
+    }
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const payload = {
+      name: formData.name,
+      slug: formData.slug,
+      vendusId: formData.vendusId || null,
+      sortOrder: formData.sortOrder,
+      isActive: formData.isActive,
+    };
+
+    if (editingMethod) {
+      const result = await update(editingMethod.id, payload as UpdatePaymentMethodData);
+      if (result) {
+        setAlertModal({ isOpen: true, title: "Sucesso", message: "Metodo atualizado", variant: "success" });
+        setShowModal(false);
+      }
+    } else {
+      const result = await create(payload as CreatePaymentMethodData);
+      if (result) {
+        setAlertModal({ isOpen: true, title: "Sucesso", message: "Metodo criado", variant: "success" });
+        setShowModal(false);
+      }
+    }
+  };
+
+  const handleDelete = (method: PaymentMethod) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Eliminar metodo de pagamento",
+      message: `Tem certeza que deseja eliminar "${method.name}"? Faturas existentes que usem este metodo nao serao afetadas.`,
+      variant: "danger",
+      confirmText: "Eliminar",
+      cancelText: "Cancelar",
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        await remove(method.id);
+      },
+    });
+  };
+
+  const handleToggleActive = async (method: PaymentMethod) => {
+    await update(method.id, { isActive: !method.isActive });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin h-8 w-8 border-2 border-[#D4AF37] border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <p className="text-sm text-gray-500">
+          Gerir metodos de pagamento disponiveis no sistema de faturacao.
+        </p>
+        <button
+          onClick={() => handleOpenModal()}
+          className="cursor-pointer px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Novo Metodo
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">{error}</div>
+      )}
+
+      {/* Methods List */}
+      <div className="space-y-3">
+        {methods.map((method) => (
+          <div
+            key={method.id}
+            className={`bg-white rounded-xl shadow-sm border-2 p-4 flex items-center justify-between ${
+              method.isActive ? "border-gray-200" : "border-gray-200 opacity-50"
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 font-mono w-6 text-center">
+                  {method.sortOrder}
+                </span>
+                <div>
+                  <h3 className="font-bold text-gray-900">{method.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 font-mono">{method.slug}</span>
+                    {method.vendusId && (
+                      <span className="text-xs text-blue-500 font-mono">
+                        Vendus: {method.vendusId}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* Active toggle */}
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={method.isActive}
+                  onChange={() => handleToggleActive(method)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
+              </label>
+
+              <button
+                onClick={() => handleOpenModal(method)}
+                className="cursor-pointer text-sm text-[#D4AF37] hover:text-[#C4A030] font-medium"
+              >
+                Editar
+              </button>
+              <button
+                onClick={() => handleDelete(method)}
+                className="cursor-pointer text-sm text-red-600 hover:text-red-800 font-medium"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        ))}
+        {methods.length === 0 && (
+          <div className="py-12 text-center text-gray-500">
+            Nenhum metodo de pagamento encontrado
+          </div>
+        )}
+      </div>
+
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal((prev) => ({ ...prev, isOpen: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+      />
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-gray-900">
+                  {editingMethod ? "Editar Metodo" : "Novo Metodo de Pagamento"}
+                </h3>
+                <button onClick={() => setShowModal(false)} className="cursor-pointer text-gray-400 hover:text-gray-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      name,
+                      slug: editingMethod ? prev.slug : generateSlug(name),
+                    }));
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                  placeholder="Ex: Dinheiro, Multibanco, MB Way..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Codigo (slug)</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.slug}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent font-mono"
+                  placeholder="cash"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Vendus ID <span className="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.vendusId}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, vendusId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent font-mono"
+                  placeholder="ID no sistema Vendus POS"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ordem</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.sortOrder}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, isActive: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
+                </label>
+                <span className="text-sm font-medium text-gray-700">Ativo</span>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="cursor-pointer px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="cursor-pointer px-4 py-2 bg-[#D4AF37] text-black font-semibold rounded-lg hover:bg-[#C4A030] transition-colors"
+                >
+                  {editingMethod ? "Guardar" : "Criar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================
 // MAIN SETTINGS PAGE
 // =============================================
 
@@ -4606,6 +4948,7 @@ export default function SettingsPage() {
     { id: "restaurants", label: "Gestao de Restaurantes" },
     { id: "categories", label: "Categorias" },
     { id: "kitchen-zones", label: "Zonas de Cozinha" },
+    { id: "payment-methods", label: "Metodos de Pagamento" },
   ];
 
   return (
@@ -4647,6 +4990,7 @@ export default function SettingsPage() {
         {activeTab === "restaurants" && <RestaurantManagementTab />}
         {activeTab === "categories" && <CategoriesTab />}
         {activeTab === "kitchen-zones" && <KitchenZonesTab />}
+        {activeTab === "payment-methods" && <PaymentMethodsTab />}
       </div>
     </div>
   );

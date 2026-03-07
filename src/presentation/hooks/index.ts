@@ -3,8 +3,6 @@
  */
 
 // Original hooks
-export * from './useKitchenOrders';
-export * from './useSessionOrders';
 export * from './useSessionManagement';
 export * from './useTableManagement';
 export * from './useActivityLog';
@@ -54,3 +52,6 @@ export * from './useGameConfig';
 
 // GTM / Analytics
 export * from './useGTMEvent';
+
+// Payment methods
+export * from './usePaymentMethods';

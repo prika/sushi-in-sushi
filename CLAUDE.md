@@ -14,9 +14,13 @@ Este ficheiro contém contexto e convenções do projeto para o Claude Code.
 
 ## 🎉 Estado Atual do Projeto
 
-### Última Atualização: 2026-03-06
+### Última Atualização: 2026-03-07
 
 **Alterações Recentes (Março 2026):**
+- ✅ **Payment Methods Admin CRUD** - CRUD completo de metodos de pagamento em `/admin/definicoes` → tab "Metodos de Pagamento". Entidade `PaymentMethod`, 4 use cases, `SupabasePaymentMethodRepository`, API routes (`/api/payment-methods`), hook `usePaymentMethods()`, 17 testes. Toggle ativo/inativo inline, validacao de slug unico, mapeamento Vendus ID.
+- ✅ **Offline/PWA System** - Service Worker com Background Sync, IndexedDB offline queue, cache strategies (stale-while-revalidate para API, cache-first para assets). `OfflineQueue` com `StorageAdapter` interface (swappable para React Native). `offlineFetch()` drop-in replacement. Hook `useOfflineQueue()` via `useSyncExternalStore`. `OfflineBanner` UI component. Página `/offline` fallback. SW registado via `ServiceWorkerRegistrar` nos Providers.
+- ✅ **Realtime Store (useSyncExternalStore)** - Sistema de notificações real-time sem `useEffect` para estado. `RealtimeStore` platform-agnostic (zero React imports). 15 eventos tipados (Table, Order, WaiterCall). Dual delivery: broadcast (<100ms) + postgres_changes (~300ms). Hooks: `useRealtimeTable`, `useRealtimeOrders`, `useRealtimeWaiterCalls`. Auto-invalidação de React Query caches.
+- ✅ **Image Resize On-the-fly** - Redimensionamento de imagens de produtos via Supabase Storage Transformations. Utility `getOptimizedImageUrl()` em `src/lib/image.ts` com presets (thumbnail 400px, detail 800px, adminPreview 200px). Aplicado em ProductCard, MenuContent, ImageCarousel e admin produtos. Sem duplicação de ficheiros — CDN cache automático.
 - ✅ **Marketing Intelligence - Fase 1** - Tab "Estrategia" em `/admin/seo` com 26 objetivos (6 categorias), questionario de contexto, tabela `business_strategy` (singleton). Base para sugestoes AI e segmentacao futuras.
 - ✅ **GTM DataLayer Events** - Hook `useGTMEvent()` com 7 eventos type-safe (reservation, menu, QR scan, order, login, signup). Instrumentacao em ReservationForm, MenuContent, mesa/[numero], entrar, registar.
 - ✅ **Reservation Source Attribution** - Coluna `source` em reservations (website/phone/walkin/thefork/instagram/google/other), dropdown editavel no admin, badge nos cards.
@@ -122,7 +126,7 @@ Ver detalhes completos em [docs/RECENT_CHANGES.md](docs/RECENT_CHANGES.md)
 
 1. **E2E Tests** - Playwright para fluxos críticos
 2. **Performance** - Paginação server-side para listas grandes (pedidos, clientes)
-3. **PWA** - Service worker para modo offline da cozinha/waiter
+3. ~~**PWA** - Service worker para modo offline da cozinha/waiter~~ ✅ Implementado (SW + IndexedDB + Background Sync)
 
 ## Stack Tecnológica
 
@@ -397,6 +401,7 @@ O projeto segue **Clean Architecture** com separação rigorosa de responsabilid
 - `StaffTimeOff` - Ausências e férias de funcionários
 - `ReservationSettings` - Configurações de reservas
 - `DashboardAnalytics` - Dados agregados para analytics do dashboard
+- `PaymentMethod` - Metodos de pagamento (name, slug, vendusId, isActive, sortOrder)
 
 **Repository Interfaces** (`/domain/repositories/`):
 - `IRestaurantRepository` - **NOVO** CRUD de restaurantes + validação de slug único
@@ -413,6 +418,7 @@ O projeto segue **Clean Architecture** com separação rigorosa de responsabilid
 - `IStaffTimeOffRepository` - Ausências de funcionários
 - `IReservationSettingsRepository` - Configurações
 - `IDashboardAnalyticsRepository` - Dados agregados para analytics
+- `IPaymentMethodRepository` - CRUD de metodos de pagamento + findBySlug
 
 **Value Objects** (`/domain/value-objects/`):
 - `OrderStatus`, `SessionStatus`, `TableStatus`, `ReservationStatus`
@@ -480,6 +486,10 @@ O projeto segue **Clean Architecture** com separação rigorosa de responsabilid
 **Reservation Settings** (`/application/use-cases/reservation-settings/`):
 - `GetReservationSettingsUseCase`, `UpdateReservationSettingsUseCase`
 
+**Payment Methods** (`/application/use-cases/payment-methods/`):
+- `GetAllPaymentMethodsUseCase`, `CreatePaymentMethodUseCase`
+- `UpdatePaymentMethodUseCase`, `DeletePaymentMethodUseCase`
+
 **DTOs** (`/application/dto/`):
 - `OrderDTO`, `KitchenOrderDTO`, `SessionOrderDTO`
 - `OrderCountsDTO`, `SessionTotalsDTO`
@@ -517,6 +527,7 @@ if (result.success) {
 - `SupabaseCustomerRepository` - Implementação ICustomerRepository
 - `SupabaseStaffTimeOffRepository` - Implementação IStaffTimeOffRepository
 - `SupabaseReservationSettingsRepository` - Implementação IReservationSettingsRepository
+- `SupabasePaymentMethodRepository` - Implementação IPaymentMethodRepository
 
 **Padrões de Implementação:**
 - Mapeamento snake_case (DB) ↔ camelCase (Domain)
@@ -528,9 +539,18 @@ if (result.success) {
   - Sempre preferir versão otimizada no DependencyContext
   - Exemplo: `SupabaseOrderRepositoryOptimized` para incluir dados de waiter
 
-**Real-time Handlers** (`/infrastructure/realtime/`):
-- `OrderRealtimeHandler` - Subscrição a mudanças em pedidos
-- Event handlers para novos pedidos e atualizações
+**Real-time** (`/infrastructure/realtime/`):
+- `RealtimeStore` - Store reativo platform-agnostic (subscribe/getSnapshot, zero React imports)
+- `events.ts` - 15 eventos tipados: TableEvent, OrderEvent, WaiterCallEvent + RealtimeEnvelope
+- `channels/table.ts` - Canal de mesas (postgres_changes + broadcasts)
+- `channels/order.ts` - Canal de pedidos (com filtro por status)
+- `channels/waiter-call.ts` - Canal de chamadas
+- `OrderRealtimeHandler` - Legacy handler (subscrição a mudanças em pedidos)
+
+**Offline** (`/infrastructure/offline/`):
+- `OfflineQueue` - Fila de requests offline com `StorageAdapter` interface (IndexedDB web, swappable para RN)
+- `offlineFetch` - Drop-in fetch() replacement que enfileira mutações quando offline
+- `IndexedDBStorageAdapter` - Implementação web do StorageAdapter
 
 ---
 
@@ -556,6 +576,12 @@ const { getKitchenOrders, updateOrderStatus } = useDependencies();
 - `useCustomers()` - Gestão de clientes
 - `useStaff()` - Gestão de funcionários
 - `useStaffTimeOff()` - Gestão de ausências
+- `usePaymentMethods()` - CRUD de metodos de pagamento
+- `useRealtimeTable()` - Eventos real-time de mesas (broadcast + postgres_changes)
+- `useRealtimeOrders()` - Eventos real-time de pedidos
+- `useRealtimeWaiterCalls()` - Eventos real-time de chamadas
+- `useOfflineQueue()` - Estado offline (online status, fila, contagem) via useSyncExternalStore
+- `useOnlineStatus()` - Status online/offline reativo
 
 **Exemplo de Uso:**
 ```typescript

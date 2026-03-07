@@ -10,12 +10,13 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/tables/[id]/request-open
- * Called automatically when a customer scans a QR code and no session exists.
- * Sets customer_waiting_since so the waiter sees the table as "waiting" in their dashboard.
+ * Called when a customer scans a QR code and submits their meal preferences.
+ * Stores customer preferences (meal type, number of people) and sets customer_waiting_since
+ * so the waiter sees the table as "waiting" with the customer's choices.
  * No auth required (customer-facing).
  */
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -26,6 +27,23 @@ export async function POST(
         { error: "ID da mesa obrigatorio" },
         { status: 400 },
       );
+    }
+
+    // Parse optional customer preferences from body
+    let isRodizio: boolean | null = null;
+    let numPeople: number | null = null;
+    try {
+      const body = await request.json();
+      if (typeof body.isRodizio === "boolean") isRodizio = body.isRodizio;
+      if (
+        typeof body.numPeople === "number" &&
+        body.numPeople >= 1 &&
+        body.numPeople <= 20
+      ) {
+        numPeople = body.numPeople;
+      }
+    } catch {
+      // No body or invalid JSON — preferences are optional
     }
 
     const supabase = createAdminClient();
@@ -51,14 +69,18 @@ export async function POST(
       );
     }
 
-    // Idempotent: only set if not already waiting
-    if (!table.customer_waiting_since) {
-      await supabase
-        .from("tables")
-        .update({ customer_waiting_since: new Date().toISOString() })
-        .eq("id", tableId);
+    // Update: set waiting timestamp + customer preferences
+    const updateData: Record<string, unknown> = {
+      customer_waiting_since:
+        table.customer_waiting_since || new Date().toISOString(),
+      customer_requested_rodizio: isRodizio,
+      customer_requested_num_people: numPeople,
+    };
 
-      // Auto-assign waiter if enabled for this restaurant
+    await supabase.from("tables").update(updateData).eq("id", tableId);
+
+    // Auto-assign waiter if first time waiting
+    if (!table.customer_waiting_since) {
       try {
         const { data: tableData } = await supabase
           .from("tables")
@@ -69,13 +91,18 @@ export async function POST(
         if (tableData?.location) {
           const staffRepository = new SupabaseStaffRepository(supabase);
           const tableRepository = new SupabaseTableRepository(supabase);
-          const restaurantRepository = new SupabaseRestaurantRepository(supabase);
+          const restaurantRepository = new SupabaseRestaurantRepository(
+            supabase,
+          );
           const autoAssign = new AutoAssignWaiterUseCase(
             staffRepository,
             tableRepository,
             restaurantRepository,
           );
-          await autoAssign.execute({ tableId, location: tableData.location });
+          await autoAssign.execute({
+            tableId,
+            location: tableData.location,
+          });
         }
       } catch {
         // Auto-assign failure never blocks the request
@@ -123,7 +150,11 @@ export async function DELETE(
 
     await supabase
       .from("tables")
-      .update({ customer_waiting_since: null })
+      .update({
+        customer_waiting_since: null,
+        customer_requested_rodizio: null,
+        customer_requested_num_people: null,
+      })
       .eq("id", tableId);
 
     return NextResponse.json({ success: true });

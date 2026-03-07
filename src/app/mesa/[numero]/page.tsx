@@ -33,12 +33,14 @@ import { MesaLanguageSwitcher } from "@/presentation/components/mesa/MesaLanguag
 import { type TableLeaderInfo } from "@/presentation/components/mesa/SwipeRatingGame";
 import { GameHub } from "@/presentation/components/mesa/GameHub";
 import { ProductDetailSheet } from "@/presentation/components/mesa/ProductDetailSheet";
-import { ALLERGEN_EMOJI_MAP, ALL_ALLERGENS } from "@/lib/constants/allergens";
+import { ALLERGEN_EMOJI_MAP } from "@/lib/constants/allergens";
+import { CustomerIdentifyModal, type CustomerFormData } from "@/presentation/components/mesa/CustomerIdentifyModal";
 import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
+import { useRealtimeTable } from "@/presentation/hooks/useRealtimeTable";
 import { useGTMEvent } from "@/presentation/hooks/useGTMEvent";
 import type { GamesMode } from "@/domain/value-objects/GameConfig";
 
-type Step = "welcome" | "active";
+type Step = "welcome" | "setup" | "waiting" | "active";
 type Tab = "menu" | "cart" | "pedidos" | "chamar" | "conta" | "jogos";
 type OrderType = "rodizio" | "carta" | null;
 
@@ -89,6 +91,12 @@ function MesaPageContent() {
   const pushEvent = useGTMEvent();
   const mesaNumero = params.numero as string;
   const localizacao = searchParams.get("loc") || "";
+
+  // Real-time: table events (instant broadcast to waiter)
+  const { broadcastOpenRequest } = useRealtimeTable({
+    location: localizacao || undefined,
+    enabled: !!localizacao,
+  });
 
   // Track QR scan on mount
   useEffect(() => {
@@ -281,16 +289,6 @@ function MesaPageContent() {
   );
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [customerForm, setCustomerForm] = useState({
-    display_name: "",
-    full_name: "",
-    email: "",
-    phone: "",
-    birth_date: "",
-    marketing_consent: false,
-    preferred_contact: "email" as "email" | "phone" | "none",
-    allergens: [] as string[],
-  });
 
   // Broadcast notification state
   const [orderNotification, setOrderNotification] = useState<string | null>(
@@ -515,14 +513,9 @@ function MesaPageContent() {
             clearInterval(pollTimer);
             pollTimer = null;
           }
-        } else if (!hasRequestedOpen.current) {
-          // No session — automatically request table opening (once)
-          hasRequestedOpen.current = true;
-          fetch(`/api/tables/${data.tableId}/request-open`, {
-            method: "POST",
-          }).catch(() => {
-            // Non-critical: waiter can still be called manually
-          });
+        } else if (stepRef.current === "welcome") {
+          // No session — show setup step for customer to pick meal type + people
+          setStep("setup");
         }
       } catch (err) {
         console.error("Error fetching table info", err);
@@ -547,28 +540,42 @@ function MesaPageContent() {
     };
   }, [mesaNumero, localizacao]);
 
+  // Handle setup form submission — send preferences and move to waiting
+  const handleSetupSubmit = useCallback(async () => {
+    if (!tableId) return;
+    hasRequestedOpen.current = true;
+    setStep("waiting");
+
+    // Instant broadcast to waiter (<100ms, no DB round-trip)
+    broadcastOpenRequest({
+      tableId,
+      tableNumber: Number(mesaNumero),
+      location: localizacao,
+      requestedRodizio: orderType === "rodizio",
+      requestedNumPeople: numPessoas,
+    });
+
+    // Persist to DB (waiter sees it even if they weren't connected during broadcast)
+    try {
+      await fetch(`/api/tables/${tableId}/request-open`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isRodizio: orderType === "rodizio",
+          numPeople: numPessoas,
+        }),
+      });
+    } catch {
+      // Non-critical: waiter can still be called manually
+    }
+  }, [tableId, orderType, numPessoas, mesaNumero, localizacao, broadcastOpenRequest]);
+
   // Prompt customer identification when entering active session
   useEffect(() => {
     if (step === "active" && !currentCustomer && !isCheckingSession) {
       setShowCustomerModal(true);
     }
   }, [step, currentCustomer, isCheckingSession]);
-
-  // Pre-fill form when modal opens for an already-identified customer
-  useEffect(() => {
-    if (showCustomerModal && currentCustomer) {
-      setCustomerForm({
-        display_name: currentCustomer.display_name || "",
-        full_name: currentCustomer.full_name || "",
-        email: currentCustomer.email || "",
-        phone: currentCustomer.phone || "",
-        birth_date: currentCustomer.birth_date || "",
-        marketing_consent: currentCustomer.marketing_consent || false,
-        preferred_contact: currentCustomer.preferred_contact || "email",
-        allergens: currentCustomer.allergens || [],
-      });
-    }
-  }, [showCustomerModal, currentCustomer]);
 
   // Set active category when categories load (React Query handles fetching automatically)
   useEffect(() => {
@@ -820,17 +827,17 @@ function MesaPageContent() {
 
   // Sync session_customer to loyalty program (customers table) so they appear in admin
   const syncToLoyaltyCustomer = useCallback(
-    async (sessionCustomerId: string, emailTrim: string) => {
+    async (sessionCustomerId: string, emailTrim: string, formData: CustomerFormData) => {
       const res = await fetch("/api/customers/from-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: emailTrim,
-          displayName: customerForm.display_name.trim(),
-          fullName: customerForm.full_name.trim() || null,
-          phone: customerForm.phone.trim() || null,
-          birthDate: customerForm.birth_date || null,
-          marketingConsent: customerForm.marketing_consent,
+          displayName: formData.display_name.trim(),
+          fullName: formData.full_name.trim() || null,
+          phone: formData.phone.trim() || null,
+          birthDate: formData.birth_date || null,
+          marketingConsent: formData.marketing_consent,
           sessionCustomerId,
         }),
       });
@@ -846,7 +853,7 @@ function MesaPageContent() {
       const { customerId } = (await res.json()) as { customerId: string };
       return customerId;
     },
-    [customerForm, t],
+    [t],
   );
 
   // Send verification code
@@ -987,7 +994,7 @@ function MesaPageContent() {
   }, [verificationSessionCustomerId, verificationCode, verificationType]);
 
   // Register customer (new person) or update existing session_customer (edit profile)
-  const registerCustomer = useCallback(async () => {
+  const registerCustomer = useCallback(async (customerForm: CustomerFormData) => {
     if (!session || !customerForm.display_name.trim()) return;
 
     setIsRegistering(true);
@@ -1051,6 +1058,7 @@ function MesaPageContent() {
           const customerId = await syncToLoyaltyCustomer(
             currentCustomer.id,
             emailTrim,
+            customerForm,
           );
           if (customerId) {
             setSessionCustomers((prev) =>
@@ -1148,6 +1156,7 @@ function MesaPageContent() {
         const customerId = await syncToLoyaltyCustomer(
           newCustomer.id,
           emailTrim,
+          customerForm,
         );
         if (customerId) {
           setSessionCustomers((prev) =>
@@ -1179,20 +1188,8 @@ function MesaPageContent() {
           setVerificationType(type);
           setVerificationContact(contact);
 
-          // Clear form and close customer modal
-          setCustomerForm({
-            display_name: "",
-            full_name: "",
-            email: "",
-            phone: "",
-            birth_date: "",
-            marketing_consent: false,
-            preferred_contact: "email",
-            allergens: [],
-          });
+          // Close customer modal and show verification modal
           setShowCustomerModal(false);
-
-          // Show verification modal
           setShowVerificationModal(true);
           setIsRegistering(false);
           return;
@@ -1202,16 +1199,6 @@ function MesaPageContent() {
         }
       }
 
-      setCustomerForm({
-        display_name: "",
-        full_name: "",
-        email: "",
-        phone: "",
-        birth_date: "",
-        marketing_consent: false,
-        preferred_contact: "email",
-        allergens: [],
-      });
       setShowCustomerModal(false);
 
       setSuccessMessage(`Olá, ${newCustomer.display_name}! Bom apetite!`);
@@ -1232,7 +1219,6 @@ function MesaPageContent() {
     }
   }, [
     session,
-    customerForm,
     sessionCustomers.length,
     currentCustomer,
     supabase,
@@ -1583,14 +1569,106 @@ function MesaPageContent() {
           <div className="animate-spin h-8 w-8 border-2 border-[#D4AF37] border-t-transparent rounded-full" />
         </div>
       )}
-      {step === "welcome" && !isCheckingSession && (
+      {/* Setup Step — Customer picks meal type + number of people */}
+      {step === "setup" && (
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-6">
-          {/* Language Switcher */}
           <div className="absolute top-4 right-4">
             <MesaLanguageSwitcher />
           </div>
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-14 h-14 relative">
+              <Image
+                src={settings?.logo_url || "/logo.png"}
+                alt={settings?.brand_name ?? ""}
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+            <div className="text-left">
+              <h1 className="text-lg font-light tracking-[0.2em] text-[#D4AF37] uppercase">
+                {settings?.brand_name ?? ""}
+              </h1>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 uppercase">
+                  {t("mesa.table")}
+                </span>
+                <span className="text-xl font-bold text-[#D4AF37]">
+                  {mesaNumero}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="w-full max-w-sm">
+            <h2 className="text-xl font-semibold text-white mb-6 text-center">
+              {t("mesa.setupTitle")}
+            </h2>
+            <div className="mb-6">
+              <label className="text-sm text-gray-400 mb-3 block">
+                {t("mesa.setupMealType")}
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setOrderType("carta")}
+                  className={`cursor-pointer py-4 px-4 rounded-xl font-medium text-center transition-all ${
+                    orderType === "carta"
+                      ? "bg-[#D4AF37] text-black ring-2 ring-[#D4AF37]"
+                      : "bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700/80"
+                  }`}
+                >
+                  <div className="text-2xl mb-1">🍣</div>
+                  <div>{t("mesa.setupAlaCarte")}</div>
+                </button>
+                <button
+                  onClick={() => setOrderType("rodizio")}
+                  className={`cursor-pointer py-4 px-4 rounded-xl font-medium text-center transition-all ${
+                    orderType === "rodizio"
+                      ? "bg-[#D4AF37] text-black ring-2 ring-[#D4AF37]"
+                      : "bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700/80"
+                  }`}
+                >
+                  <div className="text-2xl mb-1">🔄</div>
+                  <div>{t("mesa.setupRodizio")}</div>
+                </button>
+              </div>
+            </div>
+            <div className="mb-8">
+              <label className="text-sm text-gray-400 mb-3 block">
+                {t("mesa.setupNumPeople")}
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => setNumPessoas(num)}
+                    className={`cursor-pointer py-3 rounded-xl font-medium transition-all ${
+                      numPessoas === num
+                        ? "bg-[#D4AF37] text-black ring-2 ring-[#D4AF37]"
+                        : "bg-gray-800/80 text-gray-400 hover:text-white hover:bg-gray-700/80"
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={handleSetupSubmit}
+              disabled={!orderType}
+              className="cursor-pointer w-full py-4 bg-[#D4AF37] text-black font-semibold rounded-xl hover:bg-[#C4A030] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {t("mesa.setupContinue")}
+            </button>
+          </div>
+        </div>
+      )}
 
-          {/* Compact Header with Logo and Table Number */}
+      {/* Waiting Step — After setup, waiting for waiter to open session */}
+      {step === "waiting" && (
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-6">
+          <div className="absolute top-4 right-4">
+            <MesaLanguageSwitcher />
+          </div>
           <div className="flex items-center gap-4 mb-6">
             <div className="w-14 h-14 relative">
               <Image
@@ -1615,8 +1693,6 @@ function MesaPageContent() {
               </div>
             </div>
           </div>
-
-          {/* Waiter Info Card */}
           {waiterName && (
             <div className="w-full max-w-sm mb-6">
               <div className="flex items-center justify-between p-4 bg-gray-900/50 rounded-xl border border-gray-800">
@@ -1648,7 +1724,7 @@ function MesaPageContent() {
                 <button
                   onClick={() => callWaiter("assistance")}
                   disabled={isCallingWaiter || waiterCallStatus !== "idle"}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  className={`cursor-pointer px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                     waiterCallStatus === "pending"
                       ? "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30"
                       : waiterCallStatus === "acknowledged"
@@ -1665,23 +1741,30 @@ function MesaPageContent() {
               </div>
             </div>
           )}
-
-          {/* Waiting for waiter to open session */}
           <div className="w-full max-w-sm text-center">
             <div className="mb-6 flex justify-center">
               <div className="w-16 h-16 rounded-full border-2 border-[#D4AF37]/30 flex items-center justify-center">
                 <div className="w-10 h-10 rounded-full border-2 border-[#D4AF37] border-t-transparent animate-spin" />
               </div>
             </div>
-
             <h2 className="text-lg font-semibold text-white mb-2">
               {t("mesa.waitingForWaiter")}
             </h2>
-            <p className="text-sm text-gray-400 mb-8">
+            <p className="text-sm text-gray-400 mb-4">
               {t("mesa.waitingForWaiterDesc")}
             </p>
-
-            {/* Waiter notified indicator */}
+            <div className="mb-6 px-4 py-3 bg-gray-900/50 rounded-xl border border-gray-800 text-sm">
+              <span className="text-gray-400">
+                {orderType === "rodizio"
+                  ? t("mesa.setupRodizio")
+                  : t("mesa.setupAlaCarte")}
+              </span>
+              <span className="text-gray-600 mx-2">&middot;</span>
+              <span className="text-gray-400">
+                {numPessoas}{" "}
+                {numPessoas === 1 ? "pessoa" : "pessoas"}
+              </span>
+            </div>
             <div className="flex items-center justify-center gap-2 text-sm text-green-400">
               <svg
                 className="w-4 h-4"
@@ -3907,483 +3990,17 @@ function MesaPageContent() {
 
       {/* Customer Registration Modal */}
       {showCustomerModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/70"
-            onClick={() => setShowCustomerModal(false)}
-          />
-
-          <div className="relative bg-[#1A1A1A] rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto animate-slide-up sm:animate-scale-up">
-            {/* Header */}
-            <div className="sticky top-0 bg-[#1A1A1A] px-6 pt-6 pb-4 border-b border-gray-800">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold">{t("mesa.identify")}</h3>
-                <button
-                  onClick={() => setShowCustomerModal(false)}
-                  className="p-2 -mr-2 text-gray-400 hover:text-white"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <p className="text-sm text-gray-400 mt-1">
-                {t("mesa.customizeExperience")}
-              </p>
-            </div>
-
-            <div className="p-6">
-              {/* Registration Form */}
-              <div className="space-y-4">
-                {/* Display Name - Required */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    {t("mesa.howToAddress")}
-                  </label>
-                  <input
-                    type="text"
-                    value={customerForm.display_name}
-                    onChange={(e) =>
-                      setCustomerForm((prev) => ({
-                        ...prev,
-                        display_name: e.target.value,
-                      }))
-                    }
-                    placeholder={t("mesa.namePlaceholder")}
-                    className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl focus:border-[#D4AF37] focus:outline-none transition-colors"
-                    autoFocus
-                  />
-                </div>
-
-                {/* Incentive Message - Only show if no additional data has been provided */}
-                {!currentCustomer?.email &&
-                  !currentCustomer?.phone &&
-                  !currentCustomer?.birth_date && (
-                    <div className="bg-gradient-to-r from-[#D4AF37]/10 to-transparent border border-[#D4AF37]/20 rounded-xl p-4">
-                      <div className="flex items-start gap-3">
-                        <span className="text-2xl">🎁</span>
-                        <div>
-                          <p className="text-sm font-medium text-[#D4AF37]">
-                            {t("mesa.exclusiveBenefits")}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {t("mesa.benefitsDesc")}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                {/* Allergen Selection - Collapsible */}
-                <details className="group" open={customerForm.allergens.length > 0}>
-                  <summary className="flex items-center justify-between cursor-pointer py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors">
-                    <span>
-                      {t("mesa.allergenQuestion")}
-                      {customerForm.allergens.length > 0 && (
-                        <span className="ml-2 text-xs text-red-400">
-                          ({customerForm.allergens.length})
-                        </span>
-                      )}
-                    </span>
-                    <svg
-                      className="w-4 h-4 text-gray-500 transition-transform group-open:rotate-180"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </summary>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {ALL_ALLERGENS.map((allergen) => {
-                      const isSelected = customerForm.allergens.includes(
-                        allergen.id,
-                      );
-                      return (
-                        <button
-                          key={allergen.id}
-                          type="button"
-                          onClick={() =>
-                            setCustomerForm((prev) => ({
-                              ...prev,
-                              allergens: isSelected
-                                ? prev.allergens.filter(
-                                    (a) => a !== allergen.id,
-                                  )
-                                : [...prev.allergens, allergen.id],
-                            }))
-                          }
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                            isSelected
-                              ? "bg-red-500/20 text-red-300 border border-red-500/50"
-                              : "bg-gray-800 text-gray-400 border border-gray-700 hover:border-gray-600"
-                          }`}
-                        >
-                          <span>{allergen.emoji}</span>
-                          <span>
-                            {t(
-                              `mesa.productDetail.allergenNames.${allergen.id}`,
-                            )}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {customerForm.allergens.length > 0 && (
-                    <p className="text-xs text-red-400/70 mt-2">
-                      {t("mesa.allergenWarning")}
-                    </p>
-                  )}
-                </details>
-
-                {/* Incomplete profile reminder - Show if some data is filled but not all */}
-                {currentCustomer &&
-                  (currentCustomer.email ||
-                    currentCustomer.phone ||
-                    currentCustomer.birth_date) &&
-                  hasIncompleteProfile && (
-                    <div className="bg-blue-900/10 border border-blue-500/20 rounded-xl p-4">
-                      <div className="flex items-start gap-3">
-                        <span className="text-xl">ℹ️</span>
-                        <div>
-                          <p className="text-sm font-medium text-blue-300">
-                            Complete o seu perfil
-                          </p>
-                          <p className="text-xs text-blue-400/80 mt-1">
-                            Adicione os dados em falta para desbloquear todos os
-                            benefícios
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                {/* Optional Fields - Collapsible */}
-                <details className="group">
-                  <summary className="flex items-center justify-between cursor-pointer py-2 text-sm text-gray-400 hover:text-white transition-colors">
-                    <span>{t("mesa.additionalData")}</span>
-                    <svg
-                      className="w-5 h-5 transform group-open:rotate-180 transition-transform"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </summary>
-
-                  <div className="space-y-4 pt-4">
-                    {/* Email */}
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1.5 flex items-center gap-2">
-                        {t("mesa.email")}
-                        {currentCustomer?.email_verified && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
-                            <svg
-                              className="w-3 h-3"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            Verificado
-                          </span>
-                        )}
-                      </label>
-                      <input
-                        type="email"
-                        value={customerForm.email}
-                        onChange={(e) =>
-                          setCustomerForm((prev) => ({
-                            ...prev,
-                            email: e.target.value,
-                          }))
-                        }
-                        placeholder={t("mesa.emailPlaceholder")}
-                        className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
-                      />
-                    </div>
-
-                    {/* Phone */}
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1.5 flex items-center gap-2">
-                        {t("mesa.phone")}
-                        {currentCustomer?.phone_verified && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
-                            <svg
-                              className="w-3 h-3"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            Verificado
-                          </span>
-                        )}
-                      </label>
-                      <input
-                        type="tel"
-                        value={customerForm.phone}
-                        onChange={(e) =>
-                          setCustomerForm((prev) => ({
-                            ...prev,
-                            phone: e.target.value,
-                          }))
-                        }
-                        placeholder={t("mesa.phonePlaceholder")}
-                        className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
-                      />
-                      <p className="text-xs text-amber-500/70 mt-1 flex items-center gap-1">
-                        <svg
-                          className="w-3 h-3"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        Verificação por SMS requer configuração. Use email.
-                      </p>
-                    </div>
-
-                    {/* Birth Date */}
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1.5">
-                        {t("mesa.birthDate")}
-                      </label>
-                      <input
-                        type="date"
-                        value={customerForm.birth_date}
-                        onChange={(e) =>
-                          setCustomerForm((prev) => ({
-                            ...prev,
-                            birth_date: e.target.value,
-                          }))
-                        }
-                        className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:border-[#D4AF37] focus:outline-none text-sm"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        {t("mesa.birthdaySurprise")}
-                      </p>
-                    </div>
-
-                    {/* Preferred Contact */}
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-2">
-                        {t("mesa.preferredContact")}
-                      </label>
-                      <div className="flex gap-2">
-                        {[
-                          { value: "email", label: "Email" },
-                          { value: "phone", label: "Telemóvel" },
-                        ].map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            onClick={() =>
-                              setCustomerForm((prev) => ({
-                                ...prev,
-                                preferred_contact: option.value as
-                                  | "email"
-                                  | "phone",
-                              }))
-                            }
-                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                              customerForm.preferred_contact === option.value
-                                ? "bg-[#D4AF37] text-black"
-                                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Marketing Consent */}
-                    <label className="flex items-start gap-3 cursor-pointer group">
-                      <div className="relative mt-0.5">
-                        <input
-                          type="checkbox"
-                          checked={customerForm.marketing_consent}
-                          onChange={(e) =>
-                            setCustomerForm((prev) => ({
-                              ...prev,
-                              marketing_consent: e.target.checked,
-                            }))
-                          }
-                          className="sr-only"
-                        />
-                        <div
-                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            customerForm.marketing_consent
-                              ? "bg-[#D4AF37] border-[#D4AF37]"
-                              : "border-gray-600 group-hover:border-gray-500"
-                          }`}
-                        >
-                          {customerForm.marketing_consent && (
-                            <svg
-                              className="w-3 h-3 text-black"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={3}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-sm text-gray-400">
-                        {t("mesa.receivePromotions")}
-                      </span>
-                    </label>
-                  </div>
-                </details>
-              </div>
-
-              {/* Submit Button - Smart single button */}
-              <div className="mt-6 pt-4 border-t border-gray-800">
-                {error && (
-                  <div className="mb-3 p-3 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-sm">
-                    {error}
-                  </div>
-                )}
-                <button
-                  onClick={() => {
-                    // Check if there are changes (use spread to avoid mutating state with .sort())
-                    const hasChanges =
-                      currentCustomer &&
-                      (customerForm.display_name.trim() !==
-                        currentCustomer.display_name ||
-                        customerForm.email.trim() !==
-                          (currentCustomer.email || "") ||
-                        customerForm.phone.trim() !==
-                          (currentCustomer.phone || "") ||
-                        customerForm.birth_date !==
-                          (currentCustomer.birth_date || "") ||
-                        customerForm.marketing_consent !==
-                          (currentCustomer.marketing_consent || false) ||
-                        customerForm.preferred_contact !==
-                          (currentCustomer.preferred_contact || "email") ||
-                        JSON.stringify([...customerForm.allergens].sort()) !==
-                          JSON.stringify(
-                            [...(currentCustomer.allergens || [])].sort(),
-                          ));
-
-                    if (hasChanges || !currentCustomer) {
-                      // Save changes or register new customer
-                      registerCustomer();
-                    } else {
-                      // No changes, just close modal
-                      setShowCustomerModal(false);
-                    }
-                  }}
-                  disabled={!customerForm.display_name.trim() || isRegistering}
-                  className="w-full py-4 rounded-xl bg-[#D4AF37] text-black font-bold text-lg hover:bg-[#C4A030] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isRegistering ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="animate-spin h-5 w-5 border-2 border-black border-t-transparent rounded-full" />
-                      <span>A guardar...</span>
-                    </div>
-                  ) : (
-                    (() => {
-                      // Smart button text based on context
-                      if (!currentCustomer) {
-                        return sessionCustomers.length === 0
-                          ? t("mesa.startOrdering")
-                          : t("mesa.addPerson");
-                      }
-
-                      // Check if editing current customer (use spread to avoid mutating state with .sort())
-                      const hasChanges =
-                        customerForm.display_name.trim() !==
-                          currentCustomer.display_name ||
-                        customerForm.email.trim() !==
-                          (currentCustomer.email || "") ||
-                        customerForm.phone.trim() !==
-                          (currentCustomer.phone || "") ||
-                        customerForm.birth_date !==
-                          (currentCustomer.birth_date || "") ||
-                        customerForm.marketing_consent !==
-                          (currentCustomer.marketing_consent || false) ||
-                        customerForm.preferred_contact !==
-                          (currentCustomer.preferred_contact || "email") ||
-                        JSON.stringify([...customerForm.allergens].sort()) !==
-                          JSON.stringify(
-                            [...(currentCustomer.allergens || [])].sort(),
-                          );
-
-                      return hasChanges
-                        ? t("mesa.saveChanges") || "Guardar Alterações"
-                        : t("mesa.continue") || "Continuar";
-                    })()
-                  )}
-                </button>
-              </div>
-
-              {/* Active customers in session - Moved to bottom with less importance */}
-              {sessionCustomers.length > 0 && (
-                <div className="mt-6 pt-6 border-t border-gray-800/50">
-                  <p className="text-xs text-gray-500 mb-2.5 uppercase tracking-wide">
-                    {t("mesa.atTable")}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {sessionCustomers.map((customer) => (
-                      <span
-                        key={customer.id}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-                          currentCustomer?.id === customer.id
-                            ? "bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30"
-                            : "bg-gray-800/50 text-gray-400"
-                        }`}
-                      >
-                        {customer.display_name}
-                        {customer.is_session_host && (
-                          <span className="ml-1 opacity-70">
-                            {t("mesa.host")}
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <CustomerIdentifyModal
+          currentCustomer={currentCustomer}
+          sessionCustomers={sessionCustomers}
+          isRegistering={isRegistering}
+          error={error}
+          t={t}
+          onClose={() => setShowCustomerModal(false)}
+          onSubmit={registerCustomer}
+        />
       )}
+
 
       {/* Verification Code Modal */}
       {showVerificationModal && (

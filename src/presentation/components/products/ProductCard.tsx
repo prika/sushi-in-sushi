@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { getOptimizedImageUrl, IMAGE_SIZES } from "@/lib/image";
 
 interface ProductCardProps {
   product: {
@@ -40,7 +41,7 @@ export function ProductCard({
       <div className="relative aspect-[4/3] bg-gray-100">
         {product.image_url ? (
           <Image
-            src={product.image_url}
+            src={getOptimizedImageUrl(product.image_url, IMAGE_SIZES.thumbnail)}
             alt={product.name}
             fill
             className="object-cover"

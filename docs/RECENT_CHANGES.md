@@ -1,5 +1,85 @@
 # Alterações Recentes - Sushi in Sushi
 
+## 📅 Data: 2026-03-07
+
+### Payment Methods Admin CRUD
+
+**Objectivo:** Permitir ao admin gerir metodos de pagamento (Dinheiro, Multibanco, MB Way, etc.) diretamente do painel de definicoes, sem necessidade de acesso direto a base de dados.
+
+**Clean Architecture completa:**
+- **Domain:** `PaymentMethod` entity + `IPaymentMethodRepository` interface
+- **Infrastructure:** `SupabasePaymentMethodRepository` com mapeamento snake_case/camelCase
+- **Application:** 4 use cases — `GetAllPaymentMethodsUseCase`, `CreatePaymentMethodUseCase`, `UpdatePaymentMethodUseCase`, `DeletePaymentMethodUseCase`
+- **API:** `GET/POST /api/payment-methods`, `PATCH/DELETE /api/payment-methods/[id]` (admin-only writes)
+- **Presentation:** `usePaymentMethods` hook + tab "Metodos de Pagamento" em `/admin/definicoes`
+- **Testes:** 17 testes unitarios para todos os use cases
+
+**Funcionalidades UI:**
+- Lista com toggle ativo/inativo inline
+- CRUD modal com nome, slug (auto-gerado), Vendus ID, ordem, estado
+- Validacao de slug unico
+- Confirmacao de eliminacao
+
+---
+
+### Offline/PWA System (Service Worker + IndexedDB + Background Sync)
+
+**Objectivo:** Implementar resiliencia offline para o sistema web, permitindo que pedidos feitos sem internet sejam guardados e reenviados automaticamente quando a conectividade regressa. Arquitectura preparada para portabilidade para React Native.
+
+**Mudancas:**
+- `public/sw.js` — Service Worker com Background Sync, 3 cache strategies:
+  - Stale-while-revalidate para `/api/products` e `/api/categories`
+  - Cache-first para assets estaticos (JS, CSS, imagens, fontes)
+  - Network-first com fallback offline para navegacao
+- `src/infrastructure/offline/OfflineQueue.ts` — Fila de requests offline com `StorageAdapter` interface (IndexedDB na web, swappable para AsyncStorage/SQLite no React Native)
+- `src/infrastructure/offline/offlineFetch.ts` — Drop-in `fetch()` replacement que enfileira mutacoes quando offline
+- `src/presentation/hooks/useOfflineQueue.ts` — Hook React com `useSyncExternalStore` para estado online/offline e contagem da fila
+- `src/presentation/components/ui/OfflineBanner.tsx` — Banner fixo top-of-page: vermelho quando offline, amber quando tem pedidos pendentes
+- `src/presentation/components/ServiceWorkerRegistrar.tsx` — Registo do SW (apenas em producao)
+- `src/app/offline/page.tsx` — Pagina fallback offline com detecao automatica de idioma, contagem de fila, e auto-reload ao reconectar
+- `src/presentation/providers/Providers.tsx` — Adicionados `OfflineBanner` e `ServiceWorkerRegistrar`
+
+**Documentacao:**
+- `docs/PLANO_MOBILE.md` — Nova seccao 9 "Comunicacao Offline e Alternativas de Rede" com analise de BLE, Wi-Fi Aware, Multipeer Connectivity, Nearby Connections, Local MQTT, e implementacao faseada
+
+---
+
+### Realtime Store (useSyncExternalStore + Broadcast + Postgres Changes)
+
+**Objectivo:** Sistema de notificacoes real-time sem useEffect para estado, platform-agnostic (portavel para React Native), com dual delivery (broadcast instantaneo + postgres_changes persistente).
+
+**Mudancas:**
+- `src/infrastructure/realtime/RealtimeStore.ts` — Store reativo com subscribe/getSnapshot (zero React imports)
+- `src/infrastructure/realtime/events.ts` — 15 eventos tipados: TableEvent (5), OrderEvent (3), WaiterCallEvent (3) + RealtimeEnvelope generic wrapper
+- `src/infrastructure/realtime/channels/table.ts` — Config para canal de mesas (postgres_changes em tables+sessions, broadcasts)
+- `src/infrastructure/realtime/channels/order.ts` — Config para canal de pedidos (com filtro por status)
+- `src/infrastructure/realtime/channels/waiter-call.ts` — Config para canal de chamadas
+- `src/presentation/hooks/useRealtimeStore.ts` — 3 variantes: useRealtimeStore, useRealtimeStoreEvents, useRealtimeStoreRef
+- `src/presentation/hooks/useRealtimeTable.ts` — broadcastOpenRequest, broadcastPreferences, auto-invalidacao React Query
+- `src/presentation/hooks/useRealtimeOrders.ts` — broadcastNewOrder, callbacks onNewOrder/onStatusChange
+- `src/presentation/hooks/useRealtimeWaiterCalls.ts` — broadcastCall, callback onNewCall
+- Testes: 22 tests RealtimeStore, 23 tests channels (table, order, waiter-call)
+
+---
+
+### Image Resize On-the-fly (Supabase Storage Transformations)
+
+**Objectivo:** Servir imagens de produtos redimensionadas automaticamente via Supabase Storage Transformations, melhorando performance sem duplicar ficheiros.
+
+**Mudancas:**
+- Utility `src/lib/image.ts` — `getOptimizedImageUrl()` converte URLs `/object/public/` para `/render/image/public/` com query params (width, height, quality, resize)
+- 3 presets: `thumbnail` (400px, q75), `detail` (800px, q80), `adminPreview` (200px, q70)
+- `next.config.js` — `remotePatterns` alargado para `/storage/v1/**` (suporta `/render/image/`)
+- Componentes atualizados:
+  - `ProductCard.tsx` — thumbnail preset
+  - `MenuContent.tsx` — thumbnail preset (static + hover)
+  - `ImageCarousel.tsx` — detail preset (single + multi)
+  - `admin/produtos/page.tsx` — adminPreview (table + grid + modal), removido `unoptimized`
+- URLs nao-Supabase passam inalteradas (fallback seguro)
+- CDN cache automatico apos primeiro request
+
+---
+
 ## 📅 Data: 2026-03-06
 
 ### Marketing Intelligence - Fase 1: Estrategia de Marketing

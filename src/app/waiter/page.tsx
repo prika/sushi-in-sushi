@@ -556,6 +556,11 @@ export default function WaiterDashboard() {
       event.preventDefault();
       event.stopPropagation();
 
+      // Use customer preferences if available
+      const table = tables.find((t) => t.id === tableId);
+      const isRodizio = table?.customer_requested_rodizio ?? false;
+      const numPeople = table?.customer_requested_num_people ?? 1;
+
       setOpeningTableId(tableId);
       try {
         const response = await fetch("/api/sessions", {
@@ -564,15 +569,18 @@ export default function WaiterDashboard() {
           credentials: "include",
           body: JSON.stringify({
             tableId,
-            isRodizio: false,
-            numPeople: 1,
+            isRodizio,
+            numPeople,
             orderingMode: "client",
           }),
         });
 
         if (!response.ok) {
           const result = await response.json().catch(() => ({}));
-          showToast("error", result.error || "Não foi possível abrir a mesa");
+          showToast(
+            "error",
+            result.error || "Não foi possível abrir a mesa",
+          );
           return;
         }
 
@@ -585,7 +593,7 @@ export default function WaiterDashboard() {
         setOpeningTableId(null);
       }
     },
-    [showToast],
+    [showToast, tables],
   );
 
   const handleDismissWaiting = useCallback(
@@ -1139,6 +1147,17 @@ export default function WaiterDashboard() {
                             <p className="text-xs text-gray-500 mb-1">
                               A esperar há {waitingMinutes}min
                             </p>
+                            {(table.customer_requested_rodizio !== null ||
+                              table.customer_requested_num_people) && (
+                              <p className="text-xs text-orange-200 mb-1">
+                                {table.customer_requested_rodizio
+                                  ? "Rodízio"
+                                  : "À La Carte"}
+                                {table.customer_requested_num_people
+                                  ? ` · ${table.customer_requested_num_people}p`
+                                  : ""}
+                              </p>
+                            )}
                             {table.assignedWaiterName && (
                               <p className="text-xs text-orange-300 mb-2">
                                 👤 {table.assignedWaiterName}

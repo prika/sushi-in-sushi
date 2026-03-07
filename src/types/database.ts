@@ -1878,6 +1878,8 @@ export type Table = TableBase & {
   current_session_id?: string | null;
   current_reservation_id?: string | null;
   customer_waiting_since?: string | null;
+  customer_requested_rodizio?: boolean | null;
+  customer_requested_num_people?: number | null;
 };
 
 // Table with full status from view

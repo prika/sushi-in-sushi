@@ -9,6 +9,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { BlurFade } from "@/presentation/components/ui/blur-fade";
 import { pushGTMEvent } from "@/presentation/hooks/useGTMEvent";
+import { getOptimizedImageUrl, IMAGE_SIZES } from "@/lib/image";
 
 interface MenuProduct {
   id: string;
@@ -139,7 +140,7 @@ function ProductCard({
           {product.imageUrl ? (
             <>
               <Image
-                src={product.imageUrl}
+                src={getOptimizedImageUrl(product.imageUrl, IMAGE_SIZES.thumbnail)}
                 alt={product.name}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
@@ -173,7 +174,7 @@ function ProductCard({
           {product.imageUrl ? (
             <>
               <Image
-                src={product.imageUrl}
+                src={getOptimizedImageUrl(product.imageUrl, IMAGE_SIZES.thumbnail)}
                 alt={product.name}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
