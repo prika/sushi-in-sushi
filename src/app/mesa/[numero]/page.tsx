@@ -25,7 +25,6 @@ import type {
   Session,
   OrderStatus,
   SessionCustomer,
-  SessionCustomerInsert,
 } from "@/types/database";
 import { useMesaLocale } from "@/presentation/contexts/MesaLocaleContext";
 import { getLocalized } from "@/lib/i18n/getLocalized";
@@ -35,6 +34,7 @@ import { GameHub } from "@/presentation/components/mesa/GameHub";
 import { ProductDetailSheet } from "@/presentation/components/mesa/ProductDetailSheet";
 import { ALLERGEN_EMOJI_MAP } from "@/lib/constants/allergens";
 import { CustomerIdentifyModal, type CustomerFormData } from "@/presentation/components/mesa/CustomerIdentifyModal";
+import { PaymentSheet } from "@/presentation/components/mesa/PaymentSheet";
 import { useSiteSettings } from "@/presentation/hooks/useSiteSettings";
 import { useRealtimeTable } from "@/presentation/hooks/useRealtimeTable";
 import { useGTMEvent } from "@/presentation/hooks/useGTMEvent";
@@ -258,13 +258,10 @@ function MesaPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
-  const [showBillModal, setShowBillModal] = useState(false);
-  const [isRequestingBill, setIsRequestingBill] = useState(false);
+  const [showPaymentSheet, setShowPaymentSheet] = useState(false);
   const [billRequested, setBillRequested] = useState(false);
   const [showLeaveTableModal, setShowLeaveTableModal] = useState(false);
   const [closeReason, setCloseReason] = useState("");
-  const [wantsNif, setWantsNif] = useState(false);
-  const [nifInput, setNifInput] = useState("");
   const [isLeavingTable, setIsLeavingTable] = useState(false);
 
   // Cooldown state
@@ -825,37 +822,6 @@ function MesaPageContent() {
     }
   }, [session?.id, fetchSessionCustomers]);
 
-  // Sync session_customer to loyalty program (customers table) so they appear in admin
-  const syncToLoyaltyCustomer = useCallback(
-    async (sessionCustomerId: string, emailTrim: string, formData: CustomerFormData) => {
-      const res = await fetch("/api/customers/from-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: emailTrim,
-          displayName: formData.display_name.trim(),
-          fullName: formData.full_name.trim() || null,
-          phone: formData.phone.trim() || null,
-          birthDate: formData.birth_date || null,
-          marketingConsent: formData.marketing_consent,
-          sessionCustomerId,
-        }),
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        console.error("[mesa] sync to customers failed:", res.status, errBody);
-        setError(
-          t("mesa.errors.syncLoyalty") ||
-            "Não foi possível sincronizar com o programa de fidelização. Verifique SUPABASE_SERVICE_ROLE_KEY no servidor.",
-        );
-        return null;
-      }
-      const { customerId } = (await res.json()) as { customerId: string };
-      return customerId;
-    },
-    [t],
-  );
-
   // Send verification code
   const sendVerificationCode = useCallback(
     async (
@@ -1014,67 +980,33 @@ function MesaPageContent() {
 
     try {
       if (isEditingCurrent && currentCustomer) {
-        // Atualizar perfil do session_customer atual (ex.: adicionar email)
-        const updatePayload: Record<string, unknown> = {
-          display_name: customerForm.display_name.trim(),
-          full_name: customerForm.full_name.trim() || null,
-          email: emailTrim || null,
-          phone: phoneTrim || null,
-          birth_date: customerForm.birth_date || null,
-          marketing_consent: customerForm.marketing_consent,
-          preferred_contact: customerForm.preferred_contact,
-          allergens: customerForm.allergens,
-        };
+        // Update existing session_customer via API (server-side, faster)
+        const res = await fetch("/api/mesa/register-customer", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerId: currentCustomer.id,
+            displayName: customerForm.display_name.trim(),
+            fullName: customerForm.full_name.trim(),
+            email: emailTrim,
+            phone: phoneTrim,
+            birthDate: customerForm.birth_date,
+            marketingConsent: customerForm.marketing_consent,
+            preferredContact: customerForm.preferred_contact,
+            allergens: customerForm.allergens,
+          }),
+        });
 
-        let { data: updated, error: updateError } = await supabase
-          .from("session_customers")
-          .update(updatePayload)
-          .eq("id", currentCustomer.id)
-          .select()
-          .single();
-
-        // Retry without allergens if column doesn't exist yet (migration 074)
-        if (updateError?.message?.includes("allergens")) {
-          delete updatePayload.allergens;
-          ({ data: updated, error: updateError } = await supabase
-            .from("session_customers")
-            .update(updatePayload)
-            .eq("id", currentCustomer.id)
-            .select()
-            .single());
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.error || "Failed to update profile");
         }
 
-        if (updateError) throw updateError;
-        if (!updated) throw new Error("No data returned from update");
-
-        const updatedCustomer = updated;
+        const { customer: updatedCustomer } = await res.json();
         setSessionCustomers((prev) =>
           prev.map((c) => (c.id === currentCustomer.id ? updatedCustomer : c)),
         );
         setCurrentCustomer(updatedCustomer);
-
-        // Sync to loyalty program BEFORE verification (so customer appears in admin)
-        if (emailTrim) {
-          const customerId = await syncToLoyaltyCustomer(
-            currentCustomer.id,
-            emailTrim,
-            customerForm,
-          );
-          if (customerId) {
-            setSessionCustomers((prev) =>
-              prev.map((c) =>
-                c.id === currentCustomer.id
-                  ? { ...c, customer_id: customerId }
-                  : c,
-              ),
-            );
-            setCurrentCustomer((prev) =>
-              prev?.id === currentCustomer.id
-                ? { ...prev, customer_id: customerId }
-                : prev,
-            );
-          }
-        }
 
         // Send verification if email or phone was added/changed
         if (emailChanged || phoneChanged) {
@@ -1096,16 +1028,12 @@ function MesaPageContent() {
             setIsRegistering(false);
             return;
           } else {
-            // Even if verification fails, continue with normal flow
             console.error("Failed to send verification:", result.error);
           }
         }
 
         setSuccessMessage(
-          emailTrim
-            ? t("mesa.success.profileSaved") ||
-                "Perfil guardado. Aparecerá no painel Clientes."
-            : t("mesa.success.profileSaved") || "Perfil guardado.",
+          t("mesa.success.profileSaved") || "Perfil guardado.",
         );
         setTimeout(() => setSuccessMessage(null), 3000);
         setShowCustomerModal(false);
@@ -1113,64 +1041,33 @@ function MesaPageContent() {
         return;
       }
 
-      // Inserir novo participante na sessão
-      const customerData: Record<string, unknown> = {
-        session_id: session.id,
-        display_name: customerForm.display_name.trim(),
-        full_name: customerForm.full_name.trim() || null,
-        email: emailTrim || null,
-        phone: customerForm.phone.trim() || null,
-        birth_date: customerForm.birth_date || null,
-        marketing_consent: customerForm.marketing_consent,
-        preferred_contact: customerForm.preferred_contact,
-        is_session_host: sessionCustomers.length === 0,
-        allergens: customerForm.allergens,
-      };
+      // Insert new session customer via API (server-side, faster)
+      const res = await fetch("/api/mesa/register-customer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: session.id,
+          displayName: customerForm.display_name.trim(),
+          fullName: customerForm.full_name.trim(),
+          email: emailTrim,
+          phone: phoneTrim,
+          birthDate: customerForm.birth_date,
+          marketingConsent: customerForm.marketing_consent,
+          preferredContact: customerForm.preferred_contact,
+          isSessionHost: sessionCustomers.length === 0,
+          allergens: customerForm.allergens,
+        }),
+      });
 
-      let { data, error: insertError } = await supabase
-        .from("session_customers")
-        .insert(customerData as SessionCustomerInsert)
-        .select()
-        .single();
-
-      // Retry without allergens if column doesn't exist yet (migration 074)
-      if (insertError?.message?.includes("allergens")) {
-        delete customerData.allergens;
-        ({ data, error: insertError } = await supabase
-          .from("session_customers")
-          .insert(customerData as SessionCustomerInsert)
-          .select()
-          .single());
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || "Failed to register");
       }
 
-      if (insertError) throw insertError;
-      if (!data) throw new Error("No data returned from insert");
-
-      const newCustomer = data;
+      const { customer: newCustomer } = await res.json();
       setSessionCustomers((prev) => [...prev, newCustomer]);
       setCurrentCustomer(newCustomer);
       localStorage.setItem(`customer_${session.id}`, newCustomer.id);
-
-      // Sync to loyalty program BEFORE verification (so customer appears in admin)
-      if (emailTrim) {
-        const customerId = await syncToLoyaltyCustomer(
-          newCustomer.id,
-          emailTrim,
-          customerForm,
-        );
-        if (customerId) {
-          setSessionCustomers((prev) =>
-            prev.map((c) =>
-              c.id === newCustomer.id ? { ...c, customer_id: customerId } : c,
-            ),
-          );
-          setCurrentCustomer((prev) =>
-            prev?.id === newCustomer.id
-              ? { ...prev, customer_id: customerId }
-              : prev,
-          );
-        }
-      }
 
       // Send verification if new customer has email or phone
       if (hasNewContact) {
@@ -1187,14 +1084,11 @@ function MesaPageContent() {
           setVerificationSessionCustomerId(newCustomer.id);
           setVerificationType(type);
           setVerificationContact(contact);
-
-          // Close customer modal and show verification modal
           setShowCustomerModal(false);
           setShowVerificationModal(true);
           setIsRegistering(false);
           return;
         } else {
-          // Even if verification fails, continue with normal flow
           console.error("Failed to send verification:", result.error);
         }
       }
@@ -1221,9 +1115,7 @@ function MesaPageContent() {
     session,
     sessionCustomers.length,
     currentCustomer,
-    supabase,
     t,
-    syncToLoyaltyCustomer,
     sendVerificationCode,
   ]);
 
@@ -1322,30 +1214,14 @@ function MesaPageContent() {
     t,
   ]);
 
-  // Request bill
-  const requestBill = useCallback(async () => {
+  // Request bill (waiter fallback — called from PaymentSheet "Chamar empregado")
+  const requestBillViaWaiter = useCallback(async () => {
     if (!session) return;
 
-    // Validate NIF if provided (Portuguese NIF: 9 digits)
-    const nif = wantsNif ? nifInput.trim() : undefined;
-    if (wantsNif && nif && !/^\d{9}$/.test(nif)) {
-      setError("NIF inválido. Deve ter 9 dígitos.");
-      setTimeout(() => setError(null), 5000);
-      return;
-    }
-
-    setIsRequestingBill(true);
-    setError(null);
-
     try {
-      const updateData: Record<string, unknown> = { status: "pending_payment" };
-      if (nif) {
-        updateData.customer_nif = nif;
-      }
-
       const { error: updateError } = await supabase
         .from("sessions")
-        .update(updateData)
+        .update({ status: "pending_payment" })
         .eq("id", session.id);
 
       if (updateError) throw updateError;
@@ -1354,18 +1230,28 @@ function MesaPageContent() {
         prev ? { ...prev, status: "pending_payment" } : null,
       );
       setBillRequested(true);
-      setShowBillModal(false);
-      setWantsNif(false);
-      setNifInput("");
+      setShowPaymentSheet(false);
       setSuccessMessage(t("mesa.success.billRequested"));
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
       console.error("Error requesting bill:", err);
       setError(t("mesa.errors.requestBill"));
-    } finally {
-      setIsRequestingBill(false);
     }
-  }, [session, supabase, t, wantsNif, nifInput]);
+  }, [session, supabase, t]);
+
+  // Handle successful Stripe payment
+  const handlePaymentSuccess = useCallback(() => {
+    setShowPaymentSheet(false);
+    setBillRequested(true);
+    setSession(null);
+    setSuccessMessage("Pagamento confirmado! Obrigado pela visita.");
+
+    // Redirect to welcome screen after delay
+    setTimeout(() => {
+      setStep("welcome");
+      setSuccessMessage(null);
+    }, 5000);
+  }, []);
 
   // Close/leave table via server-side API (bypasses RLS)
   const leaveTable = useCallback(async () => {
@@ -1950,9 +1836,12 @@ function MesaPageContent() {
                               matchingAllergens.length > 0;
 
                             return (
-                              <button
+                              <div
                                 key={product.id}
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => setSelectedProduct(product)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProduct(product); } }}
                                 aria-label={product.name}
                                 className={`relative bg-gray-900 rounded-xl overflow-hidden border-2 transition-all cursor-pointer text-left w-full ${
                                   hasAllergenWarning
@@ -2165,7 +2054,7 @@ function MesaPageContent() {
                                     )}
                                   </div>
                                 </div>
-                              </button>
+                              </div>
                             );
                           })}
                         </div>
@@ -2959,7 +2848,7 @@ function MesaPageContent() {
                 {/* Request Bill Button - Only when at least one order is delivered */}
                 {sessionOrders.some((o) => o.status === "delivered") ? (
                   <button
-                    onClick={() => setShowBillModal(true)}
+                    onClick={() => setShowPaymentSheet(true)}
                     disabled={billRequested}
                     className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-colors ${
                       billRequested
@@ -3008,7 +2897,7 @@ function MesaPageContent() {
                   (sessionOrders.length > 0 ? (
                     /* Request Bill Button - When orders exist but none delivered yet */
                     <button
-                      onClick={() => setShowBillModal(true)}
+                      onClick={() => setShowPaymentSheet(true)}
                       className="w-full py-4 rounded-xl font-semibold text-lg bg-[#D4AF37] text-black hover:bg-[#C4A030] transition-colors flex items-center justify-center gap-2"
                     >
                       <svg
@@ -3259,107 +3148,24 @@ function MesaPageContent() {
         </div>
       )}
 
-      {/* Bill Request Modal */}
-      {showBillModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Payment Sheet Modal (Stripe Self-Checkout) */}
+      {showPaymentSheet && session && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div
             className="absolute inset-0 bg-black/70"
-            onClick={() => setShowBillModal(false)}
+            onClick={() => setShowPaymentSheet(false)}
           />
 
-          <div className="relative bg-[#1A1A1A] rounded-2xl p-6 max-w-sm w-full animate-scale-up">
-            <h3 className="text-xl font-semibold mb-2">
-              {t("mesa.requestBill")}
-            </h3>
-            <p className="text-gray-400 mb-4">{t("mesa.confirmBill")}</p>
-
-            {session && (
-              <div className="bg-gray-900 rounded-xl p-4 mb-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">{t("mesa.totalToPay")}</span>
-                  <span className="text-2xl font-bold text-[#D4AF37]">
-                    €{(session.total_amount || 0).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* NIF / Contribuinte toggle */}
-            <div className="bg-gray-900 rounded-xl p-4 mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-300">
-                  {t("mesa.invoiceWithNif")}
-                </span>
-                <button
-                  onClick={() => setWantsNif(!wantsNif)}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${
-                    wantsNif ? "bg-[#D4AF37]" : "bg-gray-700"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                      wantsNif ? "translate-x-6" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </div>
-              {wantsNif && (
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={9}
-                  placeholder={t("mesa.nifPlaceholder")}
-                  value={nifInput}
-                  onChange={(e) =>
-                    setNifInput(e.target.value.replace(/\D/g, ""))
-                  }
-                  className="w-full mt-2 px-4 py-3 bg-gray-800 rounded-xl text-white placeholder-gray-500 text-lg tracking-wider text-center border border-gray-700 focus:border-[#D4AF37] focus:outline-none"
-                />
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowBillModal(false);
-                  setWantsNif(false);
-                  setNifInput("");
-                }}
-                className="flex-1 py-3 rounded-xl border-2 border-gray-700 text-gray-300 font-semibold hover:border-gray-600 transition-colors"
-              >
-                {t("mesa.cancel")}
-              </button>
-              <button
-                onClick={requestBill}
-                disabled={
-                  isRequestingBill ||
-                  (wantsNif && nifInput.length > 0 && nifInput.length !== 9)
-                }
-                className="flex-1 py-3 rounded-xl bg-[#D4AF37] text-black font-semibold hover:bg-[#C4A030] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isRequestingBill ? (
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                ) : (
-                  t("mesa.confirm")
-                )}
-              </button>
-            </div>
+          <div className="relative bg-[#1A1A1A] rounded-t-2xl sm:rounded-2xl p-6 max-w-sm w-full animate-scale-up max-h-[90vh] overflow-y-auto">
+            <PaymentSheet
+              sessionId={session.id}
+              subtotal={session.total_amount || 0}
+              isGuest={!currentCustomer?.customer_id}
+              sessionCustomerId={currentCustomer?.id ?? null}
+              onSuccess={handlePaymentSuccess}
+              onCallWaiter={requestBillViaWaiter}
+              onClose={() => setShowPaymentSheet(false)}
+            />
           </div>
         </div>
       )}

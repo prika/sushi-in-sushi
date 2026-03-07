@@ -45,20 +45,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Sessão não encontrada' }, { status: 404 });
     }
 
+    // Fetch waiter name for this table
+    const { data: waiterAssignment } = await supabase
+      .from('waiter_tables')
+      .select('staff:staff!inner(name)')
+      .eq('table_id', (session.table as { id: string }).id)
+      .limit(1)
+      .maybeSingle();
+
+    const waiterName = (waiterAssignment?.staff as { name: string } | null)?.name || null;
+
     // Fetch pending/preparing orders with product + category + zone
-    const { data: orders } = await supabase
+    const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select(`
-        id, quantity, notes,
+        id, quantity, notes, status,
         product:products!inner(
           name,
-          category:categories(
-            kitchen_zone:kitchen_zones(id, name, slug, color)
+          category:categories!category_id(
+            zone_id,
+            kitchen_zone:kitchen_zones!zone_id(id, name, slug, color)
           )
         )
       `)
       .eq('session_id', sessionId)
       .in('status', ['pending', 'preparing']);
+
+    if (ordersError) {
+      console.error('[API /kitchen/print] Orders query error:', ordersError);
+      return NextResponse.json({ error: ordersError.message }, { status: 500 });
+    }
 
     if (!orders || orders.length === 0) {
       return NextResponse.json({ message: 'Sem pedidos para imprimir', ticketCount: 0 });
@@ -76,6 +92,14 @@ export async function POST(request: NextRequest) {
       };
     });
 
+    // Log zone distribution for debugging
+    const zoneCounts = new Map<string, number>();
+    ordersForPrint.forEach(o => {
+      const key = o.zone?.name || 'Sem zona';
+      zoneCounts.set(key, (zoneCounts.get(key) || 0) + 1);
+    });
+    console.info('[API /kitchen/print] Zone distribution:', Object.fromEntries(zoneCounts));
+
     // Execute use case
     const restaurantRepo = new SupabaseRestaurantRepository(supabase);
     const vendusPrinter = new VendusKitchenPrinter();
@@ -86,13 +110,29 @@ export async function POST(request: NextRequest) {
       locationSlug,
       table: { name: table.name || `Mesa ${table.number}`, number: table.number },
       orders: ordersForPrint,
+      waiterName,
     });
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });
     }
 
-    return NextResponse.json(result.data);
+    // Auto-advance pending orders to "preparing" after successful print
+    const pendingOrderIds = orders
+      .filter((o: any) => o.status === 'pending')
+      .map((o: any) => o.id);
+
+    if (pendingOrderIds.length > 0) {
+      await supabase
+        .from('orders')
+        .update({ status: 'preparing', preparing_started_at: new Date().toISOString() })
+        .in('id', pendingOrderIds);
+    }
+
+    return NextResponse.json({
+      ...result.data,
+      advancedCount: pendingOrderIds.length,
+    });
   } catch (error) {
     console.error('[API /kitchen/print] Error:', error);
     return NextResponse.json({ error: 'Erro ao imprimir' }, { status: 500 });

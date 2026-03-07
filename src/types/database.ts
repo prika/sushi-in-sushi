@@ -71,6 +71,7 @@ export type Database = {
           number: number;
           name: string;
           location: string;
+          restaurant_id: string | null;
           status: "available" | "reserved" | "occupied" | "inactive";
           is_active: boolean;
           current_session_id: string | null;
@@ -86,6 +87,7 @@ export type Database = {
           number: number;
           name: string;
           location?: string;
+          restaurant_id?: string | null;
           status?: "available" | "reserved" | "occupied" | "inactive";
           is_active?: boolean;
           current_session_id?: string | null;
@@ -101,6 +103,7 @@ export type Database = {
           number?: number;
           name?: string;
           location?: string;
+          restaurant_id?: string | null;
           status?: "available" | "reserved" | "occupied" | "inactive";
           is_active?: boolean;
           current_session_id?: string | null;
@@ -272,6 +275,8 @@ export type Database = {
           notes: string | null;
           total_amount: number;
           ordering_mode: string;
+          payment_id: string | null;
+          paid_via: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -287,6 +292,8 @@ export type Database = {
           notes?: string | null;
           total_amount?: number;
           ordering_mode?: string;
+          payment_id?: string | null;
+          paid_via?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -302,6 +309,8 @@ export type Database = {
           notes?: string | null;
           total_amount?: number;
           ordering_mode?: string;
+          payment_id?: string | null;
+          paid_via?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1093,6 +1102,97 @@ export type Database = {
           },
         ];
       };
+      payments: {
+        Row: {
+          id: string;
+          session_id: string;
+          restaurant_id: string | null;
+          stripe_payment_intent_id: string | null;
+          stripe_charge_id: string | null;
+          stripe_receipt_url: string | null;
+          subtotal: number;
+          tip_amount: number;
+          total: number;
+          currency: string;
+          customer_nif: string | null;
+          customer_name: string | null;
+          customer_email: string | null;
+          status: string;
+          invoice_id: string | null;
+          payment_method_type: string | null;
+          error_message: string | null;
+          metadata: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          restaurant_id?: string | null;
+          stripe_payment_intent_id?: string | null;
+          stripe_charge_id?: string | null;
+          stripe_receipt_url?: string | null;
+          subtotal: number;
+          tip_amount?: number;
+          total: number;
+          currency?: string;
+          customer_nif?: string | null;
+          customer_name?: string | null;
+          customer_email?: string | null;
+          status?: string;
+          invoice_id?: string | null;
+          payment_method_type?: string | null;
+          error_message?: string | null;
+          metadata?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          restaurant_id?: string | null;
+          stripe_payment_intent_id?: string | null;
+          stripe_charge_id?: string | null;
+          stripe_receipt_url?: string | null;
+          subtotal?: number;
+          tip_amount?: number;
+          total?: number;
+          currency?: string;
+          customer_nif?: string | null;
+          customer_name?: string | null;
+          customer_email?: string | null;
+          status?: string;
+          invoice_id?: string | null;
+          payment_method_type?: string | null;
+          error_message?: string | null;
+          metadata?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payments_session_id_fkey";
+            columns: ["session_id"];
+            isOneToOne: false;
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_restaurant_id_fkey";
+            columns: ["restaurant_id"];
+            isOneToOne: false;
+            referencedRelation: "restaurants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: false;
+            referencedRelation: "invoices";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       payment_methods: {
         Row: {
           id: number;
@@ -1343,6 +1443,7 @@ export type Database = {
           same_day_reminder_delivered_at: string | null;
           same_day_reminder_opened_at: string | null;
           same_day_reminder_status: EmailStatus | null;
+          source: string | null;
         };
         Insert: {
           id?: string;
@@ -1361,6 +1462,7 @@ export type Database = {
           status?: string;
           customer_id?: string | null;
           marketing_consent?: boolean;
+          source?: string | null;
         };
         Update: {
           id?: string;
@@ -1405,6 +1507,7 @@ export type Database = {
           same_day_reminder_delivered_at?: string | null;
           same_day_reminder_opened_at?: string | null;
           same_day_reminder_status?: EmailStatus | null;
+          source?: string | null;
         };
         Relationships: [];
       };

@@ -82,8 +82,8 @@ export class SupabaseOrderRepositoryOptimized implements IOrderRepository {
           id,
           name,
           image_url,
-          category:categories(
-            kitchen_zone:kitchen_zones(id, name, slug, color)
+          category:categories!category_id(
+            kitchen_zone:kitchen_zones!zone_id(id, name, slug, color)
           )
         ),
         session:sessions!inner(

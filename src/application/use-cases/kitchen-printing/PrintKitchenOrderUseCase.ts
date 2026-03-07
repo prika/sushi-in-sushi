@@ -16,6 +16,7 @@ export interface PrintKitchenOrderInput {
   locationSlug: string;
   table: TableForPrint;
   orders: OrderForPrint[];
+  waiterName?: string | null;
 }
 
 export interface PrintKitchenOrderOutput {
@@ -33,7 +34,7 @@ export class PrintKitchenOrderUseCase {
 
   async execute(input: PrintKitchenOrderInput): Promise<Result<PrintKitchenOrderOutput>> {
     try {
-      const { locationSlug, table, orders } = input;
+      const { locationSlug, table, orders, waiterName } = input;
 
       if (orders.length === 0) {
         return Results.success({ mode: 'none', ticketCount: 0 });
@@ -53,8 +54,8 @@ export class PrintKitchenOrderUseCase {
 
       // Build tickets based on config
       const tickets = zoneSplitPrinting
-        ? KitchenPrintService.splitByZone(table, orders)
-        : [KitchenPrintService.combinedTicket(table, orders)];
+        ? KitchenPrintService.splitByZone(table, orders, waiterName)
+        : [KitchenPrintService.combinedTicket(table, orders, waiterName)];
 
       if (kitchenPrintMode === 'vendus') {
         const result = await this.vendusPrinter.printTickets(tickets, locationSlug);

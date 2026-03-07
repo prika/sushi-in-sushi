@@ -2,6 +2,33 @@
 
 ## 📅 Data: 2026-03-07
 
+### Stripe Self-Checkout na Mesa
+
+**Objectivo:** Permitir que clientes paguem diretamente no telemovel via Stripe, sem precisar de esperar pelo empregado. O empregado continua a poder fechar sessoes manualmente (cash, Multibanco, etc.).
+
+**Ficheiros criados:**
+- `src/lib/stripe.ts` — Singleton server-side Stripe client
+- `src/app/api/payments/create-intent/route.ts` — Cria Stripe PaymentIntent com idempotencia (reutiliza PI existente)
+- `src/app/api/webhooks/stripe/route.ts` — Webhook handler: payment_intent.succeeded (fatura Vendus + close session) e payment_failed
+- `src/app/api/payments/[sessionId]/status/route.ts` — Polling endpoint para cliente verificar estado
+- `src/presentation/components/mesa/PaymentSheet.tsx` — Componente 5-step: choice→tip→NIF→payment→success
+- `src/__tests__/integration/api/stripe-payments.test.ts` — 13 testes (create-intent, webhook, status)
+
+**Alteracoes em ficheiros existentes:**
+- `src/app/mesa/[numero]/page.tsx` — Substituido bill modal por PaymentSheet. Novo handler `requestBillViaWaiter` (fallback) e `handlePaymentSuccess`
+- `next.config.js` — CSP headers atualizados: `js.stripe.com` (script-src), `api.stripe.com` (connect-src), `js.stripe.com` (frame-src)
+- `package.json` — Adicionados: `stripe`, `@stripe/stripe-js`, `@stripe/react-stripe-js`
+
+**Principio Webhook-First:**
+- Pagamento so confirmado via webhook `payment_intent.succeeded`, nunca client-side
+- Fatura Vendus criada no webhook (subtotal sem gorjeta)
+- Sessao fechada via RPC `close_session_transactional`
+- Gorjeta nao entra na fatura (nao e tributavel)
+
+**Idempotencia:** PaymentIntent reutilizado se existir pending/processing para a sessao. Webhook verifica status antes de reprocessar.
+
+---
+
 ### Payment Methods Admin CRUD
 
 **Objectivo:** Permitir ao admin gerir metodos de pagamento (Dinheiro, Multibanco, MB Way, etc.) diretamente do painel de definicoes, sem necessidade de acesso direto a base de dados.

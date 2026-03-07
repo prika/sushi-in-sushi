@@ -988,10 +988,11 @@ export default function ProdutosPage() {
               {(product.imageUrl || (product.imageUrls?.length ?? 0) > 0) ? (
                 <div className="h-32 bg-gray-100 relative cursor-pointer" onClick={() => handleOpenModal(product, "imagens")}>
                   <Image
-                    src={getOptimizedImageUrl(product.imageUrl ?? product.imageUrls?.[0] ?? "", IMAGE_SIZES.thumbnail)}
+                    src={getOptimizedImageUrl(product.imageUrl ?? product.imageUrls?.[0] ?? "", IMAGE_SIZES.adminPreview)}
                     alt={product.name}
                     fill
                     className="object-cover"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   />
                   <div className="absolute top-2 left-2 flex gap-1">
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full shadow-sm ${
@@ -1347,6 +1348,7 @@ export default function ProdutosPage() {
                             alt=""
                             fill
                             className="object-cover"
+                            sizes="80px"
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = "none";
                             }}

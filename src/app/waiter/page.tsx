@@ -51,21 +51,37 @@ export default function WaiterDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [assigningTableId, setAssigningTableId] = useState<string | null>(null);
   const [openingTableId, setOpeningTableId] = useState<string | null>(null);
-  const [dismissingTableId, setDismissingTableId] = useState<string | null>(null);
+  const [dismissingTableId, setDismissingTableId] = useState<string | null>(
+    null,
+  );
   const [unassignedTables, setUnassignedTables] = useState<Table[]>([]);
-  const [dashboardTab, setDashboardTab] = useState<"ativas" | "disponiveis">("ativas");
-  // eslint-disable-next-line no-unused-vars
+  const [dashboardTab, setDashboardTab] = useState<"ativas" | "disponiveis">(
+    "ativas",
+  );
   const [upcomingReservations, setUpcomingReservations] = useState<any[]>([]);
-  const [autoAssignedReservations, setAutoAssignedReservations] = useState<any[]>([]);
-  const [selectedReservation, setSelectedReservation] = useState<any | null>(null);
+  const [autoAssignedReservations, setAutoAssignedReservations] = useState<
+    any[]
+  >([]);
+  const [selectedReservation, setSelectedReservation] = useState<any | null>(
+    null,
+  );
   const [showTableAssignModal, setShowTableAssignModal] = useState(false);
   const [primaryTableId, setPrimaryTableId] = useState<string | null>(null);
   const [additionalTableIds, setAdditionalTableIds] = useState<string[]>([]);
   const [assigningReservation, setAssigningReservation] = useState(false);
   const [allLocationTables, setAllLocationTables] = useState<Table[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState("all");
 
   // Use memoized supabase client to prevent real-time subscription issues
   const supabase = useMemo(() => createClient(), []);
+
+  // Build location options for admin selector
+  const locationOptions = useMemo(() => {
+    return [
+      { value: "all", label: "Todas" },
+      ...locations.map((loc) => ({ value: loc.slug, label: loc.name })),
+    ];
+  }, [locations]);
 
   // Helper to get location label
   const getLocationLabel = (location: string | null) => {
@@ -108,13 +124,14 @@ export default function WaiterDashboard() {
           }
         }
       } else {
-        // Admin sees all tables
-        const { data } = await supabase
-          .from("tables")
-          .select("*")
-          .eq("is_active", true)
-          .order("number");
+        // Admin sees all tables, optionally filtered by selected location
+        let query = supabase.from("tables").select("*").eq("is_active", true);
 
+        if (selectedLocation !== "all") {
+          query = query.eq("location", selectedLocation);
+        }
+
+        const { data } = await query.order("number");
         tableList = data || [];
       }
 
@@ -160,7 +177,11 @@ export default function WaiterDashboard() {
 
       // Fetch waiter assignments for waiting tables (no active session but customer_waiting_since)
       const waitingTableIds = tableList
-        .filter((t) => !sessions?.find((s) => s.table_id === t.id) && t.customer_waiting_since)
+        .filter(
+          (t) =>
+            !sessions?.find((s) => s.table_id === t.id) &&
+            t.customer_waiting_since,
+        )
         .map((t) => t.id);
 
       const waiterAssignments: Map<string, string> = new Map();
@@ -268,21 +289,31 @@ export default function WaiterDashboard() {
       }
 
       // Fetch upcoming reservations needing table assignment
-      if (user.location) {
+      // For waiters: use their assigned location; for admins: use selected location
+      const effectiveLocation =
+        user.role === "admin"
+          ? selectedLocation !== "all"
+            ? selectedLocation
+            : null
+          : user.location;
+
+      if (effectiveLocation) {
         try {
           const { data: settingsData } = await supabase
             .from("reservation_settings")
             .select("waiter_alert_minutes")
             .eq("id", 1)
             .maybeSingle();
-          const alertMinutes = (settingsData as Record<string, number> | null)?.waiter_alert_minutes || 60;
+          const alertMinutes =
+            (settingsData as Record<string, number> | null)
+              ?.waiter_alert_minutes || 60;
 
           const today = new Date().toISOString().split("T")[0];
           const { data: reservationsData } = await supabase
             .from("reservations")
             .select("*")
             .eq("reservation_date", today)
-            .eq("location", user.location)
+            .eq("location", effectiveLocation)
             .eq("status", "confirmed")
             .eq("tables_assigned", false)
             .order("reservation_time");
@@ -302,7 +333,7 @@ export default function WaiterDashboard() {
             const { data: allTablesData } = await supabase
               .from("tables")
               .select("*")
-              .eq("location", user.location)
+              .eq("location", effectiveLocation)
               .eq("is_active", true)
               .order("number");
             setAllLocationTables(allTablesData || []);
@@ -312,15 +343,29 @@ export default function WaiterDashboard() {
           // Get all reservation_tables rows for this waiter (primary + additional)
           const { data: autoReservationsData } = await (supabase as any)
             .from("reservation_tables")
-            .select("reservation_id, table_id, is_primary, reservations(*), tables(number)")
+            .select(
+              "reservation_id, table_id, is_primary, reservations(*), tables(number)",
+            )
             .eq("assigned_by", user.id);
 
           if (autoReservationsData && autoReservationsData.length > 0) {
             // Group by reservation_id to combine all tables per reservation
-            const resMap = new Map<string, { reservation: any; tables: { number: number; isPrimary: boolean }[] }>();
+            const resMap = new Map<
+              string,
+              {
+                reservation: any;
+                tables: { number: number; isPrimary: boolean }[];
+              }
+            >();
             for (const rt of autoReservationsData) {
               const res = rt.reservations;
-              if (!res || res.status !== "confirmed" || !res.tables_assigned || res.reservation_date !== today) continue;
+              if (
+                !res ||
+                res.status !== "confirmed" ||
+                !res.tables_assigned ||
+                res.reservation_date !== today
+              )
+                continue;
               if (!resMap.has(res.id)) {
                 resMap.set(res.id, { reservation: res, tables: [] });
               }
@@ -333,7 +378,11 @@ export default function WaiterDashboard() {
             const autoRes = Array.from(resMap.values())
               .map(({ reservation, tables }) => {
                 // Sort: primary first, then by number
-                tables.sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0) || a.number - b.number);
+                tables.sort(
+                  (a, b) =>
+                    (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0) ||
+                    a.number - b.number,
+                );
                 return {
                   ...reservation,
                   assigned_table_number: tables[0]?.number,
@@ -342,7 +391,9 @@ export default function WaiterDashboard() {
                 };
               })
               .filter((res: any) => {
-                const [h, m] = (res.reservation_time || "00:00").split(":").map(Number);
+                const [h, m] = (res.reservation_time || "00:00")
+                  .split(":")
+                  .map(Number);
                 const resTime = new Date(now);
                 resTime.setHours(h, m, 0, 0);
                 const diffMin = (resTime.getTime() - now.getTime()) / 60000;
@@ -390,7 +441,7 @@ export default function WaiterDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [user, supabase]);
+  }, [user, supabase, selectedLocation]);
 
   // Keep fetchDataRef updated
   useEffect(() => {
@@ -451,7 +502,11 @@ export default function WaiterDashboard() {
         })
         .eq("id", callId);
       if (!error) {
-        setWaiterCalls(prev => prev.map(c => c.id === callId ? { ...c, status: "acknowledged" } : c));
+        setWaiterCalls((prev) =>
+          prev.map((c) =>
+            c.id === callId ? { ...c, status: "acknowledged" } : c,
+          ),
+        );
       }
     },
     [user, supabase],
@@ -476,7 +531,7 @@ export default function WaiterDashboard() {
         }
 
         // Remove from local state immediately
-        setWaiterCalls(prev => prev.filter(c => c.id !== callId));
+        setWaiterCalls((prev) => prev.filter((c) => c.id !== callId));
 
         // If there's an associated order, mark it as delivered
         if (orderId) {
@@ -532,7 +587,10 @@ export default function WaiterDashboard() {
           } else if (result.code === "ALREADY_ASSIGNED") {
             showToast("warning", `Mesa já atribuída a ${result.assignedTo}`);
           } else {
-            showToast("error", result.error || "Não foi possível comandar a mesa");
+            showToast(
+              "error",
+              result.error || "Não foi possível comandar a mesa",
+            );
           }
           return;
         }
@@ -577,10 +635,7 @@ export default function WaiterDashboard() {
 
         if (!response.ok) {
           const result = await response.json().catch(() => ({}));
-          showToast(
-            "error",
-            result.error || "Não foi possível abrir a mesa",
-          );
+          showToast("error", result.error || "Não foi possível abrir a mesa");
           return;
         }
 
@@ -619,28 +674,34 @@ export default function WaiterDashboard() {
     [showToast],
   );
 
-  const handleOpenTableAssign = useCallback((reservation: Record<string, unknown>) => {
-    setSelectedReservation(reservation);
-    setPrimaryTableId(null);
-    setAdditionalTableIds([]);
-    setShowTableAssignModal(true);
-  }, []);
-
-  const handleTableClick = useCallback((tableId: string) => {
-    if (!primaryTableId) {
-      // First click → set as primary
-      setPrimaryTableId(tableId);
-    } else if (tableId === primaryTableId) {
-      // Click primary again → deselect
+  const handleOpenTableAssign = useCallback(
+    (reservation: Record<string, unknown>) => {
+      setSelectedReservation(reservation);
       setPrimaryTableId(null);
-    } else if (additionalTableIds.includes(tableId)) {
-      // Click additional → toggle off
-      setAdditionalTableIds((prev) => prev.filter((id) => id !== tableId));
-    } else {
-      // Click another → add as additional
-      setAdditionalTableIds((prev) => [...prev, tableId]);
-    }
-  }, [primaryTableId, additionalTableIds]);
+      setAdditionalTableIds([]);
+      setShowTableAssignModal(true);
+    },
+    [],
+  );
+
+  const handleTableClick = useCallback(
+    (tableId: string) => {
+      if (!primaryTableId) {
+        // First click → set as primary
+        setPrimaryTableId(tableId);
+      } else if (tableId === primaryTableId) {
+        // Click primary again → deselect
+        setPrimaryTableId(null);
+      } else if (additionalTableIds.includes(tableId)) {
+        // Click additional → toggle off
+        setAdditionalTableIds((prev) => prev.filter((id) => id !== tableId));
+      } else {
+        // Click another → add as additional
+        setAdditionalTableIds((prev) => [...prev, tableId]);
+      }
+    },
+    [primaryTableId, additionalTableIds],
+  );
 
   const handleAssignTables = useCallback(async () => {
     if (!selectedReservation || !primaryTableId || !user) return;
@@ -669,7 +730,9 @@ export default function WaiterDashboard() {
       if (tableError) throw tableError;
 
       // 3. Update reservation: tables_assigned = true, table_id = primary table number
-      const primaryTable = allLocationTables.find((t) => t.id === primaryTableId);
+      const primaryTable = allLocationTables.find(
+        (t) => t.id === primaryTableId,
+      );
       const { error: resError } = await (supabase as any)
         .from("reservations")
         .update({
@@ -693,7 +756,15 @@ export default function WaiterDashboard() {
     } finally {
       setAssigningReservation(false);
     }
-  }, [selectedReservation, primaryTableId, additionalTableIds, user, supabase, allLocationTables, showToast]);
+  }, [
+    selectedReservation,
+    primaryTableId,
+    additionalTableIds,
+    user,
+    supabase,
+    allLocationTables,
+    showToast,
+  ]);
 
   if (authLoading || isLoading) {
     return (
@@ -704,8 +775,12 @@ export default function WaiterDashboard() {
   }
 
   const activeTables = tables.filter((t) => t.activeSession);
-  const waitingTables = tables.filter((t) => !t.activeSession && t.customer_waiting_since);
-  const availableTables = tables.filter((t) => !t.activeSession && !t.customer_waiting_since);
+  const waitingTables = tables.filter(
+    (t) => !t.activeSession && t.customer_waiting_since,
+  );
+  const availableTables = tables.filter(
+    (t) => !t.activeSession && !t.customer_waiting_since,
+  );
 
   // Filter customer calls (excluding kitchen notifications)
   const customerCalls = waiterCalls.filter(
@@ -751,12 +826,32 @@ export default function WaiterDashboard() {
             <div>
               <h1 className="text-lg font-bold text-white">Painel da Garçom</h1>
               <p className="text-sm text-gray-400">
-                {user?.name} • {getLocationLabel(user?.location || null)}
+                {user?.name} •{" "}
+                {user?.role === "admin"
+                  ? selectedLocation === "all"
+                    ? "Todas as localizações"
+                    : getLocationLabel(selectedLocation)
+                  : getLocationLabel(user?.location || null)}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Location Selector — only admins can switch */}
+            {user?.role === "admin" && (
+              <select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                aria-label="Filtrar por localização"
+                className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#D4AF37] cursor-pointer"
+              >
+                {locationOptions.map((loc) => (
+                  <option key={loc.value} value={loc.value}>
+                    {loc.label}
+                  </option>
+                ))}
+              </select>
+            )}
             {user?.role === "admin" && (
               <Link
                 href="/admin"
@@ -864,21 +959,34 @@ export default function WaiterDashboard() {
             )}
 
             {/* Reservation Alerts */}
-            {(upcomingReservations.length > 0 || autoAssignedReservations.length > 0) && (
+            {(upcomingReservations.length > 0 ||
+              autoAssignedReservations.length > 0) && (
               <section className="mb-6">
                 <div className="bg-purple-500/10 rounded-xl border-2 border-purple-500/50 p-4">
                   <h2 className="text-base font-semibold text-purple-400 mb-3 flex items-center gap-2">
                     <span className="w-3 h-3 bg-purple-500 rounded-full animate-pulse" />
-                    Reservas Proximas ({upcomingReservations.length + autoAssignedReservations.length})
+                    Reservas Proximas (
+                    {upcomingReservations.length +
+                      autoAssignedReservations.length}
+                    )
                   </h2>
                   <div className="grid gap-2">
                     {/* Auto-assigned reservations - Prepare table alerts */}
                     {autoAssignedReservations.map((res) => {
-                      const [h, m] = (res.reservation_time || "00:00").split(":").map(Number);
+                      const [h, m] = (res.reservation_time || "00:00")
+                        .split(":")
+                        .map(Number);
                       const resTime = new Date();
                       resTime.setHours(h, m, 0, 0);
-                      const diffMin = Math.round((resTime.getTime() - Date.now()) / 60000);
-                      const timeLabel = diffMin > 0 ? `em ${diffMin}min` : diffMin === 0 ? "agora" : `${Math.abs(diffMin)}min atrasada`;
+                      const diffMin = Math.round(
+                        (resTime.getTime() - Date.now()) / 60000,
+                      );
+                      const timeLabel =
+                        diffMin > 0
+                          ? `em ${diffMin}min`
+                          : diffMin === 0
+                            ? "agora"
+                            : `${Math.abs(diffMin)}min atrasada`;
 
                       return (
                         <div
@@ -900,19 +1008,23 @@ export default function WaiterDashboard() {
                                 <span className="text-sm text-gray-400">
                                   {res.reservation_time}
                                 </span>
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                  diffMin > 0 ? "bg-green-500/20 text-green-300" : "bg-red-500/20 text-red-400"
-                                }`}>
+                                <span
+                                  className={`text-xs px-2 py-0.5 rounded-full ${
+                                    diffMin > 0
+                                      ? "bg-green-500/20 text-green-300"
+                                      : "bg-red-500/20 text-red-400"
+                                  }`}
+                                >
                                   {timeLabel}
                                 </span>
-                                {res.assigned_tables && res.assigned_tables.length > 0 && (
-                                  <span className="px-2 py-0.5 text-xs bg-[#D4AF37]/20 text-[#D4AF37] rounded-full">
-                                    {res.assigned_tables.length === 1
-                                      ? `Mesa ${res.assigned_tables[0].number}`
-                                      : `Mesas ${res.assigned_tables.map((t: any) => t.number).join(" + ")}`
-                                    }
-                                  </span>
-                                )}
+                                {res.assigned_tables &&
+                                  res.assigned_tables.length > 0 && (
+                                    <span className="px-2 py-0.5 text-xs bg-[#D4AF37]/20 text-[#D4AF37] rounded-full">
+                                      {res.assigned_tables.length === 1
+                                        ? `Mesa ${res.assigned_tables[0].number}`
+                                        : `Mesas ${res.assigned_tables.map((t: any) => t.number).join(" + ")}`}
+                                    </span>
+                                  )}
                                 {res.is_rodizio ? (
                                   <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">
                                     Rodizio
@@ -939,11 +1051,20 @@ export default function WaiterDashboard() {
 
                     {/* Manual reservations - Assign table */}
                     {upcomingReservations.map((res) => {
-                      const [h, m] = (res.reservation_time || "00:00").split(":").map(Number);
+                      const [h, m] = (res.reservation_time || "00:00")
+                        .split(":")
+                        .map(Number);
                       const resTime = new Date();
                       resTime.setHours(h, m, 0, 0);
-                      const diffMin = Math.round((resTime.getTime() - Date.now()) / 60000);
-                      const timeLabel = diffMin > 0 ? `em ${diffMin}min` : diffMin === 0 ? "agora" : `${Math.abs(diffMin)}min atrasada`;
+                      const diffMin = Math.round(
+                        (resTime.getTime() - Date.now()) / 60000,
+                      );
+                      const timeLabel =
+                        diffMin > 0
+                          ? `em ${diffMin}min`
+                          : diffMin === 0
+                            ? "agora"
+                            : `${Math.abs(diffMin)}min atrasada`;
 
                       return (
                         <div
@@ -962,9 +1083,13 @@ export default function WaiterDashboard() {
                                 <span className="text-sm text-gray-400">
                                   {res.reservation_time}
                                 </span>
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                  diffMin > 0 ? "bg-purple-500/20 text-purple-300" : "bg-red-500/20 text-red-400"
-                                }`}>
+                                <span
+                                  className={`text-xs px-2 py-0.5 rounded-full ${
+                                    diffMin > 0
+                                      ? "bg-purple-500/20 text-purple-300"
+                                      : "bg-red-500/20 text-red-400"
+                                  }`}
+                                >
                                   {timeLabel}
                                 </span>
                                 {res.is_rodizio ? (
@@ -1113,200 +1238,240 @@ export default function WaiterDashboard() {
                 {activeTables.length === 0 && waitingTables.length === 0 ? (
                   <div className="text-center py-12 bg-[#1a1a1a] rounded-xl border border-gray-800">
                     <div className="text-4xl mb-3">🍽️</div>
-                    <p className="text-gray-400">Nenhuma mesa ativa de momento</p>
+                    <p className="text-gray-400">
+                      Nenhuma mesa ativa de momento
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                  {/* Waiting Tables — orange, with Abrir Mesa button */}
-                  {waitingTables.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {waitingTables.map((table) => {
-                        const waitingSince = table.customer_waiting_since
-                          ? new Date(table.customer_waiting_since)
-                          : null;
-                        const waitingMinutes = waitingSince
-                          ? Math.floor((Date.now() - waitingSince.getTime()) / 60000)
-                          : 0;
+                    {/* Waiting Tables — orange, with Abrir Mesa button */}
+                    {waitingTables.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {waitingTables.map((table) => {
+                          const waitingSince = table.customer_waiting_since
+                            ? new Date(table.customer_waiting_since)
+                            : null;
+                          const waitingMinutes = waitingSince
+                            ? Math.floor(
+                                (Date.now() - waitingSince.getTime()) / 60000,
+                              )
+                            : 0;
 
-                        return (
-                          <div
-                            key={table.id}
-                            className="rounded-xl p-4 bg-orange-500/10 border-2 border-orange-500/50"
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <span className="text-2xl font-bold text-orange-400">
-                                #{table.number}
-                              </span>
-                              <span className="px-2 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded-full animate-pulse">
-                                Cliente a esperar
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-400 mb-2 truncate">
-                              {table.name}
-                            </p>
-                            <p className="text-xs text-gray-500 mb-1">
-                              A esperar há {waitingMinutes}min
-                            </p>
-                            {(table.customer_requested_rodizio !== null ||
-                              table.customer_requested_num_people) && (
-                              <p className="text-xs text-orange-200 mb-1">
-                                {table.customer_requested_rodizio
-                                  ? "Rodízio"
-                                  : "À La Carte"}
-                                {table.customer_requested_num_people
-                                  ? ` · ${table.customer_requested_num_people}p`
-                                  : ""}
-                              </p>
-                            )}
-                            {table.assignedWaiterName && (
-                              <p className="text-xs text-orange-300 mb-2">
-                                👤 {table.assignedWaiterName}
-                              </p>
-                            )}
-                            <div className="flex flex-col gap-2">
-                              <button
-                                onClick={(e) => handleOpenWaitingTable(table.id, table.number, e)}
-                                disabled={openingTableId === table.id}
-                                className="w-full px-3 py-2 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {openingTableId === table.id ? "A abrir..." : "Abrir Mesa"}
-                              </button>
-                              <button
-                                onClick={(e) => handleDismissWaiting(table.id, e)}
-                                disabled={dismissingTableId === table.id}
-                                className="w-full px-3 py-1.5 text-xs text-gray-400 hover:text-gray-300 transition-colors disabled:opacity-50"
-                              >
-                                {dismissingTableId === table.id ? "A dispensar..." : "Dispensar"}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Active Tables */}
-                  {activeTables.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {activeTables.map((table) => {
-                      const sessionStarted = table.activeSession?.started_at
-                        ? new Date(table.activeSession.started_at)
-                        : null;
-                      const minutesElapsed = sessionStarted
-                        ? Math.floor(
-                            (Date.now() - sessionStarted.getTime()) / 60000,
-                          )
-                        : 0;
-
-                      return (
-                        <Link
-                          key={table.id}
-                          href={`/waiter/mesa/${table.id}`}
-                          className="rounded-xl p-4 transition-all hover:scale-[1.02] bg-[#D4AF37]/10 border-2 border-[#D4AF37]/50 hover:border-[#D4AF37]"
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <span className="text-2xl font-bold text-[#D4AF37]">
-                              #{table.number}
-                            </span>
-                            {table.activeSession?.status === "pending_payment" ? (
-                              <span className="px-2 py-0.5 text-xs bg-red-500/20 text-red-400 rounded-full animate-pulse">
-                                Conta
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 text-xs bg-[#D4AF37]/20 text-[#D4AF37] rounded-full">
-                                Ativa
-                              </span>
-                            )}
-                          </div>
-
-                          <p className="text-sm text-gray-400 mb-2 truncate">
-                            {table.name}
-                          </p>
-
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <svg
-                                  className="w-4 h-4 text-gray-500"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
-                                  />
-                                </svg>
-                                <span className="text-sm text-white">
-                                  {table.activeSession?.num_people}p
+                          return (
+                            <div
+                              key={table.id}
+                              className="rounded-xl p-4 bg-orange-500/10 border-2 border-orange-500/50"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <span className="text-2xl font-bold text-orange-400">
+                                  #{table.number}
+                                </span>
+                                <span className="px-2 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded-full animate-pulse">
+                                  Cliente a esperar
                                 </span>
                               </div>
-                              <span className="text-xs text-gray-500">
-                                {minutesElapsed}min
-                              </span>
+                              <p className="text-sm text-gray-400 mb-2 truncate">
+                                {table.name}
+                              </p>
+                              <p className="text-xs text-gray-500 mb-1">
+                                A esperar há {waitingMinutes}min
+                              </p>
+                              {(table.customer_requested_rodizio !== null ||
+                                table.customer_requested_num_people) && (
+                                <p className="text-xs text-orange-200 mb-1">
+                                  {table.customer_requested_rodizio
+                                    ? "Rodízio"
+                                    : "À La Carte"}
+                                  {table.customer_requested_num_people
+                                    ? ` · ${table.customer_requested_num_people}p`
+                                    : ""}
+                                </p>
+                              )}
+                              {table.assignedWaiterName && (
+                                <p className="text-xs text-orange-300 mb-2">
+                                  👤 {table.assignedWaiterName}
+                                </p>
+                              )}
+                              <div className="flex flex-col gap-2">
+                                <button
+                                  onClick={(e) =>
+                                    handleOpenWaitingTable(
+                                      table.id,
+                                      table.number,
+                                      e,
+                                    )
+                                  }
+                                  disabled={openingTableId === table.id}
+                                  className="w-full px-3 py-2 text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {openingTableId === table.id
+                                    ? "A abrir..."
+                                    : "Abrir Mesa"}
+                                </button>
+                                <button
+                                  onClick={(e) =>
+                                    handleDismissWaiting(table.id, e)
+                                  }
+                                  disabled={dismissingTableId === table.id}
+                                  className="w-full px-3 py-1.5 text-xs text-gray-400 hover:text-gray-300 transition-colors disabled:opacity-50"
+                                >
+                                  {dismissingTableId === table.id
+                                    ? "A dispensar..."
+                                    : "Dispensar"}
+                                </button>
+                              </div>
                             </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
-                            {/* Customer Names */}
-                            {table.activeSession?.customers &&
-                              table.activeSession.customers.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {table.activeSession.customers
-                                    .slice(0, 3)
-                                    .map((customer) => (
-                                      <span
-                                        key={customer.id}
-                                        className={`px-2 py-0.5 text-xs rounded-full ${
-                                          customer.is_session_host
-                                            ? "bg-[#D4AF37]/30 text-[#D4AF37]"
-                                            : "bg-gray-700 text-gray-300"
-                                        }`}
-                                      >
-                                        {customer.display_name}
-                                      </span>
-                                    ))}
-                                  {table.activeSession.customers.length > 3 && (
-                                    <span className="px-2 py-0.5 text-xs bg-gray-700 text-gray-400 rounded-full">
-                                      +{table.activeSession.customers.length - 3}
+                    {/* Active Tables */}
+                    {activeTables.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {activeTables.map((table) => {
+                          const sessionStarted = table.activeSession?.started_at
+                            ? new Date(table.activeSession.started_at)
+                            : null;
+                          const minutesElapsed = sessionStarted
+                            ? Math.floor(
+                                (Date.now() - sessionStarted.getTime()) / 60000,
+                              )
+                            : 0;
+
+                          const hasReadyOrders = readyOrders.some(
+                            (o) => o.table_id === table.id,
+                          );
+                          const hasPendingCall = pendingCustomerCalls.some(
+                            (c) => c.table_id === table.id,
+                          );
+                          const isPendingPayment =
+                            table.activeSession?.status === "pending_payment";
+                          const needsAction =
+                            hasReadyOrders || hasPendingCall || isPendingPayment;
+
+                          return (
+                            <Link
+                              key={table.id}
+                              href={`/waiter/mesa/${table.id}`}
+                              className={`rounded-xl p-4 transition-all hover:scale-[1.02] ${
+                                needsAction
+                                  ? "bg-[#D4AF37]/10 border-2 border-[#D4AF37]/50 hover:border-[#D4AF37]"
+                                  : "bg-[#1a1a1a] border border-gray-700/50 hover:border-gray-600"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <span className="text-2xl font-bold text-[#D4AF37]">
+                                  #{table.number}
+                                </span>
+                                {table.activeSession?.status ===
+                                "pending_payment" ? (
+                                  <span className="px-2 py-0.5 text-xs bg-red-500/20 text-red-400 rounded-full animate-pulse">
+                                    Conta
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 text-xs bg-[#D4AF37]/20 text-[#D4AF37] rounded-full">
+                                    Ativa
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-sm text-gray-400 mb-2 truncate">
+                                {table.name}
+                              </p>
+
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <svg
+                                      className="w-4 h-4 text-gray-500"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+                                      />
+                                    </svg>
+                                    <span className="text-sm text-white">
+                                      {table.activeSession?.num_people}p
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-gray-500">
+                                    {minutesElapsed}min
+                                  </span>
+                                </div>
+
+                                {/* Customer Names */}
+                                {table.activeSession?.customers &&
+                                  table.activeSession.customers.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {table.activeSession.customers
+                                        .slice(0, 3)
+                                        .map((customer) => (
+                                          <span
+                                            key={customer.id}
+                                            className={`px-2 py-0.5 text-xs rounded-full ${
+                                              customer.is_session_host
+                                                ? "bg-[#D4AF37]/30 text-[#D4AF37]"
+                                                : "bg-gray-700 text-gray-300"
+                                            }`}
+                                          >
+                                            {customer.display_name}
+                                          </span>
+                                        ))}
+                                      {table.activeSession.customers.length >
+                                        3 && (
+                                        <span className="px-2 py-0.5 text-xs bg-gray-700 text-gray-400 rounded-full">
+                                          +
+                                          {table.activeSession.customers
+                                            .length - 3}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+
+                                <div className="flex gap-1">
+                                  {table.activeSession?.is_rodizio ? (
+                                    <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">
+                                      Rodízio
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded-full">
+                                      À Carta
                                     </span>
                                   )}
                                 </div>
-                              )}
-
-                            <div className="flex gap-1">
-                              {table.activeSession?.is_rodizio ? (
-                                <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">
-                                  Rodízio
-                                </span>
-                              ) : (
-                                <span className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded-full">
-                                  À Carta
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                  )}
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
             ) : (
               <section className="mb-8">
-                {availableTables.length === 0 && unassignedTables.length === 0 ? (
+                {availableTables.length === 0 &&
+                unassignedTables.length === 0 ? (
                   <div className="text-center py-12 bg-[#1a1a1a] rounded-xl border border-gray-800">
                     <div className="text-4xl mb-3">✨</div>
-                    <p className="text-gray-400">Todas as mesas estão ocupadas</p>
+                    <p className="text-gray-400">
+                      Todas as mesas estão ocupadas
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-6">
                     {/* My free tables */}
                     {availableTables.length > 0 && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-400 mb-3">Minhas Mesas Livres</h3>
+                        <h3 className="text-sm font-semibold text-gray-400 mb-3">
+                          Minhas Mesas Livres
+                        </h3>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                           {availableTables.map((table) => (
                             <Link
@@ -1339,7 +1504,9 @@ export default function WaiterDashboard() {
                     {/* Unassigned tables (waiter only) */}
                     {user?.role === "waiter" && unassignedTables.length > 0 && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-400 mb-3">Mesas Sem Garçom Atribuído</h3>
+                        <h3 className="text-sm font-semibold text-gray-400 mb-3">
+                          Mesas Sem Garçom Atribuído
+                        </h3>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                           {unassignedTables.map((table) => (
                             <div
@@ -1367,7 +1534,9 @@ export default function WaiterDashboard() {
                                 ) : (
                                   <span>👋</span>
                                 )}
-                                {assigningTableId === table.id ? "Comandando..." : "Comandar"}
+                                {assigningTableId === table.id
+                                  ? "Comandando..."
+                                  : "Comandar"}
                               </button>
                             </div>
                           ))}
@@ -1473,7 +1642,8 @@ export default function WaiterDashboard() {
             <div className="p-4 border-b border-gray-700">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-white">
-                  Atribuir Mesa — {selectedReservation.first_name} {selectedReservation.last_name}
+                  Atribuir Mesa — {selectedReservation.first_name}{" "}
+                  {selectedReservation.last_name}
                 </h2>
                 <button
                   onClick={() => setShowTableAssignModal(false)}
@@ -1509,8 +1679,10 @@ export default function WaiterDashboard() {
             {/* Instructions */}
             <div className="px-4 pt-4">
               <p className="text-sm text-gray-400">
-                1. Clique na mesa <strong className="text-[#D4AF37]">principal</strong> (dourado).
-                Depois clique em mesas adicionais para <strong className="text-blue-400">reservar</strong> (azul).
+                1. Clique na mesa{" "}
+                <strong className="text-[#D4AF37]">principal</strong> (dourado).
+                Depois clique em mesas adicionais para{" "}
+                <strong className="text-blue-400">reservar</strong> (azul).
               </p>
             </div>
 
@@ -1520,7 +1692,8 @@ export default function WaiterDashboard() {
                 {allLocationTables.map((table) => {
                   const isPrimary = primaryTableId === table.id;
                   const isAdditional = additionalTableIds.includes(table.id);
-                  const isOccupied = table.status === "occupied" || table.status === "reserved";
+                  const isOccupied =
+                    table.status === "occupied" || table.status === "reserved";
                   const isInactive = table.status === "inactive";
                   const isDisabled = isOccupied || isInactive;
 
@@ -1533,12 +1706,20 @@ export default function WaiterDashboard() {
                     borderColor = "border-[#D4AF37] border-2";
                     bgColor = "bg-[#D4AF37]/10";
                     textColor = "text-[#D4AF37]";
-                    badge = <span className="text-[10px] bg-[#D4AF37]/30 text-[#D4AF37] px-1.5 py-0.5 rounded-full">Principal</span>;
+                    badge = (
+                      <span className="text-[10px] bg-[#D4AF37]/30 text-[#D4AF37] px-1.5 py-0.5 rounded-full">
+                        Principal
+                      </span>
+                    );
                   } else if (isAdditional) {
                     borderColor = "border-blue-500 border-2";
                     bgColor = "bg-blue-500/10";
                     textColor = "text-blue-400";
-                    badge = <span className="text-[10px] bg-blue-500/30 text-blue-400 px-1.5 py-0.5 rounded-full">Reservada</span>;
+                    badge = (
+                      <span className="text-[10px] bg-blue-500/30 text-blue-400 px-1.5 py-0.5 rounded-full">
+                        Reservada
+                      </span>
+                    );
                   } else if (isDisabled) {
                     bgColor = "bg-gray-800/50";
                     textColor = "text-gray-600";
@@ -1551,7 +1732,9 @@ export default function WaiterDashboard() {
                       disabled={isDisabled}
                       onClick={() => handleTableClick(table.id)}
                       className={`rounded-xl p-3 border transition-all ${borderColor} ${bgColor} ${
-                        isDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:scale-105"
+                        isDisabled
+                          ? "cursor-not-allowed opacity-50"
+                          : "cursor-pointer hover:scale-105"
                       }`}
                     >
                       <div className="text-center">
@@ -1562,7 +1745,9 @@ export default function WaiterDashboard() {
                         {isOccupied && (
                           <div className="mt-1">
                             <span className="text-[10px] text-gray-500">
-                              {table.status === "reserved" ? "Reservada" : "Ocupada"}
+                              {table.status === "reserved"
+                                ? "Reservada"
+                                : "Ocupada"}
                             </span>
                           </div>
                         )}

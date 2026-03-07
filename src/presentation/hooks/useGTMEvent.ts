@@ -4,7 +4,11 @@ import { useCallback } from "react";
 
 interface GTMEventMap {
   reservation_started: { location?: string };
-  reservation_completed: { party_size?: number; location?: string; is_rodizio?: boolean };
+  reservation_completed: {
+    party_size?: number;
+    location?: string;
+    is_rodizio?: boolean;
+  };
   menu_view: { locale?: string };
   product_click: { product_name: string; category?: string };
   qr_scan: { table_number: number | string; location?: string };
@@ -45,7 +49,10 @@ export function useGTMEvent() {
 /**
  * Standalone function for use outside React components (e.g., API route handlers, utils).
  */
-export function pushGTMEvent<E extends GTMEventName>(event: E, params?: GTMEventMap[E]) {
+export function pushGTMEvent<E extends GTMEventName>(
+  event: E,
+  params?: GTMEventMap[E],
+) {
   if (typeof window === "undefined") return;
   window.dataLayer?.push({ event, ...params });
 }

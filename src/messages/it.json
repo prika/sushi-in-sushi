@@ -220,6 +220,10 @@
     "namePlaceholder": "Es.: Giovanni, Maria, Sig. Rossi...",
     "allergenQuestion": "Sei allergico a qualcuno di questi ingredienti?",
     "allergenWarning": "I prodotti contenenti questi allergeni saranno evidenziati nel menu.",
+    "accountBenefitsTitle": "Vantaggi dell'account",
+    "accountBenefit1": "Ordini piu veloci",
+    "accountBenefit2": "Regali di compleanno",
+    "accountBenefit3": "Offerte esclusive",
     "exclusiveBenefits": "Ottieni vantaggi esclusivi!",
     "benefitsDesc": "Compila i dati aggiuntivi e ricevi offerte speciali per il tuo compleanno e promozioni esclusive.",
     "additionalData": "Dati aggiuntivi (opzionale)",
@@ -408,7 +412,18 @@
         "sesame": "Sesamo",
         "sulphites": "Solfiti",
         "lupin": "Lupini",
-        "molluscs": "Molluschi"
+        "molluscs": "Molluschi",
+        "wheat": "Grano",
+        "shellfish": "Frutti di mare",
+        "buckwheat": "Grano saraceno",
+        "gelatin": "Gelatina",
+        "banana": "Banana",
+        "kiwi": "Kiwi",
+        "peach": "Pesca",
+        "apple": "Mela",
+        "raspberry": "Lampone",
+        "strawberry": "Fragola",
+        "passionfruit": "Frutto della passione"
       }
     }
   },

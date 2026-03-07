@@ -22,6 +22,7 @@ export class VendusKitchenPrinter implements IKitchenPrinter {
       const kitchenOrder = {
         table_name: ticket.tableName,
         table_number: ticket.tableNumber,
+        waiter_name: ticket.waiterName || undefined,
         zone_name: ticket.zoneName,
         items: ticket.items.map((item) => ({
           product_name: item.productName,

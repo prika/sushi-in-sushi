@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest) {
     // biome-ignore lint/suspicious/noExplicitAny: upsert_restaurant_hours not in generated types yet
     const { error: rpcError } = await (supabase as any).rpc("upsert_restaurant_hours", {
       p_slug: slug,
-      p_hours: JSON.stringify(hours),
+      p_hours: hours,
     });
 
     if (rpcError) {

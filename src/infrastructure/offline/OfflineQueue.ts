@@ -300,9 +300,7 @@ export class OfflineQueue {
   }
 
   private notifyListeners(): void {
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.listeners.forEach((listener) => listener());
   }
 }
 

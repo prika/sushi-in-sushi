@@ -12,6 +12,7 @@ export interface KitchenPrintItem {
 export interface KitchenPrintTicket {
   tableName: string;
   tableNumber: number | null;
+  waiterName: string | null;
   zoneName: string | null;
   zoneColor: string | null;
   items: KitchenPrintItem[];
@@ -43,6 +44,7 @@ export class KitchenPrintService {
   static splitByZone(
     table: TableForPrint,
     orders: OrderForPrint[],
+    waiterName?: string | null,
   ): KitchenPrintTicket[] {
     const now = new Date();
     const zoneMap = new Map<string, { zone: OrderForPrint['zone']; items: KitchenPrintItem[] }>();
@@ -64,6 +66,7 @@ export class KitchenPrintService {
     return Array.from(zoneMap.values()).map(({ zone, items }) => ({
       tableName: table.name,
       tableNumber: table.number,
+      waiterName: waiterName || null,
       zoneName: zone?.name || null,
       zoneColor: zone?.color || null,
       items,
@@ -77,10 +80,12 @@ export class KitchenPrintService {
   static combinedTicket(
     table: TableForPrint,
     orders: OrderForPrint[],
+    waiterName?: string | null,
   ): KitchenPrintTicket {
     return {
       tableName: table.name,
       tableNumber: table.number,
+      waiterName: waiterName || null,
       zoneName: null,
       zoneColor: null,
       items: orders.map((o) => ({

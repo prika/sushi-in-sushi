@@ -191,8 +191,8 @@ export async function POST(request: NextRequest) {
             id, quantity, notes,
             product:products!inner(
               name,
-              category:categories(
-                kitchen_zone:kitchen_zones(id, name, slug, color)
+              category:categories!category_id(
+                kitchen_zone:kitchen_zones!zone_id(id, name, slug, color)
               )
             )
           `)

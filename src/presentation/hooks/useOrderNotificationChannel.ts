@@ -4,13 +4,18 @@ import { useEffect, type MutableRefObject } from "react";
 import type { SupabaseClient, RealtimeChannel } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 
+/* eslint-disable no-unused-vars */
+type TranslationFn = (key: string, opts?: { name?: string; count?: number }) => string;
+type NotificationSetter = (value: string | null) => void;
+/* eslint-enable no-unused-vars */
+
 export interface UseOrderNotificationChannelParams {
   session: { id: string } | null;
-  step: "welcome" | "active";
+  step: string;
   supabase: SupabaseClient<Database>;
-  t: (_key: string, _opts?: { name?: string; count?: number }) => string;
+  t: TranslationFn;
   fetchSessionOrders: () => void;
-  setOrderNotification: (_value: string | null) => void;
+  setOrderNotification: NotificationSetter;
   channelRef: MutableRefObject<RealtimeChannel | null>;
   deviceId: string; // Current device ID to ignore own broadcasts
 }

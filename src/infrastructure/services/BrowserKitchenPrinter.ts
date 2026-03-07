@@ -72,6 +72,7 @@ export class BrowserKitchenPrinter implements IKitchenPrinter {
       <div style="width:72mm;font-family:monospace;padding:8px;">
         ${zoneHeader}
         <div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:8px;margin-bottom:8px;">
+          ${ticket.waiterName ? `<div style="font-size:11px;font-weight:bold;color:#444;margin-bottom:2px;">Atendente: ${escapeHtml(ticket.waiterName)}</div>` : ''}
           <div style="font-size:24px;font-weight:bold;">Mesa ${escapeHtml(String(ticket.tableNumber ?? ticket.tableName))}</div>
           <div style="font-size:12px;color:#666;">${time}</div>
         </div>

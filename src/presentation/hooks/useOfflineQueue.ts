@@ -94,9 +94,9 @@ export function useOfflineQueue() {
     };
 
     snapshotRef.current = newSnapshot;
-    for (const listener of listenersRef.current) {
+    listenersRef.current.forEach((listener) => {
       listener();
-    }
+    });
   }, [getQueue]);
 
   // Subscribe to queue changes + auto-sync

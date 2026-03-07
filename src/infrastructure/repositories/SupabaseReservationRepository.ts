@@ -38,6 +38,7 @@ interface DatabaseReservation {
   session_id: string | null;
   seated_at: string | null;
   marketing_consent: boolean;
+  source: string | null;
   created_at: string;
   updated_at: string;
 }
